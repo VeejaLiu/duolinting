@@ -1,0 +1,147 @@
+.study-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  /* 始终预留滚动条槽位，避免切换学习阶段时滚动条出现/消失导致内容宽度抖动 */
+  scrollbar-gutter: stable;
+  padding: 24px;
+}
+
+/* 学习区是纵向 flex 容器，子项默认 flex-shrink: 1：当某阶段内容超出视口时，
+   信息条/阶段导航/学习面板会被按比例压矮，且压缩量随阶段内容高度变化，
+   切换阶段时就会「抽动」。禁止压缩，超出部分统一由 .study-pane 滚动承担。 */
+.study-pane > * {
+  flex-shrink: 0;
+}
+
+/* 自定义滚动条，符合设计风格 */
+.study-pane::-webkit-scrollbar {
+  width: 6px;
+}
+
+.study-pane::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.study-pane::-webkit-scrollbar-thumb {
+  background: #c5d9eb;
+  border-radius: 3px;
+}
+
+.study-pane::-webkit-scrollbar-thumb:hover {
+  background: #1cb0f6;
+}
+
+.eyebrow {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 900;
+  margin: 0 0 8px;
+}
+
+.summary {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+  margin: 10px 0 0;
+  max-width: 780px;
+}
+
+.stage-rail {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.stage-step {
+  align-items: center;
+  background: #ffffff;
+  border: 2px solid #e4eef8;
+  border-radius: 20px;
+  color: #52637a;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 12px;
+  min-height: 78px;
+  padding: 13px 15px;
+  text-align: left;
+}
+
+.stage-step.active {
+  background: #fffdf3;
+  border-color: #ffd24d;
+  box-shadow: 0 6px 0 #f1c232;
+  color: #172033;
+}
+
+.stage-step.completed {
+  border-color: #58cc02;
+}
+
+.stage-number {
+  align-items: center;
+  background: #edf7ff;
+  border-radius: 16px;
+  color: #1cb0f6;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 16px;
+  font-weight: 900;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.stage-step.active .stage-number {
+  background: #ffdf55;
+  color: #7a5000;
+}
+
+.stage-step small {
+  color: #64748b;
+  display: block;
+  font-size: 12px;
+  font-weight: 900;
+  margin-bottom: 2px;
+}
+
+.stage-label {
+  align-items: baseline;
+  display: flex;
+  gap: 6px;
+}
+
+.stage-label strong {
+  color: #172033;
+  font-size: 16px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.stage-metric {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stage-step small {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.stage-board {
+  background: #ffffff;
+  border: 2px solid #e4eef8;
+  border-radius: 26px;
+  box-sizing: border-box;
+  box-shadow: 0 8px 0 #dcebf7;
+  min-height: 520px;
+  padding: 22px;
+  width: 100%;
+}

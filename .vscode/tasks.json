@@ -1,0 +1,134 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // 构建共享 packages（domain → app-config → ui-tokens → api-client → shared）。
+      // 各应用的运行都依赖它们的 dist 产物；
+      // 多个任务同时依赖本任务时，VSCode 只会执行一次。
+      "label": "Build: Packages",
+      "type": "shell",
+      "command": "npm run build --workspace @duolinting/domain && npm run build --workspace @duolinting/app-config && npm run build --workspace @duolinting/ui-tokens && npm run build --workspace @duolinting/api-client && npm run build --workspace @duolinting/shared",
+      "problemMatcher": []
+    },
+    {
+      "label": "Infra: Up (MySQL + MinIO)",
+      "type": "shell",
+      "command": "npm run infra:up",
+      "problemMatcher": []
+    },
+    {
+      "label": "Infra: Down",
+      "type": "shell",
+      "command": "npm run infra:down",
+      "problemMatcher": []
+    },
+    {
+      "label": "DB: Migrate (Flyway)",
+      "type": "shell",
+      "command": "npm run db:migrate",
+      "problemMatcher": []
+    },
+    {
+      // 直接在 backend 目录运行它自己的 dev 脚本（tsx watch src/app.ts）
+      "label": "Dev: Backend",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "dependsOn": ["Build: Packages"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      // web-app dev server 本体（一般不直接运行，由 Dev: Web App 组合任务拉起）
+      "label": "Server: Web App",
+      "type": "shell",
+      // 只有健康检查返回成功才启动 Vite，保证前端首次请求不会早于后端就绪。
+      "command": "until curl -sf -o /dev/null http://127.0.0.1:8100/api/health; do sleep 0.5; done; npm run dev",
+      "options": { "cwd": "${workspaceFolder}/web-app" },
+      "dependsOn": ["Build: Packages"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      // admin dev server 本体（一般不直接运行，由 Dev: Admin 组合任务拉起）
+      "label": "Server: Admin",
+      "type": "shell",
+      // 只有健康检查返回成功才启动 Vite，保证前端首次请求不会早于后端就绪。
+      "command": "until curl -sf -o /dev/null http://127.0.0.1:8100/api/health; do sleep 0.5; done; npm run dev",
+      "options": { "cwd": "${workspaceFolder}/admin" },
+      "dependsOn": ["Build: Packages"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      // 轮询等 web-app dev server 就绪后再用 Edge 打开，
+      // 避免浏览器先于服务启动导致连接失败
+      "label": "Open: Web App (Edge)",
+      "type": "shell",
+      "command": "until curl -sf -o /dev/null http://127.0.0.1:8101; do sleep 0.5; done; osascript '${workspaceFolder}/scripts/open-edge-url.applescript' http://127.0.0.1:8101 http://localhost:8101",
+      "problemMatcher": []
+    },
+    {
+      "label": "Open: Admin (Edge)",
+      "type": "shell",
+      "command": "until curl -sf -o /dev/null http://127.0.0.1:8102; do sleep 0.5; done; osascript '${workspaceFolder}/scripts/open-edge-url.applescript' http://127.0.0.1:8102 http://localhost:8102",
+      "problemMatcher": []
+    },
+    {
+      // 启动 web-app：dev server + 就绪后自动用 Edge 打开页面
+      "label": "Dev: Web App",
+      "dependsOrder": "parallel",
+      "dependsOn": ["Dev: Backend", "Server: Web App", "Open: Web App (Edge)"],
+      "problemMatcher": []
+    },
+    {
+      // 启动 admin：dev server + 就绪后自动用 Edge 打开页面
+      "label": "Dev: Admin",
+      "dependsOrder": "parallel",
+      "dependsOn": ["Dev: Backend", "Server: Admin", "Open: Admin (Edge)"],
+      "problemMatcher": []
+    },
+    {
+      // 不传 --web，避免 Expo 自动调用系统默认浏览器；由 Open: Mobile App (Edge) 统一打开。
+      "label": "Server: Mobile App",
+      "type": "shell",
+      // Expo 同样等待 API 健康检查，避免浏览器打开后立即请求失败。
+      // Expo 和设备端 console.error 都会同时写入 temp/expo-mobile.log，供错误追踪读取。
+      "command": "until curl -sf -o /dev/null http://127.0.0.1:8100/api/health; do sleep 0.5; done; npm run start:logged",
+      "options": { "cwd": "${workspaceFolder}/mobile-app" },
+      "dependsOn": ["Build: Packages"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      // 等待 Expo Web 服务可用，避免 Edge 在服务启动前访问失败。
+      "label": "Open: Mobile App (Edge)",
+      "type": "shell",
+      "command": "until curl -sf -o /dev/null http://127.0.0.1:8103; do sleep 0.5; done; osascript '${workspaceFolder}/scripts/open-edge-url.applescript' http://127.0.0.1:8103 http://localhost:8103",
+      "problemMatcher": []
+    },
+    {
+      // 启动 Expo Web 并在服务就绪后自动使用 Edge 打开移动端。
+      "label": "Dev: Mobile App (Expo)",
+      "dependsOrder": "parallel",
+      "dependsOn": ["Dev: Backend", "Server: Mobile App", "Open: Mobile App (Edge)"],
+      "problemMatcher": []
+    },
+    {
+      // 一键启动：并行拉起全部应用，每个应用在独立终端面板中运行
+      "label": "Start All",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Dev: Backend",
+        "Dev: Web App",
+        "Dev: Admin",
+        "Dev: Mobile App (Expo)"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

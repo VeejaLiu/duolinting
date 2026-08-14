@@ -1,0 +1,52 @@
+{
+  "name": "duolinting",
+  "private": true,
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "type": "module",
+  "workspaces": [
+    "backend",
+    "web-app",
+    "admin",
+    "mobile-app",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run build --workspace @duolinting/domain && npm run build --workspace @duolinting/app-config && npm run build --workspace @duolinting/ui-tokens && npm run build --workspace @duolinting/api-client && npm run build --workspace @duolinting/shared && concurrently -n backend,web-app,admin -c blue,green,magenta \"npm run dev --workspace @duolinting/backend\" \"npm run dev --workspace @duolinting/web-app\" \"npm run dev --workspace @duolinting/admin\"",
+    "dev:debug": "npm run build --workspace @duolinting/domain && npm run build --workspace @duolinting/app-config && npm run build --workspace @duolinting/ui-tokens && npm run build --workspace @duolinting/api-client && npm run build --workspace @duolinting/shared && concurrently -n backend,web-app,admin -c blue,green,magenta \"npm run dev:debug --workspace @duolinting/backend\" \"npm run dev:debug --workspace @duolinting/web-app\" \"npm run dev:debug --workspace @duolinting/admin\"",
+    "dev:backend": "npm run dev --workspace @duolinting/backend",
+    "dev:backend:debug": "npm run dev:debug --workspace @duolinting/backend",
+    "dev:web-app": "npm run dev --workspace @duolinting/web-app",
+    "dev:web-app:debug": "npm run dev:debug --workspace @duolinting/web-app",
+    "dev:app": "npm run dev:web-app",
+    "dev:mobile-app": "npm run build --workspace @duolinting/domain && npm run build --workspace @duolinting/app-config && npm run build --workspace @duolinting/ui-tokens && npm run build --workspace @duolinting/api-client && npm run build --workspace @duolinting/shared && npm run start:logged --workspace @duolinting/mobile-app",
+    "dev:admin": "npm run dev --workspace @duolinting/admin",
+    "dev:admin:debug": "npm run dev:debug --workspace @duolinting/admin",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "db:migrate": "docker compose --profile tools run --rm flyway",
+    "build": "npm run build --workspace @duolinting/domain && npm run build --workspace @duolinting/app-config && npm run build --workspace @duolinting/ui-tokens && npm run build --workspace @duolinting/api-client && npm run build --workspace @duolinting/shared && npm run build --workspace @duolinting/backend && npm run build --workspace @duolinting/web-app && npm run build --workspace @duolinting/admin",
+    "lint": "eslint .",
+    "preview:web-app": "npm run preview --workspace @duolinting/web-app",
+    "preview:app": "npm run preview:web-app",
+    "preview:admin": "npm run preview --workspace @duolinting/admin",
+    "typecheck": "npm run typecheck --workspace @duolinting/domain && npm run typecheck --workspace @duolinting/app-config && npm run typecheck --workspace @duolinting/ui-tokens && npm run typecheck --workspace @duolinting/api-client && npm run typecheck --workspace @duolinting/shared && npm run typecheck --workspace @duolinting/backend && npm run typecheck --workspace @duolinting/web-app && npm run typecheck --workspace @duolinting/admin"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^10.3.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.59.2",
+    "vite": "^8.0.12"
+  }
+}

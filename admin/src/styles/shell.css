@@ -1,0 +1,359 @@
+.app-shell {
+  background: #f4f6f8;
+  color: #1f2937;
+  min-height: 100vh;
+}
+
+.topbar {
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid #d7dde5;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  min-height: 64px;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.login-shell {
+  display: grid;
+  place-items: center;
+}
+
+.login-page {
+  display: grid;
+  gap: 24px;
+  max-width: 420px;
+  padding: 24px;
+  width: min(100%, 420px);
+}
+
+.login-brand {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.login-brand h1 {
+  color: #111827;
+  font-size: 24px;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.login-brand p {
+  color: #6b7280;
+  font-size: 13px;
+  margin: 5px 0 0;
+}
+
+.login-panel {
+  background: #ffffff;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+}
+
+.login-panel-head {
+  align-items: center;
+  color: #111827;
+  display: flex;
+  gap: 12px;
+}
+
+.login-panel-head h2 {
+  font-size: 18px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.login-panel-head p {
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+
+.brand-lockup {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 12px;
+}
+
+.brand-mark {
+  align-items: center;
+  background: #111827;
+  border-radius: 6px;
+  color: #ffffff;
+  display: grid;
+  height: 36px;
+  place-items: center;
+  width: 36px;
+}
+
+.brand-lockup h1 {
+  color: #111827;
+  font-size: 18px;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.brand-lockup p {
+  color: #6b7280;
+  font-size: 12px;
+  margin: 3px 0 0;
+}
+
+.topbar-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  min-width: 0;
+}
+
+.topbar-nav-slot {
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.admin-workspace-layout {
+  align-items: flex-start;
+  min-height: 100vh;
+}
+
+.admin-workspace-layout > .ant-layout-sider {
+  align-self: flex-start;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+.admin-workspace-layout > .ant-layout-sider .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 48px);
+}
+
+.admin-workspace-content.ant-layout-content {
+  min-width: 0;
+  padding: 20px 24px 32px;
+}
+
+.ant-layout-sider .ant-menu {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.ant-layout-sider .ant-menu.is-collapsed .ant-menu-title-content {
+  display: none;
+}
+
+.ant-layout-sider .ant-menu.is-collapsed .ant-menu-item,
+.ant-layout-sider .ant-menu.is-collapsed .ant-menu-submenu-title {
+  padding-inline: calc(50% - 8px);
+}
+
+.ant-layout-sider .ant-menu-item.admin-menu-brand {
+  color: #1f2937;
+  font-weight: 700;
+  margin-bottom: 16px;
+  opacity: 1;
+}
+
+.ant-layout-sider .ant-menu-item.admin-menu-brand.ant-menu-item-disabled {
+  color: #1f2937;
+}
+
+.ant-layout-sider .ant-menu-item.admin-menu-collapse {
+  align-items: center;
+  background: #f5f7fb;
+  border-radius: 6px;
+  color: #475569;
+  display: flex;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.ant-layout-sider .ant-menu-item.admin-menu-collapse:hover {
+  background: #eef8fe;
+  color: #0284c7;
+}
+
+.ant-layout-sider-collapsed .ant-menu-item.admin-menu-collapse {
+  padding-inline: calc(50% - 9px);
+}
+
+.ant-layout-sider .ant-menu-submenu.admin-menu-account {
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: auto;
+}
+
+.admin-section,
+.menu-editor-card,
+.menu-list-card,
+.subtitle-import,
+.line-editor,
+.generated-id-card {
+  background: #ffffff;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+}
+
+.admin-empty-state {
+  color: #4b5563;
+}
+
+.admin-empty-state p {
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.admin-section {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.panel-title {
+  align-items: center;
+  color: #111827;
+  display: flex;
+  font-size: 14px;
+  font-weight: 700;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.compact-title {
+  margin-bottom: 0;
+}
+
+.admin-toast {
+  align-items: center;
+  backdrop-filter: blur(14px);
+  background: rgba(17, 24, 39, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.28);
+  color: #ffffff;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 14px 14px 14px 12px;
+  position: fixed;
+  right: 16px;
+  top: 16px;
+  z-index: 40;
+}
+
+.admin-toast.info {
+  background: rgba(15, 23, 42, 0.94);
+}
+
+.admin-toast.success {
+  background: rgba(8, 58, 42, 0.95);
+}
+
+.admin-toast.error {
+  background: rgba(113, 18, 18, 0.96);
+}
+
+.admin-toast-icon {
+  align-items: center;
+  display: inline-flex;
+}
+
+.admin-toast p {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.admin-toast .icon-command {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.admin-modal-backdrop {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.42);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 16px;
+  position: fixed;
+  z-index: 45;
+}
+
+.admin-modal {
+  background: #ffffff;
+  border: 1px solid #d7dde5;
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+  display: grid;
+  gap: 18px;
+  max-width: 520px;
+  padding: 20px;
+  width: min(100%, 520px);
+}
+
+.admin-modal-head {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.admin-modal-icon {
+  align-items: center;
+  background: #eef2ff;
+  border-radius: 999px;
+  color: #1d4ed8;
+  display: inline-flex;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.admin-modal-icon.danger {
+  background: #fef2f2;
+  color: #b42318;
+}
+
+.admin-modal h2 {
+  color: #111827;
+  font-size: 18px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.admin-modal p {
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 6px 0 0;
+}
+
+.admin-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}

@@ -1,0 +1,6 @@
+button:hover,
+select:hover,
+input:hover,
+textarea:hover {
+  border-color: #1cb0f6;
+}

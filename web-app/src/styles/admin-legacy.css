@@ -1,0 +1,109 @@
+.admin-pane {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+
+.admin-header,
+.admin-section {
+  background: #ffffff;
+  border: 2px solid #e4eef8;
+  border-radius: 20px;
+}
+
+.admin-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  padding: 18px;
+}
+
+.admin-header h2 {
+  color: #172033;
+  font-size: 28px;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.admin-status {
+  background: #f8fbff;
+  border: 2px solid #e4eef8;
+  border-radius: 16px;
+  color: #52637a;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+  min-height: 42px;
+  padding: 10px 12px;
+}
+
+.admin-side {
+  display: grid;
+  flex: 0 0 min(360px, 38vw);
+  gap: 10px;
+}
+
+.admin-token-field {
+  margin-top: 0;
+}
+
+.admin-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+}
+
+.admin-section {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.form-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.course-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.field.wide {
+  grid-column: 1 / -1;
+}
+
+.code-textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.admin-footer {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.admin-footer span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+button:hover,
+select:hover,
+input:hover,
+textarea:hover {
+  border-color: #1cb0f6;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 4px solid rgba(28, 176, 246, 0.22);
+  outline-offset: 2px;
+}
+

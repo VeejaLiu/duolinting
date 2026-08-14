@@ -1,0 +1,30 @@
+{
+  "name": "@duolinting/admin",
+  "private": true,
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 8102",
+    "dev:debug": "vite --host 127.0.0.1 --port 8102",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4174",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.3.2",
+    "@duolinting/shared": "0.1.0",
+    "@radix-ui/react-dialog": "^1.1.16",
+    "@radix-ui/react-dropdown-menu": "^2.1.17",
+    "@radix-ui/react-popover": "^1.1.16",
+    "@radix-ui/react-select": "^2.3.0",
+    "@radix-ui/react-tabs": "^1.1.14",
+    "@radix-ui/react-tooltip": "^1.2.9",
+    "antd": "^6.5.1",
+    "lucide-react": "^1.17.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-router-dom": "^7.17.0",
+    "wavesurfer.js": "^7.12.7"
+  }
+}

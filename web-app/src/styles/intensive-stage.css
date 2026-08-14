@@ -1,0 +1,706 @@
+.intensive-board {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(310px, 0.95fr);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.difficult-review-board {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(310px, 0.95fr);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sentence-workbench {
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.review-workbench {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.lesson-media-card {
+  min-height: 80px;
+  position: relative;
+}
+
+.review-media-card {
+  min-height: 360px;
+}
+
+/* 浮动控制栏：叠加在媒体容器底部，样式不变仅移动位置 */
+.media-overlay-controls {
+  align-items: center;
+  background: linear-gradient(0deg, rgba(23, 32, 51, 0.78) 0%, rgba(23, 32, 51, 0.18) 80%, transparent 100%);
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  left: 0;
+  padding: 32px 10px 8px;
+  position: absolute;
+  right: 0;
+  z-index: 2;
+}
+
+/* 字幕叠加层：浮动在媒体容器顶部 */
+.media-subtitle-overlay {
+  background: linear-gradient(180deg, rgba(23, 32, 51, 0.82) 0%, rgba(23, 32, 51, 0.22) 70%, transparent 100%);
+  left: 0;
+  padding: 14px 16px 18px;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 2;
+}
+
+.subtitle-topline {
+  align-items: center;
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  font-size: 11px;
+  font-weight: 800;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.subtitle-text {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.45;
+  margin: 0;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+/* 揭晓字幕后的显著样式 */
+.subtitle-text.revealed {
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 10px;
+  font-size: 20px;
+  padding: 12px 16px;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+
+.subtitle-translation {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 4px 0 0;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* 揭晓后翻译同样放大 */
+.subtitle-translation.revealed {
+  font-size: 17px;
+  padding: 0 16px;
+}
+
+.subtitle-translation.hidden {
+  display: none;
+}
+
+.review-subtitle-overlay .subtitle-text.revealed {
+  font-size: 24px;
+}
+
+.review-empty-card {
+  align-items: center;
+  align-self: center;
+  background: #f8fbff;
+  border: 2px dashed #b8cfe4;
+  border-radius: 24px;
+  color: #52637a;
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  justify-self: center;
+  min-width: min(100%, 360px);
+  padding: 28px;
+  text-align: center;
+}
+
+.review-empty-card strong {
+  color: #172033;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.review-status-actions {
+  margin-top: 0;
+}
+
+.difficult-list .line-copy {
+  white-space: normal;
+}
+
+.sentence-card {
+  background: #f8fbff;
+  border: 2px solid #e4eef8;
+  border-radius: 24px;
+  display: grid;
+  grid-template-rows: auto minmax(72px, auto) minmax(58px, auto);
+  min-height: 220px;
+  padding: 22px;
+}
+
+.challenge-card {
+  background: linear-gradient(180deg, #ffffff, #f5fbff);
+}
+
+.perfect-hit-card {
+  animation: perfect-hit-card-pop 760ms ease-out;
+  border-color: #58cc02;
+  box-shadow: 0 0 0 4px rgba(88, 204, 2, 0.12), 0 14px 32px rgba(43, 122, 11, 0.14);
+}
+
+.sentence-topline {
+  align-items: center;
+  color: #64748b;
+  display: flex;
+  font-size: 13px;
+  font-weight: 900;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.sentence-text {
+  color: #172033;
+  font-size: 25px;
+  font-weight: 900;
+  line-height: 1.42;
+  margin: 0;
+  min-height: 72px;
+}
+
+.translation {
+  border-top: 2px dashed #dcebf7;
+  color: #52637a;
+  font-weight: 800;
+  line-height: 1.5;
+  margin: 14px 0 0;
+  min-height: 58px;
+  padding-top: 14px;
+}
+
+.translation.hidden {
+  visibility: hidden;
+}
+
+.sentence-controls {
+  align-items: center;
+  background: #ffffff;
+  border: 2px solid #e4eef8;
+  border-radius: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 10px;
+}
+
+.control-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.control-stack {
+  display: flex;
+}
+
+.icon-button {
+  align-items: center;
+  background: #ffffff;
+  border: 2px solid #dcebf7;
+  border-radius: 15px;
+  box-shadow: 0 4px 0 #d7e4ef;
+  color: #31415c;
+  display: inline-flex;
+  gap: 8px;
+  height: 42px;
+  justify-content: center;
+  min-width: 42px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.icon-button span {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.icon-button.primary.wide {
+  min-width: 130px;
+}
+
+.icon-button.primary {
+  background: #1cb0f6;
+  border-color: #1cb0f6;
+  box-shadow: 0 4px 0 #1488c4;
+  color: #ffffff;
+}
+
+.icon-button.active {
+  background: #ecffe4;
+  border-color: #58cc02;
+  box-shadow: 0 4px 0 #3ea000;
+  color: #2b7a0b;
+}
+
+.icon-button.reveal {
+  background: #fff7d6;
+  border-color: #ffdf55;
+  box-shadow: 0 4px 0 #f1c232;
+  color: #7a5000;
+}
+
+.icon-button.wide {
+  min-width: 96px;
+}
+
+.icon-button:disabled,
+.stage-step:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.rate-control {
+  align-items: center;
+  color: #52637a;
+  display: inline-flex;
+  gap: 8px;
+  min-height: 42px;
+  position: relative;
+}
+
+.compact-rate {
+  margin-left: auto;
+}
+
+.rate-trigger {
+  align-items: center;
+  background: #ffffff;
+  border: 2px solid #dcebf7;
+  border-radius: 14px;
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 10px;
+  width: 96px;
+}
+
+.rate-trigger.active {
+  border-color: #9fdfff;
+  box-shadow: 0 0 0 3px rgba(28, 176, 246, 0.12);
+}
+
+.rate-value {
+  min-width: 44px;
+  text-align: center;
+}
+
+.rate-trigger span {
+  color: #172033;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.rate-popover {
+  background: #ffffff;
+  border: 2px solid #dcebf7;
+  border-radius: 16px;
+  box-shadow: 0 16px 32px rgba(23, 32, 51, 0.14);
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  transform-origin: top right;
+  transition: opacity 120ms ease, transform 120ms ease;
+  width: 96px;
+  z-index: 12;
+}
+
+.rate-popover[data-state='open'] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.rate-popover[data-state='closed'] {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.rate-option {
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  color: #52637a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  min-height: 34px;
+  padding: 0 10px;
+  text-align: center;
+  width: 100%;
+}
+
+.rate-option:hover {
+  background: #f0f7ff;
+  color: #096d9f;
+}
+
+.rate-option.active {
+  background: #edf7ff;
+  color: #096d9f;
+}
+
+.control-tipline,
+.status-tipline {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  margin: 8px 0 0;
+}
+
+.status-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+  width: 100%;
+}
+
+.status-actions .pill {
+  align-items: center;
+  background: #f7fafd;
+  border: 2px solid #b8cfe4;
+  color: #3a5068;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 1;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 900;
+  gap: 8px;
+  justify-content: center;
+  letter-spacing: 0.03em;
+  min-height: 52px;
+  padding: 0 8px;
+}
+
+/* 左侧按钮：只有左边是全圆角 */
+.status-actions .pill:first-child {
+  border-radius: 999px 0 0 999px;
+}
+
+/* 右侧按钮：只有右边是全圆角 */
+.status-actions .pill:last-child {
+  border-radius: 0 999px 999px 0;
+}
+
+.pill.active {
+  background: #ffb300;
+  border: none;
+  color: #ffffff;
+}
+
+.pill.success {
+  background: #78ca3c;
+  border: none;
+  color: #ffffff;
+}
+
+.status-actions .pill:hover {
+  border-color: #1cb0f6;
+}
+
+/* 已选中状态 hover 不变 —— 与选中时外观完全相同 */
+.status-actions .pill.active:hover {
+  border: none;
+  background: #ffb300;
+  color: #ffffff;
+}
+
+.status-actions .pill.success:hover {
+  border: none;
+  background: #78ca3c;
+  color: #ffffff;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.field > span {
+  color: #31415c;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.field-heading {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.inline-status {
+  align-items: center;
+  background: #f1f5f9;
+  border: 1px solid #dcebf7;
+  border-radius: 999px;
+  color: #64748b;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  max-width: min(280px, 100%);
+  min-height: 26px;
+  overflow: hidden;
+  padding: 0 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 178px;
+}
+
+.inline-status.ok {
+  background: #ecffe4;
+  border-color: #58cc02;
+  color: #2b7a0b;
+}
+
+.inline-status.hidden {
+  visibility: hidden;
+}
+
+.field input,
+.field select,
+.field textarea {
+  background: #ffffff;
+  border: 2px solid #dcebf7;
+  border-radius: 18px;
+  color: #172033;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.45;
+  padding: 12px;
+}
+
+.field input,
+.field select {
+  min-height: 44px;
+}
+
+.field textarea {
+  resize: none;
+}
+
+.dictation-input-shell {
+  max-width: 100%;
+  min-height: 64px;
+  min-width: 0;
+  position: relative;
+}
+
+.dictation-input-shell textarea {
+  box-sizing: border-box;
+  height: 64px;
+  padding: 10px 12px 44px;
+  width: 100%;
+}
+
+/* 听写 textarea 滚动条美化 */
+.dictation-input-shell textarea::-webkit-scrollbar {
+  width: 5px;
+}
+
+.dictation-input-shell textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dictation-input-shell textarea::-webkit-scrollbar-thumb {
+  background: #cdeeff;
+  border-radius: 3px;
+}
+
+.inline-feedback-button {
+  background: #ffffff;
+  border: 2px solid #dcebf7;
+  border-radius: 999px;
+  bottom: 12px;
+  color: #52637a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  min-height: 32px;
+  padding: 0 12px;
+  position: absolute;
+  right: 12px;
+  white-space: nowrap;
+}
+
+.inline-feedback-button.hidden {
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* ===== 听写挑战卡片 ===== */
+
+.dictation-card {
+  background: #f8fbff;
+  border: 2px solid #e4eef8;
+  border-radius: 24px;
+  margin-top: 16px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 20px;
+}
+
+/* 标题行 */
+.dictation-header {
+  align-items: center;
+  color: #31415c;
+  display: flex;
+  font-size: 13px;
+  font-weight: 900;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.dictation-card .field {
+  gap: 4px;
+  margin-top: 0;
+}
+
+.dictation-header .inline-status {
+  flex-shrink: 1;
+  margin-left: auto;
+  width: auto;
+}
+
+/* 关键词区域：标签和列表同一行 */
+.keyword-section {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 0 12px;
+}
+
+.keyword-label {
+  color: #64748b;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.keyword-section .keyword-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.inline-feedback-button.submitted {
+  background: #ecffe4;
+  border-color: #58cc02;
+  color: #2b7a0b;
+}
+
+.inline-feedback-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+.dictation {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+  margin: 8px 0 0;
+}
+
+.dictation.ok {
+  color: #2b7a0b;
+  font-weight: 900;
+}
+
+@keyframes perfect-hit-card-pop {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.018);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.keyword-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.keyword-list button {
+  align-items: center;
+  background: #edf7ff;
+  border: 2px solid #cdeeff;
+  border-radius: 999px;
+  color: #096d9f;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 900;
+  gap: 5px;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+/* Radix Tooltip 自定义样式 */
+.custom-tooltip {
+  background: #1f2937;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  padding: 8px 12px;
+  user-select: none;
+}
+
+.custom-tooltip-label {
+  font-weight: 700;
+}
+
+.custom-tooltip-shortcut {
+  color: #9ca3af;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 3px;
+}
+
+.custom-tooltip-arrow {
+  fill: #1f2937;
+}

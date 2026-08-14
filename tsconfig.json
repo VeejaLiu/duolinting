@@ -1,0 +1,15 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/domain" },
+    { "path": "./packages/app-config" },
+    { "path": "./packages/ui-tokens" },
+    { "path": "./packages/api-client" },
+    { "path": "./packages/shared" },
+    { "path": "./backend" },
+    { "path": "./web-app/tsconfig.app.json" },
+    { "path": "./web-app/tsconfig.node.json" },
+    { "path": "./admin/tsconfig.app.json" },
+    { "path": "./admin/tsconfig.node.json" }
+  ]
+}

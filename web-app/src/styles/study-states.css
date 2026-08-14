@@ -1,0 +1,91 @@
+.empty-study-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-study-state .eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding: 6px 16px;
+  border-radius: 20px;
+}
+
+.empty-study-state h2 {
+  font-size: 24px;
+  font-weight: 900;
+  color: #172033;
+  margin-bottom: 12px;
+}
+
+.empty-study-state p {
+  font-size: 14px;
+  color: #6b7a90;
+  line-height: 1.6;
+  max-width: 320px;
+}
+
+.empty-study-state .icon-wrapper {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  font-size: 36px;
+  transition: transform 0.3s ease;
+}
+
+.empty-study-state .icon-wrapper:hover {
+  transform: scale(1.1);
+}
+
+.empty-study-state.empty .eyebrow {
+  background: #eef5ff;
+  color: #1cb0f6;
+}
+
+.empty-study-state.empty .icon-wrapper {
+  background: linear-gradient(135deg, #eef5ff, #d4e8ff);
+  color: #1cb0f6;
+}
+
+.empty-study-state.error .eyebrow {
+  background: #fff0f0;
+  color: #ff4d4f;
+}
+
+.empty-study-state.error .icon-wrapper {
+  background: linear-gradient(135deg, #fff0f0, #ffd6d6);
+  color: #ff4d4f;
+}
+
+.empty-study-state.loading .eyebrow {
+  background: #fffbe6;
+  color: #faad14;
+}
+
+.empty-study-state.loading .icon-wrapper {
+  background: linear-gradient(135deg, #fffbe6, #fff5d6);
+  color: #faad14;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.95);
+  }
+}

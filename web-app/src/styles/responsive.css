@@ -1,0 +1,105 @@
+@media (max-width: 1120px) {
+  .workspace,
+  .extensive-board,
+  .difficult-review-board,
+  .intensive-board,
+  .admin-grid,
+  .course-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .library-pane {
+    border-bottom: 2px solid #e4eef8;
+    border-right: 0;
+  }
+
+  .exercise-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .view-tabs {
+    overflow-x: auto;
+    padding: 8px 14px;
+  }
+
+  .workspace {
+    height: auto;
+  }
+
+  .admin-pane,
+  .study-pane,
+  .library-pane {
+    padding: 14px;
+  }
+
+  .admin-header {
+    flex-direction: column;
+  }
+
+  .admin-status,
+  .admin-side {
+    width: 100%;
+  }
+
+  .form-grid,
+  .series-grid,
+  .exercise-list,
+  .stage-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-card,
+  .stage-board {
+    border-radius: 20px;
+  }
+
+  .stage-main {
+    min-height: auto;
+  }
+
+  .stage-main h3 {
+    font-size: 28px;
+  }
+
+  .sentence-text {
+    font-size: 21px;
+  }
+
+  .sentence-controls {
+    align-items: stretch;
+  }
+
+  .control-cluster {
+    width: 100%;
+  }
+
+  .compact-rate {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .rate-popover {
+    left: 0;
+    right: auto;
+  }
+
+  .line-row {
+    grid-template-columns: 1fr;
+  }
+
+  .study-chapter-banner {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .study-chapter-banner-metrics {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}

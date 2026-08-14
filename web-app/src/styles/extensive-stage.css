@@ -1,0 +1,300 @@
+.extensive-board {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.65fr);
+  grid-template-rows: auto 1fr;
+}
+
+/* 标题区域：左列第 1 行 */
+.stage-header {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  gap: 8px;
+}
+
+.stage-eyebrow {
+  color: #58cc02;
+  font-size: 14px;
+  font-weight: 900;
+  margin: 0;
+}
+
+.stage-header h3 {
+  color: #172033;
+  font-size: 36px;
+  line-height: 1.12;
+  margin: 0;
+  max-width: 620px;
+}
+
+/* 媒体播放器：左列第 2 行 */
+.listen-visual {
+  background: #edf7ff;
+  border: 2px solid #cdeeff;
+  border-radius: 24px;
+  grid-column: 1;
+  grid-row: 2;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.listen-visual img {
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.92;
+  width: 100%;
+}
+
+.lesson-media {
+  display: block;
+  width: 100%;
+}
+
+.lesson-video {
+  aspect-ratio: 16 / 9;
+  background: #172033;
+  height: 100%;
+  object-fit: contain;
+}
+
+.lesson-media-card {
+  background: #edf7ff;
+  border: 2px solid #cdeeff;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.lesson-audio {
+  padding: 18px;
+}
+
+/* 浮动控制栏：叠加在媒体容器底部 */
+.listen-visual-controls {
+  align-items: center;
+  background: linear-gradient(0deg, rgba(23, 32, 51, 0.78) 0%, rgba(23, 32, 51, 0.18) 80%, transparent 100%);
+  bottom: 0;
+  display: flex;
+  gap: 10px;
+  left: 0;
+  padding: 32px 16px 12px;
+  position: absolute;
+  right: 0;
+  z-index: 2;
+}
+
+.media-play-btn {
+  align-items: center;
+  background: #58cc02;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 0 #46a302;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  gap: 5px;
+  min-height: 36px;
+  padding: 0 13px;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.media-play-btn:hover {
+  background: #6de00a;
+}
+
+.media-play-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #46a302;
+}
+
+.media-play-btn svg {
+  flex-shrink: 0;
+}
+
+.media-time-label {
+  color: rgba(255, 255, 255, 0.86);
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 叠加在媒体上的进度条 — 更细、半透明轨道 */
+.media-progress-track.overlay {
+  display: block;
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.media-progress-track.overlay input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  display: block;
+  margin: 0;
+  position: relative;
+  width: 100%;
+  z-index: 2;
+}
+
+.media-progress-track.overlay input[type='range']::-webkit-slider-runnable-track {
+  background: rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  height: 6px;
+}
+
+.media-progress-track.overlay input[type='range']::-moz-range-track {
+  background: rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  height: 6px;
+}
+
+.media-progress-track.overlay input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #ffffff;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+  height: 14px;
+  margin-top: -4px;
+  width: 14px;
+}
+
+.media-progress-track.overlay input[type='range']::-moz-range-thumb {
+  background: #ffffff;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+  height: 14px;
+  width: 14px;
+}
+
+.media-progress-track.overlay .media-progress-fill {
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  height: 6px;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.sr-only {
+  border: 0;
+  clip: rect(0, 0, 0, 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.command-button {
+  align-items: center;
+  background: #58cc02;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 5px 0 #46a302;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 900;
+  gap: 8px;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+}
+
+.command-button.large {
+  min-height: 52px;
+  padding: 0 22px;
+}
+
+.command-button.secondary {
+  background: #ffffff;
+  box-shadow: 0 5px 0 #d7e4ef;
+  color: #31415c;
+}
+
+.command-button:disabled {
+  background: #cbd5e1;
+  box-shadow: 0 5px 0 #aab8c7;
+  cursor: not-allowed;
+}
+
+/* ── 右侧进度卡（多邻国风格） ── */
+.stage-side {
+  background: #ffffff;
+  border: 2px solid #e4eef8;
+  border-radius: 24px;
+  min-width: 0;
+}
+
+.listen-progress-card {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  grid-column: 2;
+  grid-row: 2;
+  justify-content: center;
+  min-height: 0;
+  padding: 20px;
+  text-align: center;
+}
+
+.listen-progress-icon {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 80%;
+  max-width: 220px;
+}
+
+.listen-progress-icon svg {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.listen-progress-pct {
+  color: #58cc02;
+  font-size: clamp(32px, 7vw, 52px);
+  font-weight: 900;
+  left: 50%;
+  letter-spacing: -0.02em;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+}
+
+.listen-progress-cta {
+  width: 100% !important;
+  font-size: 16px;
+  min-height: 52px;
+  border-radius: 16px;
+}
+
+.listen-progress-step {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 800;
+  margin-top: 14px;
+}

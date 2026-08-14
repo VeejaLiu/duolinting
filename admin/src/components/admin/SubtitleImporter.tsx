@@ -1,0 +1,141 @@
+import { Minus, Plus, Upload } from 'lucide-react'
+import { useRef } from 'react'
+import type {
+  SubtitleDraftAnalysis,
+  SubtitleImportMode,
+} from '../../lib/mediaDraftTools'
+
+type SubtitleImporterProps = {
+  subtitleDraft: string
+  analysis: SubtitleDraftAnalysis
+  importMode: SubtitleImportMode
+  timeOffset: number
+  onSubtitleDraftChange: (value: string) => void
+  onImportModeChange: (value: SubtitleImportMode) => void
+  onImportSubtitle: () => void
+  onImportSubtitleFile: (file: File) => void
+  onTimeOffsetChange: (offset: number) => void
+}
+
+export function SubtitleImporter({
+  subtitleDraft,
+  analysis,
+  importMode,
+  timeOffset,
+  onSubtitleDraftChange,
+  onImportModeChange,
+  onImportSubtitle,
+  onImportSubtitleFile,
+  onTimeOffsetChange,
+}: SubtitleImporterProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const adjustOffset = (delta: number) => {
+    onTimeOffsetChange(timeOffset + delta)
+  }
+
+  return (
+    <details className="subtitle-import">
+      <summary>导入 SRT / VTT / ASS / LRC 草稿</summary>
+      <div className="row-actions inline-actions">
+        <input
+          ref={fileInputRef}
+          accept=".srt,.vtt,.ass,.lrc,.txt,text/plain"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            if (file) {
+              onImportSubtitleFile(file)
+            }
+            event.target.value = ''
+          }}
+          type="file"
+        />
+        <button
+          className="command-button secondary"
+          onClick={() => fileInputRef.current?.click()}
+          type="button"
+        >
+          <Upload size={15} aria-hidden="true" />
+          从文件导入
+        </button>
+      </div>
+      <label className="field">
+        <span>字幕文本</span>
+        <textarea
+          className="code-textarea"
+          rows={8}
+          value={subtitleDraft}
+          onChange={(event) => onSubtitleDraftChange(event.target.value)}
+          placeholder={'SRT: 00:00:01,000 --> 00:00:04,000\nFirst sentence.\n\nLRC: [00:01.00]First sentence.'}
+        />
+      </label>
+      {analysis.isLikelyBilingual && (
+        <div className="field">
+          <span>检测到双语字幕</span>
+          <div className="row-actions inline-actions">
+            <label className="mini-radio">
+              <input
+                checked={importMode === 'first-chinese'}
+                name="subtitle-import-mode"
+                onChange={() => onImportModeChange('first-chinese')}
+                type="radio"
+              />
+              <span>第一行是中文</span>
+            </label>
+            <label className="mini-radio">
+              <input
+                checked={importMode === 'second-chinese'}
+                name="subtitle-import-mode"
+                onChange={() => onImportModeChange('second-chinese')}
+                type="radio"
+              />
+              <span>第二行是中文</span>
+            </label>
+          </div>
+          <small>
+            共检测到 {analysis.blockCount} 段，其中 {analysis.bilingualBlockCount}{' '}
+            段符合双语两行结构。
+          </small>
+        </div>
+      )}
+      <div className="field inline-field">
+        <span>时间偏移</span>
+        <button
+          className="mini-command"
+          onClick={() => adjustOffset(-100)}
+          title="减 100ms"
+          type="button"
+        >
+          <Minus size={13} aria-hidden="true" />
+        </button>
+        <input
+          className="offset-input"
+          step="50"
+          type="number"
+          value={timeOffset}
+          onChange={(event) =>
+            // 输入非法（如清空后为 NaN）时回退为 0，避免后续偏移计算产生 NaN
+            onTimeOffsetChange(Number(event.target.value) || 0)
+          }
+        />
+        <small>ms</small>
+        <button
+          className="mini-command"
+          onClick={() => adjustOffset(100)}
+          title="加 100ms"
+          type="button"
+        >
+          <Plus size={13} aria-hidden="true" />
+        </button>
+      </div>
+      <button
+        className="command-button secondary"
+        onClick={onImportSubtitle}
+        type="button"
+      >
+        导入为逐句字幕
+      </button>
+    </details>
+  )
+}

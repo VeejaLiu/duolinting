@@ -1,0 +1,17 @@
+.git
+.gitignore
+.DS_Store
+.env
+.env.*
+!.env.example
+!.env.production.example
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/.expo
+**/.vite
+coverage
+*.log
+temp
+backups

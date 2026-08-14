@@ -1,0 +1,51 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  darkMode: 'class',
+  presets: [require('nativewind/preset')],
+  content: ['./app/**/*.{ts,tsx}', './src/**/*.{ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        brand: '#1cb0f6',
+        'brand-strong': '#0d8fcb',
+        success: '#58cc02',
+        danger: '#ff4b4b',
+        warning: '#ffb020',
+        surface: '#ffffff',
+        'surface-subtle': '#f7fafc',
+        'surface-raised': '#eef5fb',
+        border: '#d7e2ee',
+        'text-primary': '#172033',
+        'text-secondary': '#5b6577',
+        'text-muted': '#8191a6',
+      },
+      borderRadius: {
+        sm: 10,
+        md: 16,
+        lg: 24,
+        xl: 32,
+        pill: 999,
+      },
+      spacing: {
+        1: '4px',
+        2: '8px',
+        3: '12px',
+        4: '16px',
+        5: '20px',
+        6: '24px',
+        8: '32px',
+        10: '40px',
+        12: '48px',
+      },
+      fontSize: {
+        xs: '12px',
+        sm: '14px',
+        md: '16px',
+        lg: '18px',
+        xl: '24px',
+        '2xl': '32px',
+      },
+    },
+  },
+  plugins: [],
+}

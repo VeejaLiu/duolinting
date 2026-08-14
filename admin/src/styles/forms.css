@@ -1,0 +1,237 @@
+.form-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.course-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field.wide {
+  grid-column: 1 / -1;
+}
+
+.field span {
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.field input,
+.field select,
+.field textarea {
+  background: #ffffff;
+  border: 1px solid #cfd6df;
+  border-radius: 6px;
+  color: #111827;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  padding: 9px 10px;
+}
+
+.field input,
+.field select {
+  min-height: 38px;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+button:focus-visible {
+  border-color: #2563eb;
+  outline: 2px solid rgba(37, 99, 235, 0.16);
+  outline-offset: 1px;
+}
+
+.command-button,
+.mini-command,
+.line-select-button,
+.line-play-button,
+.line-delete-button,
+.icon-command {
+  align-items: center;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 6px;
+  justify-content: center;
+}
+
+.command-button,
+.mini-command {
+  background: #1f2937;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
+  color: #ffffff;
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+.command-button.secondary,
+.mini-command.secondary {
+  background: #ffffff;
+  border-color: #cfd6df;
+  color: #374151;
+}
+
+.command-button:hover,
+.mini-command:hover {
+  background: #374151;
+  border-color: #1cb0f6;
+}
+
+.command-button.secondary:hover,
+.mini-command.secondary:hover {
+  background: #f0f9ff;
+  border-color: #1cb0f6;
+  color: #0284c7;
+}
+
+.command-button:disabled,
+.mini-command:disabled,
+.icon-command:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-footer,
+.import-actions,
+.workbench-bottom-actions,
+.timeline-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.import-actions {
+  justify-content: space-between;
+}
+
+.workbench-bottom-actions {
+  justify-content: flex-end;
+}
+
+.htjson-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.htjson-dialog-overlay {
+  background: rgba(15, 23, 42, 0.48);
+  inset: 0;
+  position: fixed;
+  z-index: 30;
+}
+
+.htjson-dialog-content {
+  background: #ffffff;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+  display: grid;
+  gap: 12px;
+  left: 50%;
+  max-height: min(80vh, 720px);
+  max-width: min(720px, calc(100vw - 32px));
+  padding: 16px;
+  position: fixed;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  z-index: 31;
+}
+
+.htjson-dialog-header,
+.htjson-dialog-actions {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.htjson-dialog-title {
+  color: #111827;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.htjson-manual-textarea {
+  background: #ffffff;
+  border: 1px solid #cfd6df;
+  border-radius: 6px;
+  color: #111827;
+  font: 12px/1.5 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  min-height: 220px;
+  padding: 10px 12px;
+  resize: vertical;
+  width: 100%;
+}
+
+.htjson-manual-textarea:focus {
+  border-color: #2563eb;
+  outline: 2px solid rgba(37, 99, 235, 0.16);
+  outline-offset: 1px;
+}
+
+.htjson-dialog-hint {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.file-label {
+  cursor: pointer;
+  position: relative;
+}
+
+.file-label input[type="file"] {
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+}
+
+.admin-footer span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.generated-id-card {
+  align-content: center;
+  min-height: 74px;
+  padding: 10px;
+}
+
+.generated-id-card strong,
+.generated-id-card small {
+  display: block;
+}
+
+.generated-id-card strong {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.generated-id-card small {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 2px;
+}

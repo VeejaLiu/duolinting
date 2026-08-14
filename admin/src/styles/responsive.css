@@ -1,0 +1,19 @@
+@media (max-width: 1120px) {
+  .course-grid,
+  .import-layout,
+  .menu-admin-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .import-meta-sidebar {
+    position: static;
+  }
+
+  .admin-workspace-content { padding: 14px; }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
