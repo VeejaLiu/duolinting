@@ -165,6 +165,10 @@ npm run lint
 
 提交代码前请先阅读 [AGENTS.md](AGENTS.md)，其中记录了项目结构、数据库约束、前端约定和质量要求。
 
+## 社区
+
+感谢 [LINUX DO](https://linux.do) 为开源开发者提供交流与共建的平台。
+
 ## 贡献者名单 Contributors
 
 感谢每一位参与 DuolinTing 的贡献者：
