@@ -115,6 +115,29 @@
       "problemMatcher": []
     },
     {
+      // 官网为独立项目，不依赖后端、数据库或共享 packages。
+      "label": "Server: Official Site",
+      "type": "shell",
+      // vinext 依赖 Node.js 22.13+ 的 node:fs/promises glob API；
+      // 显式选择官网项目要求的版本，避免沿用工作区默认的旧版 Node。
+      "command": "source '${env:HOME}/.nvm/nvm.sh' && nvm exec 22.13.1 npm run dev",
+      "options": { "cwd": "${workspaceFolder}/official-site" },
+      "problemMatcher": []
+    },
+    {
+      // vinext 本地预览使用 IPv6 loopback，服务就绪后再打开 Edge。
+      "label": "Open: Official Site (Edge)",
+      "type": "shell",
+      "command": "until curl -g -sf -o /dev/null 'http://[::1]:3000'; do sleep 0.5; done; osascript '${workspaceFolder}/scripts/open-edge-url.applescript' 'http://[::1]:3000' http://localhost:3000",
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: Official Site",
+      "dependsOrder": "parallel",
+      "dependsOn": ["Server: Official Site", "Open: Official Site (Edge)"],
+      "problemMatcher": []
+    },
+    {
       // 一键启动：并行拉起全部应用，每个应用在独立终端面板中运行
       "label": "Start All",
       "dependsOrder": "parallel",
@@ -122,7 +145,8 @@
         "Dev: Backend",
         "Dev: Web App",
         "Dev: Admin",
-        "Dev: Mobile App (Expo)"
+        "Dev: Mobile App (Expo)",
+        "Dev: Official Site"
       ],
       "problemMatcher": [],
       "group": {
