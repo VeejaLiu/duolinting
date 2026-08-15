@@ -1,5 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import * as Select from '@radix-ui/react-select'
+import { Progress } from 'antd'
 import {
   Check,
   ChevronDown,
@@ -31,6 +32,7 @@ import type {
 } from '@duolinting/shared'
 import type { AdminNoticeTone } from './AdminFeedback'
 import { CoverImageField } from './CoverImageField'
+import type { FileUploadProgress } from '../../lib/apiClient'
 import { formatDurationLabel } from '../../lib/mediaDraftTools'
 
 type ClipboardPanelState =
@@ -94,6 +96,7 @@ type MediaCourseFormProps = {
   localMediaUrl: string
   mediaSize: number | null
   mediaFile: File | null
+  mediaUploadProgress: FileUploadProgress | null
   mediaRef: React.MutableRefObject<HTMLMediaElement | null>
   statusBar?: ReactNode
   subtitleImporter?: ReactNode
@@ -167,6 +170,7 @@ export function MediaCourseForm({
   localMediaUrl,
   mediaSize,
   mediaFile,
+  mediaUploadProgress,
   mediaRef,
   statusBar,
   subtitleImporter,
@@ -204,6 +208,16 @@ export function MediaCourseForm({
       : '选择一段真实音频或视频'
   const currentMediaSizeLabel =
     typeof mediaSize === 'number' && mediaSize > 0 ? formatFileSize(mediaSize) : ''
+  const mediaUploadLabel = mediaUploadProgress
+    ? mediaUploadProgress.percent === 100
+      ? '文件已发送，正在等待服务器确认'
+      : mediaUploadProgress.percent === null
+        ? '正在上传媒体'
+        : `正在上传媒体 ${mediaUploadProgress.percent}%`
+    : ''
+  const mediaUploadSizeLabel = mediaUploadProgress?.total
+    ? `${formatFileSize(Math.min(mediaUploadProgress.loaded, mediaUploadProgress.total))} / ${formatFileSize(mediaUploadProgress.total)}`
+    : ''
 
   const selectedGroupId = useMemo(() => {
     const matchedEntry = categoriesByGroup.find(({ categories }) =>
@@ -513,9 +527,22 @@ export function MediaCourseForm({
               {currentMediaSizeLabel && (
                 <span className="media-file-size">{currentMediaSizeLabel}</span>
               )}
+              {mediaUploadProgress && (
+                <span className="media-upload-progress" aria-live="polite">
+                  <span>{mediaUploadLabel}</span>
+                  {mediaUploadSizeLabel && <span>{mediaUploadSizeLabel}</span>}
+                  <Progress
+                    percent={mediaUploadProgress.percent ?? 0}
+                    showInfo={false}
+                    size="small"
+                    status={mediaUploadProgress.percent === 100 ? 'active' : 'normal'}
+                  />
+                </span>
+              )}
             </span>
             <input
               accept="audio/*,video/*"
+              disabled={isSaving || Boolean(mediaUploadProgress)}
               type="file"
               onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
             />

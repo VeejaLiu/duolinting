@@ -62,6 +62,15 @@ type ApiErrorBody = {
   }>
 }
 
+export type FileUploadProgress = {
+  // 已经由浏览器发送到服务端的请求体字节数。上传媒体时会略包含 multipart 边界开销。
+  loaded: number
+  // 浏览器可确定时使用请求体总字节数；否则退回为所选文件大小，供界面持续展示进度。
+  total: number | null
+  // 仅在总字节数已知且大于 0 时提供。100% 代表文件已发送，仍可能在等待服务端确认。
+  percent: number | null
+}
+
 const formatApiError = (errorBody: ApiErrorBody | undefined, status: number) => {
   const fieldErrors = errorBody?.errors
     ?.map((error) => [error.path, error.msg].filter(Boolean).join(': '))
@@ -112,29 +121,74 @@ const uploadFile = async <T>(
   fieldName: string,
   options?: {
     adminToken?: string
+    onProgress?: (progress: FileUploadProgress) => void
   },
 ): Promise<T> => {
   const formData = new FormData()
   formData.append(fieldName, file)
 
-  const response = await fetch(apiUrl(path), {
-    method: 'POST',
-    headers: {
-      ...(options?.adminToken
-        ? { authorization: `Bearer ${options.adminToken}` }
-        : {}),
-    },
-    body: formData,
+  // fetch 目前不会暴露浏览器上传请求体的进度事件。媒体文件可能较大，因此这里使用
+  // XMLHttpRequest 的 upload.onprogress，在不改变接口或 multipart 格式的前提下反馈进度。
+  return new Promise<T>((resolve, reject) => {
+    const request = new XMLHttpRequest()
+
+    const reportProgress = (loaded: number, total: number | null) => {
+      const resolvedTotal = total && total > 0 ? total : file.size || null
+      options?.onProgress?.({
+        loaded,
+        total: resolvedTotal,
+        percent:
+          resolvedTotal && resolvedTotal > 0
+            ? Math.min(100, Math.round((loaded / resolvedTotal) * 100))
+            : null,
+      })
+    }
+
+    request.upload.onprogress = (event) => {
+      reportProgress(
+        event.loaded,
+        event.lengthComputable && event.total > 0 ? event.total : null,
+      )
+    }
+    request.upload.onload = () => {
+      // 请求体已发送完毕，但请求本身尚未完成：服务端仍可能在校验或写入对象存储。
+      reportProgress(file.size, file.size)
+    }
+    request.onload = () => {
+      let body: T | ApiErrorBody | undefined
+      try {
+        body = request.responseText
+          ? (JSON.parse(request.responseText) as T | ApiErrorBody)
+          : undefined
+      } catch {
+        body = undefined
+      }
+
+      if (request.status >= 200 && request.status < 300) {
+        if (body === undefined) {
+          reject(new Error('上传接口返回了无法识别的响应'))
+          return
+        }
+        resolve(body as T)
+        return
+      }
+
+      reject(
+        new Error(
+          formatApiError(body as ApiErrorBody | undefined, request.status),
+        ),
+      )
+    }
+    request.onerror = () => reject(new Error('上传请求失败，请检查网络后重试'))
+    request.onabort = () => reject(new Error('上传已取消'))
+
+    request.open('POST', apiUrl(path))
+    if (options?.adminToken) {
+      request.setRequestHeader('authorization', `Bearer ${options.adminToken}`)
+    }
+    // 不手动设置 Content-Type，让浏览器带上 multipart boundary。
+    request.send(formData)
   })
-
-  if (!response.ok) {
-    const errorBody = (await response.json().catch(() => undefined)) as
-      | ApiErrorBody
-      | undefined
-    throw new Error(formatApiError(errorBody, response.status))
-  }
-
-  return response.json() as Promise<T>
 }
 
 const fetchApiResult = async <T>(
@@ -335,13 +389,23 @@ export const apiClient = {
       },
       { adminToken },
     ),
-  uploadMedia: (file: File, adminToken: string) =>
+  uploadMedia: (
+    file: File,
+    adminToken: string,
+    onProgress?: (progress: FileUploadProgress) => void,
+  ) =>
     uploadFile<MediaUploadResponse>('/api/v1/media/files', file, 'media', {
       adminToken,
+      onProgress,
     }),
-  uploadImage: (file: File, adminToken: string) =>
+  uploadImage: (
+    file: File,
+    adminToken: string,
+    onProgress?: (progress: FileUploadProgress) => void,
+  ) =>
     uploadFile<ImageUploadResponse>('/api/v1/media/files', file, 'media', {
       adminToken,
+      onProgress,
     }),
   getAcceptedAnswerFeedback: (
     adminToken: string,

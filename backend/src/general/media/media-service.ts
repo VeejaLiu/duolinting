@@ -130,20 +130,11 @@ export async function uploadMediaObject({
 
     logger.info(`[media] upload start file=${fileName} contentType=${contentType} size=${size}`);
 
-    // Compress images to save bandwidth
-    let uploadBuffer = buffer;
-    let uploadSize = size;
-    let storedContentType = contentType;
+    // 封面由 Admin 浏览器在上传前缩放并转为 JPEG，避免原图占用上行带宽。
+    // 后端仍解析一次元数据以拒绝伪造 MIME 类型或损坏的图片，但绝不在此重新编码。
     if (mediaType === 'image') {
         try {
-            const compressed = await sharp(buffer)
-                .resize({ width: 120, withoutEnlargement: true })
-                .jpeg({ quality: 80, mozjpeg: true })
-                .toBuffer();
-            uploadBuffer = compressed;
-            uploadSize = compressed.length;
-            storedContentType = 'image/jpeg';
-            logger.info(`[media] image compressed file=${fileName} original=${size} compressed=${uploadSize} saved=${Math.round((1 - uploadSize / size) * 100)}%`);
+            await sharp(buffer).metadata();
         } catch (error) {
             logger.warn(`[media] image validation failed file=${fileName} message=${error instanceof Error ? error.message : String(error)}`);
             throw new Error('Invalid image content', { cause: error });
@@ -157,18 +148,18 @@ export async function uploadMediaObject({
     }
 
     const objectName = buildObjectName(mediaType, contentType);
-    await objectStorage.putObject(env.minio.bucket, objectName, uploadBuffer, uploadSize, {
-        'Content-Type': storedContentType,
+    await objectStorage.putObject(env.minio.bucket, objectName, buffer, size, {
+        'Content-Type': contentType,
     });
-    logger.info(`[media] upload complete object=${objectName} mediaType=${mediaType} size=${uploadSize}`);
+    logger.info(`[media] upload complete object=${objectName} mediaType=${mediaType} size=${size}`);
 
     return {
         bucket: env.minio.bucket,
         objectName,
         publicUrl: buildPublicUrl(objectName),
-        contentType: storedContentType,
+        contentType,
         mediaType,
-        size: uploadSize,
+        size,
     };
 }
 
