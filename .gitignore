@@ -29,3 +29,7 @@ deployment-runbook.local.md
 *.sln
 *.sw?
 /temp/
+
+# Local Expo build metadata and signed store artifacts stay on the developer machine.
+/app.json
+/mobile-app/temp/
