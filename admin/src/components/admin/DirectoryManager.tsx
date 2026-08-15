@@ -270,9 +270,24 @@ export function DirectoryManager(props: DirectoryManagerProps) {
     onCancel={() => setActiveEditor(null)} onNotify={onNotify} onSave={onSave}
     onChange={(key, value) => onCategoryFormChange((current) => ({ ...current, [key]: value }))}
   />
-  const creatingCategoryGroup = activeEditor?.type === 'create-category'
+  const activeCategoryGroup = activeEditor?.type === 'create-category'
     ? categoryGroups.find((group) => group.id === activeEditor.groupId)
     : null
+  const activeEditorTitle = (() => {
+    if (activeEditor?.type === 'create-group') return '新建内容分类'
+    if (activeEditor?.type === 'edit-group') return '编辑内容分类'
+    if (activeEditor?.type === 'create-category') {
+      return `新建学习系列${activeCategoryGroup ? ` · ${activeCategoryGroup.name}` : ''}`
+    }
+    if (activeEditor?.type === 'edit-category') return '编辑学习系列'
+    return ''
+  })()
+  const activeEditorContent =
+    activeEditor?.type === 'create-group' || activeEditor?.type === 'edit-group'
+      ? groupForm(saveGroup)
+      : activeEditor?.type === 'create-category' || activeEditor?.type === 'edit-category'
+        ? categoryEditor(saveCategory)
+        : null
 
   const refreshDirectory = async () => {
     try {
@@ -301,7 +316,6 @@ export function DirectoryManager(props: DirectoryManagerProps) {
             dataSource={categoryGroups}
             renderItem={(group, groupIndex) => {
               const groupCategories = categories.filter((category) => category.groupId === group.id)
-              const groupEditing = activeEditor?.type === 'edit-group' && activeEditor.groupId === group.id
               return <List.Item className="directory-group-item">
                 <Space direction="vertical" size={12} style={{ width: '100%' }}>
                   <Flex align="center" gap={12} justify="space-between">
@@ -320,7 +334,6 @@ export function DirectoryManager(props: DirectoryManagerProps) {
                       <ActionButton disabled={isSaving} label="新建学习系列" onClick={() => { onCategoryFormChange(() => ({ groupId: group.id, name: '', description: '', accent: group.accent, coverImageUrl: '', sortOrder: 10 })); setActiveEditor({ type: 'create-category', groupId: group.id }) }}><Plus size={16} /></ActionButton>
                     </Space>
                   </Flex>
-                  {groupEditing && groupForm(saveGroup)}
                   <div className="directory-category-area">
                     <Flex align="center" justify="space-between">
                       <Typography.Text type="secondary">学习系列</Typography.Text>
@@ -331,7 +344,6 @@ export function DirectoryManager(props: DirectoryManagerProps) {
                         className="directory-category-list"
                         dataSource={groupCategories}
                         renderItem={(category, categoryIndex) => {
-                        const categoryEditing = activeEditor?.type === 'edit-category' && activeEditor.categoryId === category.id
                         return <List.Item>
                           <Space direction="vertical" size={12} style={{ width: '100%' }}>
                             <Flex align="center" gap={12} justify="space-between">
@@ -346,7 +358,6 @@ export function DirectoryManager(props: DirectoryManagerProps) {
                                 <ActionButton danger disabled={isSaving} label="删除学习系列" onClick={() => void confirmDeleteCategory(category)}><Trash2 size={16} /></ActionButton>
                               </Space>
                             </Flex>
-                            {categoryEditing && categoryEditor(saveCategory)}
                           </Space>
                         </List.Item>
                         }}
@@ -364,24 +375,12 @@ export function DirectoryManager(props: DirectoryManagerProps) {
         destroyOnHidden
         footer={null}
         onCancel={() => setActiveEditor(null)}
-        open={activeEditor?.type === 'create-group'}
+        open={activeEditor !== null}
         styles={{ body: { maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' } }}
-        title="新建内容分类"
+        title={activeEditorTitle}
         width="min(1200px, calc(100vw - 48px))"
       >
-        {groupForm(saveGroup)}
-      </Modal>
-      <Modal
-        className="directory-editor-modal"
-        destroyOnHidden
-        footer={null}
-        onCancel={() => setActiveEditor(null)}
-        open={Boolean(creatingCategoryGroup)}
-        styles={{ body: { maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' } }}
-        title={`新建学习系列${creatingCategoryGroup ? ` · ${creatingCategoryGroup.name}` : ''}`}
-        width="min(1200px, calc(100vw - 48px))"
-      >
-        {categoryEditor(saveCategory)}
+        {activeEditorContent}
       </Modal>
     </Card>
   )
