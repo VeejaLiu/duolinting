@@ -180,8 +180,7 @@
 
 .recorder-header,
 .recorder-controls,
-.recorder-settings,
-.recorder-checkbox {
+.recorder-settings {
   align-items: center;
   display: flex;
   gap: 10px;
@@ -197,8 +196,7 @@
   margin: 0;
 }
 
-.recorder-header p,
-.recorder-settings p {
+.recorder-header p {
   color: #6b7280;
   font-size: 13px;
   margin: 4px 0 0;
@@ -208,19 +206,82 @@
   background: #fff;
   border: 1px solid #d7dde5;
   border-radius: 8px;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(170px, .7fr) minmax(190px, .8fr) minmax(230px, 1fr) auto auto;
   padding: 12px;
 }
 
-.recorder-settings .field {
-  min-width: min(100%, 360px);
+.recorder-group-picker,
+.recorder-series-picker,
+.recorder-course-picker {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto minmax(220px, 440px);
+  min-width: 0;
 }
 
-.recorder-checkbox {
-  color: #374151;
+.recorder-settings-label {
+  color: #475569;
   font-size: 13px;
   font-weight: 700;
-  margin-top: 20px;
+  white-space: nowrap;
+}
+
+.recorder-course-select {
+  min-width: 0;
+}
+
+.recorder-course-status {
+  align-items: center;
+  color: #64748b;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.recorder-course-status .ant-tag {
+  font-weight: 700;
+  margin: 0;
+}
+
+.recorder-readiness-warning {
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 700;
+  grid-column: 3 / -1;
+  justify-self: end;
+}
+
+.recorder-translation-control {
+  align-items: center;
+  border-left: 1px solid #e2e8f0;
+  display: flex;
+  gap: 10px;
+  padding-left: 16px;
+}
+
+.recorder-translation-control > div {
+  display: grid;
+  gap: 2px;
+}
+
+.recorder-translation-control strong {
+  color: #334155;
+  font-size: 13px;
+}
+
+.recorder-translation-control span {
+  color: #94a3b8;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.recorder-locale-select {
+  min-width: 112px;
 }
 
 .recorder-stage-area {
@@ -235,41 +296,308 @@
 
 .recorder-canvas {
   aspect-ratio: 9 / 16;
-  background: linear-gradient(150deg, #263849, #0d1723);
-  background-position: center;
-  background-size: cover;
-  border-radius: 14px;
+  background: #050505;
+  border: 1px solid #202020;
+  border-radius: 18px;
   box-shadow: 0 18px 48px rgba(15, 23, 42, .28);
-  color: #fff;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   max-height: 680px;
   overflow: hidden;
-  padding: 22px;
   width: min(100%, 382px);
 }
 
-.recorder-canvas-top,
+.recorder-canvas-top {
+  align-items: center;
+  background: #050505;
+  border-bottom: 1px solid #242424;
+  color: #ffffff;
+  display: flex;
+  font-size: 12px;
+  font-weight: 800;
+  justify-content: space-between;
+  letter-spacing: .01em;
+  min-height: 86px;
+  padding: 13px 17px;
+}
+
+.recorder-brand {
+  align-items: center;
+  display: inline-flex;
+  gap: 11px;
+}
+
+.recorder-brand-logo {
+  align-items: center;
+  background: #ffffff;
+  border-radius: 12px;
+  display: inline-flex;
+  height: 56px;
+  justify-content: center;
+  padding: 6px;
+  width: 56px;
+}
+
+.recorder-brand-logo img {
+  display: block;
+  height: 42px;
+  object-fit: contain;
+  width: 42px;
+}
+
+.recorder-brand-copy {
+  display: grid;
+  gap: 3px;
+  line-height: 1;
+}
+
+.recorder-brand-copy strong {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.recorder-brand-copy small {
+  color: #a3a3a3;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.recorder-brand-copy .recorder-brand-url {
+  color: #7dd3fc;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.recorder-course-progress {
+  color: #a3a3a3;
+  font-variant-numeric: tabular-nums;
+}
+
+.recorder-canvas-body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  padding: 0;
+}
+
+.recorder-media-frame {
+  align-items: center;
+  background: transparent;
+  display: grid;
+  /* 默认以 16:9 展示；加载元数据后由课程视频自身宽高比替换，始终按原比例撑满画布宽度。 */
+  aspect-ratio: 16 / 9;
+  justify-items: center;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.recorder-media-frame.is-audio {
+  background:
+    radial-gradient(circle at 25% 20%, rgba(76, 157, 212, .55), transparent 42%),
+    linear-gradient(145deg, #102c42, #07121d 68%);
+}
+
+/* 横向视频按自身比例完整占满媒体框；纵向视频另有高度上限，给字幕区留出稳定空间。 */
+.recorder-video,
+.recorder-cover-image,
+.recorder-cover-blur {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.recorder-video { object-fit: fill; }
+
+.recorder-media-frame.is-vertical {
+  /* 至多占可用画布高度约四成；纵向片不会因为原始比例而吞掉字幕区。 */
+  aspect-ratio: auto;
+  background: #101010;
+  height: min(40vh, 42%);
+}
+
+.recorder-media-frame.is-vertical .recorder-video {
+  object-fit: contain;
+  position: relative;
+  z-index: 1;
+}
+
+/* 与前景同一时间轴的模糊视频填满横向余白，避免竖屏原片两侧出现生硬黑边。 */
+.recorder-video-blur {
+  filter: blur(22px);
+  height: calc(100% + 40px);
+  inset: -20px;
+  object-fit: cover;
+  opacity: .52;
+  position: absolute;
+  transform: scale(1.08);
+  width: calc(100% + 40px);
+}
+
+.recorder-cover-image {
+  object-fit: contain;
+  position: relative;
+  z-index: 1;
+}
+
+.recorder-cover-blur {
+  filter: blur(18px);
+  inset: -24px;
+  object-fit: cover;
+  opacity: .6;
+  position: absolute;
+  /* 放大模糊图，避免滤镜在媒体窗边缘留下透明细缝。 */
+  transform: scale(1.08);
+}
+
+.recorder-audio-placeholder {
+  align-items: end;
+  display: flex;
+  gap: 5px;
+  height: 42px;
+}
+
+.recorder-audio-placeholder::before,
+.recorder-audio-placeholder::after,
+.recorder-audio-placeholder span {
+  background: #a9e4ff;
+  border-radius: 999px;
+  content: '';
+  display: block;
+  width: 6px;
+}
+
+.recorder-audio-placeholder::before { height: 24px; }
+.recorder-audio-placeholder span { height: 42px; }
+.recorder-audio-placeholder::after { height: 31px; }
+
+.recorder-countdown {
+  align-items: center;
+  background: rgba(5, 12, 19, .68);
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: 999px;
+  color: #ffffff;
+  display: flex;
+  font-size: 64px;
+  height: 106px;
+  justify-content: center;
+  line-height: 1;
+  position: absolute;
+  width: 106px;
+}
+
+.recorder-learning-panel {
+  /* 媒体区限高后，学习信息应紧接媒体出现；不能在剩余区域垂直居中而留下大段空白。 */
+  align-content: start;
+  display: grid;
+  gap: 15px;
+  min-height: 0;
+  padding: 20px 21px 22px;
+  text-align: left;
+}
+
+.recorder-phase-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recorder-phase-badge {
+  background: #12354a;
+  border-radius: 999px;
+  color: #a9e4ff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 7px 9px;
+}
+
+.recorder-phase-badge.phase-complete { background: #153a2a; color: #a7f3d0; }
+.recorder-phase-badge.phase-countdown { background: #493409; color: #fde68a; }
+.recorder-round-label { color: #a3a3a3; font-size: 12px; font-weight: 700; }
+.recorder-course-title { color: #ffffff; font-size: 27px; font-weight: 900; letter-spacing: -.02em; line-height: 1.28; margin: 0; }
+.recorder-stage-copy { color: #c5c5c5; font-size: 15px; line-height: 1.65; margin: 0; }
+.recorder-listening-prompt { display: grid; gap: 5px; }
+.recorder-listening-prompt strong { color: #ffffff; font-size: 28px; font-weight: 900; letter-spacing: -.02em; line-height: 1.25; }
+.recorder-listening-prompt span { color: #b8b8b8; font-size: 15px; line-height: 1.5; }
+
+.recorder-transcript {
+  animation: recorder-transcript-enter .28s ease-out both;
+  background: #050505;
+  border: 0;
+  color: #ffffff;
+  display: grid;
+  gap: 13px;
+  padding: 0;
+}
+
+.recorder-transcript strong { font-size: clamp(27px, 7.2vw, 34px); font-weight: 900; letter-spacing: -.025em; line-height: 1.3; }
+.recorder-transcript span { color: #d4d4d4; font-size: 17px; font-weight: 700; line-height: 1.55; }
+.recorder-complete-copy { color: #a7f3d0; font-weight: 800; }
+
+@keyframes recorder-transcript-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .recorder-canvas-footer {
+  align-items: center;
+  background: #050505;
+  border-top: 1px solid #242424;
+  color: #c4c4c4;
   display: flex;
   font-size: 11px;
   font-weight: 800;
-  justify-content: space-between;
-  letter-spacing: .08em;
+  gap: 10px;
+  min-height: 49px;
+  padding: 10px 14px;
 }
 
-.recorder-canvas-top span:last-child { color: #7dd3fc; }
-.recorder-canvas-content { align-self: center; display: grid; gap: 16px; text-align: center; }
-.recorder-course-title { font-size: 24px; font-weight: 800; line-height: 1.28; margin: 0; }
-.recorder-stage-copy { color: #e0f2fe; font-size: 16px; line-height: 1.6; margin: 0; }
-.recorder-countdown { font-size: 96px; line-height: 1; }
-.recorder-transcript { background: rgba(255, 255, 255, .96); border-radius: 12px; color: #172033; display: grid; gap: 10px; padding: 18px; text-align: left; }
-.recorder-transcript strong { font-size: 21px; line-height: 1.5; }
-.recorder-transcript span { color: #526174; font-size: 15px; line-height: 1.5; }
-.recorder-media { display: none; }
+.recorder-progress-track {
+  background: #292929;
+  border-radius: 999px;
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+}
+
+.recorder-progress-track span {
+  background: #1cb0f6;
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  transition: width .24s ease;
+}
+
+.recorder-stage-area:fullscreen,
+.recorder-stage-area:-webkit-full-screen {
+  background: #111b27;
+  border: 0;
+  border-radius: 0;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+/* 专注录制模式只放大环境，画布严格保持竖屏比例，适合系统录屏框选。 */
+.recorder-stage-area:fullscreen .recorder-canvas,
+.recorder-stage-area:-webkit-full-screen .recorder-canvas {
+  height: min(calc(100vh - 48px), calc((100vw - 48px) * 16 / 9));
+  max-height: none;
+  width: auto;
+}
 
 @media (max-width: 720px) {
   .recorder-header { align-items: flex-start; flex-direction: column; }
+  .recorder-settings { align-items: stretch; grid-template-columns: 1fr; }
+  .recorder-group-picker,
+  .recorder-series-picker,
+  .recorder-course-picker { grid-template-columns: 1fr; }
+  .recorder-readiness-warning { grid-column: auto; justify-self: start; }
+  .recorder-translation-control { border-left: 0; border-top: 1px solid #e2e8f0; padding-left: 0; padding-top: 12px; }
   .recorder-stage-area { min-height: 560px; padding: 14px; }
   .recorder-canvas { max-height: 540px; }
 }

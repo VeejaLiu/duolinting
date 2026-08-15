@@ -190,7 +190,7 @@ export function ContentAdmin({
   }, [onEnsureCatalog, onNotify])
 
   useEffect(() => {
-    if (activeSection !== 'directory' && activeSection !== 'courses' && activeSection !== 'importer') {
+    if (activeSection !== 'directory' && activeSection !== 'courses' && activeSection !== 'importer' && activeSection !== 'recorder') {
       return
     }
 
@@ -198,7 +198,7 @@ export function ContentAdmin({
   }, [activeSection, refreshWorkspaceCatalog])
 
   useEffect(() => {
-    if ((activeSection !== 'importer' && activeSection !== 'recorder') || exercises.length > 0) {
+    if (activeSection !== 'importer' && activeSection !== 'recorder') {
       return
     }
 
@@ -748,6 +748,8 @@ export function ContentAdmin({
       {activeSection === 'recorder' && (
         <ListeningVideoRecorder
           adminToken={adminToken}
+          categoryGroups={categoryGroups}
+          categories={categories}
           exercises={exercises}
           onNotify={onNotify}
         />
