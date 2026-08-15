@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/duolinting-logo.png" alt="DuolinTing 多邻听" width="220" />
+</p>
+
 # 多邻听 DuolinTing
 
 > 把真实世界的音频和视频，变成可以逐句听懂、反复练习、持续积累的精听课程。
