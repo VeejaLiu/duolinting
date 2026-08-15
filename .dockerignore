@@ -11,6 +11,11 @@ node_modules
 **/*.tsbuildinfo
 **/.expo
 **/.vite
+**/.next
+**/.vinext
+**/.wrangler
+**/outputs
+**/.git
 coverage
 *.log
 temp
