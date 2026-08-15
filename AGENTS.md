@@ -50,6 +50,7 @@ Local dev services:
 
 ## Agent Working Rules (from the project owner)
 
+- When using the owner's signed-in browser for a multi-step workflow, keep pages open whenever the workflow is awaiting owner confirmation or may need to continue. Preserve the current page and entered state; close a tab only after the workflow is complete, the owner explicitly asks to close it, or the page is demonstrably unusable.
 - To save time, do not ask the owner to confirm source snippets, run routine Git
   status checks, take screenshots after deployment, or open a browser to inspect
   deployed pages. The owner verifies pages and functionality manually. Perform
