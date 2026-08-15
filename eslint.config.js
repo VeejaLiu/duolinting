@@ -11,6 +11,8 @@ export default defineConfig([
     '**/dist/**',
     '**/node_modules/**',
     '**/*.tsbuildinfo',
+    // 官网是独立项目，有自己的 ESLint 版本与配置；根项目 lint 不应跨项目加载它。
+    'official-site/**',
   ]),
   {
     files: [

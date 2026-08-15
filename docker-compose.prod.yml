@@ -141,6 +141,24 @@ services:
     networks:
       - duolinting-network
 
+  # 官网是独立 Node.js 项目；网页学习端 URL 在构建时嵌入浏览器产物，
+  # 因而必须从服务器 .env 显式传入，不能在容器启动后再覆盖。
+  official-site:
+    # Stable tag lets the locally built image be loaded on the server and
+    # started with --no-build; the server never runs a Dockerfile build.
+    image: duolinting-official-site:latest
+    build:
+      context: ./official-site
+      dockerfile: Dockerfile
+      args:
+        VITE_LEARNER_APP_URL: ${OFFICIAL_SITE_LEARNER_APP_URL:?Set OFFICIAL_SITE_LEARNER_APP_URL in the production .env file}
+    restart: unless-stopped
+    ports:
+      - "${OFFICIAL_SITE_PUBLIC_PORT:-8083}:3000"
+    logging: *default-logging
+    networks:
+      - duolinting-network
+
   api-proxy:
     image: nginx:1.27-alpine
     restart: unless-stopped
@@ -161,6 +179,7 @@ services:
       - web-app
       - admin
       - mobile-app
+      - official-site
     volumes:
       - ./infra/nginx/reverse-proxy.conf:/etc/nginx/nginx.conf:ro
       - /etc/letsencrypt:/etc/nginx/ssl:ro

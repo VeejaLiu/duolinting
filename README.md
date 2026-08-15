@@ -91,6 +91,7 @@ DuolinTing 是一个独立的开源项目，并非 YouZack 官方产品；上述
 | --- | --- | --- |
 | `web-app` | 浏览器学习端 | React 19、Vite、Radix UI |
 | `mobile-app` | iOS、Android 与移动 Web 学习端 | Expo 54、React Native |
+| `official-site` | 独立产品官网、网页学习端引导与 Android 下载说明 | vinext、React 19、Node.js 22 |
 | `admin` | 内容管理与真实媒体制课 | React 19、Ant Design、WaveSurfer |
 | `backend` | 目录、课程、账号、进度、反馈和媒体 API | Node.js、Express 5、Sequelize |
 | `packages/*` | 领域类型、API 客户端、运行配置和设计令牌 | TypeScript |
@@ -124,6 +125,8 @@ npm run dev:web-app
 npm run dev:admin
 npm run dev:mobile-app
 ```
+
+官网是独立项目，不属于上面的 npm workspaces。可使用 VS Code 的 `Dev: Official Site` 任务启动；它会使用官网固定的 Node.js 22.13.1。官网的本地 Test 与线上学习端跳转地址、Docker 镜像和线上部署规则见 [official-site/README.md](official-site/README.md)。
 
 ## 内容是如何进入学习端的？
 
