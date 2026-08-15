@@ -1,4 +1,5 @@
 import { FontAwesome6 } from '@expo/vector-icons'
+import { Image } from 'expo-image'
 import { useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -184,11 +185,14 @@ export function LoginScreen() {
             <View className="flex-1 justify-center px-5 pb-5 pt-4">
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center">
-                  <View className="h-12 w-12 items-center justify-center rounded-[16px] border-2 border-[#58cc02] border-b-[5px] border-b-[#46a302] bg-success">
-                    <Text className="text-xl font-black text-white">D</Text>
-                  </View>
+                  <Image
+                    accessibilityLabel="DuolinTing"
+                    contentFit="contain"
+                    source={require('../../../assets/duolinting-logo-ear.png')}
+                    style={{ height: 52, width: 52 }}
+                  />
                   <View className="ml-3">
-                    <Text className="text-2xl font-black text-text-primary">DuolinTing</Text>
+                    <Text className="text-2xl font-black text-text-primary">duolinting</Text>
                   </View>
                 </View>
               </View>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { LockKeyhole, Volume2 } from 'lucide-react'
+import { LockKeyhole } from 'lucide-react'
 import { message } from 'antd'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import type {
@@ -197,11 +197,9 @@ function App() {
     <main className="app-shell login-shell">
       <section className="login-page" aria-label="管理员登录">
         <div className="login-brand">
-          <div className="brand-mark">
-            <Volume2 size={22} aria-hidden="true" />
-          </div>
-          <div>
-            <h1>多邻听管理后台</h1>
+          <img alt="DuolinTing" className="login-brand-logo" src="/duolinting-logo-ear.png" />
+          <div className="login-brand-copy">
+            <h1>管理后台</h1>
             <p>统一内容管理端</p>
           </div>
         </div>

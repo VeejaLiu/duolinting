@@ -45,20 +45,14 @@
   cursor: pointer;
   display: flex;
   font: inherit;
-  gap: 12px;
   padding: 0;
   text-align: left;
 }
 
-.brand-mark {
-  align-items: center;
-  background: #58cc02;
-  border-radius: 16px;
-  box-shadow: 0 6px 0 #46a302;
-  color: #ffffff;
-  display: grid;
+.brand-logo {
+  display: block;
   height: 46px;
-  place-items: center;
+  object-fit: contain;
   width: 46px;
 }
 

@@ -1,4 +1,5 @@
 import { FontAwesome6 } from '@expo/vector-icons'
+import { Image } from 'expo-image'
 import { useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
@@ -31,7 +32,7 @@ import { useLanguage } from '@/i18n/LanguageProvider'
  *   N=每日目标；达标（x>=N）时数字变绿；
  * - 两个图标区都可点击，分别弹出连续学习/今日目标详情底部弹层
  *   （对标多邻国连胜详情页），hitSlop 12 保证触达区域不小于 44px；
- * - 右端一个 brand 蓝 headphones 小 logo 作视觉收尾。
+ * - 右端展示品牌耳朵标志，作为首页信息条的视觉收尾。
  */
 function HomeStatBar({
   streak,
@@ -78,7 +79,12 @@ function HomeStatBar({
         </Text>
       </Pressable>
       <View className="flex-1" />
-      <FontAwesome6 color="#1cb0f6" name="headphones" size={18} />
+      <Image
+        accessibilityLabel="DuolinTing"
+        contentFit="contain"
+        source={require('../../../assets/duolinting-logo-ear.png')}
+        style={{ height: 22, width: 24 }}
+      />
     </View>
   )
 }

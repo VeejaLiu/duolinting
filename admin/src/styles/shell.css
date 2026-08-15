@@ -37,14 +37,21 @@
   gap: 12px;
 }
 
-.login-brand h1 {
+.login-brand-logo {
+  display: block;
+  height: 76px;
+  object-fit: contain;
+  width: 64px;
+}
+
+.login-brand-copy h1 {
   color: #111827;
   font-size: 24px;
   line-height: 1.1;
   margin: 0;
 }
 
-.login-brand p {
+.login-brand-copy p {
   color: #6b7280;
   font-size: 13px;
   margin: 5px 0 0;
@@ -78,37 +85,6 @@
   font-size: 13px;
   line-height: 1.45;
   margin: 4px 0 0;
-}
-
-.brand-lockup {
-  align-items: center;
-  display: flex;
-  flex: 0 0 auto;
-  gap: 12px;
-}
-
-.brand-mark {
-  align-items: center;
-  background: #111827;
-  border-radius: 6px;
-  color: #ffffff;
-  display: grid;
-  height: 36px;
-  place-items: center;
-  width: 36px;
-}
-
-.brand-lockup h1 {
-  color: #111827;
-  font-size: 18px;
-  line-height: 1.1;
-  margin: 0;
-}
-
-.brand-lockup p {
-  color: #6b7280;
-  font-size: 12px;
-  margin: 3px 0 0;
 }
 
 .topbar-actions {
@@ -176,6 +152,13 @@
 
 .ant-layout-sider .ant-menu-item.admin-menu-brand.ant-menu-item-disabled {
   color: #1f2937;
+}
+
+.admin-menu-brand-icon {
+  display: block;
+  height: 20px;
+  object-fit: contain;
+  width: 20px;
 }
 
 .ant-layout-sider .ant-menu-item.admin-menu-collapse {

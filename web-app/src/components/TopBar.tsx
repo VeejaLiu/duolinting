@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { ChevronDown, HandHeart, LogIn, LogOut, Settings, User, Volume2 } from 'lucide-react'
+import { ChevronDown, HandHeart, LogIn, LogOut, Settings, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { AuthUser } from '@duolinting/shared'
 import { useLanguage } from '../i18n/LanguageProvider'
@@ -24,9 +24,7 @@ export function TopBar({ user, onOpenAccount, onLogout }: TopBarProps) {
         onClick={() => navigate('/')}
         type="button"
       >
-        <div className="brand-mark">
-          <Volume2 size={20} aria-hidden="true" />
-        </div>
+        <img alt="" className="brand-logo" src="/duolinting-logo-ear.png" />
         <div>
           <h1>{t('brand')}</h1>
           <p>{t('courseLabel')}</p>

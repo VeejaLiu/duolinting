@@ -1,6 +1,6 @@
 import { Menu } from 'antd'
 import type { MenuProps } from 'antd'
-import { BookOpen, Clapperboard, Layers3, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, Scissors, UserRound, Users, Volume2 } from 'lucide-react'
+import { BookOpen, Clapperboard, Layers3, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, Scissors, UserRound, Users } from 'lucide-react'
 import type { AdminUser } from '@duolinting/shared'
 
 export type AdminSection = 'importer' | 'directory' | 'courses' | 'recorder' | 'feedback' | 'users'
@@ -80,9 +80,9 @@ export function AdminWorkspaceNav({
     {
       className: 'admin-menu-brand',
       disabled: true,
-      icon: <Volume2 size={19} aria-hidden="true" />,
+      icon: <img alt="" className="admin-menu-brand-icon" src="/duolinting-logo-ear.png" />,
       key: 'brand',
-      label: collapsed ? '多邻听' : '多邻听管理后台',
+      label: collapsed ? 'DuolinTing' : 'DuolinTing 管理后台',
     },
     ...workspaceItems,
     { type: 'divider' },
