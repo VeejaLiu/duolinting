@@ -11,6 +11,9 @@
     "mobile-app",
     "packages/*"
   ],
+  "overrides": {
+    "expo-asset": "12.0.13"
+  },
   "scripts": {
     "dev": "npm run build --workspace @duolinting/domain && npm run build --workspace @duolinting/app-config && npm run build --workspace @duolinting/ui-tokens && npm run build --workspace @duolinting/api-client && npm run build --workspace @duolinting/shared && concurrently -n backend,web-app,admin -c blue,green,magenta \"npm run dev --workspace @duolinting/backend\" \"npm run dev --workspace @duolinting/web-app\" \"npm run dev --workspace @duolinting/admin\"",
     "dev:debug": "npm run build --workspace @duolinting/domain && npm run build --workspace @duolinting/app-config && npm run build --workspace @duolinting/ui-tokens && npm run build --workspace @duolinting/api-client && npm run build --workspace @duolinting/shared && concurrently -n backend,web-app,admin -c blue,green,magenta \"npm run dev:debug --workspace @duolinting/backend\" \"npm run dev:debug --workspace @duolinting/web-app\" \"npm run dev:debug --workspace @duolinting/admin\"",
@@ -44,6 +47,7 @@
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "expo-asset": "12.0.13",
     "globals": "^17.6.0",
     "tsx": "^4.21.0",
     "typescript": "~6.0.2",

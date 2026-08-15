@@ -130,7 +130,7 @@ export const messages = {
     'catalog.seriesLoadFailed': '系列加载失败',
     'catalog.loading': '加载中',
     'catalog.syncing': '同步中',
-    'catalog.seriesProgress': '{{count}} chapters · {{mastered}}/{{total}} sentences',
+    'catalog.seriesProgress': '{{count}} 个章节 · {{mastered}}/{{total}} 句',
     'catalog.category': '分类',
     'catalog.currentCategory': '当前分类',
     'catalog.seriesCount': '{{count}} 个系列',
