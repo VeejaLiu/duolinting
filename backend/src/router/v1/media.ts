@@ -11,6 +11,7 @@ import {
     uploadMediaObject,
     SUPPORTED_MEDIA_CONTENT_TYPES,
 } from '../../general/media/media-service';
+import { env } from '../../env';
 import { validateErrorCheck } from '../../lib/express-validator/express-validator-middleware';
 import { Logger } from '../../lib/logger';
 
@@ -23,6 +24,57 @@ const upload = multer({
         fileSize: 200 * 1024 * 1024,
     },
 });
+
+const isLoopbackRequest = (req: express.Request) => {
+    const address = req.socket.remoteAddress;
+    return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1';
+};
+
+const applyLocalUploadThrottle: express.RequestHandler = (req, res, next) => {
+    const bytesPerSecond = env.localUploadTesting.throttleBytesPerSecond;
+    // 仅对显式开启的、从本机进入的开发请求限速。即使 NODE_ENV 意外保持 development，
+    // 远程浏览器、局域网设备和生产服务也不会被这个测试辅助逻辑影响。
+    if (!env.isDevelopment || !isLoopbackRequest(req) || bytesPerSecond <= 0) {
+        next();
+        return;
+    }
+
+    let resumeTimer: ReturnType<typeof setTimeout> | undefined;
+    const resumeAfterChunk = (chunk: Buffer) => {
+        // 暂停 Node 的入站流，让 TCP 背压传递回浏览器；这样 XHR 的上传进度会按真实传输速率增长，
+        // 而不是只延迟接口响应。每个分块按其字节数换算等待时间，保持近似恒定速率。
+        const delayMs = Math.max(1, Math.ceil((chunk.length / bytesPerSecond) * 1000));
+        req.pause();
+        resumeTimer = setTimeout(() => {
+            resumeTimer = undefined;
+            req.resume();
+        }, delayMs);
+    };
+    const clearThrottle = () => {
+        if (resumeTimer) {
+            clearTimeout(resumeTimer);
+            resumeTimer = undefined;
+        }
+        req.off('data', resumeAfterChunk);
+    };
+
+    req.on('data', resumeAfterChunk);
+    req.once('aborted', clearThrottle);
+    req.once('close', clearThrottle);
+    logger.info(
+        `[media] local upload throttle requestId=${res.locals.requestId ?? '-'} rate=${Math.round(bytesPerSecond / 1024)}KB/s`,
+    );
+    next();
+};
+
+const waitForLocalUploadConfirmation = async (req: express.Request) => {
+    const delayMs = env.localUploadTesting.confirmationDelayMs;
+    if (!env.isDevelopment || !isLoopbackRequest(req) || delayMs <= 0) {
+        return;
+    }
+
+    await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+};
 
 const parseRangeHeader = (rangeHeader: string | undefined, size: number) => {
     if (!rangeHeader) {
@@ -176,6 +228,7 @@ const uploadMedia = async (req: express.Request, res: express.Response) => {
             buffer: file.buffer,
             size: file.size,
         });
+        await waitForLocalUploadConfirmation(req);
         res.status(201).send(result);
     } catch (error) {
         logger.error(
@@ -188,7 +241,7 @@ const uploadMedia = async (req: express.Request, res: express.Response) => {
     }
 };
 
-router.post('/files', requireAdminToken, upload.single('media'), uploadMedia);
-router.post('/audio', requireAdminToken, upload.single('audio'), uploadMedia);
+router.post('/files', requireAdminToken, applyLocalUploadThrottle, upload.single('media'), uploadMedia);
+router.post('/audio', requireAdminToken, applyLocalUploadThrottle, upload.single('audio'), uploadMedia);
 
 export default router;

@@ -9,6 +9,13 @@ dotenv.config({
 const optional = (key: string, fallback: string) => getOsEnvOptional(key) ?? fallback;
 const nodeEnv = process.env.NODE_ENV || 'development';
 const jwtSecret = optional('SECRET_JWT', optional('AUTH_TOKEN_SECRET', 'dev-auth-token-secret')).trim();
+const localUploadThrottleKbps = Number(getOsEnvOptional('LOCAL_UPLOAD_THROTTLE_KBPS') ?? '0');
+const localUploadConfirmationDelayMs = Number(getOsEnvOptional('LOCAL_UPLOAD_CONFIRMATION_DELAY_MS') ?? '0');
+
+// 这两个开关仅服务于本机开发时观察前端上传反馈。无效值与负数都回退为关闭，
+// 路由层还会验证请求来自环回地址，避免 development 配置被远程访问时意外限速。
+const toLocalUploadTestingNumber = (value: number) =>
+    Number.isFinite(value) && value > 0 ? value : 0;
 
 // 生产环境不能带着公开的开发密钥或空密钥启动，否则所有学习者 JWT 都失去可信根。
 if (nodeEnv === 'production' && (jwtSecret.length < 32 || jwtSecret === 'dev-auth-token-secret')) {
@@ -72,5 +79,17 @@ export const env = {
     },
     resend: {
         API_KEY: getOsEnvOptional('RESEND_API_KEY') ?? '',
+    },
+    localUploadTesting: {
+        // 以 KB/s 配置而不是 bytes，便于手动调节；生产环境始终强制为 0。
+        throttleBytesPerSecond:
+            nodeEnv === 'development'
+                ? toLocalUploadTestingNumber(localUploadThrottleKbps) * 1024
+                : 0,
+        // 在服务端已经写入媒体后延迟响应，用于验证前端“等待服务器确认”状态。
+        confirmationDelayMs:
+            nodeEnv === 'development'
+                ? toLocalUploadTestingNumber(localUploadConfirmationDelayMs)
+                : 0,
     },
 };
