@@ -108,6 +108,7 @@ services:
       dockerfile: web-app/Dockerfile
       args:
         VITE_API_BASE_URL: ""
+        VITE_MOBILE_APP_URL: ${MOBILE_APP_URL:-}
     restart: unless-stopped
     ports:
       - "${WEB_PUBLIC_PORT:-8080}:80"

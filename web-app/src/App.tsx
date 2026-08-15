@@ -19,6 +19,7 @@ import {
 } from './components/StudyStates'
 import { TopBar } from './components/TopBar'
 import { ContributePage } from './components/ContributePage'
+import { MobileExperiencePrompt } from './components/MobileExperiencePrompt'
 import { useCatalog } from './hooks/useCatalog'
 import { useCategoryExercises } from './hooks/useCategoryExercises'
 import { useExerciseDetail } from './hooks/useExerciseDetail'
@@ -674,14 +675,18 @@ function LearnerAppShell() {
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<LearnerAppShell />} />
-      <Route path="/courses/:seriesId" element={<LearnerAppShell />} />
-      <Route path="/courses/:seriesId/chapters/:exerciseId" element={<LearnerAppShell />} />
-      <Route path="/settings" element={<SettingsPage />} />
-      <Route path="/contribute" element={<ContributePage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      {/* 路由外渲染，避免用户从设置或贡献页进入时绕开移动端提示。 */}
+      <MobileExperiencePrompt />
+      <Routes>
+        <Route path="/" element={<LearnerAppShell />} />
+        <Route path="/courses/:seriesId" element={<LearnerAppShell />} />
+        <Route path="/courses/:seriesId/chapters/:exerciseId" element={<LearnerAppShell />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/contribute" element={<ContributePage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   )
 }
 

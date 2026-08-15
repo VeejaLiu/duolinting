@@ -8,6 +8,7 @@ import { difficultReviewMessages } from './messages/difficultReview'
 import { extensiveStageMessages } from './messages/extensiveStage'
 import { intensiveStageMessages } from './messages/intensiveStage'
 import { learnerAccountMessages } from './messages/learnerAccount'
+import { mobileExperiencePromptMessages } from './messages/mobileExperiencePrompt'
 import { settingsMessages } from './messages/settings'
 import { studyStatesMessages } from './messages/studyStates'
 
@@ -23,6 +24,7 @@ const modules: Record<UiLocale, Record<string, string>>[] = [
   extensiveStageMessages,
   intensiveStageMessages,
   learnerAccountMessages,
+  mobileExperiencePromptMessages,
   settingsMessages,
   studyStatesMessages,
 ]

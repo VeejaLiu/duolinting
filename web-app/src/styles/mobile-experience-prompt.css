@@ -1,0 +1,160 @@
+.mobile-experience-overlay {
+  animation: mobile-experience-fade-in 180ms ease-out;
+  background: rgba(23, 32, 51, 0.62);
+  inset: 0;
+  position: fixed;
+  z-index: 100;
+}
+
+.mobile-experience-dialog {
+  animation: mobile-experience-enter 220ms cubic-bezier(0.2, 0.85, 0.32, 1);
+  background: #ffffff;
+  border: 2px solid #dce8f3;
+  border-bottom: 7px solid #b9d4e9;
+  border-radius: 28px;
+  box-shadow: 0 24px 70px rgba(7, 23, 45, 0.3);
+  left: 50%;
+  max-width: 438px;
+  outline: none;
+  padding: 30px 24px 24px;
+  position: fixed;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(100% - 32px);
+  z-index: 101;
+}
+
+.mobile-experience-close {
+  align-items: center;
+  background: #f4f8fc;
+  border: 2px solid #dce8f3;
+  border-radius: 13px;
+  color: #64748b;
+  cursor: pointer;
+  display: inline-flex;
+  height: 40px;
+  justify-content: center;
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  width: 40px;
+}
+
+.mobile-experience-close:focus-visible,
+.mobile-experience-close:hover {
+  border-color: #1cb0f6;
+  color: #1899d6;
+}
+
+.mobile-experience-icon {
+  align-items: center;
+  background: #e1f7ff;
+  border: 2px solid #bde8ff;
+  border-bottom: 5px solid #85d4f7;
+  border-radius: 22px;
+  color: #1cb0f6;
+  display: flex;
+  height: 64px;
+  justify-content: center;
+  width: 64px;
+}
+
+.mobile-experience-eyebrow {
+  color: #1899d6;
+  font-size: 13px;
+  font-weight: 900;
+  margin: 20px 0 6px;
+}
+
+.mobile-experience-title {
+  color: #172033;
+  font-size: clamp(25px, 7vw, 32px);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  margin: 0;
+  max-width: 300px;
+}
+
+.mobile-experience-description {
+  color: #52637a;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.6;
+  margin: 14px 0 22px;
+}
+
+.mobile-experience-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.mobile-experience-actions button {
+  align-items: center;
+  border-radius: 16px;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 900;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 16px;
+}
+
+.mobile-experience-open {
+  background: #58cc02;
+  border: 2px solid #58cc02;
+  border-bottom: 5px solid #46a302;
+  color: #ffffff;
+  gap: 8px;
+}
+
+.mobile-experience-open:hover,
+.mobile-experience-open:focus-visible {
+  background: #63d80b;
+  border-color: #46a302;
+}
+
+.mobile-experience-stay {
+  background: #ffffff;
+  border: 2px solid #d7e4ef;
+  border-bottom: 5px solid #c5d8e8;
+  color: #52637a;
+}
+
+.mobile-experience-stay:hover,
+.mobile-experience-stay:focus-visible {
+  border-color: #1cb0f6;
+  color: #1899d6;
+}
+
+@keyframes mobile-experience-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes mobile-experience-enter {
+  from { opacity: 0; transform: translate(-50%, -46%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@media (max-width: 380px) {
+  .mobile-experience-dialog {
+    border-radius: 23px;
+    padding: 26px 20px 20px;
+    width: calc(100% - 24px);
+  }
+
+  .mobile-experience-description {
+    font-size: 14px;
+    margin-bottom: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-experience-overlay,
+  .mobile-experience-dialog {
+    animation: none;
+  }
+}

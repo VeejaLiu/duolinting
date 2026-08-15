@@ -25,6 +25,8 @@ RUN npm run build --workspace @duolinting/shared
 COPY web-app web-app
 ARG VITE_API_BASE_URL=""
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ARG VITE_MOBILE_APP_URL=""
+ENV VITE_MOBILE_APP_URL=$VITE_MOBILE_APP_URL
 RUN npm run build --workspace @duolinting/web-app
 
 FROM nginx:1.27-alpine
