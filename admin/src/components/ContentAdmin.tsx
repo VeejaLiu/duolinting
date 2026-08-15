@@ -731,9 +731,6 @@ export function ContentAdmin({
           categoryGroups={categoryGroups}
           categories={categories}
           exercises={exercises}
-          isCatalogLoading={isCatalogLoading}
-          catalogLoadError={catalogLoadError}
-          onRefreshCatalog={refreshWorkspaceCatalog}
           draft={importerDraft}
           onRefreshCatalog={onRefreshCatalog}
           onStatusChange={onNotify}
@@ -785,6 +782,9 @@ export function ContentAdmin({
           categoryGroups={categoryGroups}
           categories={categories}
           exercises={exercises}
+          isCatalogLoading={isCatalogLoading}
+          catalogLoadError={catalogLoadError}
+          onRefreshCatalog={refreshWorkspaceCatalog}
           categoryDraftName={categoryForm.name}
           isSaving={isSaving}
           onCreateCourse={(categoryId) => {

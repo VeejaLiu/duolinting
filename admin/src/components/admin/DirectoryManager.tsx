@@ -148,7 +148,7 @@ function DirectoryForm({
         <Form.Item label={kind === 'group' ? '说明' : '描述'} style={{ marginTop: 16, marginBottom: 0 }}>
           <Input disabled={disabled} value={form.description} onChange={(event) => onChange('description', event.target.value)} />
         </Form.Item>
-        <Divider orientation="left" style={{ margin: '20px 0 12px' }}>多语言内容</Divider>
+        <Divider style={{ margin: '20px 0 12px' }}>多语言内容</Divider>
         <Flex align="center" justify="space-between" gap={12} style={{ marginBottom: 12 }}>
           <Typography.Text type="secondary">同时检查和编辑所有语言，中文名称与说明作为 AI 翻译源。</Typography.Text>
           <Button
