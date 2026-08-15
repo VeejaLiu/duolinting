@@ -53,7 +53,8 @@
     "android": "expo start --android --port 8103",
     "ios": "expo start --ios --port 8103",
     "web": "expo start --web --port 8103",
-    "build": "expo export --platform web --output-dir dist"
+    "build": "expo export --platform web --output-dir dist",
+    "postinstall": "sh -c 'if [ -f ../packages/domain/tsconfig.json ]; then cd .. && npm run build:mobile-dependencies; fi'"
   },
   "private": true
 }

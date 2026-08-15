@@ -11,13 +11,19 @@
       "expo-router",
       "expo-font",
       "expo-secure-store",
-      "expo-notifications",
       "expo-localization"
     ],
     "ios": {
+      "bundleIdentifier": "com.duolinting.app",
+      "buildNumber": "6",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
       "supportsTablet": true
     },
     "android": {
+      "package": "com.duolinting.app",
+      "versionCode": 4,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -31,6 +37,13 @@
     },
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b8169cb7-615d-47e1-9d29-ade2aeb3604b"
+      }
+    },
+    "owner": "veejaliu"
   }
 }
