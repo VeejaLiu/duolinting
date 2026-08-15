@@ -1,4 +1,13 @@
+# Docker logs remain the production log source. Bound json-file rotation keeps
+# a noisy request/error stream from consuming the server disk indefinitely.
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
+
   mysql:
     image: mysql:8.4
     restart: unless-stopped
@@ -14,6 +23,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    logging: *default-logging
     networks:
       - duolinting-network
 
@@ -35,6 +45,7 @@ services:
       FLYWAY_VALIDATE_MIGRATION_NAMING: "true"
     volumes:
       - ./infra/mysql/migrations:/flyway/sql:ro
+    logging: *default-logging
     networks:
       - duolinting-network
 
@@ -50,6 +61,7 @@ services:
     ports:
       - "${MINIO_PUBLIC_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PUBLIC_PORT:-9001}:9001"
+    logging: *default-logging
     networks:
       - duolinting-network
 
@@ -86,6 +98,7 @@ services:
       MINIO_PUBLIC_BASE_URL: ${PUBLIC_API_BASE_URL}/api/v1/media/objects
       ZHIPU_API_KEY: ${ZHIPU_API_KEY:-}
       ZHIPU_MODEL: ${ZHIPU_MODEL:-glm-4-flash}
+    logging: *default-logging
     networks:
       - duolinting-network
 
@@ -98,6 +111,7 @@ services:
     restart: unless-stopped
     ports:
       - "${WEB_PUBLIC_PORT:-8080}:80"
+    logging: *default-logging
     networks:
       - duolinting-network
 
@@ -110,6 +124,7 @@ services:
     restart: unless-stopped
     ports:
       - "${ADMIN_PUBLIC_PORT:-8081}:80"
+    logging: *default-logging
     networks:
       - duolinting-network
 
@@ -122,6 +137,7 @@ services:
     restart: unless-stopped
     ports:
       - "${MOBILE_PUBLIC_PORT:-8082}:80"
+    logging: *default-logging
     networks:
       - duolinting-network
 
@@ -134,6 +150,7 @@ services:
       - ./infra/nginx/api-proxy.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "${API_PUBLIC_PORT:-4000}:80"
+    logging: *default-logging
     networks:
       - duolinting-network
 
@@ -150,6 +167,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    logging: *default-logging
     networks:
       - duolinting-network
 
