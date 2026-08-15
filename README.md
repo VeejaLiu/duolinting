@@ -126,7 +126,7 @@ npm run dev:admin
 npm run dev:mobile-app
 ```
 
-官网是独立项目，不属于上面的 npm workspaces。可使用 VS Code 的 `Dev: Official Site` 任务启动；它会使用官网固定的 Node.js 22.13.1。官网的本地 Test 与线上学习端跳转地址、Docker 镜像和线上部署规则见 [official-site/README.md](official-site/README.md)。
+官网是主仓库内的独立项目，不属于上面的 npm workspaces。可使用 VS Code 的 `Dev: Official Site` 任务启动；它会使用官网固定的 Node.js 22.13.1。官网的本地 Test 与线上学习端跳转地址、Docker 镜像和线上部署规则见 [official-site/README.md](official-site/README.md)。
 
 ## 内容是如何进入学习端的？
 

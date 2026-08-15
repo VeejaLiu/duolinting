@@ -1,0 +1,12 @@
+# Build context exclusions for the standalone official-site Docker image.
+node_modules
+dist
+.next
+.vinext
+.wrangler
+.git
+.env
+.env.*
+!.env.example
+npm-debug.log*
+.DS_Store
