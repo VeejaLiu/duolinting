@@ -12,6 +12,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@ant-design/charts": "^2.6.7",
     "@ant-design/icons": "^6.3.2",
     "@duolinting/shared": "0.1.0",
     "@radix-ui/react-dialog": "^1.1.16",

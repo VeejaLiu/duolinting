@@ -9,7 +9,7 @@ import { ConfigProvider, Layout } from 'antd'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import type {
   AcceptedAnswerFeedback,
-  AdminUserActivityReport,
+  AdminGrowthReport,
   CatalogExerciseSummary,
   CreateCategoryGroupRequest,
   CreateCategoryRequest,
@@ -141,9 +141,8 @@ export function ContentAdmin({
   const [catalogLoadError, setCatalogLoadError] = useState('')
   const [feedbackItems, setFeedbackItems] = useState<AcceptedAnswerFeedback[]>([])
   const [feedbackLoading, setFeedbackLoading] = useState(false)
-  const [userActivityReport, setUserActivityReport] =
-    useState<AdminUserActivityReport | null>(null)
-  const [userActivityLoading, setUserActivityLoading] = useState(false)
+  const [growthReport, setGrowthReport] = useState<AdminGrowthReport | null>(null)
+  const [growthLoading, setGrowthLoading] = useState(false)
   const [importerDraft, setImporterDraft] = useState<ImporterDraft>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [importerHasUnsavedChanges, setImporterHasUnsavedChanges] = useState(false)
@@ -678,19 +677,19 @@ export function ContentAdmin({
     void refreshFeedback('all')
   }, [activeSection, adminToken])
 
-  const refreshUserActivity = async () => {
-    setUserActivityLoading(true)
+  const refreshGrowth = async () => {
+    setGrowthLoading(true)
     try {
-      const response = await apiClient.getAdminUserActivity(adminToken)
-      setUserActivityReport(response)
+      const response = await apiClient.getAdminGrowth(adminToken)
+      setGrowthReport(response)
     } catch (error) {
       // 失败最常见的原因是 admin 登录态过期（401），提示里顺带引导重新登录
       onNotify(
-        `用户活跃数据加载失败：${error instanceof Error ? error.message : '未知错误'}；若提示未授权，请重新登录管理员账号`,
+        `增长数据加载失败：${error instanceof Error ? error.message : '未知错误'}；若提示未授权，请重新登录管理员账号`,
         'error',
       )
     } finally {
-      setUserActivityLoading(false)
+      setGrowthLoading(false)
     }
   }
 
@@ -699,7 +698,7 @@ export function ContentAdmin({
       return
     }
 
-    void refreshUserActivity()
+    void refreshGrowth()
   }, [activeSection, adminToken])
 
   return (
@@ -848,10 +847,10 @@ export function ContentAdmin({
 
       {activeSection === 'users' && (
         <UserActivityPanel
-          report={userActivityReport}
-          isLoading={userActivityLoading}
+          report={growthReport}
+          isLoading={growthLoading}
           onRefresh={() => {
-            void refreshUserActivity()
+            void refreshGrowth()
           }}
         />
       )}

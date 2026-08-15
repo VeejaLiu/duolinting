@@ -346,47 +346,44 @@ export type UpdateAcceptedAnswerFeedbackStatusRequest = {
   status: FeedbackStatus
 }
 
-export type AdminUserActivityLevel =
-  | 'today'
-  | 'this_week'
-  | 'this_month'
-  | 'inactive'
-  // 从未产生任何学习/反馈记录的用户；与 inactive（曾经活跃但超 30 天未活跃）区分开
-  | 'never_started'
+export type AdminGrowthClientType = AuthClientType
 
-export type AdminUserActivityItem = {
-  userId: number
-  email: string
-  displayName: string
-  registeredAt: string
-  lastActiveAt: string | null
-  lastExerciseTitle: string
-  studiedExerciseCount: number
-  touchedLineCount: number
-  masteredLineCount: number
-  unclearLineCount: number
-  repeatTotal: number
-  noteCount: number
-  dictationCount: number
-  feedbackCount: number
-  activityLevel: AdminUserActivityLevel
+/** 单端的去重活跃人数；跨端用户可同时出现在多个端，不能将三端相加当作总 DAU。 */
+export type AdminGrowthClientDistribution = {
+  clientType: AdminGrowthClientType
+  activeTodayCount: number
+  active7dCount: number
+  active30dCount: number
 }
 
-export type AdminUserActivityReport = {
-  // 报表生成时间（ISO 字符串），Admin 面板据此展示"数据更新于 ..."
+/** 按服务器自然日聚合的增长趋势点，最近 30 天每天均返回，零值日期不会缺失。 */
+export type AdminGrowthTrendPoint = {
+  date: string
+  registeredUserCount: number
+  totalRegisteredUserCount: number
+  activeUserCount: number
+  weeklyActiveUserCount: number
+  monthlyActiveUserCount: number
+  webAppActiveUserCount: number
+  mobileWebActiveUserCount: number
+  mobileAppActiveUserCount: number
+}
+
+export type AdminGrowthReport = {
+  // 报表生成时间（ISO 字符串），供 Admin 标示数据刷新时间。
   generatedAt: string
+  // 每日访问事实的首日；null 表示尚未产生已登录访问。
+  trackingStartedAt: string | null
   summary: {
     totalUsers: number
-    activeTodayCount: number
-    active7dCount: number
-    active30dCount: number
-    inactiveCount: number
-    neverStartedCount: number
-    usersWithProgressCount: number
-    usersWithFeedbackCount: number
-    totalLineTouches: number
-    totalMasteredLines: number
-    totalFeedbackCount: number
+    registeredTodayCount: number
+    registered7dCount: number
+    registered30dCount: number
+    dau: number
+    wau: number
+    mau: number
+    dauMauPercent: number
   }
-  items: AdminUserActivityItem[]
+  trend: AdminGrowthTrendPoint[]
+  clientDistribution: AdminGrowthClientDistribution[]
 }

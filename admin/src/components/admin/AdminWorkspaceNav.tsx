@@ -37,7 +37,7 @@ const adminSections: Array<{
   },
   {
     id: 'users',
-    label: '用户活跃',
+    label: '增长分析',
     Icon: Users,
   },
 ]

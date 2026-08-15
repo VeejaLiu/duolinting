@@ -21,7 +21,7 @@ import {
     listAcceptedAnswerFeedback,
     updateAcceptedAnswerFeedbackStatus,
 } from '../../general/feedback/feedback-service';
-import { getAdminUserActivityReport } from '../../general/admin/user-activity-service';
+import { getAdminGrowthReport } from '../../general/admin/user-activity-service';
 import { createTranslationJob, getTranslationJob } from '../../general/translate/translate-service';
 import { validateErrorCheck } from '../../lib/express-validator/express-validator-middleware';
 import { Logger } from '../../lib/logger';
@@ -309,8 +309,8 @@ router.get('/feedback/accepted-answer', async (req, res) => {
     res.status(200).send({ items });
 });
 
-router.get('/users/activity', async (_req, res) => {
-    res.status(200).send(await getAdminUserActivityReport());
+router.get('/analytics/growth', async (_req, res) => {
+    res.status(200).send(await getAdminGrowthReport());
 });
 
 router.put(

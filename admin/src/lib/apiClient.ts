@@ -4,7 +4,7 @@ import type {
   AdminAuthResponse,
   AdminExercisePage,
   AdminLoginRequest,
-  AdminUserActivityReport,
+  AdminGrowthReport,
   AdminUser,
   CatalogExerciseSummary,
   CatalogResponse,
@@ -431,9 +431,9 @@ export const apiClient = {
       },
       { adminToken },
     ),
-  getAdminUserActivity: (adminToken: string) =>
-    fetchJson<AdminUserActivityReport>(
-      '/api/v1/admin/users/activity',
+  getAdminGrowth: (adminToken: string) =>
+    fetchJson<AdminGrowthReport>(
+      '/api/v1/admin/analytics/growth',
       {
         method: 'GET',
       },

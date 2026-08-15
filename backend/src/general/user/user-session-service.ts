@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../../env';
 import { UserSessionModel, type AuthClientType } from '../../models/schema/UserSessionDB';
 import { signToken, TOKEN_EXPIRES_IN_SECONDS } from '../../lib/token/signToken';
+import { recordUserDailyAccess } from './user-access-activity-service';
 
 export { type AuthClientType };
 
@@ -91,6 +92,7 @@ export async function issueUserSession({ userId, clientType }: { userId: string 
         },
         { where: { id: session.id } },
     );
+    await recordUserDailyAccess(userSessionId, clientType);
 
     return token;
 }
@@ -138,6 +140,7 @@ export async function verifyUserSession(token: string): Promise<VerifyUserSessio
     }
 
     await UserSessionModel.update({ last_seen_at: new Date() }, { where: { id: sessionId } });
+    await recordUserDailyAccess(userId, clientType);
 
     return { success: true, userId };
 }
