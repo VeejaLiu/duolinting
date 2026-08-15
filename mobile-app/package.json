@@ -34,6 +34,7 @@
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
     "react-native-gesture-handler": "~2.28.0",
+    "react-native-keyboard-aware-scroll-view": "^0.9.5",
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.16.0",
@@ -50,7 +51,7 @@
   },
   "scripts": {
     "start": "expo start --port 8103",
-    "start:logged": "sh -c 'expo start --port 8103 \"$@\" 2>&1 | tee -a ../temp/expo-mobile.log' --",
+    "start:logged": "script -q -a ../temp/expo-mobile.log sh -c 'expo start --port 8103 \"$@\"' --",
     "android": "expo start --android --port 8103",
     "ios": "expo start --ios --port 8103",
     "web": "expo start --web --port 8103",

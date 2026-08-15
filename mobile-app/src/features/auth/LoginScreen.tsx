@@ -2,23 +2,20 @@ import { FontAwesome6 } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
-import {
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native'
+import { Animated, Pressable, Text, TextInput, View } from 'react-native'
 import { SafeScreen } from '@/components/primitives/SafeScreen'
+import { AppScrollView } from '@/components/primitives/AppScrollView'
 import { Button } from '@/components/foundation/Button'
+import { BottomSheet } from '@/components/foundation/BottomSheet'
 import { useLoginMutation, useRegisterMutation } from './hooks'
 import { useNavigationStore } from '@/stores/navigationStore'
 import { useLanguage } from '@/i18n/LanguageProvider'
+import { UI_LOCALES, uiLocaleFlags, uiLocaleLabels } from '@/i18n/locale'
 
 type AuthMode = 'login' | 'register'
+
+// 认证页优先展示国际化语言，简体中文固定放在最后，方便新用户快速扫读选择。
+const authUiLocales = [...UI_LOCALES.filter((locale) => locale !== 'zh-CN'), 'zh-CN'] as const
 
 export function LoginScreen() {
   const router = useRouter()
@@ -33,7 +30,8 @@ export function LoginScreen() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [formError, setFormError] = useState('')
-  const { t } = useLanguage()
+  const [languagePickerVisible, setLanguagePickerVisible] = useState(false)
+  const { setUiLocale, t, uiLocale } = useLanguage()
   const activeMutation = mode === 'login' ? loginMutation : registerMutation
   const submitError = activeMutation.error
     ? mode === 'login'
@@ -166,147 +164,181 @@ export function LoginScreen() {
         <View className="absolute right-[-76] top-16 h-48 w-48 rounded-full bg-[#d8f1ff]" />
         <View className="absolute bottom-[-64] left-10 h-40 w-40 rounded-full bg-[#fff3c9]" />
 
-        {/*
-         * 键盘弹出后，iOS 用 padding 腾出键盘高度，Android 缩小可用视区；
-         * 内层 ScrollView 处理小屏或横屏时表单高度超过剩余视区的情况，
-         * 避免邮箱、密码输入框被键盘遮挡。
-         */}
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        <AppScrollView
           className="flex-1"
+          extraHeight={24}
+          contentContainerStyle={{ flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            className="flex-1"
-            contentContainerStyle={{ flexGrow: 1 }}
-            keyboardDismissMode="on-drag"
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <View className="flex-1 justify-center px-5 pb-5 pt-4">
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center">
-                  <Image
-                    accessibilityLabel="DuolinTing"
-                    contentFit="contain"
-                    source={require('../../../assets/duolinting-logo-ear.png')}
-                    style={{ height: 52, width: 52 }}
-                  />
-                  <View className="ml-3">
-                    <Text className="text-2xl font-black text-text-primary">duolinting</Text>
-                  </View>
+          <View className="flex-1 justify-center px-5 pb-5 pt-4">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                <Image
+                  accessibilityLabel="DuolinTing"
+                  contentFit="contain"
+                  source={require('../../../assets/duolinting-logo-ear.png')}
+                  style={{ height: 52, width: 52 }}
+                />
+                <View className="ml-3">
+                  <Text className="text-2xl font-black text-text-primary">duolinting</Text>
+                </View>
+              </View>
+              <Pressable
+                accessibilityLabel={t('language.chooseInterface')}
+                className="min-h-[42px] flex-row items-center rounded-[15px] border-2 border-[#cfe7f7] bg-white px-3 active:scale-95"
+                hitSlop={8}
+                onPress={() => setLanguagePickerVisible(true)}
+              >
+                <FontAwesome6 color="#1cb0f6" name="language" size={16} />
+                <Text className="ml-2 text-base">{uiLocaleFlags[uiLocale]}</Text>
+                <Text className="ml-2 text-sm font-black text-text-primary">
+                  {uiLocaleLabels[uiLocale]}
+                </Text>
+                <FontAwesome6 color="#8191a6" name="chevron-down" size={11} style={{ marginLeft: 8 }} />
+              </Pressable>
+            </View>
+
+            <View className="mt-5 overflow-hidden rounded-[26px] border-2 border-[#e4eef8] bg-white">
+              <View className="bg-[#58cc02] px-6 pb-5 pt-5">
+                <View className="absolute right-[-20] top-[-28] h-28 w-28 rounded-full bg-white/20" />
+                <View className="absolute bottom-[-34] left-[-18] h-24 w-24 rounded-full bg-white/15" />
+                <View className="h-[40px] overflow-hidden">
+                  <Animated.View style={loginTitleStyle}>
+                    <Text className="text-3xl font-black leading-9 text-white">{t('auth.welcomeBack')}</Text>
+                  </Animated.View>
+                  <Animated.View style={registerTitleStyle}>
+                    <Text className="text-3xl font-black leading-9 text-white">{t('auth.createAccount')}</Text>
+                  </Animated.View>
                 </View>
               </View>
 
-              <View className="mt-5 overflow-hidden rounded-[26px] border-2 border-[#e4eef8] bg-white">
-                <View className="bg-[#58cc02] px-6 pb-5 pt-5">
-                  <View className="absolute right-[-20] top-[-28] h-28 w-28 rounded-full bg-white/20" />
-                  <View className="absolute bottom-[-34] left-[-18] h-24 w-24 rounded-full bg-white/15" />
-                  <View className="h-[40px] overflow-hidden">
-                    <Animated.View style={loginTitleStyle}>
-                      <Text className="text-3xl font-black leading-9 text-white">{t('auth.welcomeBack')}</Text>
-                    </Animated.View>
-                    <Animated.View style={registerTitleStyle}>
-                      <Text className="text-3xl font-black leading-9 text-white">{t('auth.createAccount')}</Text>
-                    </Animated.View>
+              <View className="px-5 pb-5 pt-4">
+                <View
+                  className="relative flex-row rounded-[18px] border-2 border-[#dcebf7] bg-[#edf7ff] p-1.5"
+                  onLayout={(event) => setSwitcherWidth(event.nativeEvent.layout.width)}
+                >
+                  {switcherThumbWidth > 0 ? (
+                    <Animated.View pointerEvents="none" style={switcherThumbStyle} />
+                  ) : null}
+                  {(['login', 'register'] as const).map((value) => (
+                    <Pressable
+                      key={value}
+                      className="z-10 min-h-[44px] flex-1 items-center justify-center rounded-[13px] px-4"
+                      onPress={() => selectMode(value)}
+                    >
+                      <Text
+                        className={`text-center text-base font-black ${
+                          mode === value ? 'text-text-primary' : 'text-text-secondary'
+                        }`}
+                      >
+                        {value === 'login' ? t('auth.login') : t('auth.register')}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <View className="mt-4">
+                  <Text className="mb-2 text-base font-black text-text-primary">
+                    {t('auth.email')}
+                  </Text>
+                  <TextInput
+                    autoCapitalize="none"
+                    className="min-h-[50px] rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4 text-base font-bold text-text-primary"
+                    keyboardType="email-address"
+                    onChangeText={setEmail}
+                    placeholder={t('auth.emailPlaceholder')}
+                    placeholderTextColor="#8191a6"
+                    value={email}
+                  />
+                </View>
+
+                <View className="mt-3">
+                  <Text className="mb-2 text-base font-black text-text-primary">
+                    {t('auth.password')}
+                  </Text>
+                  <View className="min-h-[50px] flex-row items-center rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4">
+                    <TextInput
+                      className="min-h-[50px] flex-1 pr-3 text-base font-bold text-text-primary"
+                      onChangeText={setPassword}
+                      placeholder={t('auth.passwordPlaceholder')}
+                      placeholderTextColor="#8191a6"
+                      secureTextEntry={!showPassword}
+                      value={password}
+                    />
+                    <Pressable
+                      className="h-10 w-10 items-center justify-center rounded-[14px]"
+                      onPress={() => setShowPassword((current) => !current)}
+                    >
+                      <FontAwesome6
+                        color="#8191a6"
+                        name={showPassword ? 'eye-slash' : 'eye'}
+                        size={18}
+                      />
+                    </Pressable>
                   </View>
                 </View>
 
-                <View className="px-5 pb-5 pt-4">
-                  <View
-                    className="relative flex-row rounded-[18px] border-2 border-[#dcebf7] bg-[#edf7ff] p-1.5"
-                    onLayout={(event) => setSwitcherWidth(event.nativeEvent.layout.width)}
-                  >
-                    {switcherThumbWidth > 0 ? (
-                      <Animated.View pointerEvents="none" style={switcherThumbStyle} />
-                    ) : null}
-                    {(['login', 'register'] as const).map((value) => (
-                      <Pressable
-                        key={value}
-                        className="z-10 min-h-[44px] flex-1 items-center justify-center rounded-[13px] px-4"
-                        onPress={() => selectMode(value)}
-                      >
-                        <Text
-                          className={`text-center text-base font-black ${
-                            mode === value ? 'text-text-primary' : 'text-text-secondary'
-                          }`}
-                        >
-                          {value === 'login' ? t('auth.login') : t('auth.register')}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                <View className="mt-4">
+                  <Button
+                    disabled={activeMutation.isPending}
+                    label={
+                      activeMutation.isPending
+                        ? mode === 'login'
+                          ? t('auth.loggingIn')
+                          : t('auth.registering')
+                        : mode === 'login'
+                          ? t('auth.startLearning')
+                          : t('auth.registerAndStart')
+                    }
+                    onPress={() => void submit()}
+                  />
+                </View>
 
-                  <View className="mt-4">
-                    <Text className="mb-2 text-base font-black text-text-primary">
-                      {t('auth.email')}
-                    </Text>
-                    <TextInput
-                      autoCapitalize="none"
-                      className="min-h-[50px] rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4 text-base font-bold text-text-primary"
-                      keyboardType="email-address"
-                      onChangeText={setEmail}
-                      placeholder={t('auth.emailPlaceholder')}
-                      placeholderTextColor="#8191a6"
-                      value={email}
-                    />
-                  </View>
-
-                  <View className="mt-3">
-                    <Text className="mb-2 text-base font-black text-text-primary">
-                      {t('auth.password')}
-                    </Text>
-                    <View className="min-h-[50px] flex-row items-center rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4">
-                      <TextInput
-                        className="min-h-[50px] flex-1 pr-3 text-base font-bold text-text-primary"
-                        onChangeText={setPassword}
-                        placeholder={t('auth.passwordPlaceholder')}
-                        placeholderTextColor="#8191a6"
-                        secureTextEntry={!showPassword}
-                        value={password}
-                      />
-                      <Pressable
-                        className="h-10 w-10 items-center justify-center rounded-[14px]"
-                        onPress={() => setShowPassword((current) => !current)}
-                      >
-                        <FontAwesome6
-                          color="#8191a6"
-                          name={showPassword ? 'eye-slash' : 'eye'}
-                          size={18}
-                        />
-                      </Pressable>
+                <View className="mt-3 min-h-[42px] justify-center">
+                  {visibleError ? (
+                    <View className="rounded-[14px] border-2 border-[#ffb59f] bg-[#fff0eb] px-3 py-2">
+                      <Text className="text-sm font-black text-[#c2410c]" numberOfLines={1}>
+                        {visibleError}
+                      </Text>
                     </View>
-                  </View>
-
-                  <View className="mt-4">
-                    <Button
-                      disabled={activeMutation.isPending}
-                      label={
-                        activeMutation.isPending
-                          ? mode === 'login'
-                            ? t('auth.loggingIn')
-                            : t('auth.registering')
-                          : mode === 'login'
-                            ? t('auth.startLearning')
-                            : t('auth.registerAndStart')
-                      }
-                      onPress={() => void submit()}
-                    />
-                  </View>
-
-                  <View className="mt-3 min-h-[42px] justify-center">
-                    {visibleError ? (
-                      <View className="rounded-[14px] border-2 border-[#ffb59f] bg-[#fff0eb] px-3 py-2">
-                        <Text className="text-sm font-black text-[#c2410c]" numberOfLines={1}>
-                          {visibleError}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
+                  ) : null}
                 </View>
               </View>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </View>
+        </AppScrollView>
+        <BottomSheet
+          title={t('language.chooseInterface')}
+          visible={languagePickerVisible}
+          onClose={() => setLanguagePickerVisible(false)}
+        >
+          <View className="px-5 pb-2 pt-2">
+            {authUiLocales.map((locale) => (
+              <Pressable
+                key={locale}
+                className="flex-row items-center border-b border-[#e4eef8] py-4 last:border-b-0 active:scale-[0.99]"
+                onPress={() => {
+                  setUiLocale(locale)
+                  setLanguagePickerVisible(false)
+                }}
+              >
+                <View className={`h-10 w-10 items-center justify-center rounded-[13px] ${
+                  uiLocale === locale ? 'bg-[#e8f9de]' : 'bg-[#edf7ff]'
+                }`}>
+                  <Text className="text-xl">{uiLocaleFlags[locale]}</Text>
+                </View>
+                <Text className="ml-3 flex-1 text-base font-black text-text-primary">
+                  {uiLocaleLabels[locale]}
+                </Text>
+                <FontAwesome6
+                  color={uiLocale === locale ? '#58cc02' : '#8191a6'}
+                  name={uiLocale === locale ? 'circle-check' : 'circle'}
+                  size={18}
+                />
+              </Pressable>
+            ))}
+          </View>
+        </BottomSheet>
       </View>
     </SafeScreen>
   )

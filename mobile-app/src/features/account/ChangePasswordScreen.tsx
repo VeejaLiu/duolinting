@@ -1,16 +1,9 @@
 import { FontAwesome6 } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native'
+import { Pressable, Text, TextInput, View } from 'react-native'
 import { Button } from '@/components/foundation/Button'
+import { AppScrollView } from '@/components/primitives/AppScrollView'
 import { SafeScreen } from '@/components/primitives/SafeScreen'
 import { useChangePasswordMutation } from '@/features/auth/hooks'
 import { useLanguage } from '@/i18n/LanguageProvider'
@@ -118,64 +111,58 @@ export function ChangePasswordScreen() {
           <Text className="ml-3 text-2xl font-black text-text-primary">{t('password.title')}</Text>
         </View>
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        <AppScrollView
           className="flex-1"
+          extraHeight={24}
+          contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            className="flex-1"
-            contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
-            keyboardDismissMode="on-drag"
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <View className="rounded-[20px] border-2 border-[#e4eef8] border-b-[5px] border-b-[#d7e4ef] bg-white px-5 py-5">
-              <View className="flex-row items-center">
-                <View className="h-11 w-11 items-center justify-center rounded-[14px] bg-[#edf7ff]">
-                  <FontAwesome6 color="#1cb0f6" name="shield-halved" size={18} />
-                </View>
-                <View className="ml-3 flex-1">
-                  <Text className="text-lg font-black text-text-primary">{t('password.protectAccount')}</Text>
-                  <Text className="mt-0.5 text-sm font-bold text-text-secondary">
-                    {t('settings.changePasswordDescription')}
-                  </Text>
-                </View>
+          <View className="rounded-[20px] border-2 border-[#e4eef8] border-b-[5px] border-b-[#d7e4ef] bg-white px-5 py-5">
+            <View className="flex-row items-center">
+              <View className="h-11 w-11 items-center justify-center rounded-[14px] bg-[#edf7ff]">
+                <FontAwesome6 color="#1cb0f6" name="shield-halved" size={18} />
               </View>
-
-              <PasswordField
-                label={t('password.current')}
-                onChangeText={setCurrentPassword}
-                value={currentPassword}
-              />
-              <PasswordField
-                label={t('password.new')}
-                onChangeText={setNewPassword}
-                value={newPassword}
-              />
-              <PasswordField
-                label={t('password.confirmNew')}
-                onChangeText={setConfirmedPassword}
-                value={confirmedPassword}
-              />
-
-              {formError || requestError ? (
-                <View className="mt-4 rounded-[14px] border-2 border-[#ffb59f] bg-[#fff0eb] px-3 py-2">
-                  <Text className="text-sm font-black text-[#c2410c]">
-                    {formError || requestError}
-                  </Text>
-                </View>
-              ) : null}
-
-              <View className="mt-5">
-                <Button
-                  disabled={changePasswordMutation.isPending}
-                  label={changePasswordMutation.isPending ? t('password.changing') : t('password.confirmChange')}
-                  onPress={() => void submit()}
-                />
+              <View className="ml-3 flex-1">
+                <Text className="text-lg font-black text-text-primary">{t('password.protectAccount')}</Text>
+                <Text className="mt-0.5 text-sm font-bold text-text-secondary">
+                  {t('settings.changePasswordDescription')}
+                </Text>
               </View>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+
+            <PasswordField
+              label={t('password.current')}
+              onChangeText={setCurrentPassword}
+              value={currentPassword}
+            />
+            <PasswordField
+              label={t('password.new')}
+              onChangeText={setNewPassword}
+              value={newPassword}
+            />
+            <PasswordField
+              label={t('password.confirmNew')}
+              onChangeText={setConfirmedPassword}
+              value={confirmedPassword}
+            />
+
+            {formError || requestError ? (
+              <View className="mt-4 rounded-[14px] border-2 border-[#ffb59f] bg-[#fff0eb] px-3 py-2">
+                <Text className="text-sm font-black text-[#c2410c]">
+                  {formError || requestError}
+                </Text>
+              </View>
+            ) : null}
+
+            <View className="mt-5">
+              <Button
+                disabled={changePasswordMutation.isPending}
+                label={changePasswordMutation.isPending ? t('password.changing') : t('password.confirmChange')}
+                onPress={() => void submit()}
+              />
+            </View>
+          </View>
+        </AppScrollView>
       </View>
     </SafeScreen>
   )

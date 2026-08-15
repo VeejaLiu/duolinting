@@ -326,14 +326,18 @@ export function StudyScreen() {
         />
 
         {stage === 'intensive' || stage === 'review' ? (
-          <View
+          <AppScrollView
             className="flex-1"
-            style={{
+            // 精听既保留正常状态下的上下布局，也让听写、笔记、答案反馈中的
+            // 焦点输入框在键盘弹出时由应用级容器平滑滚入可视区域。
+            contentContainerStyle={{
+              flexGrow: 1,
               gap: compactStudyLayout ? 8 : 12,
               paddingBottom: compactStudyLayout ? 8 : 12,
               paddingHorizontal: 12,
               paddingTop: compactStudyLayout ? 8 : 12,
             }}
+            showsVerticalScrollIndicator={false}
           >
             <StudyStageTabs
               compact={compactStudyLayout}
@@ -349,7 +353,7 @@ export function StudyScreen() {
                 description={t('study.noDifficultDescription')}
               />
             )}
-          </View>
+          </AppScrollView>
         ) : (
           <AppScrollView
             className="flex-1"
