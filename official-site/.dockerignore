@@ -1,12 +1,28 @@
 # Build context exclusions for the standalone official-site Docker image.
-node_modules
-dist
-.next
-.vinext
-.wrangler
-.git
+# Keep this recursive: a nested Git checkout, dependency tree, temporary Expo
+# output, or framework cache must never inflate the production Docker context.
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
-npm-debug.log*
 .DS_Store
+*.log
+**/*.log
+**/.git
+**/node_modules
+**/dist
+**/dist-ssr
+**/.next
+**/.vinext
+**/.wrangler
+**/.expo
+**/.vite
+**/.cache
+**/.parcel-cache
+**/.turbo
+**/coverage
+**/outputs
+**/temp
+**/backups
+**/work

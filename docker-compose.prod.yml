@@ -66,6 +66,10 @@ services:
       - duolinting-network
 
   backend:
+    # All application images use a stable production tag. The local delivery
+    # script builds, exports, imports, and verifies this exact tag before the
+    # server is allowed to recreate the corresponding container.
+    image: duolinting-backend:latest
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -103,6 +107,7 @@ services:
       - duolinting-network
 
   web-app:
+    image: duolinting-web-app:latest
     build:
       context: .
       dockerfile: web-app/Dockerfile
@@ -117,6 +122,7 @@ services:
       - duolinting-network
 
   admin:
+    image: duolinting-admin:latest
     build:
       context: .
       dockerfile: admin/Dockerfile
@@ -130,6 +136,7 @@ services:
       - duolinting-network
 
   mobile-app:
+    image: duolinting-mobile-app:latest
     build:
       context: .
       dockerfile: mobile-app/Dockerfile
@@ -145,8 +152,8 @@ services:
   # 官网是独立 Node.js 项目；网页学习端 URL 在构建时嵌入浏览器产物，
   # 因而必须从服务器 .env 显式传入，不能在容器启动后再覆盖。
   official-site:
-    # Stable tag lets the locally built image be loaded on the server and
-    # started with --no-build; the server never runs a Dockerfile build.
+    # It follows the same stable-tag delivery path as backend and all client
+    # applications. The server never runs a Dockerfile build.
     image: duolinting-official-site:latest
     build:
       context: ./official-site
