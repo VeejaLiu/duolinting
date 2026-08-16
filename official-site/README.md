@@ -61,6 +61,23 @@ OFFICIAL_SITE_PUBLIC_PORT=8083
 
 官网使用 `www.duolinting.cn`，学习端继续使用 `app.duolinting.cn`。部署前确认 DNS、HTTPS 证书和反向代理都已包含 `www.duolinting.cn`。完整的预检、构建、切换与验证顺序记录在主项目私有运行手册 `temp/deployment-runbook.local.md`；不要跳过其中的本地 Docker 预检。
 
+官网与 backend、web-app、admin、mobile-app 使用同一镜像交付脚本。它只在本机构建，使用正式镜像标签导出、在服务器导入后比对两端 Image ID；不会在服务器构建或自动切换容器：
+
+```bash
+DEPLOY_HOST=<ssh-host> npm run deploy:images -- official-site
+```
+
+镜像 ID 一致后，按运行手册的完整顺序同步相关源码，并用 `--no-build --no-deps` 仅切换 `official-site`。官网不涉及 Flyway；其余应用若生产库存在 pending migration，必须在切换前完成备份和迁移。
+
+若官网源码也需要保留在服务器工作目录，使用主项目的独立同步清单，而不是根目录同步：
+
+```bash
+DEPLOY_HOST=<ssh-host> npm run deploy:sync-sources -- official-site
+```
+
+该清单由 `git ls-files` 生成，只包含已跟踪的官网文件；不会扫描或传输 `node_modules`、`dist`、
+`temp`、缓存、嵌套 `.git` 或本地 `.env`。
+
 ## SEO 与搜索引擎收录
 
 官网把 `https://www.duolinting.cn` 作为唯一公开规范域名。生产构建使用 `VITE_OFFICIAL_SITE_URL` 生成 canonical URL、`robots.txt`、`sitemap.xml`、Open Graph 与 JSON-LD；默认值已经是该地址。只有在预览环境中需要使用不同公开域名时才覆盖它。

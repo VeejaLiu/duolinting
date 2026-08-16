@@ -6,8 +6,8 @@ about the project.
 ## Project Overview
 
 DuolinTing is a front-end/back-end separated intensive-listening product.
-It is an npm-workspaces monorepo named `duolinting`, with four deployable
-applications and five shared packages:
+It is an npm-workspaces monorepo named `duolinting`, with four product
+applications, one independent official-site application, and five shared packages:
 
 - `backend` (`@duolinting/backend`): unified Node.js backend for catalog,
   exercises, auth, learner progress, feedback, admin content operations, and
@@ -24,6 +24,9 @@ applications and five shared packages:
   `mobile-app/app/`; feature code in `mobile-app/src/`. Its own `AGENTS.md`
   says: read the versioned Expo docs at https://docs.expo.dev/versions/v54.0.0/
   before writing any code — Expo APIs have changed.
+- `official-site` (`duolinting-official-site`): independent vinext product
+  website, kept in this repository but outside npm workspaces. It runs on Node
+  22 and does not depend on backend, database, or shared packages.
 - `packages/domain`: shared domain contracts (auth, catalog, exercises,
   progress types) used by all clients.
 - `packages/shared`: shared domain contracts and system-level constants for
@@ -265,6 +268,18 @@ Database and Admin labels stay precise.
 - When deployment is explicitly requested, read that local runbook first and
   follow its service order. If it is unavailable, stop and ask the project
   owner instead of inferring production details.
+- All five application images use the same local delivery path: run
+  `DEPLOY_HOST=<ssh-host> npm run deploy:images -- <explicit-services>` to
+  build with `--pull=false`, apply the stable production tag, stream
+  `docker image save`/`load`, and compare local/server image IDs. The server
+  must never build application Dockerfiles. Complete any Flyway gate before
+  switching only the named services with `--no-build --no-deps`; never include
+  MySQL or MinIO.
+- Synchronize server-side source only through
+  `DEPLOY_HOST=<ssh-host> npm run deploy:sync-sources -- deployment [official-site]`.
+  It derives separate Git-tracked manifests for deployment configuration and
+  official-site source, so it does not scan or transfer local dependencies,
+  build outputs, `temp` directories, nested Git metadata, caches, or `.env`.
 
 ## Security Considerations
 
