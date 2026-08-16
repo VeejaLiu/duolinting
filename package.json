@@ -29,7 +29,7 @@
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
     "db:migrate": "docker compose --profile tools run --rm flyway",
-    "deploy:images": "bash scripts/deliver-production-images.sh",
+    "deploy:build-server": "bash scripts/build-production-images-on-server.sh",
     "deploy:sync-sources": "bash scripts/sync-production-sources.sh",
     "build": "npm run build --workspace @duolinting/domain && npm run build --workspace @duolinting/app-config && npm run build --workspace @duolinting/ui-tokens && npm run build --workspace @duolinting/api-client && npm run build --workspace @duolinting/shared && npm run build --workspace @duolinting/backend && npm run build --workspace @duolinting/web-app && npm run build --workspace @duolinting/admin",
     "lint": "eslint .",

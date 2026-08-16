@@ -268,18 +268,22 @@ Database and Admin labels stay precise.
 - When deployment is explicitly requested, read that local runbook first and
   follow its service order. If it is unavailable, stop and ask the project
   owner instead of inferring production details.
-- All five application images use the same local delivery path: run
-  `DEPLOY_HOST=<ssh-host> npm run deploy:images -- <explicit-services>` to
-  build with `--pull=false`, apply the stable production tag, stream
-  `docker image save`/`load`, and compare local/server image IDs. The server
-  must never build application Dockerfiles. Complete any Flyway gate before
-  switching only the named services with `--no-build --no-deps`; never include
-  MySQL or MinIO.
+- All five application images are built on the production server. First commit
+  and push the release, then run
+  `DEPLOY_HOST=<ssh-host> npm run deploy:sync-sources -- release` to transfer
+  the exact Git-tracked source and record its commit revision. Run
+  `DEPLOY_HOST=<ssh-host> npm run deploy:build-server -- <explicit-services>`
+  to build only the named application Dockerfiles on the server with
+  `--pull=false`. Complete any Flyway gate before switching only the named
+  services with `--no-build --no-deps`; never include MySQL or MinIO.
 - Synchronize server-side source only through
-  `DEPLOY_HOST=<ssh-host> npm run deploy:sync-sources -- deployment [official-site]`.
-  It derives separate Git-tracked manifests for deployment configuration and
-  official-site source, so it does not scan or transfer local dependencies,
-  build outputs, `temp` directories, nested Git metadata, caches, or `.env`.
+  `DEPLOY_HOST=<ssh-host> npm run deploy:sync-sources -- release`. It derives
+  a full Git-tracked manifest, removes only previously tracked files deleted
+  from the release, and never scans or transfers local dependencies, build
+  outputs, `temp` directories, nested Git metadata, caches, or `.env`. On its
+  first use it refreshes only Git-managed source/configuration paths before
+  copying the release, never server `.env`, backups, temporary data, or Docker
+  volumes.
 
 ## Security Considerations
 

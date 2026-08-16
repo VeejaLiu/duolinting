@@ -37,6 +37,12 @@ mobile-app/temp
 mobile-app/node_modules
 mobile-app/dist
 mobile-app/.expo
+mobile-app/android/.gradle
+mobile-app/android/build
+mobile-app/android/app/build
+mobile-app/android/app/.cxx
+mobile-app/ios/Pods
+mobile-app/ios/build
 official-site/.git
 official-site/node_modules
 official-site/dist

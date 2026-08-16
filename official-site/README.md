@@ -59,24 +59,16 @@ OFFICIAL_SITE_PUBLIC_PORT=8083
 
 不要用此项目的 `.env.production.local` 覆盖服务器根目录 `.env`。Docker Compose 会把 `OFFICIAL_SITE_LEARNER_APP_URL` 作为构建参数转换为镜像内的 `VITE_LEARNER_APP_URL`；运行时再修改环境变量不会更新已经构建的网页链接。
 
-官网使用 `www.duolinting.cn`，学习端继续使用 `app.duolinting.cn`。部署前确认 DNS、HTTPS 证书和反向代理都已包含 `www.duolinting.cn`。完整的预检、构建、切换与验证顺序记录在主项目私有运行手册 `temp/deployment-runbook.local.md`；不要跳过其中的本地 Docker 预检。
+官网使用 `www.duolinting.cn`，学习端继续使用 `app.duolinting.cn`。部署前确认 DNS、HTTPS 证书和反向代理都已包含 `www.duolinting.cn`。完整的同步、服务器构建、切换与验证顺序记录在主项目私有运行手册 `temp/deployment-runbook.local.md`。
 
-官网与 backend、web-app、admin、mobile-app 使用同一镜像交付脚本。它只在本机构建，使用正式镜像标签导出、在服务器导入后比对两端 Image ID；不会在服务器构建或自动切换容器：
-
-```bash
-DEPLOY_HOST=<ssh-host> npm run deploy:images -- official-site
-```
-
-镜像 ID 一致后，按运行手册的完整顺序同步相关源码，并用 `--no-build --no-deps` 仅切换 `official-site`。官网不涉及 Flyway；其余应用若生产库存在 pending migration，必须在切换前完成备份和迁移。
-
-若官网源码也需要保留在服务器工作目录，使用主项目的独立同步清单，而不是根目录同步：
+官网与 backend、web-app、admin、mobile-app 使用同一服务器构建流程。先提交并推送代码，再同步完整的 Git 跟踪源码；服务器用该提交版本构建正式镜像，但不会自动切换容器：
 
 ```bash
-DEPLOY_HOST=<ssh-host> npm run deploy:sync-sources -- official-site
+DEPLOY_HOST=<ssh-host> npm run deploy:sync-sources -- release
+DEPLOY_HOST=<ssh-host> npm run deploy:build-server -- official-site
 ```
 
-该清单由 `git ls-files` 生成，只包含已跟踪的官网文件；不会扫描或传输 `node_modules`、`dist`、
-`temp`、缓存、嵌套 `.git` 或本地 `.env`。
+构建完成后，按运行手册使用 `--no-build --no-deps` 仅切换 `official-site`。官网不涉及 Flyway；其余应用若生产库存在 pending migration，必须在切换前完成备份和迁移。同步脚本由 `git ls-files` 生成完整白名单，只传输已跟踪文件；不会扫描或传输 `node_modules`、`dist`、`temp`、缓存、嵌套 `.git` 或本地 `.env`。
 
 ## SEO 与搜索引擎收录
 
@@ -112,12 +104,8 @@ curl -s https://www.duolinting.cn/contribute | rg 'canonical|application/ld\+jso
 
 不要在 `app.duolinting.cn` 提交官网站点地图，也不要让 `www` 持续 301 到学习端；两者会使官网页面无法独立建立索引。
 
-若仅在本机验证镜像，可从本目录运行：
-
-```bash
-docker build --build-arg VITE_LEARNER_APP_URL=https://app.duolinting.cn -t duolinting-official-site:local .
-docker run --rm -p 3000:3000 duolinting-official-site:local
-```
+不要在本机构建官网的生产 Docker 镜像。官网页面与源码质量检查使用本地 Node.js 命令完成；正式
+镜像只由服务器根据已同步、已提交的源码构建。
 
 ## 项目结构
 

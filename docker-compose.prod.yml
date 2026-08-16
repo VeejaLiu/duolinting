@@ -66,9 +66,9 @@ services:
       - duolinting-network
 
   backend:
-    # All application images use a stable production tag. The local delivery
-    # script builds, exports, imports, and verifies this exact tag before the
-    # server is allowed to recreate the corresponding container.
+    # Server-side builds replace this stable tag only after the source-sync
+    # script records the committed release revision. Existing containers retain
+    # their prior image ID until an explicit service switch.
     image: duolinting-backend:latest
     build:
       context: .
@@ -152,8 +152,8 @@ services:
   # 官网是独立 Node.js 项目；网页学习端 URL 在构建时嵌入浏览器产物，
   # 因而必须从服务器 .env 显式传入，不能在容器启动后再覆盖。
   official-site:
-    # It follows the same stable-tag delivery path as backend and all client
-    # applications. The server never runs a Dockerfile build.
+    # It follows the same server-side build path as backend and all client
+    # applications. Only the explicitly selected service is rebuilt.
     image: duolinting-official-site:latest
     build:
       context: ./official-site
