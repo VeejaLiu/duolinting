@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CatalogExerciseSummary, ContentLocale } from '@duolinting/domain'
 import { apiClient } from '../lib/apiClient'
 
-export function useCategoryExercises(contentLocale?: ContentLocale) {
+export function useCategoryExercises(contentLocale?: ContentLocale, authToken?: string) {
   const [exercisesByCategory, setExercisesByCategory] = useState<
     Record<string, CatalogExerciseSummary[]>
   >({})
@@ -15,7 +15,7 @@ export function useCategoryExercises(contentLocale?: ContentLocale) {
   }, [contentLocale])
 
   const loadExercises = useCallback(async (categoryId: number) => {
-    const cacheKey = `${categoryId}:${contentLocale ?? 'default'}`
+    const cacheKey = `${categoryId}:${contentLocale ?? 'default'}:${authToken ?? 'anonymous'}`
     // Return from cache if available
     if (cacheRef.current[cacheKey]) {
       return cacheRef.current[cacheKey]
@@ -23,7 +23,7 @@ export function useCategoryExercises(contentLocale?: ContentLocale) {
 
     setLoadingCategoryId(categoryId)
     try {
-      const exercises = await apiClient.getCategoryExercises(categoryId, contentLocale)
+      const exercises = await apiClient.getCategoryExercises(categoryId, contentLocale, authToken)
       cacheRef.current[cacheKey] = exercises
       setExercisesByCategory((prev) => ({
         ...prev,
@@ -33,11 +33,11 @@ export function useCategoryExercises(contentLocale?: ContentLocale) {
     } finally {
       setLoadingCategoryId(null)
     }
-  }, [contentLocale])
+  }, [authToken, contentLocale])
 
   const getCachedExercises = useCallback((categoryId: number) => {
-    return cacheRef.current[`${categoryId}:${contentLocale ?? 'default'}`]
-  }, [contentLocale])
+    return cacheRef.current[`${categoryId}:${contentLocale ?? 'default'}:${authToken ?? 'anonymous'}`]
+  }, [authToken, contentLocale])
 
   return {
     exercisesByCategory,

@@ -126,16 +126,22 @@ export const createApiClient = ({
     apiBaseUrl: normalizedBaseUrl,
     resolveApiUrl: (value: string | undefined | null) =>
       resolveApiUrl(normalizedBaseUrl, value),
-    getCatalog: (contentLocale?: ContentLocale) => fetchJson<CatalogResponse>(
+    getCatalog: (contentLocale?: ContentLocale, authToken?: string) => fetchJson<CatalogResponse>(
       `/api/v1/catalog${contentLocale ? `?contentLocale=${encodeURIComponent(contentLocale)}` : ''}`,
+      undefined,
+      { authToken },
     ),
-    getCategoryExercises: (categoryId: number, contentLocale?: ContentLocale) =>
+    getCategoryExercises: (categoryId: number, contentLocale?: ContentLocale, authToken?: string) =>
       fetchJson<CatalogExerciseSummary[]>(
         `/api/v1/catalog/category/${categoryId}/exercises${contentLocale ? `?contentLocale=${encodeURIComponent(contentLocale)}` : ''}`,
+        undefined,
+        { authToken },
       ),
-    getExercise: (exerciseId: number, contentLocale?: ContentLocale) =>
+    getExercise: (exerciseId: number, contentLocale?: ContentLocale, authToken?: string) =>
       fetchJson<ListeningExercise>(
         `/api/v1/exercises/${exerciseId}${contentLocale ? `?contentLocale=${encodeURIComponent(contentLocale)}` : ''}`,
+        undefined,
+        { authToken },
       ),
     getUserPreferences: (authToken: string) =>
       fetchJson<UserPreferences>('/api/v1/user/preferences', { method: 'GET' }, { authToken }),

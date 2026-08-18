@@ -12,12 +12,14 @@ type UseExerciseDetailOptions = {
   activeExerciseSummary?: CatalogExerciseSummary
   setStore: React.Dispatch<React.SetStateAction<StudyStore>>
   contentLocale?: ContentLocale
+  authToken?: string
 }
 
 export function useExerciseDetail({
   activeExerciseSummary,
   setStore,
   contentLocale,
+  authToken,
 }: UseExerciseDetailOptions) {
   const exerciseCacheRef = useRef<Record<string, ListeningExercise>>({})
   const [activeExercise, setActiveExercise] = useState<ListeningExercise | undefined>()
@@ -32,7 +34,7 @@ export function useExerciseDetail({
       return
     }
 
-    const cacheKey = `${activeExerciseSummary.id}:${contentLocale ?? 'default'}`
+    const cacheKey = `${activeExerciseSummary.id}:${contentLocale ?? 'default'}:${authToken ?? 'anonymous'}`
     const cachedExercise = exerciseCacheRef.current[cacheKey]
     if (cachedExercise) {
       setActiveExercise(cachedExercise)
@@ -48,7 +50,7 @@ export function useExerciseDetail({
     setExerciseLoadFailed(false)
 
     apiClient
-      .getExercise(activeExerciseSummary.id, contentLocale)
+      .getExercise(activeExerciseSummary.id, contentLocale, authToken)
       .then((exercise) => {
         if (!mounted) {
           return
@@ -76,7 +78,7 @@ export function useExerciseDetail({
     return () => {
       mounted = false
     }
-  }, [activeExerciseSummary, contentLocale, setStore])
+  }, [activeExerciseSummary, authToken, contentLocale, setStore])
 
   return {
     activeExercise,

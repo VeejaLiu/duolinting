@@ -24,6 +24,7 @@ import { IntensiveStagePanel } from './components/IntensiveStagePanel'
 import { useLanguage } from '@/i18n/LanguageProvider'
 import { StudyHeader } from './components/StudyHeader'
 import { StudyStageTabs } from './components/StudyStageTabs'
+import { ContributorCredits } from './components/ContributorCredits'
 
 const formatClock = (seconds: number) => {
   if (!Number.isFinite(seconds) || seconds <= 0) {
@@ -324,6 +325,7 @@ export function StudyScreen() {
             }
           }}
         />
+        <ContributorCredits contributors={exercise.contributors} />
 
         {stage === 'intensive' || stage === 'review' ? (
           <AppScrollView

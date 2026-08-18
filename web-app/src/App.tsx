@@ -11,6 +11,7 @@ import { ExtensiveStage } from './components/ExtensiveStage'
 import { IntensiveStage } from './components/IntensiveStage'
 import { StageRail } from './components/StageRail'
 import { StudyHero } from './components/StudyHero'
+import { ContributorCredits } from './components/ContributorCredits'
 import {
   CatalogErrorState,
   EmptyStudyState,
@@ -61,18 +62,8 @@ function LearnerAppShell() {
   )
   const [store, setStore] = useState(() => createEmptyStore())
   const [accountDialogOpen, setAccountDialogOpen] = useState(false)
-  const [_loopingLineId, setLoopingLineId] = useState('')
-  const [_feedbackSubmittingLineId, setFeedbackSubmittingLineId] = useState('')
   const mediaRef = useRef<HTMLMediaElement | null>(null)
   const loopingLineIdRef = useRef('')
-  const {
-    catalog,
-    catalogLoadFailed,
-  } = useCatalog(contentLocale)
-  const {
-    exercisesByCategory,
-    loadExercises,
-  } = useCategoryExercises(contentLocale)
   const {
     accountStatus,
     authLoading,
@@ -84,7 +75,14 @@ function LearnerAppShell() {
     store,
     onStoreRestore: setStore,
   })
-
+  const {
+    catalog,
+    catalogLoadFailed,
+  } = useCatalog(contentLocale, authToken)
+  const {
+    exercisesByCategory,
+    loadExercises,
+  } = useCategoryExercises(contentLocale, authToken)
   const seriesProgressByCategory = useMemo<Record<string, SeriesProgressSummary>>(() => {
     return Object.fromEntries(
       catalog.categories.map((category) => [
@@ -138,6 +136,7 @@ function LearnerAppShell() {
       activeExerciseSummary,
       setStore,
       contentLocale,
+      authToken,
     })
 
   useEffect(() => {
@@ -345,8 +344,6 @@ function LearnerAppShell() {
 
   const resetSessionUi = () => {
     loopingLineIdRef.current = ''
-    setLoopingLineId('')
-    setFeedbackSubmittingLineId('')
     stopPlayback()
     setStudyStage('extensive')
     setCompletedStages({})
@@ -471,8 +468,6 @@ function LearnerAppShell() {
     }
 
     loopingLineIdRef.current = ''
-    setLoopingLineId('')
-    setFeedbackSubmittingLineId('')
     stopPlayback()
     setStudyStage(stage)
     setSearchParams(
@@ -591,7 +586,8 @@ function LearnerAppShell() {
 	                  <div className="study-chapter-progress" aria-hidden="true">
 	                    <span style={{ width: `${activeChapterProgress?.percent ?? masteryPercent}%` }} />
 	                  </div>
-	                </section>
+                </section>
+                <ContributorCredits contributors={activeExercise.contributors} />
 
                 <StageRail
                   activeStage={studyStage}

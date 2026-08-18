@@ -20,6 +20,7 @@ import { useCatalogQuery } from './hooks'
 import { useNavigationStore } from '@/stores/navigationStore'
 import { useStudyStore } from '@/stores/studyStore'
 import { useLanguage } from '@/i18n/LanguageProvider'
+import { useAuthStore } from '@/stores/authStore'
 
 function CoverImage({
   accent,
@@ -62,6 +63,7 @@ export function SeriesPickerScreen() {
   const selectedSeriesId = useNavigationStore((state) => state.selectedSeriesId)
   const setSelectedSeriesId = useNavigationStore((state) => state.setSelectedSeriesId)
   const { contentLocale, t } = useLanguage()
+  const authToken = useAuthStore((state) => state.authToken)
   const groupedSeries = (catalog?.categoryGroups ?? [])
     .slice()
     .sort((left, right) => left.sortOrder - right.sortOrder)
@@ -99,8 +101,8 @@ export function SeriesPickerScreen() {
     groups.find((item) => item.group.id === selectedGroupId) ?? groups[0]
   const exerciseQueries = useQueries({
     queries: (catalog?.categories ?? []).map((category) => ({
-      queryKey: ['catalog', 'category-exercises', category.id, contentLocale],
-      queryFn: () => apiClient.getCategoryExercises(category.id, contentLocale),
+      queryKey: ['catalog', 'category-exercises', category.id, contentLocale, authToken],
+      queryFn: () => apiClient.getCategoryExercises(category.id, contentLocale, authToken),
       enabled: category.id > 0,
       refetchOnMount: 'always',
     })),

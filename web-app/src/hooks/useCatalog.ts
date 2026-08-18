@@ -9,7 +9,7 @@ const emptyCatalog: CatalogResponse = {
   exercises: [],
 }
 
-export function useCatalog(contentLocale?: ContentLocale) {
+export function useCatalog(contentLocale?: ContentLocale, authToken?: string) {
   const [catalog, setCatalog] = useState<CatalogResponse>(emptyCatalog)
   const [catalogLoadFailed, setCatalogLoadFailed] = useState(false)
 
@@ -17,7 +17,7 @@ export function useCatalog(contentLocale?: ContentLocale) {
     let mounted = true
 
     apiClient
-      .getCatalog(contentLocale)
+      .getCatalog(contentLocale, authToken)
       .then((remoteCatalog) => {
         if (!mounted) {
           return
@@ -37,7 +37,7 @@ export function useCatalog(contentLocale?: ContentLocale) {
     return () => {
       mounted = false
     }
-  }, [contentLocale])
+  }, [authToken, contentLocale])
 
   return {
     catalog,
