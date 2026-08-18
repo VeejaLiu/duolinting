@@ -165,6 +165,32 @@ export type AdminReviewTask = {
   submittedAt: string
 }
 
+/** 当前成员的字幕协作任务与最近处理记录；课程发布状态与这里的协作阶段分开。 */
+export type AdminSubtitleWorkflowTaskStage = 'proofreading' | 'awaiting_review' | 'returned' | 'completed'
+export type AdminSubtitleWorkflowTaskRole = 'proofreader' | 'second_reviewer'
+export type AdminSubtitleWorkflowTask = {
+  draftId: number
+  exerciseId: number
+  exerciseTitle: string
+  contributorDisplayName: string
+  role: AdminSubtitleWorkflowTaskRole
+  stage: AdminSubtitleWorkflowTaskStage
+  draftStatus: SubtitleDraftStatus
+  submittedAt?: string
+  updatedAt?: string
+  reviewNote?: string
+}
+
+export type AdminSubtitleWorkflowTaskInbox = {
+  items: AdminSubtitleWorkflowTask[]
+  counts: {
+    proofreading: number
+    awaitingReview: number
+    returned: number
+    completed: number
+  }
+}
+
 /** 后台工作流通知由服务端保存，重新登录后仍可查阅。 */
 export type AdminWorkflowNotificationType = 'subtitle_submitted' | 'subtitle_returned' | 'subtitle_approved'
 

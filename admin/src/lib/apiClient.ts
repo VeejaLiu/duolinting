@@ -9,6 +9,7 @@ import type {
   AdminMemberProvisioning,
   AdminUser,
   AdminReviewTask,
+  AdminSubtitleWorkflowTaskInbox,
   AdminWorkflowNotifications,
   ChangeAdminPasswordRequest,
   CreateAdminMemberRequest,
@@ -291,6 +292,12 @@ export const apiClient = {
   getMySubtitleReviewTasks: (adminToken: string) =>
     fetchJson<{ items: AdminReviewTask[] }>(
       '/api/v1/admin/subtitle-review-tasks',
+      { method: 'GET' },
+      { adminToken },
+    ),
+  getMySubtitleWorkflowInbox: (adminToken: string) =>
+    fetchJson<AdminSubtitleWorkflowTaskInbox>(
+      '/api/v1/admin/subtitle-workflow-inbox',
       { method: 'GET' },
       { adminToken },
     ),

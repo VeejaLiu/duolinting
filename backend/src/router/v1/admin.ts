@@ -15,6 +15,7 @@ import {
     isSuperAdmin,
     listAdminMembers,
     listMySubtitleReviewTasks,
+    listMySubtitleWorkflowInbox,
     listMyWorkflowNotifications,
     listPreviewVolunteers,
     markMyWorkflowNotificationsRead,
@@ -147,6 +148,10 @@ router.put(
 /** 二审任务只返回给提交时已接收该稿件的审核人。 */
 router.get('/subtitle-review-tasks', async (req: any, res) => {
     res.status(200).send({ items: await listMySubtitleReviewTasks(req.admin.id) });
+});
+
+router.get('/subtitle-workflow-inbox', async (req: any, res) => {
+    res.status(200).send(await listMySubtitleWorkflowInbox(req.admin.id));
 });
 
 router.get('/exercises', async (req: any, res) => {
@@ -548,10 +553,10 @@ router.put(
     body('displayName').isString().trim().isLength({ min: 1, max: 120 }),
     body('role').isIn(['super_admin', 'subtitle_contributor']),
     validateErrorCheck,
-    async (req, res) => {
+    async (req: any, res) => {
         const memberId = toId(req.params.memberId);
         if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).send({ success: false, message: 'Invalid member id' });
-        const member = await updateAdminMemberProfile({ memberId, email: req.body.email, displayName: req.body.displayName, role: req.body.role });
+        const member = await updateAdminMemberProfile({ memberId, actorId: req.admin.id, email: req.body.email, displayName: req.body.displayName, role: req.body.role });
         res.status(200).send({ ok: true, member });
     },
 );

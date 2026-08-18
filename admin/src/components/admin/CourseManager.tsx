@@ -2,7 +2,7 @@ import { ArrowDown, ArrowUp, Bell, BookOpen, ClipboardCheck, Ellipsis, FilePenLi
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Badge, Button, Card, Dropdown, Empty, Form, Image, Input, Modal, Popover, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import type { AdminMember, AdminReviewTask, AdminWorkflowNotifications, CatalogExerciseSummary, ExerciseCategory, MaterialCategory } from '@duolinting/shared'
+import type { AdminMember, AdminReviewTask, AdminSubtitleWorkflowTaskInbox, AdminWorkflowNotifications, CatalogExerciseSummary, ExerciseCategory, MaterialCategory } from '@duolinting/shared'
 import { apiClient, resolveApiUrl } from '../../lib/apiClient'
 
 type CourseManagerProps = {
@@ -24,6 +24,7 @@ type CourseManagerProps = {
   canManageCourses?: boolean
   onReviewSubtitleDraft?: (exerciseId: number) => void
   reviewTasks: AdminReviewTask[]
+  workflowInbox: AdminSubtitleWorkflowTaskInbox
   workflowNotifications: AdminWorkflowNotifications
   onReadWorkflowNotifications: () => Promise<void>
   contributors: AdminMember[]
@@ -151,9 +152,9 @@ function CourseWorkflow({
 }
 
 export function CourseManager({
-  adminToken, currentAdminId, categoryGroups, categories, isCatalogLoading, catalogLoadError, onRefreshCatalog, isSaving, onCreateCourse,
+  adminToken, currentAdminId, categoryGroups, categories, exercises, isCatalogLoading, catalogLoadError, onRefreshCatalog, isSaving, onCreateCourse,
   onDeleteCourse, onEditCourse, onMoveCourse, onOpenRecorder, onRenameCourse, canManageCourses = true, onReviewSubtitleDraft,
-  contributors, onUpdateWorkflowAssignee, reviewTasks, workflowNotifications, onReadWorkflowNotifications,
+  contributors, onUpdateWorkflowAssignee, reviewTasks, workflowInbox, workflowNotifications, onReadWorkflowNotifications,
 }: CourseManagerProps) {
   // 筛选器不提供"全部"选项：用户必须选中一个具体系列（目录加载完成前
   // 用 0 表示尚未就绪，此时不发起课程请求）。
@@ -350,10 +351,13 @@ export function CourseManager({
       render: (sortOrder: number) => <Typography.Text>{sortOrder}</Typography.Text>,
     },
     {
-      title: '工作流与负责人', dataIndex: 'status', key: 'workflow', width: 520,
+      title: '发布状态 / 协作流程', dataIndex: 'status', key: 'workflow', width: 520,
       render: (status: Exclude<CourseStatus, 'all'>, exercise) => <Space direction="vertical" size={5}>
         <Space size={4} wrap>
-          <Tag color={statusColors[status]}>{statusLabels[status]}</Tag>
+          <Tag color={statusColors[status]}>内容：{statusLabels[status]}</Tag>
+          <Tag color={exercise.workflow?.stage === 'awaiting_review' ? 'orange' : exercise.workflow?.stage === 'returned' ? 'warning' : exercise.workflow?.stage === 'published' ? 'green' : 'blue'}>
+            协作：{exercise.workflow?.stage === 'awaiting_review' ? '待审核' : exercise.workflow?.stage === 'returned' ? '待修改' : exercise.workflow?.stage === 'proofreading' ? '校对中' : exercise.workflow?.stage === 'published' ? '已完成' : exercise.workflow?.stage === 'archived' ? '已归档' : '待开始'}
+          </Tag>
           {(exercise.pendingSubtitleDraftCount ?? 0) > 0 && <Tag color="orange">待二审 {exercise.pendingSubtitleDraftCount}</Tag>}
         </Space>
         <CourseWorkflow
@@ -459,6 +463,43 @@ export function CourseManager({
       showIcon
       type="warning"
     />}
+    <Card className="subtitle-task-center" size="small" title={<Space><ClipboardCheck size={16} /><span>我的字幕任务</span></Space>}>
+      <Space className="subtitle-task-counts" wrap>
+        <Tag color="blue">待校对 {workflowInbox.counts.proofreading}</Tag>
+        <Tag color="orange">待审核 {workflowInbox.counts.awaitingReview}</Tag>
+        <Tag color="gold">待修改 {workflowInbox.counts.returned}</Tag>
+        <Tag color="green">已完成 {workflowInbox.counts.completed}</Tag>
+      </Space>
+      {workflowInbox.items.length === 0 ? (
+        <Typography.Text type="secondary">当前没有字幕任务。</Typography.Text>
+      ) : (
+        <div className="subtitle-task-center-list">
+          {workflowInbox.items.slice(0, 8).map((task) => (
+            <div className="subtitle-task-center-item" key={`${task.exerciseId}-${task.draftId}-${task.role}-${task.stage}`}>
+              <Space direction="vertical" size={1}>
+                <Typography.Text strong>{task.exerciseTitle}</Typography.Text>
+                <Typography.Text type="secondary">
+                  {task.role === 'second_reviewer' ? '审核' : '校对'} · {task.contributorDisplayName} · {task.stage === 'awaiting_review' ? '等待审核' : task.stage === 'returned' ? `退回修改${task.reviewNote ? `：${task.reviewNote}` : ''}` : task.stage === 'completed' ? '已完成' : '校对中'}
+                </Typography.Text>
+              </Space>
+              {task.stage === 'awaiting_review' && reviewTasks.some((item) => item.draftId === task.draftId) && (
+                <Button onClick={() => onReviewSubtitleDraft?.(task.exerciseId)} size="small" type="primary">开始审核</Button>
+              )}
+              {(task.stage === 'proofreading' || task.stage === 'returned') && (
+                <Button
+                  onClick={() => {
+                    const exercise = exercises.find((item) => item.id === task.exerciseId)
+                    if (exercise) onEditCourse(exercise)
+                  }}
+                  size="small"
+                  type="primary"
+                >{task.stage === 'returned' ? '继续修改' : '开始校对'}</Button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
     {createCourseDisabled && (
       <Alert
         description={createCourseDisabledReason}

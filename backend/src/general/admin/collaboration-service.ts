@@ -5,6 +5,7 @@ import { QueryTypes } from 'sequelize';
 import type {
     AdminRole,
     AdminReviewTask,
+    AdminSubtitleWorkflowTaskInbox,
     AdminWorkflowNotification,
     AdminWorkflowNotifications,
     AdminWorkflowNotificationType,
@@ -175,6 +176,17 @@ export async function updateExerciseWorkflowAssignee({
     }
 
     await sequelize.transaction(async (transaction) => {
+        const existingAssignees = await sequelize.query<{
+            workflow_role: CourseContributionRole;
+            admin_user_id: number | string;
+        }>(
+            `select workflow_role, admin_user_id
+             from exercise_workflow_assignees
+             where exercise_id = :exerciseId and workflow_role in ('proofreader', 'second_reviewer')`,
+            { replacements: { exerciseId }, type: QueryTypes.SELECT, transaction },
+        );
+        const previousProofreaderId = Number(existingAssignees.find((row) => row.workflow_role === 'proofreader')?.admin_user_id ?? 0);
+        const previousReviewerId = Number(existingAssignees.find((row) => row.workflow_role === 'second_reviewer')?.admin_user_id ?? 0);
         await sequelize.query(
             `delete from exercise_workflow_assignees
              where exercise_id = :exerciseId and workflow_role = :workflowRole`,
@@ -329,7 +341,15 @@ export async function updateAdminMemberProfile({ memberId, email, displayName, r
     });
     if (duplicate && Number(duplicate.id) !== memberId) throw new Error('该后台登录邮箱已被使用');
     await AdminUserModel.update(
-        { email: normalizedEmail, username: normalizedEmail, display_name: normalizedDisplayName, role },
+        {
+            email: normalizedEmail,
+            username: normalizedEmail,
+            display_name: normalizedDisplayName,
+            role,
+            // 资料或角色变更后要求重新登录，避免旧会话继续使用过期权限。
+            token: null,
+            token_expires_at: null,
+        },
         { where: { id: memberId } },
     );
     return { id: memberId, email: normalizedEmail, displayName: normalizedDisplayName, role };
@@ -861,6 +881,112 @@ export async function listMySubtitleReviewTasks(adminId: number): Promise<AdminR
         contributorDisplayName: row.contributor_display_name,
         submittedAt: new Date(row.submitted_at).toISOString(),
     }));
+}
+
+/** 返回当前成员负责的校对、审核、退回和最近完成记录，供统一任务中心使用。 */
+export async function listMySubtitleWorkflowInbox(adminId: number): Promise<AdminSubtitleWorkflowTaskInbox> {
+    const rows = await doRawQuery<{
+        draft_id: number | string;
+        exercise_id: number | string;
+        exercise_title: string;
+        contributor_display_name: string;
+        proofreader_id: number | string | null;
+        reviewer_snapshot_id: number | string | null;
+        draft_admin_id: number | string;
+        reviewed_by_admin_user_id: number | string | null;
+        status: SubtitleDraftStatus;
+        submitted_at: Date | string | null;
+        updated_at: Date | string | null;
+        review_note: string | null;
+    }>({
+        query: `select drafts.id as draft_id, drafts.exercise_id, exercises.title as exercise_title,
+                       contributors.display_name as contributor_display_name,
+                       proofreader.admin_user_id as proofreader_id,
+                       drafts.admin_user_id as draft_admin_id,
+                       drafts.reviewer_admin_user_id as reviewer_snapshot_id,
+                       drafts.reviewed_by_admin_user_id,
+                       drafts.status,
+                       drafts.submitted_at, drafts.updated_at, drafts.review_note
+                from exercise_subtitle_drafts drafts
+                inner join exercises on exercises.id = drafts.exercise_id
+                inner join admin_users contributors on contributors.id = drafts.admin_user_id
+                left join exercise_workflow_assignees proofreader
+                  on proofreader.exercise_id = drafts.exercise_id and proofreader.workflow_role = 'proofreader'
+                left join exercise_workflow_assignees reviewer
+                  on reviewer.exercise_id = drafts.exercise_id and reviewer.workflow_role = 'second_reviewer'
+                where (drafts.admin_user_id = :adminId
+                       or drafts.reviewer_admin_user_id = :adminId
+                       or drafts.reviewed_by_admin_user_id = :adminId)
+                  and drafts.status in ('editing', 'submitted', 'returned', 'approved')
+                order by drafts.updated_at desc, drafts.id desc
+                limit 100`,
+        params: { adminId },
+    });
+    const items: AdminSubtitleWorkflowTaskInbox['items'] = [];
+    for (const row of rows) {
+        const base = {
+            draftId: Number(row.draft_id), exerciseId: Number(row.exercise_id), exerciseTitle: row.exercise_title,
+            contributorDisplayName: row.contributor_display_name,
+            submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : undefined,
+            updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : undefined,
+            reviewNote: row.review_note || undefined,
+        };
+        // 进行中的校对/退回任务只归属于实际投稿人，且校对人必须是当前负责人。
+        if (Number(row.draft_admin_id) === adminId && Number(row.proofreader_id) === adminId && (row.status === 'editing' || row.status === 'returned')) {
+            items.push({ ...base, role: 'proofreader', stage: row.status === 'returned' ? 'returned' : 'proofreading', draftStatus: row.status });
+        }
+        // 投稿提交时保存 reviewer 快照；之后重新分配负责人也不会把待审核任务漂移给别人。
+        if (Number(row.reviewer_snapshot_id) === adminId && row.status === 'submitted') {
+            items.push({ ...base, role: 'second_reviewer', stage: 'awaiting_review', draftStatus: row.status });
+        }
+        // 已完成记录按历史署名归属，不依据当前负责人推断，避免账号/负责人变更造成错配。
+        if (row.status === 'approved' && Number(row.draft_admin_id) === adminId) {
+            items.push({ ...base, role: 'proofreader', stage: 'completed', draftStatus: row.status });
+        }
+        if (row.status === 'approved' && Number(row.reviewed_by_admin_user_id) === adminId) {
+            items.push({ ...base, role: 'second_reviewer', stage: 'completed', draftStatus: row.status });
+        }
+    }
+    // 负责人刚被分配、尚未保存第一版个人草稿时，仍应在任务中心看到“待校对”。
+    // 使用 draftId=0 作为尚未创建稿件的占位任务，点击课程列表即可进入编辑器。
+    const unstartedRows = await doRawQuery<{
+        exercise_id: number | string;
+        exercise_title: string;
+    }>({
+        query: `select assignees.exercise_id, exercises.title as exercise_title
+                from exercise_workflow_assignees assignees
+                inner join exercises on exercises.id = assignees.exercise_id
+                where assignees.workflow_role = 'proofreader'
+                  and assignees.admin_user_id = :adminId
+                  and not exists (
+                    select 1 from exercise_subtitle_drafts drafts
+                    where drafts.exercise_id = assignees.exercise_id
+                      and drafts.admin_user_id = :adminId
+                  )
+                order by assignees.updated_at desc, assignees.exercise_id desc
+                limit 100`,
+        params: { adminId },
+    });
+    for (const row of unstartedRows) {
+        items.push({
+            draftId: 0,
+            exerciseId: Number(row.exercise_id),
+            exerciseTitle: row.exercise_title,
+            contributorDisplayName: '尚未创建校对稿',
+            role: 'proofreader',
+            stage: 'proofreading',
+            draftStatus: 'editing',
+        });
+    }
+    return {
+        items,
+        counts: {
+            proofreading: items.filter((item) => item.stage === 'proofreading').length,
+            awaitingReview: items.filter((item) => item.stage === 'awaiting_review').length,
+            returned: items.filter((item) => item.stage === 'returned').length,
+            completed: items.filter((item) => item.stage === 'completed').length,
+        },
+    };
 }
 
 export async function listMyWorkflowNotifications(adminId: number): Promise<AdminWorkflowNotifications> {

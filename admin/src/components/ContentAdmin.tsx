@@ -19,6 +19,7 @@ import type {
   AdminUser,
   AdminMember,
   AdminReviewTask,
+  AdminSubtitleWorkflowTaskInbox,
   AdminWorkflowNotifications,
 } from '@duolinting/shared'
 import { AudioLessonImporter } from './AudioLessonImporter'
@@ -153,6 +154,7 @@ export function ContentAdmin({
   const [reviewNote, setReviewNote] = useState('')
   const [workflowContributors, setWorkflowContributors] = useState<AdminMember[]>([])
   const [reviewTasks, setReviewTasks] = useState<AdminReviewTask[]>([])
+  const [workflowInbox, setWorkflowInbox] = useState<AdminSubtitleWorkflowTaskInbox>({ items: [], counts: { proofreading: 0, awaitingReview: 0, returned: 0, completed: 0 } })
   const [workflowNotifications, setWorkflowNotifications] = useState<AdminWorkflowNotifications>({ items: [], unreadCount: 0 })
   const [importerHasUnsavedChanges, setImporterHasUnsavedChanges] = useState(false)
   const importerHasUnsavedChangesRef = useRef(false)
@@ -227,12 +229,14 @@ export function ContentAdmin({
 
   const refreshWorkflowInbox = useCallback(async () => {
     try {
-      const [tasks, notifications] = await Promise.all([
+      const [tasks, notifications, inbox] = await Promise.all([
         apiClient.getMySubtitleReviewTasks(adminToken),
         apiClient.getMyWorkflowNotifications(adminToken),
+        apiClient.getMySubtitleWorkflowInbox(adminToken),
       ])
       setReviewTasks(tasks.items)
       setWorkflowNotifications(notifications)
+      setWorkflowInbox(inbox)
     } catch (error) {
       onNotify(error instanceof Error ? error.message : '工作流待办加载失败', 'error')
     }
@@ -905,6 +909,7 @@ export function ContentAdmin({
             })()
           }}
           reviewTasks={reviewTasks}
+          workflowInbox={workflowInbox}
           workflowNotifications={workflowNotifications}
           onReadWorkflowNotifications={async () => {
             await apiClient.markWorkflowNotificationsRead(adminToken)
