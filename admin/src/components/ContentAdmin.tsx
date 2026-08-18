@@ -18,6 +18,8 @@ import type {
   MaterialCategory,
   AdminUser,
   AdminMember,
+  AdminReviewTask,
+  AdminWorkflowNotifications,
 } from '@duolinting/shared'
 import { AudioLessonImporter } from './AudioLessonImporter'
 import type { AdminNoticeTone } from './admin/AdminFeedback'
@@ -150,6 +152,8 @@ export function ContentAdmin({
   const [reviewingExercise, setReviewingExercise] = useState<import('@duolinting/shared').ListeningExercise | null>(null)
   const [reviewNote, setReviewNote] = useState('')
   const [workflowContributors, setWorkflowContributors] = useState<AdminMember[]>([])
+  const [reviewTasks, setReviewTasks] = useState<AdminReviewTask[]>([])
+  const [workflowNotifications, setWorkflowNotifications] = useState<AdminWorkflowNotifications>({ items: [], unreadCount: 0 })
   const [importerHasUnsavedChanges, setImporterHasUnsavedChanges] = useState(false)
   const importerHasUnsavedChangesRef = useRef(false)
   const onRequestConfirmRef = useRef(onRequestConfirm)
@@ -221,6 +225,19 @@ export function ContentAdmin({
     }
   }, [adminToken, adminUser.role, onNotify])
 
+  const refreshWorkflowInbox = useCallback(async () => {
+    try {
+      const [tasks, notifications] = await Promise.all([
+        apiClient.getMySubtitleReviewTasks(adminToken),
+        apiClient.getMyWorkflowNotifications(adminToken),
+      ])
+      setReviewTasks(tasks.items)
+      setWorkflowNotifications(notifications)
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : '工作流待办加载失败', 'error')
+    }
+  }, [adminToken, onNotify])
+
   useEffect(() => {
     // 课程授权要按“内容分类 → 学习系列 → 课程”分级显示，
     // 因此进入人员管理时也必须刷新目录数据，不能只依赖此前访问过课程页的缓存。
@@ -245,8 +262,9 @@ export function ContentAdmin({
   useEffect(() => {
     if (activeSection === 'courses') {
       void refreshWorkflowContributors()
+      void refreshWorkflowInbox()
     }
-  }, [activeSection, refreshWorkflowContributors])
+  }, [activeSection, refreshWorkflowContributors, refreshWorkflowInbox])
 
   const importerRouteState = useMemo(
     () => {
@@ -871,10 +889,10 @@ export function ContentAdmin({
             }
           }}
           canManageCourses={adminUser.role === 'super_admin'}
-          onReviewSubtitleDraft={(exercise) => {
+          onReviewSubtitleDraft={(exerciseId) => {
             void (async () => {
               try {
-                const detail = await apiClient.getAdminExercise(exercise.id, adminToken)
+                const detail = await apiClient.getAdminExercise(exerciseId, adminToken)
                 if (!detail.subtitleDrafts?.length) {
                   onNotify('这门课程当前没有待二次审核的字幕稿', 'info')
                   return
@@ -885,6 +903,16 @@ export function ContentAdmin({
                 onNotify(error instanceof Error ? error.message : '加载字幕稿失败', 'error')
               }
             })()
+          }}
+          reviewTasks={reviewTasks}
+          workflowNotifications={workflowNotifications}
+          onReadWorkflowNotifications={async () => {
+            await apiClient.markWorkflowNotificationsRead(adminToken)
+            setWorkflowNotifications((current) => ({
+              ...current,
+              unreadCount: 0,
+              items: current.items.map((item) => ({ ...item, isRead: true })),
+            }))
           }}
           contributors={workflowContributors}
           onUpdateWorkflowAssignee={async (exercise, workflowRole, adminUserId) => {
@@ -973,6 +1001,7 @@ export function ContentAdmin({
                       await apiClient.returnSubtitleDraft(subtitleDraft.id, reviewNote.trim(), adminToken)
                       setReviewingExercise(null)
                       await onRefreshCatalog()
+                      await refreshWorkflowInbox()
                       onNotify('字幕稿已退回并附上修改意见', 'success')
                     }, '退回字幕稿失败')
                   }}>退回修改</button>
@@ -981,6 +1010,7 @@ export function ContentAdmin({
                       await apiClient.approveSubtitleDraft(subtitleDraft.id, adminToken)
                       setReviewingExercise(null)
                       await onRefreshCatalog()
+                      await refreshWorkflowInbox()
                       onNotify('字幕稿已通过二次审核并发布', 'success')
                     }, '审核发布失败')
                   }}>审核通过并发布</button>

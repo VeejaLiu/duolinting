@@ -14,7 +14,10 @@ import {
     getAssignedExerciseIds,
     isSuperAdmin,
     listAdminMembers,
+    listMySubtitleReviewTasks,
+    listMyWorkflowNotifications,
     listPreviewVolunteers,
+    markMyWorkflowNotificationsRead,
     returnSubtitleDraft,
     resetAdminMemberPassword,
     revokeAdminMemberSessions,
@@ -123,6 +126,27 @@ router.use(requireAdminToken, requireAdminPasswordChanged);
 
 router.get('/catalog', async (_req: any, res) => {
     res.status(200).send(await listCatalog(true, true));
+});
+
+/** 当前成员的站内工作流消息；已读状态由调用方显式确认，避免打开课程就丢失提醒。 */
+router.get('/workflow-notifications', async (req: any, res) => {
+    res.status(200).send(await listMyWorkflowNotifications(req.admin.id));
+});
+
+router.put(
+    '/workflow-notifications/read',
+    body('notificationIds').optional().isArray(),
+    body('notificationIds.*').optional().isInt({ min: 1 }),
+    validateErrorCheck,
+    async (req: any, res) => {
+        await markMyWorkflowNotificationsRead(req.admin.id, req.body.notificationIds);
+        res.status(200).send({ ok: true });
+    },
+);
+
+/** 二审任务只返回给提交时已接收该稿件的审核人。 */
+router.get('/subtitle-review-tasks', async (req: any, res) => {
+    res.status(200).send({ items: await listMySubtitleReviewTasks(req.admin.id) });
 });
 
 router.get('/exercises', async (req: any, res) => {

@@ -260,6 +260,7 @@ export function AudioLessonImporter({
     ? loadedExercise?.subtitleDrafts?.[0]
     : undefined
   const isSubmittedSubtitleDraft = ownSubtitleDraft?.status === 'submitted'
+  const isApprovedSubtitleDraft = ownSubtitleDraft?.status === 'approved'
   const { playMedia, playMediaRange, stopPlayback } = useMediaPlayback({
     mediaRef,
   })
@@ -487,7 +488,10 @@ export function AudioLessonImporter({
   )
   const saveDisabledReason = useMemo(() => {
     if (isSubmittedSubtitleDraft) {
-      return '该字幕稿已提交二次审核，等待审核结果后才能继续修改'
+      return '该字幕稿已提交审核，等待审核结果后才能继续修改或重新提交'
+    }
+    if (isApprovedSubtitleDraft) {
+      return '该字幕稿已审核通过并发布，不能再次修改或提交'
     }
     if (isUploadingMedia) {
       return '媒体上传中，请稍候'
@@ -508,6 +512,7 @@ export function AudioLessonImporter({
     courseForm.title,
     isUploadingMedia,
     isSubmittedSubtitleDraft,
+    isApprovedSubtitleDraft,
     mediaFile,
   ])
 
@@ -1153,7 +1158,9 @@ export function AudioLessonImporter({
               </span>
               <span>
                 {isSubmittedSubtitleDraft
-                  ? '已提交二次审核，当前不可继续修改'
+                  ? '已提交审核，当前不可继续修改或重复提交'
+                  : isApprovedSubtitleDraft
+                    ? '已审核通过并发布，本次校对工作已完成'
                   : ownSubtitleDraft?.status === 'returned'
                     ? '审核已退回，请按意见修改后重新提交'
                     : courseForm.status === 'published'
@@ -1223,7 +1230,10 @@ export function AudioLessonImporter({
             void handleFileChange(file)
           }}
           onSaveLesson={() => void saveImportedLesson()}
-          onSubmitSubtitleDraft={() => void submitSubtitleDraftForReview()}
+          // 已提交或已通过的版本不再显示提交入口；只有审核退回后的工作稿可以重新提交。
+          onSubmitSubtitleDraft={isSubmittedSubtitleDraft || isApprovedSubtitleDraft
+            ? undefined
+            : () => void submitSubtitleDraftForReview()}
         />
       </div>
     </section>

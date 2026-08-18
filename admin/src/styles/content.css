@@ -699,6 +699,14 @@
 .course-workflow-summary.is-returned { color: #c2410c; }
 .course-workflow-details { display: grid; gap: 2px; max-width: 500px; }
 .course-workflow-details .ant-typography { display: block; font-size: 11px; line-height: 1.4; }
+.review-task-inbox { border-color: #f8d46b; }
+.review-task-list { display: grid; gap: 8px; margin-top: 8px; }
+.review-task-item { align-items: center; background: rgba(255, 255, 255, 0.6); border-radius: 8px; display: flex; gap: 14px; justify-content: space-between; padding: 8px 10px; }
+.review-task-item > div { display: grid; gap: 2px; min-width: 0; }
+.workflow-notification-list { display: grid; gap: 4px; max-height: 360px; overflow-y: auto; width: min(340px, calc(100vw - 48px)); }
+.workflow-notification-item { border-radius: 8px; display: grid; gap: 2px; padding: 9px 10px; }
+.workflow-notification-item.is-unread { background: #edf9ff; }
+.workflow-notification-item .ant-typography { font-size: 12px; }
 
 @media (max-width: 980px) {
   .course-manager .ant-card-head { align-items: flex-start; flex-wrap: wrap; }

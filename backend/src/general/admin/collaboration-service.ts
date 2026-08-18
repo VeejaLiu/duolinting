@@ -4,6 +4,10 @@ import { Op } from 'sequelize';
 import { QueryTypes } from 'sequelize';
 import type {
     AdminRole,
+    AdminReviewTask,
+    AdminWorkflowNotification,
+    AdminWorkflowNotifications,
+    AdminWorkflowNotificationType,
     CourseContributionRole,
     CourseWorkflowCredits,
     CreateTranscriptLineRequest,
@@ -182,6 +186,28 @@ export async function updateExerciseWorkflowAssignee({
                  values (:exerciseId, :workflowRole, :adminUserId)`,
                 { replacements: { exerciseId, workflowRole, adminUserId }, transaction },
             );
+            if (workflowRole === 'second_reviewer') {
+                // 仅补齐旧流程遗留的“未分配待审稿”。这些稿件此前没有接收人；管理员在此
+                // 明确指定审核人后才流转，之后无论再如何改负责人，已交付的稿件都不会漂移。
+                await sequelize.query(
+                    `insert into admin_workflow_notifications
+                       (recipient_admin_user_id, actor_admin_user_id, exercise_id, subtitle_draft_id, notification_type)
+                     select :adminUserId, drafts.admin_user_id, drafts.exercise_id, drafts.id, 'subtitle_submitted'
+                     from exercise_subtitle_drafts drafts
+                     where drafts.exercise_id = :exerciseId
+                       and drafts.status = 'submitted'
+                       and drafts.reviewer_admin_user_id is null`,
+                    { replacements: { exerciseId, adminUserId }, transaction },
+                );
+                await sequelize.query(
+                    `update exercise_subtitle_drafts
+                     set reviewer_admin_user_id = :adminUserId
+                     where exercise_id = :exerciseId
+                       and status = 'submitted'
+                       and reviewer_admin_user_id is null`,
+                    { replacements: { exerciseId, adminUserId }, transaction },
+                );
+            }
             if (workflowRole === 'proofreader') {
                 // 课程编辑权限由“校对负责人”派生，避免配置完还需重复授权。
                 await sequelize.query(
@@ -346,11 +372,15 @@ export async function forceAdminMemberPasswordChange({ memberId, actorId }: { me
 
 export async function getAssignedExerciseIds(adminId: number) {
     const rows = await doRawQuery<{ exercise_id: number | string }>({
-        // 校对人与二审人都需要在“课程管理”中看见任务；旧的编辑授权关系继续兼容。
+        // 校对人与二审人都需要在“课程管理”中看见任务；待审核稿保留提交时的审核人快照，
+        // 因此重新分配负责人后，原审核人仍能完成已经交到自己手里的任务。
         query: `select exercise_id from exercise_contributor_assignments where admin_user_id = ?
                 union
-                select exercise_id from exercise_workflow_assignees where admin_user_id = ?`,
-        params: [adminId, adminId],
+                select exercise_id from exercise_workflow_assignees where admin_user_id = ?
+                union
+                select exercise_id from exercise_subtitle_drafts
+                where reviewer_admin_user_id = ? and status = 'submitted'`,
+        params: [adminId, adminId, adminId],
     });
     return rows.map((row) => Number(row.exercise_id));
 }
@@ -382,7 +412,13 @@ async function isWorkflowAssignee(
 export async function canAccessExerciseWorkflow(admin: AdminActor, exerciseId: number) {
     if (isSuperAdmin(admin)) return true;
     if (await canEditExerciseSubtitles(admin, exerciseId)) return true;
-    return (await isWorkflowAssignee(exerciseId, admin.id, 'second_reviewer'));
+    if (await isWorkflowAssignee(exerciseId, admin.id, 'second_reviewer')) return true;
+    const reviewTasks = await doRawQuery<{ id: number | string }>({
+        query: `select id from exercise_subtitle_drafts
+                where exercise_id = ? and reviewer_admin_user_id = ? and status = 'submitted' limit 1`,
+        params: [exerciseId, admin.id],
+    });
+    return reviewTasks.length > 0;
 }
 
 /**
@@ -400,21 +436,60 @@ export async function canSubmitSubtitleDraft(admin: AdminActor, exerciseId: numb
         : canEditExerciseSubtitles(admin, exerciseId);
 }
 
+/**
+ * 提交时必须同时冻结校对和审核职责。审核负责人不是可选提示：没有明确接收人就
+ * 不允许把字幕稿送出，避免出现无人可处理的待审稿。
+ */
+async function getWorkflowSubmissionAssignees(exerciseId: number) {
+    const rows = await doRawQuery<{
+        workflow_role: CourseContributionRole;
+        admin_user_id: number | string;
+    }>({
+        query: `select workflow_role, admin_user_id from exercise_workflow_assignees
+                where exercise_id = ? and workflow_role in ('proofreader', 'second_reviewer')`,
+        params: [exerciseId],
+    });
+    const proofreaderId = rows.find((row) => row.workflow_role === 'proofreader')?.admin_user_id;
+    const reviewerId = rows.find((row) => row.workflow_role === 'second_reviewer')?.admin_user_id;
+    if (!proofreaderId || !reviewerId) {
+        throw new Error('请先为本课程同时指定校对和审核人员，才能提交审核');
+    }
+    return { proofreaderId: Number(proofreaderId), reviewerId: Number(reviewerId) };
+}
+
 /** 二次审核也由贡献者承担，必须由本课已配置的二审负责人完成。 */
 export async function canReviewSubtitleDraft(admin: AdminActor, exerciseId: number) {
-    return isWorkflowAssignee(exerciseId, admin.id, 'second_reviewer');
+    if (await isWorkflowAssignee(exerciseId, admin.id, 'second_reviewer')) return true;
+    const snapshotTasks = await doRawQuery<{ id: number | string }>({
+        query: `select id from exercise_subtitle_drafts
+                where exercise_id = ? and reviewer_admin_user_id = ? and status = 'submitted' limit 1`,
+        params: [exerciseId, admin.id],
+    });
+    return snapshotTasks.length > 0;
 }
 
 type SubtitleDraftRow = {
     id: number | string;
     exercise_id: number | string;
     admin_user_id: number | string;
+    reviewer_admin_user_id?: number | string | null;
     display_name: string;
     transcript_json: unknown;
     status: SubtitleDraftStatus;
     review_note: string | null;
     submitted_at: Date | string | null;
     updated_at: Date | string | null;
+};
+
+type WorkflowNotificationRow = {
+    id: number | string;
+    notification_type: AdminWorkflowNotificationType;
+    exercise_id: number | string;
+    exercise_title: string;
+    actor_display_name: string;
+    review_note: string | null;
+    is_read: boolean | number;
+    created_at: Date | string;
 };
 
 // Keep the draft format identical to exercises.transcript_json.  This makes a
@@ -450,9 +525,12 @@ export async function listExerciseSubtitleDrafts(
     // 管理员可以查看待审稿来安排工作；通过/退回的权限仍由路由层严格校验负责人。
     const reviewerCanSeeSubmitted = isSuperAdmin(admin)
         || await canReviewSubtitleDraft(admin, exerciseId);
+    // 二审人只能看到提交时流转给自己的稿件；超级管理员可查看所有待审稿以便配置和排障。
     const scope = options?.submittedOnly || reviewerCanSeeSubmitted
-        ? `and drafts.status = 'submitted'`
-        : 'and drafts.admin_user_id = :adminId';
+        ? isSuperAdmin(admin)
+            ? `and drafts.status = 'submitted'`
+            : `and drafts.status = 'submitted' and drafts.reviewer_admin_user_id = :adminId`
+        : `and drafts.admin_user_id = :adminId`;
     const rows = await doRawQuery<SubtitleDraftRow>({
         query: `
             select drafts.id, drafts.exercise_id, drafts.admin_user_id, admins.display_name,
@@ -502,7 +580,10 @@ export async function saveSubtitleDraft({
         params: { exerciseId, adminId },
     });
     if (existing[0]?.status === 'submitted') {
-        throw new Error('该字幕稿已提交二次审核，请等待审核结果或由管理员退回后再修改');
+        throw new Error('该字幕稿已提交审核，请等待审核结果或被退回后再修改');
+    }
+    if (existing[0]?.status === 'approved') {
+        throw new Error('该字幕稿已审核通过并发布，不能再次修改或提交');
     }
     await sequelize.query(
         `insert into exercise_subtitle_drafts
@@ -541,9 +622,16 @@ export async function submitSubtitleDraft({
         params: { exerciseId, adminId },
     });
     if (existing[0]?.status === 'submitted') {
-        throw new Error('该字幕稿已在二次审核队列中');
+        throw new Error('该字幕稿已在审核队列中，不能重复提交');
+    }
+    if (existing[0]?.status === 'approved') {
+        throw new Error('该字幕稿已审核通过并发布，不能重复提交');
     }
     await sequelize.transaction(async (transaction) => {
+        const assignees = await getWorkflowSubmissionAssignees(exerciseId);
+        if (assignees.proofreaderId !== adminId) {
+            throw new Error('只有本课程指定的校对人员可以提交审核');
+        }
         const [exercise] = await sequelize.query<{ status: string }>(
             'select status from exercises where id = :exerciseId limit 1',
             { replacements: { exerciseId }, type: QueryTypes.SELECT, transaction },
@@ -551,10 +639,11 @@ export async function submitSubtitleDraft({
         if (!exercise) throw new Error('课程不存在');
         await sequelize.query(
             `insert into exercise_subtitle_drafts
-           (exercise_id, admin_user_id, transcript_json, status, review_note, submitted_at, reviewed_at, reviewed_by_admin_user_id)
-         values (:exerciseId, :adminId, cast(:transcriptJson as json), 'submitted', null, current_timestamp, null, null)
+           (exercise_id, admin_user_id, reviewer_admin_user_id, transcript_json, status, review_note, submitted_at, reviewed_at, reviewed_by_admin_user_id)
+         values (:exerciseId, :adminId, :reviewerId, cast(:transcriptJson as json), 'submitted', null, current_timestamp, null, null)
          on duplicate key update
            transcript_json = values(transcript_json),
+           reviewer_admin_user_id = values(reviewer_admin_user_id),
            status = 'submitted',
            review_note = null,
            submitted_at = current_timestamp,
@@ -565,6 +654,7 @@ export async function submitSubtitleDraft({
                 replacements: {
                     exerciseId,
                     adminId,
+                    reviewerId: assignees.reviewerId,
                     transcriptJson: JSON.stringify(lines),
                 },
                 transaction,
@@ -579,6 +669,18 @@ export async function submitSubtitleDraft({
                 { replacements: { exerciseId }, transaction },
             );
         }
+        // 使用投稿行的确定 ID 创建通知，确保一份投稿只给其提交时的审核人一条待办。
+        await sequelize.query(
+            `insert into admin_workflow_notifications
+               (recipient_admin_user_id, actor_admin_user_id, exercise_id, subtitle_draft_id, notification_type)
+             select :reviewerId, :adminId, :exerciseId, id, 'subtitle_submitted'
+             from exercise_subtitle_drafts
+             where exercise_id = :exerciseId and admin_user_id = :adminId`,
+            {
+                replacements: { exerciseId, adminId, reviewerId: assignees.reviewerId },
+                transaction,
+            },
+        );
     });
 }
 
@@ -591,6 +693,19 @@ export async function returnSubtitleDraft({
     reviewerId: number;
     reviewNote: string;
 }) {
+    const rows = await sequelize.query<{
+        exercise_id: number | string;
+        admin_user_id: number | string;
+        reviewer_admin_user_id: number | string | null;
+    }>(
+        `select exercise_id, admin_user_id, reviewer_admin_user_id
+         from exercise_subtitle_drafts where id = :draftId and status = 'submitted' limit 1`,
+        { replacements: { draftId }, type: QueryTypes.SELECT },
+    );
+    const draft = rows[0];
+    if (!draft || Number(draft.reviewer_admin_user_id) !== reviewerId) {
+        throw new Error('这份字幕稿已不在你的待审核队列中');
+    }
     const [, metadata] = await sequelize.query(
         `update exercise_subtitle_drafts
          set status = 'returned', review_note = :reviewNote, reviewed_at = current_timestamp,
@@ -601,6 +716,18 @@ export async function returnSubtitleDraft({
     if ((metadata as { affectedRows?: number }).affectedRows === 0) {
         throw new Error('这份字幕稿已不在待审核队列中');
     }
+
+    await sequelize.query(
+        `insert into admin_workflow_notifications
+           (recipient_admin_user_id, actor_admin_user_id, exercise_id, subtitle_draft_id, notification_type, review_note)
+         values (:recipientId, :reviewerId, :exerciseId, :draftId, 'subtitle_returned', :reviewNote)`,
+        {
+            replacements: {
+                recipientId: Number(draft.admin_user_id), reviewerId,
+                exerciseId: Number(draft.exercise_id), draftId, reviewNote,
+            },
+        },
+    );
 
     // 初次制课若所有投稿都退回，课程回到草稿；已发布课程则始终保留发布状态。
     await sequelize.query(
@@ -628,7 +755,7 @@ export async function approveSubtitleDraft({
 }) {
     await sequelize.transaction(async (transaction) => {
         const rows = await sequelize.query<SubtitleDraftRow>(
-            `select drafts.id, drafts.exercise_id, drafts.admin_user_id, admins.display_name,
+            `select drafts.id, drafts.exercise_id, drafts.admin_user_id, drafts.reviewer_admin_user_id, admins.display_name,
                     drafts.transcript_json, drafts.status, drafts.review_note,
                     drafts.submitted_at, drafts.updated_at
              from exercise_subtitle_drafts drafts
@@ -639,6 +766,9 @@ export async function approveSubtitleDraft({
         );
         const draft = rows[0];
         if (!draft) throw new Error('这份字幕稿已不在待审核队列中');
+        if (Number(draft.reviewer_admin_user_id) !== reviewerId) {
+            throw new Error('这份字幕稿已不在你的待审核队列中');
+        }
 
         const [exerciseRows] = await sequelize.query<{ id: number | string }>(
             'select id from exercises where id = :exerciseId limit 1',
@@ -691,7 +821,84 @@ export async function approveSubtitleDraft({
                 transaction,
             },
         );
+        await sequelize.query(
+            `insert into admin_workflow_notifications
+               (recipient_admin_user_id, actor_admin_user_id, exercise_id, subtitle_draft_id, notification_type)
+             values (:recipientId, :reviewerId, :exerciseId, :draftId, 'subtitle_approved')`,
+            {
+                replacements: {
+                    recipientId: Number(draft.admin_user_id), reviewerId,
+                    exerciseId: Number(draft.exercise_id), draftId,
+                },
+                transaction,
+            },
+        );
     });
+}
+
+/** 审核人只看到提交时已指派给自己的待审稿，避免管理员改人后任务漂移。 */
+export async function listMySubtitleReviewTasks(adminId: number): Promise<AdminReviewTask[]> {
+    const rows = await doRawQuery<{
+        draft_id: number | string;
+        exercise_id: number | string;
+        exercise_title: string;
+        contributor_display_name: string;
+        submitted_at: Date | string;
+    }>({
+        query: `select drafts.id as draft_id, drafts.exercise_id, exercises.title as exercise_title,
+                       contributors.display_name as contributor_display_name, drafts.submitted_at
+                from exercise_subtitle_drafts drafts
+                inner join exercises on exercises.id = drafts.exercise_id
+                inner join admin_users contributors on contributors.id = drafts.admin_user_id
+                where drafts.reviewer_admin_user_id = ? and drafts.status = 'submitted'
+                order by drafts.submitted_at asc, drafts.id asc`,
+        params: [adminId],
+    });
+    return rows.map((row) => ({
+        draftId: Number(row.draft_id),
+        exerciseId: Number(row.exercise_id),
+        exerciseTitle: row.exercise_title,
+        contributorDisplayName: row.contributor_display_name,
+        submittedAt: new Date(row.submitted_at).toISOString(),
+    }));
+}
+
+export async function listMyWorkflowNotifications(adminId: number): Promise<AdminWorkflowNotifications> {
+    const rows = await doRawQuery<WorkflowNotificationRow>({
+        query: `select notifications.id, notifications.notification_type, notifications.exercise_id,
+                       exercises.title as exercise_title, actors.display_name as actor_display_name,
+                       notifications.review_note, notifications.is_read, notifications.created_at
+                from admin_workflow_notifications notifications
+                inner join exercises on exercises.id = notifications.exercise_id
+                inner join admin_users actors on actors.id = notifications.actor_admin_user_id
+                where notifications.recipient_admin_user_id = ?
+                order by notifications.created_at desc, notifications.id desc
+                limit 50`,
+        params: [adminId],
+    });
+    const unreadRows = await doRawQuery<{ total: number | string }>({
+        query: `select count(*) as total from admin_workflow_notifications
+                where recipient_admin_user_id = ? and is_read = false`,
+        params: [adminId],
+    });
+    return {
+        unreadCount: Number(unreadRows[0]?.total ?? 0),
+        items: rows.map((row) => ({
+            id: Number(row.id), type: row.notification_type,
+            exerciseId: Number(row.exercise_id), exerciseTitle: row.exercise_title,
+            actorDisplayName: row.actor_display_name, reviewNote: row.review_note || undefined,
+            isRead: Boolean(row.is_read), createdAt: new Date(row.created_at).toISOString(),
+        })),
+    };
+}
+
+export async function markMyWorkflowNotificationsRead(adminId: number, notificationIds?: number[]) {
+    const ids = [...new Set((notificationIds ?? []).filter((id) => Number.isInteger(id) && id > 0))];
+    await sequelize.query(
+        `update admin_workflow_notifications set is_read = true
+         where recipient_admin_user_id = :adminId${ids.length ? ' and id in (:ids)' : ''}`,
+        { replacements: ids.length ? { adminId, ids } : { adminId } },
+    );
 }
 
 export async function recordExerciseContribution({

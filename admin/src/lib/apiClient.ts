@@ -8,6 +8,8 @@ import type {
   AdminMember,
   AdminMemberProvisioning,
   AdminUser,
+  AdminReviewTask,
+  AdminWorkflowNotifications,
   ChangeAdminPasswordRequest,
   CreateAdminMemberRequest,
   CatalogExerciseSummary,
@@ -284,6 +286,24 @@ export const apiClient = {
       {
         method: 'GET',
       },
+      { adminToken },
+    ),
+  getMySubtitleReviewTasks: (adminToken: string) =>
+    fetchJson<{ items: AdminReviewTask[] }>(
+      '/api/v1/admin/subtitle-review-tasks',
+      { method: 'GET' },
+      { adminToken },
+    ),
+  getMyWorkflowNotifications: (adminToken: string) =>
+    fetchJson<AdminWorkflowNotifications>(
+      '/api/v1/admin/workflow-notifications',
+      { method: 'GET' },
+      { adminToken },
+    ),
+  markWorkflowNotificationsRead: (adminToken: string, notificationIds?: number[]) =>
+    fetchJson<AdminContentResponse>(
+      '/api/v1/admin/workflow-notifications/read',
+      { method: 'PUT', body: JSON.stringify(notificationIds ? { notificationIds } : {}) },
       { adminToken },
     ),
   createCategory: (request: CreateCategoryRequest, adminToken: string) =>

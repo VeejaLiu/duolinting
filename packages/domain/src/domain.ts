@@ -156,6 +156,34 @@ export type AdminExercisePage = {
   total: number
 }
 
+/** 当前登录审核人专属的待处理字幕稿；只返回完成审核所需的最小课程信息。 */
+export type AdminReviewTask = {
+  draftId: number
+  exerciseId: number
+  exerciseTitle: string
+  contributorDisplayName: string
+  submittedAt: string
+}
+
+/** 后台工作流通知由服务端保存，重新登录后仍可查阅。 */
+export type AdminWorkflowNotificationType = 'subtitle_submitted' | 'subtitle_returned' | 'subtitle_approved'
+
+export type AdminWorkflowNotification = {
+  id: number
+  type: AdminWorkflowNotificationType
+  exerciseId: number
+  exerciseTitle: string
+  actorDisplayName: string
+  reviewNote?: string
+  isRead: boolean
+  createdAt: string
+}
+
+export type AdminWorkflowNotifications = {
+  items: AdminWorkflowNotification[]
+  unreadCount: number
+}
+
 /**
  * 单句学习状态：
  * - unclear: 用户显式标记“这句没听懂”，后续难点复习依赖它筛选句子。

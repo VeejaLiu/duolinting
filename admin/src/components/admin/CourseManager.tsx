@@ -1,8 +1,8 @@
-import { ArrowDown, ArrowUp, BookOpen, Ellipsis, FilePenLine, Pencil, PlaySquare, Plus, RefreshCw, Search, Trash2, Undo2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bell, BookOpen, ClipboardCheck, Ellipsis, FilePenLine, Pencil, PlaySquare, Plus, RefreshCw, Search, Trash2, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Button, Card, Dropdown, Empty, Form, Image, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Alert, Badge, Button, Card, Dropdown, Empty, Form, Image, Input, Modal, Popover, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import type { AdminMember, CatalogExerciseSummary, ExerciseCategory, MaterialCategory } from '@duolinting/shared'
+import type { AdminMember, AdminReviewTask, AdminWorkflowNotifications, CatalogExerciseSummary, ExerciseCategory, MaterialCategory } from '@duolinting/shared'
 import { apiClient, resolveApiUrl } from '../../lib/apiClient'
 
 type CourseManagerProps = {
@@ -22,7 +22,10 @@ type CourseManagerProps = {
   onOpenRecorder: (exerciseId: number) => void
   onRenameCourse: (exercise: CatalogExerciseSummary, title: string) => Promise<void>
   canManageCourses?: boolean
-  onReviewSubtitleDraft?: (exercise: CatalogExerciseSummary) => void
+  onReviewSubtitleDraft?: (exerciseId: number) => void
+  reviewTasks: AdminReviewTask[]
+  workflowNotifications: AdminWorkflowNotifications
+  onReadWorkflowNotifications: () => Promise<void>
   contributors: AdminMember[]
   onUpdateWorkflowAssignee: (
     exercise: CatalogExerciseSummary,
@@ -52,6 +55,12 @@ const formatSubmittedAt = (value?: string) => value
       month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
     }).format(new Date(value))
   : ''
+
+const workflowNotificationCopy = (notification: AdminWorkflowNotifications['items'][number]) => {
+  if (notification.type === 'subtitle_submitted') return `${notification.actorDisplayName} 提交了校对稿`
+  if (notification.type === 'subtitle_returned') return `${notification.actorDisplayName} 退回了稿件`
+  return `${notification.actorDisplayName} 审核通过并发布了稿件`
+}
 
 function CourseWorkflow({
   exercise,
@@ -144,7 +153,7 @@ function CourseWorkflow({
 export function CourseManager({
   adminToken, currentAdminId, categoryGroups, categories, isCatalogLoading, catalogLoadError, onRefreshCatalog, isSaving, onCreateCourse,
   onDeleteCourse, onEditCourse, onMoveCourse, onOpenRecorder, onRenameCourse, canManageCourses = true, onReviewSubtitleDraft,
-  contributors, onUpdateWorkflowAssignee,
+  contributors, onUpdateWorkflowAssignee, reviewTasks, workflowNotifications, onReadWorkflowNotifications,
 }: CourseManagerProps) {
   // 筛选器不提供"全部"选项：用户必须选中一个具体系列（目录加载完成前
   // 用 0 表示尚未就绪，此时不发起课程请求）。
@@ -256,8 +265,10 @@ export function CourseManager({
   // 未分配二审人的历史课程则保留原有的被授权即可编辑行为。
   const canEditCourseSubtitles = (exercise: CatalogExerciseSummary) => (
     canManageCourses
-    || exercise.workflow?.secondReviewerAssignee?.adminUserId !== currentAdminId
     || exercise.workflow?.proofreaderAssignee?.adminUserId === currentAdminId
+    // 已流转给当前成员的审核任务只能从“开始审核”进入，避免把审核人误带进校对编辑器。
+    || (!reviewTasks.some((task) => task.exerciseId === exercise.id)
+      && exercise.workflow?.secondReviewerAssignee?.adminUserId !== currentAdminId)
   )
   const openRecorder = (exercise: CatalogExerciseSummary) => {
     if (canRecord(exercise)) {
@@ -371,7 +382,7 @@ export function CourseManager({
         {canManageCourses && <Tooltip title="打开视频录制台">
           <Button icon={<PlaySquare size={15} />} onClick={() => openRecorder(exercise)} size="small" type="text" />
         </Tooltip>}
-        {exercise.workflow?.secondReviewerAssignee?.adminUserId === currentAdminId && (exercise.pendingSubtitleDraftCount ?? 0) > 0 && onReviewSubtitleDraft && <Tooltip title="审核字幕投稿"><Button icon={<Undo2 size={15} />} onClick={() => onReviewSubtitleDraft(exercise)} size="small" type="text" /></Tooltip>}
+        {reviewTasks.some((task) => task.exerciseId === exercise.id) && onReviewSubtitleDraft && <Tooltip title="审核字幕投稿"><Button icon={<Undo2 size={15} />} onClick={() => onReviewSubtitleDraft(exercise.id)} size="small" type="text" /></Tooltip>}
         {canManageCourses && <Dropdown menu={{ items: [
           { danger: true, disabled: isSaving, icon: <Trash2 size={15} />, key: 'delete', label: '删除课程' },
         ], onClick: ({ key }) => { if (key === 'delete') onDeleteCourse(exercise) } }}>
@@ -402,6 +413,27 @@ export function CourseManager({
   return <Card
     className="course-manager"
     extra={<Space>
+      <Popover
+        content={<div className="workflow-notification-list">
+          {workflowNotifications.items.length === 0 ? <Typography.Text type="secondary">暂时没有工作流通知</Typography.Text> : workflowNotifications.items.map((notification) => (
+            <div className={notification.isRead ? 'workflow-notification-item' : 'workflow-notification-item is-unread'} key={notification.id}>
+              <Typography.Text>{workflowNotificationCopy(notification)}</Typography.Text>
+              <Typography.Text type="secondary">{notification.exerciseTitle} · {formatSubmittedAt(notification.createdAt)}</Typography.Text>
+              {notification.reviewNote && <Typography.Text type="secondary">意见：{notification.reviewNote}</Typography.Text>}
+            </div>
+          ))}
+        </div>}
+        onOpenChange={(open) => {
+          if (open && workflowNotifications.unreadCount > 0) void onReadWorkflowNotifications()
+        }}
+        placement="bottomRight"
+        title="工作流通知"
+        trigger="click"
+      >
+        <Badge count={workflowNotifications.unreadCount} overflowCount={99} size="small">
+          <Button aria-label="查看工作流通知" icon={<Bell size={15} />} />
+        </Badge>
+      </Popover>
       <Button disabled={isSaving || isLoading || isCatalogLoading} icon={<RefreshCw size={15} />} onClick={() => void onRefreshCatalog().catch(() => undefined)}>刷新</Button>
       {canManageCourses && <Tooltip title={createCourseDisabled ? createCourseDisabledReason : undefined}>
         <span>
@@ -411,6 +443,22 @@ export function CourseManager({
     </Space>}
     title={<Space><BookOpen size={18} /><span>课程管理</span></Space>}
   >
+    {reviewTasks.length > 0 && <Alert
+      className="review-task-inbox"
+      description={<div className="review-task-list">
+        {reviewTasks.map((task) => <div className="review-task-item" key={task.draftId}>
+          <div>
+            <Typography.Text strong>{task.exerciseTitle}</Typography.Text>
+            <Typography.Text type="secondary">{task.contributorDisplayName} 提交 · {formatSubmittedAt(task.submittedAt)}</Typography.Text>
+          </div>
+          <Button onClick={() => onReviewSubtitleDraft?.(task.exerciseId)} size="small" type="primary">开始审核</Button>
+        </div>)}
+      </div>}
+      icon={<ClipboardCheck size={18} />}
+      message={`我的待审核 · ${reviewTasks.length} 份`}
+      showIcon
+      type="warning"
+    />}
     {createCourseDisabled && (
       <Alert
         description={createCourseDisabledReason}
