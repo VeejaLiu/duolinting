@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, Card, Checkbox, Form, Input, List, Modal, Radio, Select, Space, Switch, Tag, Typography } from 'antd'
-import { Ban, KeyRound, LogOut, Pencil, UserPlus, UsersRound } from 'lucide-react'
+import { Button, Card, Checkbox, Dropdown, Form, Input, List, Modal, Radio, Select, Space, Switch, Tag, Typography } from 'antd'
+import { MoreHorizontal, UserPlus, UsersRound } from 'lucide-react'
 import type { AdminMember, AdminMemberProvisioning, AdminRole, CatalogExerciseSummary, ExerciseCategory, MaterialCategory, PreviewVolunteer } from '@duolinting/shared'
 import { apiClient } from '../../lib/apiClient'
 
@@ -46,6 +46,7 @@ export function CollaborationManager({
   const [activeArea, setActiveArea] = useState<'members' | 'assignments' | 'learners'>('members')
   const [assignmentTarget, setAssignmentTarget] = useState<AdminMember | null>(null)
   const [passwordTarget, setPasswordTarget] = useState<AdminMember | null>(null)
+  const [forcePasswordTarget, setForcePasswordTarget] = useState<AdminMember | null>(null)
   const [profileTarget, setProfileTarget] = useState<AdminMember | null>(null)
   const [profileForm, setProfileForm] = useState<{ email: string; displayName: string; role: AdminRole }>({ email: '', displayName: '', role: 'subtitle_contributor' })
   const [memberSearch, setMemberSearch] = useState('')
@@ -174,11 +175,13 @@ export function CollaborationManager({
     }
   }
 
-  const forcePasswordChange = async (member: AdminMember) => {
+  const forcePasswordChange = async () => {
+    if (!forcePasswordTarget) return
     try {
-      await apiClient.forceAdminMemberPasswordChange(member.id, adminToken)
+      await apiClient.forceAdminMemberPasswordChange(forcePasswordTarget.id, adminToken)
       await refresh()
-      onNotify(`已要求 ${member.displayName} 下次登录修改密码`, 'success')
+      setForcePasswordTarget(null)
+      onNotify(`已要求 ${forcePasswordTarget.displayName} 下次登录修改密码`, 'success')
     } catch (error) {
       onNotify(error instanceof Error ? error.message : '强制改密设置失败', 'error')
     }
@@ -287,11 +290,36 @@ export function CollaborationManager({
           locale={{ emptyText: '尚未添加后台成员。' }}
           renderItem={(member) => (
             <List.Item actions={[
-              <Button icon={<Pencil size={14} />} key="edit" onClick={() => { setProfileTarget(member); setProfileForm({ email: member.email, displayName: member.displayName, role: member.role }) }}>编辑资料</Button>,
-              <Button icon={<KeyRound size={14} />} key="reset-password" onClick={() => setPasswordTarget(member)}>重设密码</Button>,
-              <Button key="force-password" onClick={() => void forcePasswordChange(member)}>强制改密</Button>,
-              <Button icon={<LogOut size={14} />} key="revoke" onClick={() => Modal.confirm({ title: `撤销 ${member.displayName} 的登录会话？`, content: '该成员需要重新登录，账号资料和课程权限不会改变。', onOk: () => revokeSessions(member) })}>撤销会话</Button>,
-              <Button danger={!member.isActive} icon={<Ban size={14} />} key="status" onClick={() => Modal.confirm({ title: member.isActive ? `停用 ${member.displayName}？` : `启用 ${member.displayName}？`, content: member.isActive ? '停用后立即无法登录，并会撤销当前会话。历史贡献和课程关系会保留。' : '启用后该成员可以重新登录。', okText: member.isActive ? '停用账号' : '启用账号', okButtonProps: { danger: member.isActive }, onOk: () => changeMemberStatus(member, !member.isActive) })}>{member.isActive ? '停用' : '启用'}</Button>,
+              <Dropdown
+                key="actions"
+                menu={{
+                  items: [
+                    { key: 'edit', label: '编辑资料' },
+                    { key: 'reset-password', label: '重设密码' },
+                    { key: 'force-password', label: '强制下次改密' },
+                    { type: 'divider' },
+                    { key: 'revoke', label: '撤销全部会话' },
+                    { key: 'status', danger: member.isActive, label: member.isActive ? '停用账号' : '启用账号' },
+                  ],
+                  onClick: ({ key }) => {
+                    if (key === 'edit') {
+                      setProfileTarget(member)
+                      setProfileForm({ email: member.email, displayName: member.displayName, role: member.role })
+                    } else if (key === 'reset-password') {
+                      setPasswordTarget(member)
+                    } else if (key === 'force-password') {
+                      setForcePasswordTarget(member)
+                    } else if (key === 'revoke') {
+                      Modal.confirm({ title: `撤销 ${member.displayName} 的登录会话？`, content: '该成员需要重新登录，账号资料和课程权限不会改变。', okText: '确认撤销', onOk: () => revokeSessions(member) })
+                    } else if (key === 'status') {
+                      Modal.confirm({ title: member.isActive ? `停用 ${member.displayName}？` : `启用 ${member.displayName}？`, content: member.isActive ? '停用后立即无法登录，并会撤销当前会话。历史贡献和课程关系会保留。' : '启用后该成员可以重新登录。', okText: member.isActive ? '停用账号' : '启用账号', okButtonProps: { danger: member.isActive }, onOk: () => changeMemberStatus(member, !member.isActive) })
+                    }
+                  },
+                }}
+                trigger={['click']}
+              >
+                <Button icon={<MoreHorizontal size={16} />}>更多操作</Button>
+              </Dropdown>,
             ]}>
               <List.Item.Meta
                 title={(
@@ -442,6 +470,20 @@ export function CollaborationManager({
           )}
         />
       </Card>}
+
+      <Modal
+        confirmLoading={saving}
+        okButtonProps={{ danger: true }}
+        okText="确认强制改密"
+        onCancel={() => setForcePasswordTarget(null)}
+        onOk={() => void forcePasswordChange()}
+        open={Boolean(forcePasswordTarget)}
+        title={forcePasswordTarget ? `要求 ${forcePasswordTarget.displayName} 下次修改密码` : '强制修改密码'}
+      >
+        <Typography.Paragraph type="warning">
+          确认后会立即撤销该成员的当前登录会话。对方下次登录时必须使用现有密码登录，并立即设置新密码。
+        </Typography.Paragraph>
+      </Modal>
 
       <Modal
         confirmLoading={saving}
