@@ -329,6 +329,41 @@
   text-shadow: 0 2px 0 rgba(15, 40, 70, 0.18);
 }
 
+/* Credit the people behind a course without separating that context from its title. */
+.study-chapter-banner-credits {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.study-chapter-banner-credits-label {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 900;
+  margin-right: 2px;
+}
+
+.study-chapter-banner-credits-label::before {
+  content: '✦';
+  margin-right: 4px;
+}
+
+.study-chapter-banner-credit {
+  align-items: center;
+  background: rgba(7, 60, 95, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 999px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  min-height: 26px;
+  padding: 4px 9px;
+  text-shadow: 0 1px 0 rgba(15, 40, 70, 0.16);
+}
+
 .study-chapter-banner-metrics {
   display: flex;
   flex-wrap: wrap;

@@ -10,17 +10,3 @@
 @import './styles/contribute.css';
 @import './styles/admin-legacy.css';
 @import './styles/responsive.css';
-
-.contributor-credits {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-  margin: 10px 2px 0;
-  color: #65758b;
-  font-size: 13px;
-}
-
-.contributor-credits-label {
-  color: #334155;
-  font-weight: 800;
-}

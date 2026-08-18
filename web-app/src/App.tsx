@@ -574,6 +574,10 @@ function LearnerAppShell() {
                     <strong className="study-chapter-banner-title">
                       {activeExercise.title}
                     </strong>
+                    <ContributorCredits
+                      contributors={activeExercise.contributors}
+                      workflowCredits={activeExercise.workflowCredits}
+                    />
                   </div>
 	                  <div className="study-chapter-banner-metrics">
 	                    <span>
@@ -587,10 +591,6 @@ function LearnerAppShell() {
 	                    <span style={{ width: `${activeChapterProgress?.percent ?? masteryPercent}%` }} />
 	                  </div>
                 </section>
-                <ContributorCredits
-                  contributors={activeExercise.contributors}
-                  workflowCredits={activeExercise.workflowCredits}
-                />
 
                 <StageRail
                   activeStage={studyStage}

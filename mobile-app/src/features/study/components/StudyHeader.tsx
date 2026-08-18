@@ -1,14 +1,20 @@
 import { FontAwesome6 } from '@expo/vector-icons'
 import { Pressable, Text, View } from 'react-native'
+import type { CourseContributor, CourseWorkflowCredits } from '@duolinting/domain'
+import { ContributorCredits } from './ContributorCredits'
 
 export function StudyHeader({
   title,
   onBack,
   compact = false,
+  contributors,
+  workflowCredits,
 }: {
   title: string
   onBack: () => void
   compact?: boolean
+  contributors?: CourseContributor[]
+  workflowCredits?: CourseWorkflowCredits
 }) {
   return (
     <View
@@ -43,6 +49,10 @@ export function StudyHeader({
           >
             {title}
           </Text>
+          <ContributorCredits
+            contributors={contributors}
+            workflowCredits={workflowCredits}
+          />
         </View>
       </View>
     </View>

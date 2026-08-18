@@ -20,13 +20,19 @@ export function ContributorCredits({
 
   if (!contributors?.length && responsibilities.length === 0) return null
   return (
-    <View className="gap-1 border-b-2 border-[#d7e4ef] bg-white px-5 py-2">
-      {responsibilities.length > 0 && <Text className="text-xs font-bold text-text-muted">
-        本课协作 · {responsibilities.join(' · ')}
-      </Text>}
-      {contributors?.length ? <Text className="text-xs font-bold text-text-muted">
-        贡献者 · {contributors.map((contributor) => `${contributor.displayName}（${contributor.roles.map((role) => roleLabels[role] ?? role).join('、')}）`).join(' · ')}
-      </Text> : null}
+    <View className="mt-1.5 flex-row flex-wrap gap-1.5">
+      {responsibilities.map((responsibility) => (
+        <View className="rounded-full border border-[#bce8fc] bg-[#e9f8ff] px-2 py-1" key={responsibility}>
+          <Text className="text-[11px] font-extrabold text-[#168bc0]">{responsibility}</Text>
+        </View>
+      ))}
+      {contributors?.map((contributor) => (
+        <View className="rounded-full border border-[#d8e6f1] bg-[#f5faff] px-2 py-1" key={contributor.displayName}>
+          <Text className="text-[11px] font-extrabold text-text-muted">
+            {`贡献 · ${contributor.displayName}（${contributor.roles.map((role) => roleLabels[role] ?? role).join('、')}）`}
+          </Text>
+        </View>
+      ))}
     </View>
   )
 }

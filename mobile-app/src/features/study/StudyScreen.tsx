@@ -24,7 +24,6 @@ import { IntensiveStagePanel } from './components/IntensiveStagePanel'
 import { useLanguage } from '@/i18n/LanguageProvider'
 import { StudyHeader } from './components/StudyHeader'
 import { StudyStageTabs } from './components/StudyStageTabs'
-import { ContributorCredits } from './components/ContributorCredits'
 
 const formatClock = (seconds: number) => {
   if (!Number.isFinite(seconds) || seconds <= 0) {
@@ -314,7 +313,9 @@ export function StudyScreen() {
       <View className="flex-1 bg-[#f7fbff]">
         <StudyHeader
           compact={compactStudyLayout}
+          contributors={exercise.contributors}
           title={exercise.title}
+          workflowCredits={exercise.workflowCredits}
           onBack={() => {
             // 从生词页/复习卡等页面进入时历史栈里有上一页，直接返回；
             // 直接输入 URL 进入（无历史）时兜底回首页
@@ -324,10 +325,6 @@ export function StudyScreen() {
               router.replace('/(tabs)' as '/(tabs)')
             }
           }}
-        />
-        <ContributorCredits
-          contributors={exercise.contributors}
-          workflowCredits={exercise.workflowCredits}
         />
 
         {stage === 'intensive' || stage === 'review' ? (

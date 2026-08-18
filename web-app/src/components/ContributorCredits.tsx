@@ -23,15 +23,17 @@ export function ContributorCredits({
   if (!contributors?.length && responsibilities.length === 0) return null
 
   return (
-    <div className="contributor-credits" aria-label={t('study.credits.aria')}>
+    <div className="study-chapter-banner-credits" aria-label={t('study.credits.aria')}>
       {responsibilities.length > 0 && <>
-        <span className="contributor-credits-label">{t('study.credits.workflow')}</span>
-        {responsibilities.map((responsibility) => <span key={responsibility}>{responsibility}</span>)}
+        <span className="study-chapter-banner-credits-label">{t('study.credits.workflow')}</span>
+        {responsibilities.map((responsibility) => (
+          <span className="study-chapter-banner-credit" key={responsibility}>{responsibility}</span>
+        ))}
       </>}
       {contributors?.length ? <>
-        <span className="contributor-credits-label">{t('study.credits.contributors')}</span>
+        <span className="study-chapter-banner-credits-label">{t('study.credits.contributors')}</span>
         {contributors.map((contributor) => (
-          <span key={contributor.displayName}>
+          <span className="study-chapter-banner-credit" key={contributor.displayName}>
             {contributor.displayName} · {contributor.roles.map((role) => roleLabel[role] ?? role).join('、')}
           </span>
         ))}
