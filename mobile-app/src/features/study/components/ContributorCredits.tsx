@@ -3,7 +3,7 @@ import type { CourseContributor, CourseWorkflowCredits } from '@duolinting/domai
 
 const roleLabels: Record<string, string> = {
   proofreader: '校对',
-  second_reviewer: '二次审核',
+  second_reviewer: '审核',
 }
 
 export function ContributorCredits({
@@ -14,8 +14,8 @@ export function ContributorCredits({
   workflowCredits?: CourseWorkflowCredits
 }) {
   const responsibilities = [
-    workflowCredits?.proofreaderDisplayName && `校对负责人 · ${workflowCredits.proofreaderDisplayName}`,
-    workflowCredits?.secondReviewerDisplayName && `二次审核 · ${workflowCredits.secondReviewerDisplayName}`,
+    workflowCredits?.proofreaderDisplayName && `校对 · ${workflowCredits.proofreaderDisplayName}`,
+    workflowCredits?.secondReviewerDisplayName && `审核 · ${workflowCredits.secondReviewerDisplayName}`,
   ].filter(Boolean)
 
   if (!contributors?.length && responsibilities.length === 0) return null

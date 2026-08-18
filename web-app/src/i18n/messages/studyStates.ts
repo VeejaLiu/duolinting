@@ -22,8 +22,8 @@ export const studyStatesMessages: Record<UiLocale, Record<string, string>> = {
     'study.credits.aria': '课程协作与贡献者',
     'study.credits.workflow': '本课协作',
     'study.credits.contributors': '贡献者',
-    'study.credits.proofreader': '校对负责人 · {{name}}',
-    'study.credits.secondReviewer': '二次审核 · {{name}}',
+    'study.credits.proofreader': '校对 · {{name}}',
+    'study.credits.secondReviewer': '审核 · {{name}}',
   },
   'en-US': {
     'study.empty.aria': 'Waiting for course resources',
@@ -45,8 +45,8 @@ export const studyStatesMessages: Record<UiLocale, Record<string, string>> = {
     'study.credits.aria': 'Course collaboration and contributors',
     'study.credits.workflow': 'Course team',
     'study.credits.contributors': 'Contributors',
-    'study.credits.proofreader': 'Proofreader · {{name}}',
-    'study.credits.secondReviewer': 'Second reviewer · {{name}}',
+    'study.credits.proofreader': 'Proofread · {{name}}',
+    'study.credits.secondReviewer': 'Review · {{name}}',
   },
   'th-TH': {
     'study.empty.aria': 'กำลังรอทรัพยากรคอร์ส',
@@ -68,8 +68,8 @@ export const studyStatesMessages: Record<UiLocale, Record<string, string>> = {
     'study.credits.aria': 'ทีมดูแลคอร์สและผู้ร่วมสร้าง',
     'study.credits.workflow': 'ทีมดูแลคอร์ส',
     'study.credits.contributors': 'ผู้ร่วมสร้าง',
-    'study.credits.proofreader': 'ผู้ตรวจทาน · {{name}}',
-    'study.credits.secondReviewer': 'ผู้ตรวจรอบสอง · {{name}}',
+    'study.credits.proofreader': 'ตรวจทาน · {{name}}',
+    'study.credits.secondReviewer': 'ตรวจสอบ · {{name}}',
   },
   'ja-JP': {
     'study.empty.aria': 'コースリソースを待っています',
@@ -91,7 +91,7 @@ export const studyStatesMessages: Record<UiLocale, Record<string, string>> = {
     'study.credits.aria': 'コース担当者と貢献者',
     'study.credits.workflow': 'コース担当',
     'study.credits.contributors': '貢献者',
-    'study.credits.proofreader': '校正担当 · {{name}}',
-    'study.credits.secondReviewer': '二次レビュー · {{name}}',
+    'study.credits.proofreader': '校正 · {{name}}',
+    'study.credits.secondReviewer': 'レビュー · {{name}}',
   },
 }

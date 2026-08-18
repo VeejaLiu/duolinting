@@ -3,7 +3,7 @@ import { useLanguage } from '../i18n/LanguageProvider'
 
 const roleLabel: Record<string, string> = {
   proofreader: '校对',
-  second_reviewer: '二次审核',
+  second_reviewer: '审核',
 }
 
 /** Public credits use the contributor's chosen display name only. */
