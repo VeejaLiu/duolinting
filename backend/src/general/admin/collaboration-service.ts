@@ -5,6 +5,7 @@ import { QueryTypes } from 'sequelize';
 import type {
     AdminRole,
     CourseContributionRole,
+    CourseWorkflowCredits,
     CreateTranscriptLineRequest,
     SubtitleDraft,
     SubtitleDraftStatus,
@@ -132,7 +133,7 @@ export async function replaceContributorAssignments(
 /** 从课程维度维护授权，供课程列表中的贡献者下拉框直接调用。 */
 /**
  * 为一个工作流步骤指定唯一负责人。校对与二审都由字幕贡献者承担：
- * 超级管理员只负责配置，不会被误写入贡献者工作流。指定校对人时同步保留
+ * 两个步骤可由同一位成员完成；超级管理员只负责配置，不会被误写入贡献者工作流。指定校对人时同步保留
  * 旧课程授权表中的编辑资格，以兼容贡献者课程列表与字幕编辑入口。
  */
 export async function updateExerciseWorkflowAssignee({
@@ -156,17 +157,6 @@ export async function updateExerciseWorkflowAssignee({
         });
         if (!contributor) {
             throw new Error('所选人员不是有效的字幕贡献者');
-        }
-        const otherRole: CourseContributionRole = workflowRole === 'proofreader'
-            ? 'second_reviewer'
-            : 'proofreader';
-        const otherAssignee = await doRawQuery<{ id: number | string }>({
-            query: `select id from exercise_workflow_assignees
-                    where exercise_id = ? and workflow_role = ? and admin_user_id = ? limit 1`,
-            params: [exerciseId, otherRole, adminUserId],
-        });
-        if (otherAssignee.length > 0) {
-            throw new Error('字幕校对和二次审核必须由两名不同的字幕贡献者负责');
         }
     }
 
@@ -667,6 +657,37 @@ export async function listExerciseContributors(exerciseId: number) {
         byName.set(row.display_name, [...(byName.get(row.display_name) ?? []), row.contribution_role]);
     }
     return [...byName.entries()].map(([displayName, roles]) => ({ displayName, roles }));
+}
+
+/**
+ * 学习端只需知道课程由谁校对、谁二审。该查询刻意只返回展示名称，
+ * 不会泄露后台账号 ID、邮箱、草稿状态或审核意见。
+ */
+export async function getExerciseWorkflowCredits(exerciseId: number): Promise<CourseWorkflowCredits | undefined> {
+    const rows = await doRawQuery<{
+        workflow_role: CourseContributionRole;
+        display_name: string;
+    }>({
+        query: `
+            select assignees.workflow_role, admins.display_name
+            from exercise_workflow_assignees assignees
+            inner join admin_users admins on admins.id = assignees.admin_user_id
+            where assignees.exercise_id = ?
+        `,
+        params: [exerciseId],
+    });
+    const credits: CourseWorkflowCredits = {};
+    for (const row of rows) {
+        if (row.workflow_role === 'proofreader') {
+            credits.proofreaderDisplayName = row.display_name;
+        }
+        if (row.workflow_role === 'second_reviewer') {
+            credits.secondReviewerDisplayName = row.display_name;
+        }
+    }
+    return credits.proofreaderDisplayName || credits.secondReviewerDisplayName
+        ? credits
+        : undefined;
 }
 
 export async function listPreviewVolunteers() {

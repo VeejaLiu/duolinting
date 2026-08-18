@@ -1,4 +1,5 @@
-import type { CourseContributor } from '@duolinting/shared'
+import type { CourseContributor, CourseWorkflowCredits } from '@duolinting/shared'
+import { useLanguage } from '../i18n/LanguageProvider'
 
 const roleLabel: Record<string, string> = {
   proofreader: '校对',
@@ -6,17 +7,35 @@ const roleLabel: Record<string, string> = {
 }
 
 /** Public credits use the contributor's chosen display name only. */
-export function ContributorCredits({ contributors }: { contributors?: CourseContributor[] }) {
-  if (!contributors?.length) return null
+export function ContributorCredits({
+  contributors,
+  workflowCredits,
+}: {
+  contributors?: CourseContributor[]
+  workflowCredits?: CourseWorkflowCredits
+}) {
+  const { t } = useLanguage()
+  const responsibilities = [
+    workflowCredits?.proofreaderDisplayName && t('study.credits.proofreader', { name: workflowCredits.proofreaderDisplayName }),
+    workflowCredits?.secondReviewerDisplayName && t('study.credits.secondReviewer', { name: workflowCredits.secondReviewerDisplayName }),
+  ].filter(Boolean)
+
+  if (!contributors?.length && responsibilities.length === 0) return null
 
   return (
-    <div className="contributor-credits" aria-label="课程贡献者">
-      <span>贡献者</span>
-      {contributors.map((contributor) => (
-        <span key={contributor.displayName}>
-          {contributor.displayName} · {contributor.roles.map((role) => roleLabel[role] ?? role).join('、')}
-        </span>
-      ))}
+    <div className="contributor-credits" aria-label={t('study.credits.aria')}>
+      {responsibilities.length > 0 && <>
+        <span className="contributor-credits-label">{t('study.credits.workflow')}</span>
+        {responsibilities.map((responsibility) => <span key={responsibility}>{responsibility}</span>)}
+      </>}
+      {contributors?.length ? <>
+        <span className="contributor-credits-label">{t('study.credits.contributors')}</span>
+        {contributors.map((contributor) => (
+          <span key={contributor.displayName}>
+            {contributor.displayName} · {contributor.roles.map((role) => roleLabel[role] ?? role).join('、')}
+          </span>
+        ))}
+      </> : null}
     </div>
   )
 }

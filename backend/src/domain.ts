@@ -83,6 +83,8 @@ export type ListeningExercise = {
     lines: TranscriptLine[];
     localizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>;
     contributors?: CourseContributor[];
+    /** 课程页公开的协作负责人，只含展示名称，不含任何后台账号资料。 */
+    workflowCredits?: CourseWorkflowCredits;
     /** 仅管理后台课程详情返回：当前成员的草稿，或超级管理员待二次审核的投稿。 */
     subtitleDrafts?: SubtitleDraft[];
 };
@@ -232,6 +234,12 @@ export type AuthUser = {
 export type CourseContributor = {
     displayName: string;
     roles: CourseContributionRole[];
+};
+
+/** 学习端公开的课程协作职责，不包含后台账号 ID、邮箱或审核意见。 */
+export type CourseWorkflowCredits = {
+    proofreaderDisplayName?: string;
+    secondReviewerDisplayName?: string;
 };
 
 export type AuthClientType = 'web_app' | 'mobile_web' | 'mobile_app';

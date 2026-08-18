@@ -89,6 +89,11 @@ export type ListeningExercise = {
   localizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>
   /** 课程页只公开贡献者的展示名称与已完成环节，绝不返回后台登录名或邮箱。 */
   contributors?: CourseContributor[]
+  /**
+   * 课程页可公开展示的当前协作负责人，只含展示名称。
+   * 这与 contributors 的“已完成贡献署名”不同：前者是当前职责，后者是实际完成记录。
+   */
+  workflowCredits?: CourseWorkflowCredits
   /** 仅管理后台课程详情返回：当前成员的草稿，或超级管理员待二次审核的投稿。 */
   subtitleDrafts?: SubtitleDraft[]
 }
@@ -334,6 +339,12 @@ export type AdminUser = {
 export type CourseContributor = {
   displayName: string
   roles: CourseContributionRole[]
+}
+
+/** 学习端公开的课程协作职责，不包含后台账号 ID、邮箱或审核意见。 */
+export type CourseWorkflowCredits = {
+  proofreaderDisplayName?: string
+  secondReviewerDisplayName?: string
 }
 
 /** 人员管理页使用的后台账号资料；课程范围只适用于字幕贡献者。 */

@@ -831,7 +831,6 @@ export function ContentAdmin({
           isCatalogLoading={isCatalogLoading}
           catalogLoadError={catalogLoadError}
           onRefreshCatalog={refreshWorkspaceCatalog}
-          categoryDraftName={categoryForm.name}
           isSaving={isSaving}
           onCreateCourse={(categoryId) => {
             void openImporterForCategory(categoryId)

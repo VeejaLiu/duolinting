@@ -6,6 +6,7 @@ import type {
     CourseWorkflowAssignee,
     CourseSubtitleDraftSummary,
     CourseContributor,
+    CourseWorkflowCredits,
     CreateCategoryGroupRequest,
     CreateCategoryRequest,
     CreateExerciseRequest,
@@ -20,6 +21,7 @@ import type {
 } from '../../domain';
 import {
     listExerciseContributors,
+    getExerciseWorkflowCredits,
     listExerciseSubtitleDrafts,
     getLatestSubmittedSubtitleDraft,
 } from '../admin/collaboration-service';
@@ -553,6 +555,7 @@ const buildExerciseDetail = (
     mediaSize?: number,
     contentLocale?: ContentLocale,
     contributors?: CourseContributor[],
+    workflowCredits?: CourseWorkflowCredits,
     subtitleDrafts?: SubtitleDraft[],
 ): ListeningExercise => ({
     id: Number(row.id),
@@ -577,6 +580,7 @@ const buildExerciseDetail = (
     lines,
     localizations: normalizeExerciseLocalizations(row.localizations_json),
     contributors,
+    workflowCredits,
     subtitleDrafts,
 });
 
@@ -983,9 +987,10 @@ export async function getExercise(
         return null;
     }
 
-    const [mediaSize, contributors, subtitleDrafts] = await Promise.all([
+    const [mediaSize, contributors, workflowCredits, subtitleDrafts] = await Promise.all([
         loadMediaSize(row),
         listExerciseContributors(exerciseId),
+        getExerciseWorkflowCredits(exerciseId),
         adminActor ? listExerciseSubtitleDrafts(exerciseId, adminActor) : Promise.resolve(undefined),
     ]);
     // A volunteer sees the latest submitted revision for review.  Personal
@@ -1002,6 +1007,7 @@ export async function getExercise(
         mediaSize,
         contentLocale,
         contributors,
+        workflowCredits,
         subtitleDrafts,
     );
 }

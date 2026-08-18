@@ -325,7 +325,10 @@ export function StudyScreen() {
             }
           }}
         />
-        <ContributorCredits contributors={exercise.contributors} />
+        <ContributorCredits
+          contributors={exercise.contributors}
+          workflowCredits={exercise.workflowCredits}
+        />
 
         {stage === 'intensive' || stage === 'review' ? (
           <AppScrollView

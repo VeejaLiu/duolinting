@@ -20,7 +20,7 @@
   font-size: 13px;
 }
 
-.contributor-credits span:first-child {
+.contributor-credits-label {
   color: #334155;
   font-weight: 800;
 }

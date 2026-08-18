@@ -587,7 +587,10 @@ function LearnerAppShell() {
 	                    <span style={{ width: `${activeChapterProgress?.percent ?? masteryPercent}%` }} />
 	                  </div>
                 </section>
-                <ContributorCredits contributors={activeExercise.contributors} />
+                <ContributorCredits
+                  contributors={activeExercise.contributors}
+                  workflowCredits={activeExercise.workflowCredits}
+                />
 
                 <StageRail
                   activeStage={studyStage}

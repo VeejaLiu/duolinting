@@ -14,7 +14,6 @@ type CourseManagerProps = {
   isCatalogLoading: boolean
   catalogLoadError: string
   onRefreshCatalog: () => Promise<void>
-  categoryDraftName: string
   isSaving: boolean
   onCreateCourse: (categoryId: number) => void
   onDeleteCourse: (exercise: CatalogExerciseSummary) => void
@@ -34,7 +33,6 @@ type CourseManagerProps = {
 
 type CourseStatus = 'all' | 'draft' | 'proofread' | 'published' | 'archived'
 
-const difficultyLabels = { beginner: '入门', intermediate: '进阶', advanced: '高阶' }
 const statusLabels = { draft: '草稿', proofread: '已校对', published: '已发布', archived: '已归档' }
 const statusColors = { draft: 'default', proofread: 'processing', published: 'success', archived: 'purple' } as const
 const LAST_CATEGORY_STORAGE_KEY = 'duolinting.admin.last-course-category-id'
@@ -94,12 +92,6 @@ function CourseWorkflow({
       : workflow.secondReviewerAssignee
   )
 
-  const otherAssigneeId = (workflowRole: 'proofreader' | 'second_reviewer') => (
-    workflowRole === 'proofreader'
-      ? workflow.secondReviewerAssignee?.adminUserId
-      : workflow.proofreaderAssignee?.adminUserId
-  )
-
   return <div className="course-workflow" title={summary}>
     <div className="course-workflow-steps" aria-label={`工作流：${summary}`}>
       {workflowSteps.map((step, index) => {
@@ -117,7 +109,6 @@ function CourseWorkflow({
               className="course-workflow-assignee-select"
               onChange={(adminUserId: number | undefined) => onUpdateWorkflowAssignee(workflowRole, adminUserId)}
               options={contributors.map((contributor) => ({
-                disabled: contributor.id === otherAssigneeId(workflowRole),
                 label: `${contributor.displayName}${contributor.mustChangePassword ? '（待首次改密）' : ''}`,
                 value: contributor.id,
               }))}
@@ -151,7 +142,7 @@ function CourseWorkflow({
 }
 
 export function CourseManager({
-  adminToken, currentAdminId, categoryGroups, categories, isCatalogLoading, catalogLoadError, onRefreshCatalog, categoryDraftName, isSaving, onCreateCourse,
+  adminToken, currentAdminId, categoryGroups, categories, isCatalogLoading, catalogLoadError, onRefreshCatalog, isSaving, onCreateCourse,
   onDeleteCourse, onEditCourse, onMoveCourse, onOpenRecorder, onRenameCourse, canManageCourses = true, onReviewSubtitleDraft,
   contributors, onUpdateWorkflowAssignee,
 }: CourseManagerProps) {
@@ -338,21 +329,10 @@ export function CourseManager({
       </Space>,
     },
     {
-      title: '归属', key: 'location', width: 160,
-      render: (_, exercise) => {
-        const category = categories.find((item) => item.id === exercise.categoryId)
-        const group = categoryGroups.find((item) => item.id === category?.groupId)
-        return <Space direction="vertical" size={1}><Typography.Text>{group?.name ?? '未分组'}</Typography.Text><Typography.Text type="secondary">{category?.name ?? (categoryDraftName || '未归档系列')}</Typography.Text></Space>
-      },
-    },
-    {
-      title: '内容', key: 'details', width: 140,
-      render: (_, exercise) => <Space size={[4, 6]} wrap>
-        <Tag>{exercise.mediaType === 'video' ? '视频' : '音频'}</Tag>
-        <Tag>{difficultyLabels[exercise.difficulty]}</Tag>
-        <Typography.Text type="secondary">{exercise.durationLabel}</Typography.Text>
-        <Typography.Text type="secondary">{exercise.lineCount} 句</Typography.Text>
-      </Space>,
+      title: '内容', key: 'details', width: 105,
+      render: (_, exercise) => <Typography.Text type="secondary">
+        {exercise.mediaType === 'video' ? '视频' : '音频'} · {exercise.lineCount} 句
+      </Typography.Text>,
     },
     {
       title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 72,
