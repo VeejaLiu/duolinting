@@ -8,8 +8,13 @@ const AdminUserSchema: ModelAttributes = {
         autoIncrement: true,
     },
     username: {
-        type: Sequelize.STRING(80),
+        type: Sequelize.STRING(255),
         allowNull: false,
+        unique: true,
+    },
+    email: {
+        type: Sequelize.STRING(255),
+        allowNull: true,
         unique: true,
     },
     display_name: {
@@ -23,6 +28,11 @@ const AdminUserSchema: ModelAttributes = {
     role: {
         type: Sequelize.STRING(40),
         allowNull: false,
+    },
+    must_change_password: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
     },
     token: {
         type: Sequelize.TEXT,
@@ -41,9 +51,11 @@ const AdminUserSchema: ModelAttributes = {
 export interface AdminUserDb {
     id: number;
     username: string;
+    email?: string | null;
     display_name: string;
     password_hash: string;
-    role: string;
+    role: 'super_admin' | 'subtitle_contributor' | 'admin';
+    must_change_password: boolean;
     token?: string | null;
     token_expires_at?: Date | null;
     created_at?: Date;
@@ -53,9 +65,11 @@ export interface AdminUserDb {
 export class AdminUserModel extends Model<AdminUserDb> {
     declare id: number;
     declare username: string;
+    declare email: string | null;
     declare display_name: string;
     declare password_hash: string;
-    declare role: string;
+    declare role: 'super_admin' | 'subtitle_contributor' | 'admin';
+    declare must_change_password: boolean;
     declare token: string | null;
     declare token_expires_at: Date | null;
 }

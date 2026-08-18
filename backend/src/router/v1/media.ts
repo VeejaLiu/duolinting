@@ -1,7 +1,7 @@
 import express from 'express';
 import { body } from 'express-validator';
 import multer from 'multer';
-import { requireAdminToken } from '../../general/admin/admin-auth';
+import { requireAdminToken, requireSuperAdmin } from '../../general/admin/admin-auth';
 import {
     createUploadIntent,
     getMediaObject,
@@ -195,6 +195,7 @@ router.get('/objects', async (req, res) => {
 router.post(
     '/upload-intents',
     requireAdminToken,
+    requireSuperAdmin,
     body('fileName').isString().isLength({ min: 1 }),
     body('contentType').isString().isLength({ min: 1 }),
     validateErrorCheck,
@@ -241,7 +242,7 @@ const uploadMedia = async (req: express.Request, res: express.Response) => {
     }
 };
 
-router.post('/files', requireAdminToken, applyLocalUploadThrottle, upload.single('media'), uploadMedia);
-router.post('/audio', requireAdminToken, applyLocalUploadThrottle, upload.single('audio'), uploadMedia);
+router.post('/files', requireAdminToken, requireSuperAdmin, applyLocalUploadThrottle, upload.single('media'), uploadMedia);
+router.post('/audio', requireAdminToken, requireSuperAdmin, applyLocalUploadThrottle, upload.single('audio'), uploadMedia);
 
 export default router;

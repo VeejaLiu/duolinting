@@ -1,8 +1,23 @@
 import express from 'express';
 import { body } from 'express-validator';
 import type { FeedbackStatus } from '../../domain';
-import { requireAdminToken } from '../../general/admin/admin-auth';
-import { getAdminInfo, loginAdmin, logoutAdmin } from '../../general/admin/admin-service';
+import { requireAdminPasswordChanged, requireAdminToken, requireSuperAdmin } from '../../general/admin/admin-auth';
+import { changeAdminPassword, getAdminInfo, loginAdmin, logoutAdmin } from '../../general/admin/admin-service';
+import {
+    canEditExerciseSubtitles,
+    approveSubtitleDraft,
+    createAdminMember,
+    getAssignedExerciseIds,
+    isSuperAdmin,
+    listAdminMembers,
+    listPreviewVolunteers,
+    returnSubtitleDraft,
+    resetAdminMemberPassword,
+    saveSubtitleDraft,
+    submitSubtitleDraft,
+    replaceContributorAssignments,
+    updatePreviewVolunteer,
+} from '../../general/admin/collaboration-service';
 import {
     deleteExercise,
     deleteCategory,
@@ -32,7 +47,7 @@ const adminLoginRateLimit = createRateLimit({
     namespace: 'admin-login',
     windowMs: 15 * 60 * 1000,
     maxAttempts: 5,
-    keys: authenticationRateLimitKeys('username'),
+    keys: authenticationRateLimitKeys('email'),
 });
 
 const isStoredAssetUrl = (value: unknown) => {
@@ -57,7 +72,8 @@ const toId = (value: string | string[]) => Number.parseInt(Array.isArray(value) 
 router.post(
     '/auth/login',
     adminLoginRateLimit,
-    body('username').isString().isLength({ min: 1 }),
+    // 新成员使用邮箱登录；旧管理员若仍是历史账户名，允许在过渡期继续登录。
+    body('email').isString().trim().isLength({ min: 1, max: 255 }),
     body('password').isString().isLength({ min: 1 }),
     validateErrorCheck,
     async (req, res) => {
@@ -77,22 +93,42 @@ router.post('/auth/logout', requireAdminToken, async (req, res) => {
     res.status(200).send({ success: true, message: 'success' });
 });
 
-router.use(requireAdminToken);
+router.put(
+    '/auth/password',
+    requireAdminToken,
+    body('currentPassword').isString().isLength({ min: 1, max: 200 }),
+    body('newPassword').isString().isLength({ min: 8, max: 200 }),
+    validateErrorCheck,
+    async (req: any, res) => {
+        const result = await changeAdminPassword({
+            adminId: req.admin.id,
+            currentPassword: req.body.currentPassword,
+            newPassword: req.body.newPassword,
+        });
+        res.status(result.success ? 200 : 400).send(result);
+    },
+);
 
-router.get('/catalog', async (req, res) => {
+// 除了认证资料和改密接口外，所有后台能力都要求成员完成初始密码修改。
+router.use(requireAdminToken, requireAdminPasswordChanged);
+
+router.get('/catalog', async (_req: any, res) => {
     res.status(200).send(await listCatalog(true, true));
 });
 
-router.get('/exercises', async (req, res) => {
+router.get('/exercises', async (req: any, res) => {
     const page = Math.max(1, Number.parseInt(String(req.query.page ?? '1'), 10) || 1);
     const pageSize = Math.min(100, Math.max(1, Number.parseInt(String(req.query.pageSize ?? '20'), 10) || 20));
     const groupId = Number.parseInt(String(req.query.groupId ?? ''), 10);
     const categoryId = Number.parseInt(String(req.query.categoryId ?? ''), 10);
-    const status = ['draft', 'published', 'archived'].includes(String(req.query.status))
-        ? String(req.query.status) as 'draft' | 'published' | 'archived'
+    const status = ['draft', 'proofread', 'published', 'archived'].includes(String(req.query.status))
+        ? String(req.query.status) as 'draft' | 'proofread' | 'published' | 'archived'
         : undefined;
     const search = String(req.query.search ?? '').trim().slice(0, 200);
     if (req.query.page !== undefined || req.query.pageSize !== undefined) {
+        const assignedExerciseIds = isSuperAdmin(req.admin)
+            ? undefined
+            : await getAssignedExerciseIds(req.admin.id);
         return res.status(200).send(await listAdminExercisesPage({
             page,
             pageSize,
@@ -100,18 +136,27 @@ router.get('/exercises', async (req, res) => {
             ...(Number.isInteger(categoryId) && categoryId > 0 ? { categoryId } : {}),
             ...(status ? { status } : {}),
             ...(search ? { search } : {}),
+            ...(assignedExerciseIds ? { assignedExerciseIds } : {}),
         }));
+    }
+    if (!isSuperAdmin(req.admin)) {
+        const assignedExerciseIds = await getAssignedExerciseIds(req.admin.id);
+        const page = await listAdminExercisesPage({ page: 1, pageSize: 100, assignedExerciseIds });
+        return res.status(200).send(page.items);
     }
     res.status(200).send(await listAllExercises());
 });
 
-router.get('/exercises/:exerciseId', async (req, res) => {
+router.get('/exercises/:exerciseId', async (req: any, res) => {
     const exerciseId = toId(req.params.exerciseId);
     if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
         return res.status(400).send({ success: false, message: 'Invalid exercise id' });
     }
+    if (!(await canEditExerciseSubtitles(req.admin, exerciseId))) {
+        return res.status(403).send({ success: false, message: 'This course is not assigned to you' });
+    }
 
-    const exercise = await getExercise(exerciseId, true);
+    const exercise = await getExercise(exerciseId, true, undefined, false, req.admin);
     if (!exercise) {
         return res.status(404).send({ success: false, message: 'Exercise not found' });
     }
@@ -121,6 +166,7 @@ router.get('/exercises/:exerciseId', async (req, res) => {
 
 router.post(
     '/category-groups',
+    requireSuperAdmin,
     body('id').optional().isInt({ min: 1 }),
     body('name').isString().isLength({ min: 1 }),
     body('description').optional().isString(),
@@ -134,7 +180,7 @@ router.post(
     },
 );
 
-router.delete('/category-groups/:groupId', async (req, res) => {
+router.delete('/category-groups/:groupId', requireSuperAdmin, async (req, res) => {
     try {
         const groupId = toId(req.params.groupId);
         if (!Number.isInteger(groupId) || groupId <= 0) {
@@ -153,6 +199,7 @@ router.delete('/category-groups/:groupId', async (req, res) => {
 
 router.post(
     '/categories',
+    requireSuperAdmin,
     body('id').optional().isInt({ min: 1 }),
     body('groupId').isInt({ min: 1 }),
     body('name').isString().isLength({ min: 1 }),
@@ -167,7 +214,7 @@ router.post(
     },
 );
 
-router.delete('/categories/:categoryId', async (req, res) => {
+router.delete('/categories/:categoryId', requireSuperAdmin, async (req, res) => {
     try {
         const categoryId = toId(req.params.categoryId);
         if (!Number.isInteger(categoryId) || categoryId <= 0) {
@@ -184,7 +231,7 @@ router.delete('/categories/:categoryId', async (req, res) => {
     }
 });
 
-router.delete('/exercises/:exerciseId', async (req, res) => {
+router.delete('/exercises/:exerciseId', requireSuperAdmin, async (req, res) => {
     try {
         const exerciseId = toId(req.params.exerciseId);
         if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
@@ -203,6 +250,7 @@ router.delete('/exercises/:exerciseId', async (req, res) => {
 
 router.post(
     '/exercises',
+    requireSuperAdmin,
     body('id').optional().isInt({ min: 1 }),
     body('categoryId').isInt({ min: 1 }),
     body('title').isString().isLength({ min: 1 }),
@@ -215,9 +263,18 @@ router.post(
     body('coverImageUrl').optional({ values: 'falsy' }).custom(isStoredAssetUrl),
     body('summary').optional().isString(),
     body('sortOrder').isInt({ min: 0 }),
-    body('status').isIn(['draft', 'published', 'archived']),
+    body('status').isIn(['draft', 'proofread', 'published', 'archived']),
     validateErrorCheck,
     async (req, res) => {
+        const requestedStatus = req.body.status;
+        const existing = req.body.id ? await getExercise(Number(req.body.id), true) : null;
+        // 发布只能经过下方专用的二次审核接口；普通保存只允许保留已有状态、创建草稿或归档。
+        if (requestedStatus === 'published' && existing?.status !== 'published') {
+            return res.status(409).send({ success: false, message: '请先完成二次审核后再发布课程' });
+        }
+        if (requestedStatus === 'proofread' && existing?.status !== 'proofread') {
+            return res.status(409).send({ success: false, message: '已校对状态只能由字幕贡献者提交字幕时产生' });
+        }
         const id = await upsertExercise(req.body);
         res.status(201).send({ ok: true, id });
     },
@@ -225,6 +282,7 @@ router.post(
 
 router.put(
     '/exercises/:exerciseId/media',
+    requireSuperAdmin,
     body('mediaType').isIn(['audio', 'video']),
     body('audioUrl').custom(isStoredAssetUrl),
     validateErrorCheck,
@@ -239,10 +297,13 @@ router.put(
     },
 );
 
-router.put('/exercises/:exerciseId/transcript', async (req, res) => {
+router.put('/exercises/:exerciseId/transcript', async (req: any, res) => {
     const exerciseId = toId(req.params.exerciseId);
     if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
         return res.status(400).send({ success: false, message: 'Invalid exercise id' });
+    }
+    if (!(await canEditExerciseSubtitles(req.admin, exerciseId))) {
+        return res.status(403).send({ success: false, message: 'This course is not assigned to you' });
     }
 
     const lines = req.body?.lines;
@@ -264,7 +325,13 @@ router.put('/exercises/:exerciseId/transcript', async (req, res) => {
     }
 
     try {
-        await replaceTranscriptLines(exerciseId, lines);
+        // 超级管理员维护课程正式字幕；贡献者此接口只保存个人工作稿，
+        // 永远不会改变课程发布状态或覆盖当前学习端版本。
+        if (isSuperAdmin(req.admin)) {
+            await replaceTranscriptLines(exerciseId, lines);
+        } else {
+            await saveSubtitleDraft({ exerciseId, adminId: req.admin.id, lines });
+        }
         res.status(200).send({ ok: true });
     } catch (error) {
         // service 层在课程不存在（update 影响 0 行）时抛出「课程不存在」
@@ -275,6 +342,33 @@ router.put('/exercises/:exerciseId/transcript', async (req, res) => {
     }
 });
 
+router.post('/exercises/:exerciseId/subtitle-drafts/submit', async (req: any, res) => {
+    const exerciseId = toId(req.params.exerciseId);
+    if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+        return res.status(400).send({ success: false, message: 'Invalid exercise id' });
+    }
+    if (isSuperAdmin(req.admin) || !(await canEditExerciseSubtitles(req.admin, exerciseId))) {
+        return res.status(403).send({ success: false, message: 'This course is not assigned to you' });
+    }
+    const lines = req.body?.lines;
+    if (!Array.isArray(lines) || lines.length === 0) {
+        return res.status(400).send({ success: false, message: 'Invalid transcript payload' });
+    }
+    const invalidRange = lines.find((line) => {
+        const start = Number(line.start);
+        const end = Number(line.end);
+        return !Number.isFinite(start)
+            || !Number.isFinite(end)
+            || end <= start
+            || !String(line.text ?? '').trim();
+    });
+    if (invalidRange) {
+        return res.status(400).send({ success: false, message: `Line ${invalidRange.id} must end after it starts and have non-empty text` });
+    }
+    await submitSubtitleDraft({ exerciseId, adminId: req.admin.id, lines });
+    res.status(200).send({ ok: true });
+});
+
 router.post(
     '/translate',
     // 前端将整课字幕拆分为小批次；限制单请求规模，确保模型调用不会拖到网关超时。
@@ -283,7 +377,7 @@ router.post(
     body('sourceLocale').optional().isIn(['zh-CN', 'en-US', 'th-TH', 'ja-JP']),
     body('targetLocale').optional().isIn(['zh-CN', 'en-US', 'th-TH', 'ja-JP']),
     validateErrorCheck,
-    async (req, res) => {
+    async (req: any, res) => {
         const lines: string[] = req.body.lines;
         logger.info(`AI 翻译请求: lines=${lines.length}, adminId=${(req as any).admin?.id ?? '-'}`);
         const jobId = createTranslationJob(lines, req.body.sourceLocale, req.body.targetLocale);
@@ -300,7 +394,7 @@ router.get('/translate/:jobId', async (req, res) => {
     res.status(200).send({ success: true, data: job });
 });
 
-router.get('/feedback/accepted-answer', async (req, res) => {
+router.get('/feedback/accepted-answer', requireSuperAdmin, async (req, res) => {
     const rawStatus = typeof req.query.status === 'string' ? req.query.status : '';
     const status = rawStatus === 'open' || rawStatus === 'reviewed' || rawStatus === 'dismissed'
         ? rawStatus
@@ -309,12 +403,13 @@ router.get('/feedback/accepted-answer', async (req, res) => {
     res.status(200).send({ items });
 });
 
-router.get('/analytics/growth', async (_req, res) => {
+router.get('/analytics/growth', requireSuperAdmin, async (_req, res) => {
     res.status(200).send(await getAdminGrowthReport());
 });
 
 router.put(
     '/feedback/accepted-answer/:feedbackId/status',
+    requireSuperAdmin,
     body('status').isIn(['open', 'reviewed', 'dismissed']),
     validateErrorCheck,
     async (req, res) => {
@@ -333,6 +428,154 @@ router.put(
 
         await updateAcceptedAnswerFeedbackStatus(feedbackId, status as FeedbackStatus);
         res.status(200).send({ ok: true });
+    },
+);
+
+router.get('/collaboration/members', requireSuperAdmin, async (_req, res) => {
+    res.status(200).send({ items: await listAdminMembers() });
+});
+
+router.post(
+    '/collaboration/members',
+    requireSuperAdmin,
+    body('email').isEmail().normalizeEmail(),
+    body('displayName').isString().trim().isLength({ min: 1, max: 120 }),
+    body('role').isIn(['super_admin', 'subtitle_contributor']),
+    validateErrorCheck,
+    async (req, res) => {
+        const member = await createAdminMember(req.body);
+        res.status(201).send({ ok: true, member });
+    },
+);
+
+router.put(
+    '/collaboration/members/:memberId/assignments',
+    requireSuperAdmin,
+    body('exerciseIds').isArray(),
+    body('exerciseIds.*').isInt({ min: 1 }),
+    validateErrorCheck,
+    async (req, res) => {
+        const memberId = toId(req.params.memberId);
+        if (!Number.isInteger(memberId) || memberId <= 0) {
+            return res.status(400).send({ success: false, message: 'Invalid member id' });
+        }
+        const exerciseIds = await replaceContributorAssignments(memberId, req.body.exerciseIds);
+        res.status(200).send({ ok: true, exerciseIds });
+    },
+);
+
+router.put(
+    '/collaboration/members/:memberId/password',
+    requireSuperAdmin,
+    validateErrorCheck,
+    async (req: any, res) => {
+        const memberId = toId(req.params.memberId);
+        if (!Number.isInteger(memberId) || memberId <= 0) {
+            return res.status(400).send({ success: false, message: 'Invalid member id' });
+        }
+        const member = await resetAdminMemberPassword({
+            memberId,
+            actorId: req.admin.id,
+        });
+        res.status(200).send({ ok: true, member });
+    },
+);
+
+router.get('/collaboration/preview-volunteers', requireSuperAdmin, async (_req, res) => {
+    res.status(200).send({ items: await listPreviewVolunteers() });
+});
+
+router.put(
+    '/collaboration/preview-volunteers/:userId',
+    requireSuperAdmin,
+    body('isPreviewVolunteer').isBoolean().toBoolean(),
+    validateErrorCheck,
+    async (req, res) => {
+        const userId = toId(req.params.userId);
+        if (!Number.isInteger(userId) || userId <= 0) {
+            return res.status(400).send({ success: false, message: 'Invalid learner user id' });
+        }
+        await updatePreviewVolunteer(userId, req.body.isPreviewVolunteer);
+        res.status(200).send({ ok: true });
+    },
+);
+
+router.post(
+    '/exercises/:exerciseId/publish',
+    requireSuperAdmin,
+    async (req: any, res) => {
+        const exerciseId = toId(req.params.exerciseId);
+        if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+            return res.status(400).send({ success: false, message: 'Invalid exercise id' });
+        }
+        const exercise = await getExercise(exerciseId, true, undefined, false, req.admin);
+        if (!exercise) {
+            return res.status(404).send({ success: false, message: 'Exercise not found' });
+        }
+        if (exercise.subtitleDrafts?.length) {
+            return res.status(409).send({ success: false, message: '请从对应字幕投稿的审核界面完成二次审核' });
+        }
+        if (exercise.status !== 'proofread') {
+            return res.status(409).send({ success: false, message: 'Only proofread courses can pass the second review and publish' });
+        }
+        await upsertExercise({
+            id: exercise.id,
+            categoryId: exercise.categoryId,
+            title: exercise.title,
+            source: exercise.source,
+            difficulty: exercise.difficulty,
+            durationLabel: exercise.durationLabel,
+            mediaType: exercise.mediaType,
+            audioUrl: exercise.audioUrl,
+            coverImageUrl: exercise.coverImageUrl,
+            summary: exercise.summary,
+            sortOrder: exercise.sortOrder,
+            status: 'published',
+            localizations: exercise.localizations,
+        });
+        res.status(200).send({ ok: true });
+    },
+);
+
+router.post('/subtitle-drafts/:draftId/approve', requireSuperAdmin, async (req: any, res) => {
+    const draftId = toId(req.params.draftId);
+    if (!Number.isInteger(draftId) || draftId <= 0) {
+        return res.status(400).send({ success: false, message: 'Invalid subtitle draft id' });
+    }
+    try {
+        await approveSubtitleDraft({ draftId, reviewerId: req.admin.id });
+        res.status(200).send({ ok: true });
+    } catch (error) {
+        res.status(409).send({
+            success: false,
+            message: error instanceof Error ? error.message : '字幕稿审核通过失败',
+        });
+    }
+});
+
+router.post(
+    '/subtitle-drafts/:draftId/return',
+    requireSuperAdmin,
+    body('reviewNote').isString().trim().isLength({ min: 1, max: 4000 }),
+    validateErrorCheck,
+    async (req: any, res) => {
+        const draftId = toId(req.params.draftId);
+        if (!Number.isInteger(draftId) || draftId <= 0) {
+            return res.status(400).send({ success: false, message: 'Invalid subtitle draft id' });
+        }
+        try {
+            await returnSubtitleDraft({
+                draftId,
+                reviewerId: req.admin.id,
+                reviewNote: req.body.reviewNote,
+            });
+            res.status(200).send({ ok: true });
+        } catch (error) {
+            res.status(409).send({
+                success: false,
+                message: error instanceof Error ? error.message : '字幕稿退回失败',
+            });
+        }
     },
 );
 

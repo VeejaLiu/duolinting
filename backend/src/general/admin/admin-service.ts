@@ -1,13 +1,16 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
+import { Op } from 'sequelize';
 import { v4 as uuidv4 } from 'uuid';
 import { AdminUserModel } from '../../models/schema/AdminUserDB';
+import { normalizeAdminRole } from './collaboration-service';
 
 export type AdminSessionUser = {
     id: number;
-    username: string;
+    email: string;
     displayName: string;
-    role: string;
+    role: 'super_admin' | 'subtitle_contributor';
+    mustChangePassword: boolean;
 };
 
 export type AdminAuthResult = {
@@ -27,31 +30,39 @@ const mapAdminUser = (admin: any): AdminSessionUser => {
     const row = plainAdmin(admin);
     return {
         id: Number(row.id),
-        username: row.username,
+        // 旧账号尚未补邮箱时仍用 username 显示和登录，避免迁移时中断既有管理员。
+        email: row.email || row.username,
         displayName: row.display_name,
-        role: row.role,
+        role: normalizeAdminRole(row.role),
+        mustChangePassword: Boolean(row.must_change_password),
     };
 };
 
 export async function loginAdmin({
-    username,
+    email,
     password,
 }: {
-    username: string;
+    email: string;
     password: string;
 }): Promise<AdminAuthResult> {
     const adminRecord = await AdminUserModel.findOne({
-        where: { username: username.trim().toLowerCase() },
+        // 新后台成员以邮箱登录；兼容原有 username 账号，便于平滑迁移。
+        where: {
+            [Op.or]: [
+                { email: email.trim().toLowerCase() },
+                { username: email.trim().toLowerCase() },
+            ],
+        },
     });
 
     if (!adminRecord) {
-        return { success: false, message: 'Invalid username or password' };
+        return { success: false, message: 'Invalid email or password' };
     }
 
     const row = plainAdmin(adminRecord);
     const matched = await bcrypt.compare(password, row.password_hash);
     if (!matched) {
-        return { success: false, message: 'Invalid username or password' };
+        return { success: false, message: 'Invalid email or password' };
     }
 
     const user = mapAdminUser(row);
@@ -99,6 +110,48 @@ export async function logoutAdmin(adminId: number) {
         { token: null, token_expires_at: null },
         { where: { id: adminId } },
     );
+}
+
+/**
+ * 新成员首次登录必须用临时密码完成本操作。改密不会切换当前会话，
+ * 以免管理员在提交成功后被意外登出；重设密码则由人员管理接口撤销其旧会话。
+ */
+export async function changeAdminPassword({
+    adminId,
+    currentPassword,
+    newPassword,
+}: {
+    adminId: number;
+    currentPassword: string;
+    newPassword: string;
+}): Promise<{ success: boolean; message: string; data?: AdminSessionUser }> {
+    const adminRecord = await AdminUserModel.findOne({ where: { id: adminId } });
+    if (!adminRecord) {
+        return { success: false, message: '后台账号不存在' };
+    }
+
+    const row = plainAdmin(adminRecord);
+    const passwordMatches = await bcrypt.compare(currentPassword, row.password_hash);
+    if (!passwordMatches) {
+        return { success: false, message: '当前密码不正确' };
+    }
+    if (currentPassword === newPassword) {
+        return { success: false, message: '新密码不能与当前密码相同' };
+    }
+
+    await AdminUserModel.update(
+        {
+            password_hash: await bcrypt.hash(newPassword, 10),
+            must_change_password: false,
+        },
+        { where: { id: adminId } },
+    );
+
+    return {
+        success: true,
+        message: 'success',
+        data: { ...mapAdminUser(row), mustChangePassword: false },
+    };
 }
 
 export async function getAdminInfo(token: string) {

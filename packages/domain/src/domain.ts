@@ -1,5 +1,10 @@
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
 export type LessonMediaType = 'audio' | 'video'
+export type ExerciseStatus = 'draft' | 'proofread' | 'published' | 'archived'
+export type AdminRole = 'super_admin' | 'subtitle_contributor'
+export type CourseContributionRole = 'proofreader' | 'second_reviewer'
+/** 字幕贡献者个人工作稿的流转状态；它独立于课程面向学习端的发布状态。 */
+export type SubtitleDraftStatus = 'editing' | 'submitted' | 'returned' | 'approved'
 
 /** 界面语言支持中、英、泰、日四种；内容语言可随课程翻译逐步扩展。 */
 export type UiLocale = 'zh-CN' | 'en-US' | 'th-TH' | 'ja-JP'
@@ -76,14 +81,31 @@ export type ListeningExercise = {
   mediaSize?: number
   coverImageUrl?: string
   summary: string
-  status: 'draft' | 'published' | 'archived'
+  status: ExerciseStatus
   lines: TranscriptLine[]
   sortOrder: number
   localizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>
+  /** 课程页只公开贡献者的展示名称与已完成环节，绝不返回后台登录名或邮箱。 */
+  contributors?: CourseContributor[]
+  /** 仅管理后台课程详情返回：当前成员的草稿，或超级管理员待二次审核的投稿。 */
+  subtitleDrafts?: SubtitleDraft[]
 }
 
 export type CatalogExerciseSummary = Omit<ListeningExercise, 'lines'> & {
   lineCount: number
+  /** 仅管理后台列表使用，用来提示已发布课程仍有新的字幕稿等待审核。 */
+  pendingSubtitleDraftCount?: number
+}
+
+export type SubtitleDraft = {
+  id: number
+  exerciseId: number
+  contributorDisplayName: string
+  status: SubtitleDraftStatus
+  lines: TranscriptLine[]
+  reviewNote?: string
+  submittedAt?: string
+  updatedAt?: string
 }
 
 export type AdminExercisePage = {
@@ -212,7 +234,7 @@ export type CreateExerciseRequest = {
   summary: string
   sortOrder: number
   // 更新时需透传 archived，避免对已归档课程的改名/排序把状态改回 published
-  status: 'draft' | 'published' | 'archived'
+  status: ExerciseStatus
   localizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>
 }
 
@@ -266,13 +288,60 @@ export type AuthResponse = {
 
 export type AdminUser = {
   id: number
-  username: string
+  email: string
   displayName: string
-  role: string
+  role: AdminRole
+  /** 新建或被重设密码的后台账号必须先完成改密，才能进入管理功能。 */
+  mustChangePassword: boolean
+}
+
+export type CourseContributor = {
+  displayName: string
+  roles: CourseContributionRole[]
+}
+
+/** 人员管理页使用的后台账号资料；课程范围只适用于字幕贡献者。 */
+export type AdminMember = AdminUser & {
+  assignedExerciseIds: number[]
+}
+
+export type CreateAdminMemberRequest = {
+  email: string
+  displayName: string
+  role: AdminRole
+}
+
+/** 仅在创建或重设临时密码的当次响应中返回，客户端不得持久化。 */
+export type AdminMemberProvisioning = {
+  id: number
+  email: string
+  displayName: string
+  role: AdminRole
+  temporaryPassword: string
+}
+
+export type ChangeAdminPasswordRequest = {
+  currentPassword: string
+  newPassword: string
+}
+
+export type UpdateContributorAssignmentsRequest = {
+  exerciseIds: number[]
+}
+
+export type PreviewVolunteer = {
+  id: number
+  email: string
+  displayName: string
+  isPreviewVolunteer: boolean
+}
+
+export type UpdatePreviewVolunteerRequest = {
+  isPreviewVolunteer: boolean
 }
 
 export type AdminLoginRequest = {
-  username: string
+  email: string
   password: string
 }
 

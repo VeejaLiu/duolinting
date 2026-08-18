@@ -58,7 +58,7 @@ const ExerciseSchema: ModelAttributes = {
         defaultValue: [],
     },
     status: {
-        type: Sequelize.ENUM('draft', 'published', 'archived'),
+        type: Sequelize.ENUM('draft', 'proofread', 'published', 'archived'),
         allowNull: false,
     },
     sort_order: {
@@ -88,7 +88,7 @@ export interface ExerciseDb {
     summary: string;
     localizations_json: unknown;
     transcript_json: unknown;
-    status: 'draft' | 'published' | 'archived';
+    status: 'draft' | 'proofread' | 'published' | 'archived';
     sort_order: number;
 }
 
@@ -105,7 +105,7 @@ export class ExerciseModel extends Model<ExerciseDb> {
     public summary!: string;
     public localizations_json!: unknown;
     public transcript_json!: unknown;
-    public status!: 'draft' | 'published' | 'archived';
+    public status!: 'draft' | 'proofread' | 'published' | 'archived';
     public sort_order!: number;
 }
 

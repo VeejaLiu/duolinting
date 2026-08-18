@@ -1,5 +1,10 @@
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 export type LessonMediaType = 'audio' | 'video';
+export type ExerciseStatus = 'draft' | 'proofread' | 'published' | 'archived';
+export type AdminRole = 'super_admin' | 'subtitle_contributor';
+export type CourseContributionRole = 'proofreader' | 'second_reviewer';
+/** 字幕贡献者个人工作稿的流转状态；它独立于课程面向学习端的发布状态。 */
+export type SubtitleDraftStatus = 'editing' | 'submitted' | 'returned' | 'approved';
 
 export type UiLocale = 'zh-CN' | 'en-US' | 'th-TH' | 'ja-JP';
 export type ContentLocale = 'zh-CN' | 'en-US' | 'th-TH' | 'ja-JP';
@@ -71,14 +76,30 @@ export type ListeningExercise = {
     mediaSize?: number;
     coverImageUrl?: string;
     summary: string;
-    status: 'draft' | 'published' | 'archived';
+    status: ExerciseStatus;
     sortOrder: number;
     lines: TranscriptLine[];
     localizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>;
+    contributors?: CourseContributor[];
+    /** 仅管理后台课程详情返回：当前成员的草稿，或超级管理员待二次审核的投稿。 */
+    subtitleDrafts?: SubtitleDraft[];
 };
 
 export type CatalogExerciseSummary = Omit<ListeningExercise, 'lines'> & {
     lineCount: number;
+    /** 仅管理后台列表使用，用来提示已发布课程仍有新的字幕稿等待审核。 */
+    pendingSubtitleDraftCount?: number;
+};
+
+export type SubtitleDraft = {
+    id: number;
+    exerciseId: number;
+    contributorDisplayName: string;
+    status: SubtitleDraftStatus;
+    lines: TranscriptLine[];
+    reviewNote?: string;
+    submittedAt?: string;
+    updatedAt?: string;
 };
 
 export type AdminExercisePage = {
@@ -151,7 +172,7 @@ export type CreateExerciseRequest = {
     coverImageUrl?: string;
     summary: string;
     sortOrder: number;
-    status: 'draft' | 'published' | 'archived';
+    status: ExerciseStatus;
     localizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>;
 };
 
@@ -170,6 +191,11 @@ export type AuthUser = {
     id: number;
     email: string;
     displayName: string;
+};
+
+export type CourseContributor = {
+    displayName: string;
+    roles: CourseContributionRole[];
 };
 
 export type AuthClientType = 'web_app' | 'mobile_web' | 'mobile_app';

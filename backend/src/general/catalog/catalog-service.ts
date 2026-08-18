@@ -2,6 +2,7 @@ import type {
     CatalogExerciseSummary,
     CatalogResponse,
     ContentLocale,
+    CourseContributor,
     CreateCategoryGroupRequest,
     CreateCategoryRequest,
     CreateExerciseRequest,
@@ -12,7 +13,14 @@ import type {
     LocalizedDirectoryContent,
     LocalizedExerciseContent,
     TranscriptLine,
+    SubtitleDraft,
 } from '../../domain';
+import {
+    listExerciseContributors,
+    listExerciseSubtitleDrafts,
+    getLatestSubmittedSubtitleDraft,
+} from '../admin/collaboration-service';
+import type { AdminActor } from '../admin/collaboration-service';
 import { env } from '../../env';
 import {
     buildPublicMediaUrl,
@@ -53,6 +61,7 @@ type ExerciseRow = {
     status: ListeningExercise['status'];
     sort_order?: number | string | null;
     created_at?: Date | string;
+    pending_subtitle_draft_count?: number | string;
 };
 
 const supportedContentLocales = new Set<ContentLocale>([
@@ -365,6 +374,7 @@ const buildExerciseSummary = (
     status: row.status,
     sortOrder: Number(row.sort_order ?? 0),
     lineCount,
+    pendingSubtitleDraftCount: Number(row.pending_subtitle_draft_count ?? 0),
     localizations: normalizeExerciseLocalizations(row.localizations_json),
 });
 
@@ -373,6 +383,8 @@ const buildExerciseDetail = (
     lines: TranscriptLine[],
     mediaSize?: number,
     contentLocale?: ContentLocale,
+    contributors?: CourseContributor[],
+    subtitleDrafts?: SubtitleDraft[],
 ): ListeningExercise => ({
     id: Number(row.id),
     categoryId: Number(row.category_id),
@@ -395,6 +407,8 @@ const buildExerciseDetail = (
     sortOrder: Number(row.sort_order ?? 0),
     lines,
     localizations: normalizeExerciseLocalizations(row.localizations_json),
+    contributors,
+    subtitleDrafts,
 });
 
 const loadCategoryRows = async () => {
@@ -475,8 +489,13 @@ const loadCategoryGroupRows = async () => {
     }
 };
 
-const loadCategoryIdsWithExercises = async (includeDrafts = false) => {
-    const statusFilter = includeDrafts ? '' : `where status = 'published'`;
+const buildLearnerStatusFilter = (includePreview = false) =>
+    includePreview
+        ? `status in ('draft', 'proofread', 'published')`
+        : `status = 'published'`;
+
+const loadCategoryIdsWithExercises = async (includeDrafts = false, includePreview = false) => {
+    const statusFilter = includeDrafts ? '' : `where ${buildLearnerStatusFilter(includePreview)}`;
     const rows = await doRawQuery<any>({
         query: `
             select distinct category_id
@@ -496,12 +515,13 @@ export async function listCatalog(
     includeDrafts = false,
     includeEmptyDirectories = false,
     contentLocale?: ContentLocale,
+    includePreview = false,
 ): Promise<CatalogResponse> {
     try {
         const categoryGroupRows = await loadCategoryGroupRows();
         const categoryRows = await loadCategoryRows();
         const categoryIdsWithExercises =
-            await loadCategoryIdsWithExercises(includeDrafts);
+            await loadCategoryIdsWithExercises(includeDrafts, includePreview);
 
         const mappedCategories: ExerciseCategory[] = categoryRows.map(
             (row: any) => ({
@@ -574,8 +594,9 @@ export async function listCategoryExercises(
     categoryId: number,
     includeDrafts = false,
     contentLocale?: ContentLocale,
+    includePreview = false,
 ): Promise<CatalogExerciseSummary[]> {
-    const statusFilter = includeDrafts ? '' : `and status = 'published'`;
+    const statusFilter = includeDrafts ? '' : `and ${buildLearnerStatusFilter(includePreview)}`;
 
     try {
         const exerciseRows = await doRawQuery<any>({
@@ -665,7 +686,11 @@ export async function listAllExercises(): Promise<CatalogExerciseSummary[]> {
               transcript_json,
               status,
               sort_order,
-              created_at
+              created_at,
+              (
+                select count(*) from exercise_subtitle_drafts subtitle_drafts
+                where subtitle_drafts.exercise_id = exercises.id and subtitle_drafts.status = 'submitted'
+              ) as pending_subtitle_draft_count
             from exercises
             order by sort_order asc, created_at desc, title asc
         `,
@@ -680,17 +705,18 @@ export async function listAllExercises(): Promise<CatalogExerciseSummary[]> {
 type AdminExercisePageOptions = {
     categoryId?: number;
     groupId?: number;
-    status?: 'draft' | 'published' | 'archived';
+    status?: 'draft' | 'proofread' | 'published' | 'archived';
     search?: string;
     page: number;
     pageSize: number;
+    assignedExerciseIds?: number[];
 };
 
 export async function listAdminExercisesPage(
     options: AdminExercisePageOptions,
 ) {
     const conditions: string[] = [];
-    const replacements: Record<string, string | number> = {};
+    const replacements: Record<string, string | number | number[]> = {};
     if (options.categoryId) {
         conditions.push('e.category_id = :categoryId');
         replacements.categoryId = options.categoryId;
@@ -702,6 +728,13 @@ export async function listAdminExercisesPage(
     if (options.status) {
         conditions.push('e.status = :status');
         replacements.status = options.status;
+    }
+    if (options.assignedExerciseIds) {
+        if (options.assignedExerciseIds.length === 0) {
+            return { items: [], page: options.page, pageSize: options.pageSize, total: 0 };
+        }
+        conditions.push('e.id in (:assignedExerciseIds)');
+        replacements.assignedExerciseIds = options.assignedExerciseIds;
     }
     if (options.search) {
         // Search only operator-facing fields; the bound parameter prevents SQL injection.
@@ -722,7 +755,11 @@ export async function listAdminExercisesPage(
         query: `
             select e.id, e.category_id, e.title, e.source, e.difficulty, e.duration_label,
                    e.media_type, e.audio_url, e.audio_object_name, e.cover_image_url, e.summary,
-                   e.transcript_json, e.status, e.sort_order, e.created_at
+                   e.transcript_json, e.status, e.sort_order, e.created_at,
+                   (
+                     select count(*) from exercise_subtitle_drafts subtitle_drafts
+                     where subtitle_drafts.exercise_id = e.id and subtitle_drafts.status = 'submitted'
+                   ) as pending_subtitle_draft_count
             from exercises e inner join categories c on c.id = e.category_id
             ${where}
             order by e.sort_order asc, e.created_at desc, e.title asc
@@ -748,6 +785,8 @@ export async function getExercise(
     exerciseId: number,
     includeDrafts = false,
     contentLocale?: ContentLocale,
+    includePreview = false,
+    adminActor?: AdminActor,
 ) {
     const rows = await doRawQuery<ExerciseRow>({
         query: `
@@ -770,7 +809,7 @@ export async function getExercise(
               created_at
             from exercises
             where id = ?
-              ${includeDrafts ? '' : `and status = 'published'`}
+              ${includeDrafts ? '' : `and ${buildLearnerStatusFilter(includePreview)}`}
             limit 1
         `,
         params: [exerciseId],
@@ -781,12 +820,26 @@ export async function getExercise(
         return null;
     }
 
-    const mediaSize = await loadMediaSize(row);
+    const [mediaSize, contributors, subtitleDrafts] = await Promise.all([
+        loadMediaSize(row),
+        listExerciseContributors(exerciseId),
+        adminActor ? listExerciseSubtitleDrafts(exerciseId, adminActor) : Promise.resolve(undefined),
+    ]);
+    // A volunteer sees the latest submitted revision for review.  Personal
+    // editing drafts never leave Admin; ordinary learners still receive the
+    // last approved transcript stored on the course itself.
+    const previewDraft = includePreview && !adminActor
+        ? await getLatestSubmittedSubtitleDraft(exerciseId)
+        : undefined;
     return buildExerciseDetail(
         row,
-        parseTranscriptJson(row.transcript_json, contentLocale),
+        previewDraft
+            ? previewDraft.lines
+            : parseTranscriptJson(row.transcript_json, contentLocale),
         mediaSize,
         contentLocale,
+        contributors,
+        subtitleDrafts,
     );
 }
 
@@ -1092,6 +1145,7 @@ export async function upsertExercise(exercise: CreateExerciseRequest) {
 export async function replaceTranscriptLines(
     exerciseId: number,
     lines: CreateTranscriptLineRequest[],
+    nextStatus?: ListeningExercise['status'],
 ) {
     const exercise = await ExerciseModel.findByPk(exerciseId, {
         attributes: ['id'],
@@ -1105,6 +1159,8 @@ export async function replaceTranscriptLines(
     await ExerciseModel.update(
         {
             transcript_json: serializeTranscriptLines(lines),
+            // 字幕贡献者提交校对时和字幕内容一次写入，避免出现新字幕仍标记为已发布的短暂窗口。
+            ...(nextStatus ? { status: nextStatus } : {}),
         } as any,
         {
             where: { id: exerciseId },

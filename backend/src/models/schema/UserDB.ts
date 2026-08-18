@@ -16,6 +16,11 @@ const UserSchema: ModelAttributes = {
         type: Sequelize.STRING(120),
         allowNull: false,
     },
+    is_preview_volunteer: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     password_hash: {
         type: Sequelize.STRING(255),
     },
@@ -34,6 +39,7 @@ export interface UserDb {
     id: number;
     email: string;
     display_name: string;
+    is_preview_volunteer: boolean;
     password_hash: string | null;
     token?: string | null;
     created_at?: Date;
@@ -44,6 +50,7 @@ export class UserModel extends Model<UserDb> {
     declare id: number;
     declare email: string;
     declare display_name: string;
+    declare is_preview_volunteer: boolean;
     declare password_hash: string | null;
     declare token: string | null;
 

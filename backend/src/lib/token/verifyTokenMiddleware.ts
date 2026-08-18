@@ -49,3 +49,15 @@ export function verifyTokenMiddleware(req: any, res: any, next: any) {
         next();
     });
 }
+
+/** Public catalog routes use this to reveal previews only to a valid volunteer session. */
+export async function optionalUserTokenMiddleware(req: any, _res: any, next: any) {
+    const token = req.headers.token || req.headers.authorization?.replace(/^Bearer\s+/i, '');
+    if (!token) {
+        req.user = undefined;
+        return next();
+    }
+    const result = await verifyUserSession(token).catch(() => ({ success: false } as const));
+    req.user = result.success && result.userId ? { userId: result.userId } : undefined;
+    next();
+}
