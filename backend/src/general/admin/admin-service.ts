@@ -10,7 +10,10 @@ export type AdminSessionUser = {
     email: string;
     displayName: string;
     role: 'super_admin' | 'subtitle_contributor';
+    isActive: boolean;
     mustChangePassword: boolean;
+    createdAt?: string;
+    lastLoginAt?: string;
 };
 
 export type AdminAuthResult = {
@@ -34,7 +37,10 @@ const mapAdminUser = (admin: any): AdminSessionUser => {
         email: row.email || row.username,
         displayName: row.display_name,
         role: normalizeAdminRole(row.role),
+        isActive: Boolean(row.is_active),
         mustChangePassword: Boolean(row.must_change_password),
+        createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
+        lastLoginAt: row.last_login_at ? new Date(row.last_login_at).toISOString() : undefined,
     };
 };
 
@@ -60,6 +66,9 @@ export async function loginAdmin({
     }
 
     const row = plainAdmin(adminRecord);
+    if (!row.is_active) {
+        return { success: false, message: '该后台账号已停用，请联系超级管理员' };
+    }
     const matched = await bcrypt.compare(password, row.password_hash);
     if (!matched) {
         return { success: false, message: 'Invalid email or password' };
@@ -73,6 +82,7 @@ export async function loginAdmin({
             // 不再能直接转换为管理员会话。过期时间为绝对 UTC 时间。
             token: hashAdminToken(token),
             token_expires_at: new Date(Date.now() + ADMIN_SESSION_TTL_MS),
+            last_login_at: new Date(),
         },
         { where: { id: user.id } },
     );
@@ -90,7 +100,13 @@ export async function getAdminByToken(token: string) {
         raw: true,
     });
 
-    if (!adminRecord || !adminRecord.token_expires_at) {
+    if (!adminRecord || !adminRecord.token_expires_at || !adminRecord.is_active) {
+        if (adminRecord && !adminRecord.is_active) {
+            await AdminUserModel.update(
+                { token: null, token_expires_at: null },
+                { where: { id: adminRecord.id } },
+            );
+        }
         return null;
     }
 

@@ -35,6 +35,9 @@ type ContributorRow = {
     display_name: string;
     role: 'subtitle_contributor';
     must_change_password: boolean | number;
+    is_active: boolean | number;
+    created_at: Date | string | null;
+    last_login_at: Date | string | null;
     exercise_id: number | string | null;
 };
 
@@ -47,7 +50,8 @@ type AdminMemberRow = Omit<ContributorRow, 'role'> & {
 export async function listAdminMembers() {
     const rows = await doRawQuery<AdminMemberRow>({
         query: `
-            select a.id, a.username, a.email, a.display_name, a.role, a.must_change_password, assignments.exercise_id
+            select a.id, a.username, a.email, a.display_name, a.role, a.must_change_password,
+                   a.is_active, a.created_at, a.last_login_at, assignments.exercise_id
             from admin_users a
             left join exercise_contributor_assignments assignments on assignments.admin_user_id = a.id
             order by field(a.role, 'super_admin', 'admin', 'subtitle_contributor'),
@@ -60,6 +64,9 @@ export async function listAdminMembers() {
         displayName: string;
         role: AdminRole;
         mustChangePassword: boolean;
+        isActive: boolean;
+        createdAt?: string;
+        lastLoginAt?: string;
         assignedExerciseIds: number[];
     }>();
     for (const row of rows) {
@@ -70,6 +77,9 @@ export async function listAdminMembers() {
             displayName: row.display_name,
             role: normalizeAdminRole(row.role),
             mustChangePassword: Boolean(row.must_change_password),
+            isActive: Boolean(row.is_active),
+            createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
+            lastLoginAt: row.last_login_at ? new Date(row.last_login_at).toISOString() : undefined,
             assignedExerciseIds: [],
         };
         if (row.exercise_id && existing.role === 'subtitle_contributor') {
@@ -226,6 +236,7 @@ export async function createAdminMember({
         password_hash: await bcrypt.hash(temporaryPassword, 10),
         role: normalizedRole,
         must_change_password: true,
+        is_active: true,
     } as any);
     return {
         id: Number(member.id),
@@ -269,6 +280,68 @@ export async function resetAdminMemberPassword({
         role: normalizeAdminRole(row.role),
         temporaryPassword,
     };
+}
+
+/** 修改账号资料，与课程授权保持独立。 */
+export async function updateAdminMemberProfile({ memberId, email, displayName, role }: {
+    memberId: number;
+    email: string;
+    displayName: string;
+    role: AdminRole;
+}) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedDisplayName = displayName.trim();
+    if (!normalizedEmail || !normalizedDisplayName) throw new Error('请填写邮箱和成员名称');
+    const member = await AdminUserModel.findByPk(memberId);
+    if (!member) throw new Error('后台成员不存在');
+    if (member.role === 'super_admin' && role !== 'super_admin') {
+        const activeSuperAdminCount = await AdminUserModel.count({ where: { role: 'super_admin', is_active: true } });
+        if (activeSuperAdminCount <= 1) throw new Error('至少需要保留一名正常状态的超级管理员');
+    }
+    const duplicate = await AdminUserModel.findOne({
+        where: { [Op.or]: [{ email: normalizedEmail }, { username: normalizedEmail }] },
+    });
+    if (duplicate && Number(duplicate.id) !== memberId) throw new Error('该后台登录邮箱已被使用');
+    await AdminUserModel.update(
+        { email: normalizedEmail, username: normalizedEmail, display_name: normalizedDisplayName, role },
+        { where: { id: memberId } },
+    );
+    return { id: memberId, email: normalizedEmail, displayName: normalizedDisplayName, role };
+}
+
+/** 停用会立即撤销会话；不能停用当前操作者。 */
+export async function setAdminMemberActive({ memberId, actorId, isActive }: { memberId: number; actorId: number; isActive: boolean }) {
+    if (memberId === actorId) throw new Error('不能停用当前登录账号');
+    const member = await AdminUserModel.findByPk(memberId);
+    if (!member) throw new Error('后台成员不存在');
+    if (!isActive && member.role === 'super_admin') {
+        const activeSuperAdminCount = await AdminUserModel.count({ where: { role: 'super_admin', is_active: true } });
+        if (activeSuperAdminCount <= 1) throw new Error('至少需要保留一名正常状态的超级管理员');
+    }
+    await AdminUserModel.update(
+        isActive ? { is_active: true } : { is_active: false, token: null, token_expires_at: null },
+        { where: { id: memberId } },
+    );
+    return isActive;
+}
+
+/** 撤销全部会话但不改变账号状态。 */
+export async function revokeAdminMemberSessions({ memberId, actorId }: { memberId: number; actorId: number }) {
+    if (memberId === actorId) throw new Error('请使用退出登录来撤销当前账号会话');
+    const member = await AdminUserModel.findByPk(memberId);
+    if (!member) throw new Error('后台成员不存在');
+    await AdminUserModel.update({ token: null, token_expires_at: null }, { where: { id: memberId } });
+}
+
+/** 强制成员下次登录先修改密码，同时撤销现有会话。 */
+export async function forceAdminMemberPasswordChange({ memberId, actorId }: { memberId: number; actorId: number }) {
+    if (memberId === actorId) throw new Error('请通过账号菜单修改自己的密码');
+    const member = await AdminUserModel.findByPk(memberId);
+    if (!member) throw new Error('后台成员不存在');
+    await AdminUserModel.update(
+        { must_change_password: true, token: null, token_expires_at: null },
+        { where: { id: memberId } },
+    );
 }
 
 export async function getAssignedExerciseIds(adminId: number) {

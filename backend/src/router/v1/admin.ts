@@ -10,16 +10,20 @@ import {
     canSubmitSubtitleDraft,
     approveSubtitleDraft,
     createAdminMember,
+    forceAdminMemberPasswordChange,
     getAssignedExerciseIds,
     isSuperAdmin,
     listAdminMembers,
     listPreviewVolunteers,
     returnSubtitleDraft,
     resetAdminMemberPassword,
+    revokeAdminMemberSessions,
     saveSubtitleDraft,
     submitSubtitleDraft,
     replaceContributorAssignments,
     updateExerciseWorkflowAssignee,
+    updateAdminMemberProfile,
+    setAdminMemberActive,
     updatePreviewVolunteer,
 } from '../../general/admin/collaboration-service';
 import {
@@ -510,6 +514,56 @@ router.put(
             actorId: req.admin.id,
         });
         res.status(200).send({ ok: true, member });
+    },
+);
+
+router.put(
+    '/collaboration/members/:memberId/profile',
+    requireSuperAdmin,
+    body('email').isEmail().normalizeEmail(),
+    body('displayName').isString().trim().isLength({ min: 1, max: 120 }),
+    body('role').isIn(['super_admin', 'subtitle_contributor']),
+    validateErrorCheck,
+    async (req, res) => {
+        const memberId = toId(req.params.memberId);
+        if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).send({ success: false, message: 'Invalid member id' });
+        const member = await updateAdminMemberProfile({ memberId, email: req.body.email, displayName: req.body.displayName, role: req.body.role });
+        res.status(200).send({ ok: true, member });
+    },
+);
+
+router.put(
+    '/collaboration/members/:memberId/status',
+    requireSuperAdmin,
+    body('isActive').isBoolean().toBoolean(),
+    validateErrorCheck,
+    async (req: any, res) => {
+        const memberId = toId(req.params.memberId);
+        if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).send({ success: false, message: 'Invalid member id' });
+        const isActive = await setAdminMemberActive({ memberId, actorId: req.admin.id, isActive: req.body.isActive });
+        res.status(200).send({ ok: true, isActive });
+    },
+);
+
+router.post(
+    '/collaboration/members/:memberId/sessions/revoke',
+    requireSuperAdmin,
+    async (req: any, res) => {
+        const memberId = toId(req.params.memberId);
+        if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).send({ success: false, message: 'Invalid member id' });
+        await revokeAdminMemberSessions({ memberId, actorId: req.admin.id });
+        res.status(200).send({ ok: true });
+    },
+);
+
+router.put(
+    '/collaboration/members/:memberId/force-password-change',
+    requireSuperAdmin,
+    async (req: any, res) => {
+        const memberId = toId(req.params.memberId);
+        if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).send({ success: false, message: 'Invalid member id' });
+        await forceAdminMemberPasswordChange({ memberId, actorId: req.admin.id });
+        res.status(200).send({ ok: true });
     },
 );
 

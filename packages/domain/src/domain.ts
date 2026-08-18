@@ -332,8 +332,11 @@ export type AdminUser = {
   email: string
   displayName: string
   role: AdminRole
+  isActive: boolean
   /** 新建或被重设密码的后台账号必须先完成改密，才能进入管理功能。 */
   mustChangePassword: boolean
+  createdAt?: string
+  lastLoginAt?: string
 }
 
 export type CourseContributor = {

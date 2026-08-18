@@ -464,6 +464,30 @@ export const apiClient = {
       { method: 'PUT' },
       { adminToken },
     ),
+  updateAdminMemberProfile: (memberId: number, profile: { email: string; displayName: string; role: AdminUser['role'] }, adminToken: string) =>
+    fetchJson<{ ok: true; member: { id: number; email: string; displayName: string; role: AdminUser['role'] } }>(
+      `/api/v1/admin/collaboration/members/${memberId}/profile`,
+      { method: 'PUT', body: JSON.stringify(profile) },
+      { adminToken },
+    ),
+  setAdminMemberActive: (memberId: number, isActive: boolean, adminToken: string) =>
+    fetchJson<{ ok: true; isActive: boolean }>(
+      `/api/v1/admin/collaboration/members/${memberId}/status`,
+      { method: 'PUT', body: JSON.stringify({ isActive }) },
+      { adminToken },
+    ),
+  revokeAdminMemberSessions: (memberId: number, adminToken: string) =>
+    fetchJson<{ ok: true }>(
+      `/api/v1/admin/collaboration/members/${memberId}/sessions/revoke`,
+      { method: 'POST' },
+      { adminToken },
+    ),
+  forceAdminMemberPasswordChange: (memberId: number, adminToken: string) =>
+    fetchJson<{ ok: true }>(
+      `/api/v1/admin/collaboration/members/${memberId}/force-password-change`,
+      { method: 'PUT' },
+      { adminToken },
+    ),
   getPreviewVolunteers: (adminToken: string) =>
     fetchJson<{ items: PreviewVolunteer[] }>(
       '/api/v1/admin/collaboration/preview-volunteers',

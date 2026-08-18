@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button, Card, Checkbox, Form, Input, List, Modal, Radio, Select, Space, Switch, Tag, Typography } from 'antd'
-import { KeyRound, UserPlus, UsersRound } from 'lucide-react'
+import { Ban, KeyRound, LogOut, Pencil, UserPlus, UsersRound } from 'lucide-react'
 import type { AdminMember, AdminMemberProvisioning, AdminRole, CatalogExerciseSummary, ExerciseCategory, MaterialCategory, PreviewVolunteer } from '@duolinting/shared'
 import { apiClient } from '../../lib/apiClient'
 
@@ -46,6 +46,11 @@ export function CollaborationManager({
   const [activeArea, setActiveArea] = useState<'members' | 'assignments' | 'learners'>('members')
   const [assignmentTarget, setAssignmentTarget] = useState<AdminMember | null>(null)
   const [passwordTarget, setPasswordTarget] = useState<AdminMember | null>(null)
+  const [profileTarget, setProfileTarget] = useState<AdminMember | null>(null)
+  const [profileForm, setProfileForm] = useState<{ email: string; displayName: string; role: AdminRole }>({ email: '', displayName: '', role: 'subtitle_contributor' })
+  const [memberSearch, setMemberSearch] = useState('')
+  const [memberRoleFilter, setMemberRoleFilter] = useState<'all' | AdminRole>('all')
+  const [memberStatusFilter, setMemberStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [form, setForm] = useState<AdminMemberForm>(initialForm)
   const [assignmentIds, setAssignmentIds] = useState<number[]>([])
   const [provisionedMember, setProvisionedMember] = useState<AdminMemberProvisioning | null>(null)
@@ -135,6 +140,63 @@ export function CollaborationManager({
     }
   }
 
+  const updateProfile = async () => {
+    if (!profileTarget) return
+    setSaving(true)
+    try {
+      await apiClient.updateAdminMemberProfile(profileTarget.id, profileForm, adminToken)
+      await refresh()
+      setProfileTarget(null)
+      onNotify('人员资料已更新', 'success')
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : '人员资料更新失败', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const changeMemberStatus = async (member: AdminMember, isActive: boolean) => {
+    try {
+      await apiClient.setAdminMemberActive(member.id, isActive, adminToken)
+      await refresh()
+      onNotify(isActive ? `已启用 ${member.displayName}` : `已停用 ${member.displayName}`, 'success')
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : '账号状态更新失败', 'error')
+    }
+  }
+
+  const revokeSessions = async (member: AdminMember) => {
+    try {
+      await apiClient.revokeAdminMemberSessions(member.id, adminToken)
+      onNotify(`已撤销 ${member.displayName} 的全部登录会话`, 'success')
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : '会话撤销失败', 'error')
+    }
+  }
+
+  const forcePasswordChange = async (member: AdminMember) => {
+    try {
+      await apiClient.forceAdminMemberPasswordChange(member.id, adminToken)
+      await refresh()
+      onNotify(`已要求 ${member.displayName} 下次登录修改密码`, 'success')
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : '强制改密设置失败', 'error')
+    }
+  }
+
+  const filteredMembers = useMemo(() => {
+    const query = memberSearch.trim().toLowerCase()
+    return members.filter((member) => {
+      if (memberRoleFilter !== 'all' && member.role !== memberRoleFilter) return false
+      if (memberStatusFilter === 'active' && !member.isActive) return false
+      if (memberStatusFilter === 'inactive' && member.isActive) return false
+      if (!query) return true
+      return member.displayName.toLowerCase().includes(query) || member.email.toLowerCase().includes(query)
+    })
+  }, [memberRoleFilter, memberSearch, memberStatusFilter, members])
+
+  const formatDate = (value?: string) => value ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '从未登录'
+
   const credentialText = provisionedMember
     ? `DuolinTing 管理后台账号已开通\n\n登录邮箱：${provisionedMember.email}\n临时密码：${provisionedMember.temporaryPassword}\n角色：${roleLabel(provisionedMember.role)}\n\n请使用以上信息登录管理后台。首次登录后，系统会要求你立即修改临时密码。`
     : ''
@@ -214,22 +276,33 @@ export function CollaborationManager({
         loading={loading}
         title="后台成员"
       >
+        <Space wrap style={{ marginBottom: 16 }}>
+          <Input allowClear onChange={(event) => setMemberSearch(event.target.value)} placeholder="搜索姓名或邮箱" value={memberSearch} style={{ width: 260 }} />
+          <Select onChange={setMemberRoleFilter} options={[{ label: '全部角色', value: 'all' }, { label: '超级管理员', value: 'super_admin' }, { label: '字幕贡献者', value: 'subtitle_contributor' }]} value={memberRoleFilter} style={{ width: 150 }} />
+          <Select onChange={setMemberStatusFilter} options={[{ label: '全部状态', value: 'all' }, { label: '正常', value: 'active' }, { label: '已停用', value: 'inactive' }]} value={memberStatusFilter} style={{ width: 130 }} />
+          <Typography.Text type="secondary">共 {filteredMembers.length} 人</Typography.Text>
+        </Space>
         <List
-          dataSource={members}
+          dataSource={filteredMembers}
           locale={{ emptyText: '尚未添加后台成员。' }}
           renderItem={(member) => (
             <List.Item actions={[
-              <Button icon={<KeyRound size={14} />} key="reset-password" onClick={() => setPasswordTarget(member)}>重设临时密码</Button>,
+              <Button icon={<Pencil size={14} />} key="edit" onClick={() => { setProfileTarget(member); setProfileForm({ email: member.email, displayName: member.displayName, role: member.role }) }}>编辑资料</Button>,
+              <Button icon={<KeyRound size={14} />} key="reset-password" onClick={() => setPasswordTarget(member)}>重设密码</Button>,
+              <Button key="force-password" onClick={() => void forcePasswordChange(member)}>强制改密</Button>,
+              <Button icon={<LogOut size={14} />} key="revoke" onClick={() => Modal.confirm({ title: `撤销 ${member.displayName} 的登录会话？`, content: '该成员需要重新登录，账号资料和课程权限不会改变。', onOk: () => revokeSessions(member) })}>撤销会话</Button>,
+              <Button danger={!member.isActive} icon={<Ban size={14} />} key="status" onClick={() => Modal.confirm({ title: member.isActive ? `停用 ${member.displayName}？` : `启用 ${member.displayName}？`, content: member.isActive ? '停用后立即无法登录，并会撤销当前会话。历史贡献和课程关系会保留。' : '启用后该成员可以重新登录。', okText: member.isActive ? '停用账号' : '启用账号', okButtonProps: { danger: member.isActive }, onOk: () => changeMemberStatus(member, !member.isActive) })}>{member.isActive ? '停用' : '启用'}</Button>,
             ]}>
               <List.Item.Meta
                 title={(
                   <Space wrap>
                     <span>{member.displayName}</span>
                     <Tag color={member.role === 'super_admin' ? 'purple' : 'blue'}>{roleLabel(member.role)}</Tag>
+                    <Tag color={member.isActive ? 'green' : 'default'}>{member.isActive ? '正常' : '已停用'}</Tag>
                     {member.mustChangePassword && <Tag color="orange">待首次改密</Tag>}
                   </Space>
                 )}
-                description={`${member.email} · ${member.role === 'subtitle_contributor' ? '仅能编辑在“课程授权”中配置的课程字幕' : '拥有完整后台管理权限'}${member.mustChangePassword ? ' · 首次登录尚未完成' : ''}`}
+                description={<Space direction="vertical" size={2}><span>{member.email} · {member.role === 'subtitle_contributor' ? `负责 ${member.assignedExerciseIds.length} 门课程` : '拥有完整后台管理权限'}</span><Typography.Text type="secondary">创建于 {formatDate(member.createdAt)} · 最近登录 {formatDate(member.lastLoginAt)}</Typography.Text></Space>}
               />
             </List.Item>
           )}
@@ -369,6 +442,24 @@ export function CollaborationManager({
           )}
         />
       </Card>}
+
+      <Modal
+        confirmLoading={saving}
+        okButtonProps={{ disabled: !profileForm.email.trim() || !profileForm.displayName.trim() }}
+        onCancel={() => setProfileTarget(null)}
+        onOk={() => void updateProfile()}
+        open={Boolean(profileTarget)}
+        title={profileTarget ? `编辑 ${profileTarget.displayName}` : '编辑人员资料'}
+      >
+        <Typography.Paragraph type="secondary">
+          这里只修改账号资料，不会改变该人员的角色、课程授权或历史贡献记录。
+        </Typography.Paragraph>
+        <Form layout="vertical">
+          <Form.Item label="登录邮箱"><Input autoComplete="email" type="email" value={profileForm.email} onChange={(event) => setProfileForm((current) => ({ ...current, email: event.target.value }))} /></Form.Item>
+          <Form.Item label="显示名称（课程贡献署名）"><Input value={profileForm.displayName} onChange={(event) => setProfileForm((current) => ({ ...current, displayName: event.target.value }))} /></Form.Item>
+          <Form.Item label="角色"><Select onChange={(role: AdminRole) => setProfileForm((current) => ({ ...current, role }))} options={[{ label: '字幕贡献者', value: 'subtitle_contributor' }, { label: '超级管理员', value: 'super_admin' }]} value={profileForm.role} /></Form.Item>
+        </Form>
+      </Modal>
 
       <Modal
         confirmLoading={saving}
