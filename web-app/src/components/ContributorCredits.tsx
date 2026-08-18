@@ -25,7 +25,6 @@ export function ContributorCredits({
   return (
     <div className="study-chapter-banner-credits" aria-label={t('study.credits.aria')}>
       {responsibilities.length > 0 && <>
-        <span className="study-chapter-banner-credits-label">{t('study.credits.workflow')}</span>
         {responsibilities.map((responsibility) => (
           <span className="study-chapter-banner-credit" key={responsibility}>{responsibility}</span>
         ))}

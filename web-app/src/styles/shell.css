@@ -337,18 +337,6 @@
   gap: 6px;
 }
 
-.study-chapter-banner-credits-label {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 12px;
-  font-weight: 900;
-  margin-right: 2px;
-}
-
-.study-chapter-banner-credits-label::before {
-  content: '✦';
-  margin-right: 4px;
-}
-
 .study-chapter-banner-credit {
   align-items: center;
   background: rgba(7, 60, 95, 0.16);
