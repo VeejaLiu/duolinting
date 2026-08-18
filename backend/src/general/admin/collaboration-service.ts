@@ -230,6 +230,15 @@ export async function updateExerciseWorkflowAssignee({
                 );
             }
         }
+        if (workflowRole === 'proofreader' && adminUserId !== previousProofreaderId && previousProofreaderId > 0 && previousProofreaderId !== previousReviewerId) {
+            // 校对负责人拥有的编辑权限由该负责人派生；取消或改派后清理旧权限。
+            // 若同一人仍担任二审负责人，则保留其课程访问权，确保审核任务不中断。
+            await sequelize.query(
+                `delete from exercise_contributor_assignments
+                 where exercise_id = :exerciseId and admin_user_id = :previousProofreaderId`,
+                { replacements: { exerciseId, previousProofreaderId }, transaction },
+            );
+        }
     });
     return adminUserId;
 }
@@ -321,8 +330,9 @@ export async function resetAdminMemberPassword({
 }
 
 /** 修改账号资料，与课程授权保持独立。 */
-export async function updateAdminMemberProfile({ memberId, email, displayName, role }: {
+export async function updateAdminMemberProfile({ memberId, actorId, email, displayName, role }: {
     memberId: number;
+    actorId: number;
     email: string;
     displayName: string;
     role: AdminRole;
@@ -332,6 +342,9 @@ export async function updateAdminMemberProfile({ memberId, email, displayName, r
     if (!normalizedEmail || !normalizedDisplayName) throw new Error('请填写邮箱和成员名称');
     const member = await AdminUserModel.findByPk(memberId);
     if (!member) throw new Error('后台成员不存在');
+    if (memberId === actorId && role !== 'super_admin') {
+        throw new Error('不能降低当前登录账号的超级管理员权限');
+    }
     if (member.role === 'super_admin' && role !== 'super_admin') {
         const activeSuperAdminCount = await AdminUserModel.count({ where: { role: 'super_admin', is_active: true } });
         if (activeSuperAdminCount <= 1) throw new Error('至少需要保留一名正常状态的超级管理员');
