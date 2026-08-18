@@ -6,6 +6,18 @@ import type { MessageKey } from '@/i18n/messages'
 
 export type AccountStatusKey = Extract<MessageKey, `account.${string}`>
 
+// Startup must never wait indefinitely on a stale network connection: the UI can
+// still offer login when the saved session cannot be checked promptly.
+const SESSION_RESTORE_TIMEOUT_MS = 8_000
+
+const withSessionRestoreTimeout = <T>(operation: Promise<T>): Promise<T> =>
+  Promise.race([
+    operation,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error('Session restore timed out')), SESSION_RESTORE_TIMEOUT_MS)
+    }),
+  ])
+
 type AuthStoreState = {
   authToken: string
   authUser: AuthUser | null
@@ -37,7 +49,7 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
     }
 
     try {
-      const user = await apiClient.getCurrentUser(token)
+      const user = await withSessionRestoreTimeout(apiClient.getCurrentUser(token))
       set({
         authToken: token,
         authUser: user,

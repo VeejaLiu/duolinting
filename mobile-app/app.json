@@ -23,7 +23,7 @@
     ],
     "ios": {
       "bundleIdentifier": "com.duolinting.app",
-      "buildNumber": "7",
+      "buildNumber": "8",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },

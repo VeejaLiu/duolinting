@@ -29,6 +29,17 @@ function RootNavigator() {
     }
   }, [authReady, languageReady])
 
+  useEffect(() => {
+    // Secure storage and the network are best-effort startup enhancements, not
+    // prerequisites for rendering the app. If either platform API stalls, the
+    // default in-memory state can safely render while it finishes or retries.
+    const splashSafetyTimer = setTimeout(() => {
+      void SplashScreen.hideAsync()
+    }, 2_500)
+
+    return () => clearTimeout(splashSafetyTimer)
+  }, [])
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
