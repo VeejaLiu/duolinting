@@ -682,6 +682,24 @@
 .course-table-wrap .ant-table-cell { padding-inline: 10px; }
 .course-table-wrap .ant-tag { margin-inline-end: 2px; padding-inline: 5px; }
 
+/* 课程协作管线：负责人直接配置在相应步骤下，职责分配与完成后的公开署名保持分离。 */
+.course-workflow { display: grid; gap: 5px; min-width: 500px; }
+.course-workflow-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); min-width: 0; }
+.course-workflow-step { align-items: flex-start; color: #94a3b8; display: flex; flex-direction: column; font-size: 11px; gap: 4px; min-width: 0; position: relative; }
+.course-workflow-step-label { align-items: center; display: flex; gap: 4px; min-width: 0; white-space: nowrap; }
+.course-workflow-step:not(:last-child)::after { background: #dbe3ee; content: ''; height: 2px; left: 20px; position: absolute; right: 0; top: 7px; }
+.course-workflow-step.is-complete { color: #2563eb; }
+.course-workflow-step.is-complete:not(:last-child)::after { background: #60a5fa; }
+.course-workflow-dot { align-items: center; background: #e2e8f0; border-radius: 50%; color: #64748b; display: inline-flex; flex: 0 0 auto; font-size: 10px; height: 16px; justify-content: center; width: 16px; }
+.course-workflow-step.is-complete .course-workflow-dot { background: #bfdbfe; color: #1d4ed8; }
+.course-workflow-dot.is-active { background: #2563eb; box-shadow: 0 0 0 3px #dbeafe; color: #ffffff; }
+.course-workflow-assignee-select { max-width: 118px; width: 100%; }
+.course-workflow-assignee-name { display: block; font-size: 11px; max-width: 118px; padding-left: 20px; }
+.course-workflow-summary { display: block; font-size: 12px; max-width: 500px; }
+.course-workflow-summary.is-returned { color: #c2410c; }
+.course-workflow-details { display: grid; gap: 2px; max-width: 500px; }
+.course-workflow-details .ant-typography { display: block; font-size: 11px; line-height: 1.4; }
+
 @media (max-width: 980px) {
   .course-manager .ant-card-head { align-items: flex-start; flex-wrap: wrap; }
   .course-manager .ant-card-head-title,

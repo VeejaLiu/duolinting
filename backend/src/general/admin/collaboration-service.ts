@@ -129,6 +129,73 @@ export async function replaceContributorAssignments(
     return exerciseIds;
 }
 
+/** 从课程维度维护授权，供课程列表中的贡献者下拉框直接调用。 */
+/**
+ * 为一个工作流步骤指定唯一负责人。校对与二审都由字幕贡献者承担：
+ * 超级管理员只负责配置，不会被误写入贡献者工作流。指定校对人时同步保留
+ * 旧课程授权表中的编辑资格，以兼容贡献者课程列表与字幕编辑入口。
+ */
+export async function updateExerciseWorkflowAssignee({
+    exerciseId,
+    workflowRole,
+    adminUserId,
+}: {
+    exerciseId: number;
+    workflowRole: CourseContributionRole;
+    adminUserId: number | null;
+}) {
+    if (workflowRole !== 'proofreader' && workflowRole !== 'second_reviewer') {
+        throw new Error('无效的工作流步骤');
+    }
+    await ensureExerciseIdsExist([exerciseId]);
+    if (adminUserId !== null) {
+        const contributor = await AdminUserModel.findOne({
+            attributes: ['id'],
+            where: { id: adminUserId, role: 'subtitle_contributor' },
+            raw: true,
+        });
+        if (!contributor) {
+            throw new Error('所选人员不是有效的字幕贡献者');
+        }
+        const otherRole: CourseContributionRole = workflowRole === 'proofreader'
+            ? 'second_reviewer'
+            : 'proofreader';
+        const otherAssignee = await doRawQuery<{ id: number | string }>({
+            query: `select id from exercise_workflow_assignees
+                    where exercise_id = ? and workflow_role = ? and admin_user_id = ? limit 1`,
+            params: [exerciseId, otherRole, adminUserId],
+        });
+        if (otherAssignee.length > 0) {
+            throw new Error('字幕校对和二次审核必须由两名不同的字幕贡献者负责');
+        }
+    }
+
+    await sequelize.transaction(async (transaction) => {
+        await sequelize.query(
+            `delete from exercise_workflow_assignees
+             where exercise_id = :exerciseId and workflow_role = :workflowRole`,
+            { replacements: { exerciseId, workflowRole }, transaction },
+        );
+        if (adminUserId !== null) {
+            await sequelize.query(
+                `insert into exercise_workflow_assignees (exercise_id, workflow_role, admin_user_id)
+                 values (:exerciseId, :workflowRole, :adminUserId)`,
+                { replacements: { exerciseId, workflowRole, adminUserId }, transaction },
+            );
+            if (workflowRole === 'proofreader') {
+                // 课程编辑权限由“校对负责人”派生，避免配置完还需重复授权。
+                await sequelize.query(
+                    `insert into exercise_contributor_assignments (exercise_id, admin_user_id)
+                     values (:exerciseId, :adminUserId)
+                     on duplicate key update admin_user_id = values(admin_user_id)`,
+                    { replacements: { exerciseId, adminUserId }, transaction },
+                );
+            }
+        }
+    });
+    return adminUserId;
+}
+
 /** 创建后台成员时系统生成临时密码，首次登录必须主动改密。 */
 const createTemporaryPassword = () => {
     // 使用 URL-safe 随机值并带前缀，避开易混淆字符；明文仅用于本次接口响应。
@@ -216,8 +283,11 @@ export async function resetAdminMemberPassword({
 
 export async function getAssignedExerciseIds(adminId: number) {
     const rows = await doRawQuery<{ exercise_id: number | string }>({
-        query: 'select exercise_id from exercise_contributor_assignments where admin_user_id = ?',
-        params: [adminId],
+        // 校对人与二审人都需要在“课程管理”中看见任务；旧的编辑授权关系继续兼容。
+        query: `select exercise_id from exercise_contributor_assignments where admin_user_id = ?
+                union
+                select exercise_id from exercise_workflow_assignees where admin_user_id = ?`,
+        params: [adminId, adminId],
     });
     return rows.map((row) => Number(row.exercise_id));
 }
@@ -230,6 +300,46 @@ export async function canEditExerciseSubtitles(admin: AdminActor, exerciseId: nu
         params: [admin.id, exerciseId],
     });
     return rows.length > 0;
+}
+
+async function isWorkflowAssignee(
+    exerciseId: number,
+    adminId: number,
+    workflowRole: CourseContributionRole,
+) {
+    const rows = await doRawQuery<{ id: number | string }>({
+        query: `select id from exercise_workflow_assignees
+                where exercise_id = ? and admin_user_id = ? and workflow_role = ? limit 1`,
+        params: [exerciseId, adminId, workflowRole],
+    });
+    return rows.length > 0;
+}
+
+/** 课程详情对两种负责人均可见；但只有校对负责人可修改并提交字幕。 */
+export async function canAccessExerciseWorkflow(admin: AdminActor, exerciseId: number) {
+    if (isSuperAdmin(admin)) return true;
+    if (await canEditExerciseSubtitles(admin, exerciseId)) return true;
+    return (await isWorkflowAssignee(exerciseId, admin.id, 'second_reviewer'));
+}
+
+/**
+ * 仅课程指定的校对负责人可提交，避免把“可编辑”误当成“可提交二审”。
+ * 尚未采用负责人机制的旧课程，保留原先“被授权即可提交”的兼容行为。
+ */
+export async function canSubmitSubtitleDraft(admin: AdminActor, exerciseId: number) {
+    const proofreaderIsAssigned = await doRawQuery<{ id: number | string }>({
+        query: `select id from exercise_workflow_assignees
+                where exercise_id = ? and workflow_role = 'proofreader' limit 1`,
+        params: [exerciseId],
+    });
+    return proofreaderIsAssigned.length > 0
+        ? isWorkflowAssignee(exerciseId, admin.id, 'proofreader')
+        : canEditExerciseSubtitles(admin, exerciseId);
+}
+
+/** 二次审核也由贡献者承担，必须由本课已配置的二审负责人完成。 */
+export async function canReviewSubtitleDraft(admin: AdminActor, exerciseId: number) {
+    return isWorkflowAssignee(exerciseId, admin.id, 'second_reviewer');
 }
 
 type SubtitleDraftRow = {
@@ -274,9 +384,10 @@ export async function listExerciseSubtitleDrafts(
     admin: AdminActor,
     options?: { submittedOnly?: boolean },
 ) {
-    const scope = options?.submittedOnly
-        ? `and drafts.status = 'submitted'`
-        : isSuperAdmin(admin)
+    // 管理员可以查看待审稿来安排工作；通过/退回的权限仍由路由层严格校验负责人。
+    const reviewerCanSeeSubmitted = isSuperAdmin(admin)
+        || await canReviewSubtitleDraft(admin, exerciseId);
+    const scope = options?.submittedOnly || reviewerCanSeeSubmitted
         ? `and drafts.status = 'submitted'`
         : 'and drafts.admin_user_id = :adminId';
     const rows = await doRawQuery<SubtitleDraftRow>({

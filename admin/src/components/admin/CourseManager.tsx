@@ -2,11 +2,12 @@ import { ArrowDown, ArrowUp, BookOpen, Ellipsis, FilePenLine, Pencil, PlaySquare
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Button, Card, Dropdown, Empty, Form, Image, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import type { CatalogExerciseSummary, ExerciseCategory, MaterialCategory } from '@duolinting/shared'
+import type { AdminMember, CatalogExerciseSummary, ExerciseCategory, MaterialCategory } from '@duolinting/shared'
 import { apiClient, resolveApiUrl } from '../../lib/apiClient'
 
 type CourseManagerProps = {
   adminToken: string
+  currentAdminId: number
   categoryGroups: MaterialCategory[]
   categories: ExerciseCategory[]
   exercises: CatalogExerciseSummary[]
@@ -23,6 +24,12 @@ type CourseManagerProps = {
   onRenameCourse: (exercise: CatalogExerciseSummary, title: string) => Promise<void>
   canManageCourses?: boolean
   onReviewSubtitleDraft?: (exercise: CatalogExerciseSummary) => void
+  contributors: AdminMember[]
+  onUpdateWorkflowAssignee: (
+    exercise: CatalogExerciseSummary,
+    workflowRole: 'proofreader' | 'second_reviewer',
+    adminUserId: number | undefined,
+  ) => Promise<void>
 }
 
 type CourseStatus = 'all' | 'draft' | 'proofread' | 'published' | 'archived'
@@ -32,9 +39,121 @@ const statusLabels = { draft: '草稿', proofread: '已校对', published: '已�
 const statusColors = { draft: 'default', proofread: 'processing', published: 'success', archived: 'purple' } as const
 const LAST_CATEGORY_STORAGE_KEY = 'duolinting.admin.last-course-category-id'
 
+const workflowSteps = ['课程草稿', '字幕校对', '二次审核', '已发布']
+const workflowStageIndex = {
+  draft: 0,
+  proofreading: 1,
+  returned: 1,
+  awaiting_review: 2,
+  published: 3,
+  archived: 0,
+} as const
+
+const formatSubmittedAt = (value?: string) => value
+  ? new Intl.DateTimeFormat('zh-CN', {
+      month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(new Date(value))
+  : ''
+
+function CourseWorkflow({
+  exercise,
+  contributors,
+  canManageCourses,
+  onUpdateWorkflowAssignee,
+}: {
+  exercise: CatalogExerciseSummary
+  contributors: AdminMember[]
+  canManageCourses: boolean
+  onUpdateWorkflowAssignee: (workflowRole: 'proofreader' | 'second_reviewer', adminUserId: number | undefined) => void
+}) {
+  const workflow: NonNullable<CatalogExerciseSummary['workflow']> = exercise.workflow ?? {
+    stage: exercise.status === 'published' ? 'published' : exercise.status === 'archived' ? 'archived' : exercise.status === 'proofread' ? 'awaiting_review' : 'draft',
+  }
+  const activeIndex = workflowStageIndex[workflow.stage]
+  const summary = workflow.stage === 'awaiting_review'
+    ? `${workflow.contributorDisplayName ?? '字幕贡献者'} 已提交${workflow.submittedAt ? ` · ${formatSubmittedAt(workflow.submittedAt)}` : ''}`
+    : workflow.stage === 'returned'
+      ? `${workflow.contributorDisplayName ?? '字幕贡献者'} 待修改${workflow.reviewNote ? ` · ${workflow.reviewNote}` : ''}`
+      : workflow.stage === 'proofreading'
+        ? `${workflow.contributorDisplayName ?? '字幕贡献者'} 正在校对`
+        : workflow.stage === 'published'
+          ? `校对：${workflow.proofreaderDisplayName ?? '—'} · 二审：${workflow.secondReviewerDisplayName ?? '—'}`
+          : workflow.stage === 'archived'
+            ? '课程已归档'
+            : '请先分别分配校对与二次审核负责人'
+
+  const workflowStepRole = (index: number) => index === 1
+    ? 'proofreader' as const
+    : index === 2
+      ? 'second_reviewer' as const
+      : undefined
+
+  const assigneeForRole = (workflowRole: 'proofreader' | 'second_reviewer') => (
+    workflowRole === 'proofreader'
+      ? workflow.proofreaderAssignee
+      : workflow.secondReviewerAssignee
+  )
+
+  const otherAssigneeId = (workflowRole: 'proofreader' | 'second_reviewer') => (
+    workflowRole === 'proofreader'
+      ? workflow.secondReviewerAssignee?.adminUserId
+      : workflow.proofreaderAssignee?.adminUserId
+  )
+
+  return <div className="course-workflow" title={summary}>
+    <div className="course-workflow-steps" aria-label={`工作流：${summary}`}>
+      {workflowSteps.map((step, index) => {
+        const workflowRole = workflowStepRole(index)
+        const assignee = workflowRole ? assigneeForRole(workflowRole) : undefined
+        return (
+        <div className={index <= activeIndex ? 'course-workflow-step is-complete' : 'course-workflow-step'} key={step}>
+          <div className="course-workflow-step-label">
+            <span className={index === activeIndex ? 'course-workflow-dot is-active' : 'course-workflow-dot'}>{index + 1}</span>
+            <span>{step}</span>
+          </div>
+          {workflowRole && (canManageCourses ? (
+            <Select
+              allowClear
+              className="course-workflow-assignee-select"
+              onChange={(adminUserId: number | undefined) => onUpdateWorkflowAssignee(workflowRole, adminUserId)}
+              options={contributors.map((contributor) => ({
+                disabled: contributor.id === otherAssigneeId(workflowRole),
+                label: `${contributor.displayName}${contributor.mustChangePassword ? '（待首次改密）' : ''}`,
+                value: contributor.id,
+              }))}
+              placeholder={workflowRole === 'proofreader' ? '选择校对人' : '选择二审人'}
+              size="small"
+              value={assignee?.adminUserId}
+            />
+          ) : (
+            <Typography.Text className="course-workflow-assignee-name" ellipsis type="secondary">
+              {assignee?.displayName ?? '未分配'}
+            </Typography.Text>
+          ))}
+        </div>
+        )
+      })}
+    </div>
+    <Typography.Text className={workflow.stage === 'returned' ? 'course-workflow-summary is-returned' : 'course-workflow-summary'} ellipsis={{ tooltip: summary }} type="secondary">
+      {summary}
+    </Typography.Text>
+    <div className="course-workflow-details">
+      <Typography.Text type="secondary">
+        校对负责人：{workflow.proofreaderAssignee?.displayName ?? '未分配'} · 二审负责人：{workflow.secondReviewerAssignee?.displayName ?? '未分配'}
+      </Typography.Text>
+      {(workflow.drafts ?? []).map((draft) => (
+        <Typography.Text key={`${draft.adminUserId}-${draft.status}`} type={draft.status === 'returned' ? 'warning' : 'secondary'}>
+          {draft.contributorDisplayName} · {draft.status === 'submitted' ? '已提交二审' : draft.status === 'returned' ? `已退回${draft.reviewNote ? `：${draft.reviewNote}` : ''}` : draft.status === 'editing' ? '校对草稿中' : '已通过'}
+        </Typography.Text>
+      ))}
+    </div>
+  </div>
+}
+
 export function CourseManager({
-  adminToken, categoryGroups, categories, isCatalogLoading, catalogLoadError, onRefreshCatalog, categoryDraftName, isSaving, onCreateCourse,
+  adminToken, currentAdminId, categoryGroups, categories, isCatalogLoading, catalogLoadError, onRefreshCatalog, categoryDraftName, isSaving, onCreateCourse,
   onDeleteCourse, onEditCourse, onMoveCourse, onOpenRecorder, onRenameCourse, canManageCourses = true, onReviewSubtitleDraft,
+  contributors, onUpdateWorkflowAssignee,
 }: CourseManagerProps) {
   // 筛选器不提供"全部"选项：用户必须选中一个具体系列（目录加载完成前
   // 用 0 表示尚未就绪，此时不发起课程请求）。
@@ -142,6 +261,13 @@ export function CourseManager({
     return index < siblings.length - 1 || page * pageSize < total
   }
   const canRecord = (exercise: CatalogExerciseSummary) => exercise.status === 'published' && Boolean(exercise.audioUrl) && exercise.lineCount > 0
+  // 二审负责人只处理已提交稿，不应被“编辑”入口带到校对工作台。
+  // 未分配二审人的历史课程则保留原有的被授权即可编辑行为。
+  const canEditCourseSubtitles = (exercise: CatalogExerciseSummary) => (
+    canManageCourses
+    || exercise.workflow?.secondReviewerAssignee?.adminUserId !== currentAdminId
+    || exercise.workflow?.proofreaderAssignee?.adminUserId === currentAdminId
+  )
   const openRecorder = (exercise: CatalogExerciseSummary) => {
     if (canRecord(exercise)) {
       onOpenRecorder(exercise.id)
@@ -170,6 +296,33 @@ export function CourseManager({
       setRenamingExercise(null)
     } finally {
       setIsRenaming(false)
+    }
+  }
+
+  const updateWorkflowAssignee = async (
+    exercise: CatalogExerciseSummary,
+    workflowRole: 'proofreader' | 'second_reviewer',
+    adminUserId: number | undefined,
+  ) => {
+    try {
+      await onUpdateWorkflowAssignee(exercise, workflowRole, adminUserId)
+      // 课程列表是分页独立加载的，接口成功后只同步当前步骤负责人，
+      // 不把“计划职责”误写成已完成的公开贡献署名。
+      const assignee = contributors.find((contributor) => contributor.id === adminUserId)
+      setPagedExercises((current) => current.map((item) => (
+        item.id === exercise.id
+          ? {
+            ...item,
+            workflow: {
+              ...(item.workflow ?? { stage: 'draft' as const }),
+              [workflowRole === 'proofreader' ? 'proofreaderAssignee' : 'secondReviewerAssignee']:
+                assignee ? { adminUserId: assignee.id, displayName: assignee.displayName } : undefined,
+            },
+          }
+          : item
+      )))
+    } catch {
+      // 父级已展示具体错误；保留当前选择，避免把失败请求误显示为已授权。
     }
   }
 
@@ -206,10 +359,20 @@ export function CourseManager({
       render: (sortOrder: number) => <Typography.Text>{sortOrder}</Typography.Text>,
     },
     {
-      title: '状态', dataIndex: 'status', key: 'status', width: 130,
-      render: (status: Exclude<CourseStatus, 'all'>, exercise) => <Space size={4} wrap>
-        <Tag color={statusColors[status]}>{statusLabels[status]}</Tag>
-        {(exercise.pendingSubtitleDraftCount ?? 0) > 0 && <Tag color="orange">待二审 {exercise.pendingSubtitleDraftCount}</Tag>}
+      title: '工作流与负责人', dataIndex: 'status', key: 'workflow', width: 520,
+      render: (status: Exclude<CourseStatus, 'all'>, exercise) => <Space direction="vertical" size={5}>
+        <Space size={4} wrap>
+          <Tag color={statusColors[status]}>{statusLabels[status]}</Tag>
+          {(exercise.pendingSubtitleDraftCount ?? 0) > 0 && <Tag color="orange">待二审 {exercise.pendingSubtitleDraftCount}</Tag>}
+        </Space>
+        <CourseWorkflow
+          canManageCourses={canManageCourses}
+          contributors={contributors}
+          exercise={exercise}
+          onUpdateWorkflowAssignee={(workflowRole, adminUserId) => {
+            void updateWorkflowAssignee(exercise, workflowRole, adminUserId)
+          }}
+        />
       </Space>,
     },
     {
@@ -222,13 +385,13 @@ export function CourseManager({
     {
       title: '操作', key: 'actions', width: 172, fixed: 'right',
       render: (_, exercise) => <Space size={4}>
-        <Button disabled={isSaving} icon={<FilePenLine size={15} />} onClick={() => onEditCourse(exercise)} size="small">编辑</Button>
+        {canEditCourseSubtitles(exercise) && <Button disabled={isSaving} icon={<FilePenLine size={15} />} onClick={() => onEditCourse(exercise)} size="small">编辑</Button>}
         {canManageCourses && <Tooltip title="在系列内上移"><Button disabled={isSaving || !canMove(exercise, 'up')} icon={<ArrowUp size={15} />} onClick={() => onMoveCourse(exercise.id, 'up')} size="small" type="text" /></Tooltip>}
         {canManageCourses && <Tooltip title="在系列内下移"><Button disabled={isSaving || !canMove(exercise, 'down')} icon={<ArrowDown size={15} />} onClick={() => onMoveCourse(exercise.id, 'down')} size="small" type="text" /></Tooltip>}
         {canManageCourses && <Tooltip title="打开视频录制台">
           <Button icon={<PlaySquare size={15} />} onClick={() => openRecorder(exercise)} size="small" type="text" />
         </Tooltip>}
-        {canManageCourses && (exercise.pendingSubtitleDraftCount ?? 0) > 0 && onReviewSubtitleDraft && <Tooltip title="审核字幕投稿"><Button icon={<Undo2 size={15} />} onClick={() => onReviewSubtitleDraft(exercise)} size="small" type="text" /></Tooltip>}
+        {exercise.workflow?.secondReviewerAssignee?.adminUserId === currentAdminId && (exercise.pendingSubtitleDraftCount ?? 0) > 0 && onReviewSubtitleDraft && <Tooltip title="审核字幕投稿"><Button icon={<Undo2 size={15} />} onClick={() => onReviewSubtitleDraft(exercise)} size="small" type="text" /></Tooltip>}
         {canManageCourses && <Dropdown menu={{ items: [
           { danger: true, disabled: isSaving, icon: <Trash2 size={15} />, key: 'delete', label: '删除课程' },
         ], onClick: ({ key }) => { if (key === 'delete') onDeleteCourse(exercise) } }}>
@@ -307,7 +470,7 @@ export function CourseManager({
       }}
       rowKey="id"
       size="small"
-      scroll={{ x: 860 }}
+      scroll={{ x: canManageCourses ? 1370 : 1160 }}
     />
     </div>
     <Modal

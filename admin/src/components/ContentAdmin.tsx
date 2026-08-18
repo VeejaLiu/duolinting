@@ -17,6 +17,7 @@ import type {
   FeedbackStatus,
   MaterialCategory,
   AdminUser,
+  AdminMember,
 } from '@duolinting/shared'
 import { AudioLessonImporter } from './AudioLessonImporter'
 import type { AdminNoticeTone } from './admin/AdminFeedback'
@@ -148,6 +149,7 @@ export function ContentAdmin({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [reviewingExercise, setReviewingExercise] = useState<import('@duolinting/shared').ListeningExercise | null>(null)
   const [reviewNote, setReviewNote] = useState('')
+  const [workflowContributors, setWorkflowContributors] = useState<AdminMember[]>([])
   const [importerHasUnsavedChanges, setImporterHasUnsavedChanges] = useState(false)
   const importerHasUnsavedChangesRef = useRef(false)
   const onRequestConfirmRef = useRef(onRequestConfirm)
@@ -205,6 +207,20 @@ export function ContentAdmin({
     }
   }, [onEnsureCatalog, onNotify])
 
+  const refreshWorkflowContributors = useCallback(async () => {
+    if (adminUser.role !== 'super_admin') {
+      setWorkflowContributors([])
+      return
+    }
+    try {
+      const result = await apiClient.getAdminMembers(adminToken)
+      // 校对和二次审核都由字幕贡献者承担；超级管理员只在此配置负责人。
+      setWorkflowContributors(result.items.filter((member) => member.role === 'subtitle_contributor'))
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : '字幕贡献者加载失败', 'error')
+    }
+  }, [adminToken, adminUser.role, onNotify])
+
   useEffect(() => {
     // 课程授权要按“内容分类 → 学习系列 → 课程”分级显示，
     // 因此进入人员管理时也必须刷新目录数据，不能只依赖此前访问过课程页的缓存。
@@ -225,6 +241,12 @@ export function ContentAdmin({
       onNotify(error instanceof Error ? error.message : '课程数据加载失败', 'error')
     })
   }, [activeSection, exercises.length, onEnsureExercises, onNotify])
+
+  useEffect(() => {
+    if (activeSection === 'courses') {
+      void refreshWorkflowContributors()
+    }
+  }, [activeSection, refreshWorkflowContributors])
 
   const importerRouteState = useMemo(
     () => {
@@ -802,6 +824,7 @@ export function ContentAdmin({
           {activeSection === 'courses' && (
         <CourseManager
           adminToken={adminToken}
+          currentAdminId={adminUser.id}
           categoryGroups={categoryGroups}
           categories={categories}
           exercises={exercises}
@@ -863,6 +886,22 @@ export function ContentAdmin({
                 onNotify(error instanceof Error ? error.message : '加载字幕稿失败', 'error')
               }
             })()
+          }}
+          contributors={workflowContributors}
+          onUpdateWorkflowAssignee={async (exercise, workflowRole, adminUserId) => {
+            try {
+              await apiClient.updateExerciseWorkflowAssignee(exercise.id, workflowRole, adminUserId, adminToken)
+              await onRefreshCatalog()
+              onNotify(
+                adminUserId
+                  ? `已更新“${exercise.title}”的${workflowRole === 'proofreader' ? '校对负责人' : '二审负责人'}`
+                  : `已取消“${exercise.title}”的${workflowRole === 'proofreader' ? '校对负责人' : '二审负责人'}`,
+                'success',
+              )
+            } catch (error) {
+              onNotify(error instanceof Error ? error.message : '更新工作流负责人失败', 'error')
+              throw error
+            }
           }}
         />
       )}
@@ -928,7 +967,7 @@ export function ContentAdmin({
                 value={reviewNote}
               />
               <Space>
-                <Typography.Text type="secondary">审核通过会替换正式字幕并发布；退回不会影响当前已发布版本。</Typography.Text>
+                <Typography.Text type="secondary">作为本课程指定的二审负责人，审核通过会替换正式字幕并发布；退回不会影响当前已发布版本。</Typography.Text>
                 <Space>
                   <button className="ant-btn" disabled={!reviewNote.trim()} onClick={() => {
                     void runAdminTask(async () => {

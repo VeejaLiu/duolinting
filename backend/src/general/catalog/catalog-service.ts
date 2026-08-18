@@ -2,6 +2,9 @@ import type {
     CatalogExerciseSummary,
     CatalogResponse,
     ContentLocale,
+    CourseWorkflowSummary,
+    CourseWorkflowAssignee,
+    CourseSubtitleDraftSummary,
     CourseContributor,
     CreateCategoryGroupRequest,
     CreateCategoryRequest,
@@ -62,6 +65,15 @@ type ExerciseRow = {
     sort_order?: number | string | null;
     created_at?: Date | string;
     pending_subtitle_draft_count?: number | string;
+    workflow_stage?: CourseWorkflowSummary['stage'] | null;
+    workflow_contributor_display_name?: string | null;
+    workflow_submitted_at?: Date | string | null;
+    workflow_review_note?: string | null;
+    proofreader_display_name?: string | null;
+    second_reviewer_display_name?: string | null;
+    proofreader_assignee_json?: unknown;
+    second_reviewer_assignee_json?: unknown;
+    subtitle_drafts_json?: unknown;
 };
 
 const supportedContentLocales = new Set<ContentLocale>([
@@ -354,7 +366,55 @@ const buildExerciseSummary = (
     row: ExerciseRow,
     lineCount: number,
     contentLocale?: ContentLocale,
-): CatalogExerciseSummary => ({
+): CatalogExerciseSummary => {
+    // 优先以个人字幕稿判断协作节点：已发布课程也可能有新的投稿待审，
+    // 所以不能仅依赖 exercises.status 来判断它正卡在哪一步。
+    const stage = row.workflow_stage
+        ?? (row.status === 'archived'
+            ? 'archived'
+            : row.status === 'published'
+                ? 'published'
+                : row.status === 'proofread'
+                    ? 'awaiting_review'
+                : 'draft');
+    const parseWorkflowList = <T>(value: unknown): T[] => {
+        if (Array.isArray(value)) return value as T[];
+        if (typeof value !== 'string' || !value.trim()) return [];
+        try {
+            const parsed = JSON.parse(value) as unknown;
+            return Array.isArray(parsed) ? parsed as T[] : [];
+        } catch {
+            return [];
+        }
+    };
+    const parseWorkflowAssignee = (value: unknown): CourseWorkflowAssignee | undefined => {
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            const candidate = value as Partial<CourseWorkflowAssignee>;
+            return typeof candidate.adminUserId === 'number' && typeof candidate.displayName === 'string'
+                ? { adminUserId: candidate.adminUserId, displayName: candidate.displayName }
+                : undefined;
+        }
+        if (typeof value !== 'string' || !value.trim()) return undefined;
+        try {
+            return parseWorkflowAssignee(JSON.parse(value));
+        } catch {
+            return undefined;
+        }
+    };
+    const workflow: CourseWorkflowSummary = {
+        stage,
+        contributorDisplayName: row.workflow_contributor_display_name || undefined,
+        submittedAt: row.workflow_submitted_at
+            ? new Date(row.workflow_submitted_at).toISOString()
+            : undefined,
+        reviewNote: row.workflow_review_note || undefined,
+        proofreaderAssignee: parseWorkflowAssignee(row.proofreader_assignee_json),
+        secondReviewerAssignee: parseWorkflowAssignee(row.second_reviewer_assignee_json),
+        proofreaderDisplayName: row.proofreader_display_name || undefined,
+        secondReviewerDisplayName: row.second_reviewer_display_name || undefined,
+        drafts: parseWorkflowList<CourseSubtitleDraftSummary>(row.subtitle_drafts_json),
+    };
+    return {
     id: Number(row.id),
     categoryId: Number(row.category_id),
     title: contentLocale
@@ -375,8 +435,117 @@ const buildExerciseSummary = (
     sortOrder: Number(row.sort_order ?? 0),
     lineCount,
     pendingSubtitleDraftCount: Number(row.pending_subtitle_draft_count ?? 0),
+    workflow,
     localizations: normalizeExerciseLocalizations(row.localizations_json),
-});
+    };
+};
+
+// 该片段被 Admin 的所有课程列表复用，避免列表与详情因不同 SQL 规则而显示不同阶段。
+const adminWorkflowSelect = (exerciseAlias: string) => `
+    (
+      select count(*) from exercise_subtitle_drafts subtitle_drafts
+      where subtitle_drafts.exercise_id = ${exerciseAlias}.id and subtitle_drafts.status = 'submitted'
+    ) as pending_subtitle_draft_count,
+    coalesce(
+      (
+        select case subtitle_drafts.status
+          when 'submitted' then 'awaiting_review'
+          when 'returned' then 'returned'
+          when 'editing' then 'proofreading'
+          else null
+        end
+        from exercise_subtitle_drafts subtitle_drafts
+        where subtitle_drafts.exercise_id = ${exerciseAlias}.id
+          and subtitle_drafts.status in ('submitted', 'returned', 'editing')
+        order by field(subtitle_drafts.status, 'submitted', 'returned', 'editing'),
+                 subtitle_drafts.updated_at desc
+        limit 1
+      ),
+      case ${exerciseAlias}.status
+        when 'archived' then 'archived'
+        when 'published' then 'published'
+        when 'proofread' then 'awaiting_review'
+        else 'draft'
+      end
+    ) as workflow_stage,
+    (
+      select admins.display_name
+      from exercise_subtitle_drafts subtitle_drafts
+      inner join admin_users admins on admins.id = subtitle_drafts.admin_user_id
+      where subtitle_drafts.exercise_id = ${exerciseAlias}.id
+        and subtitle_drafts.status in ('submitted', 'returned', 'editing')
+      order by field(subtitle_drafts.status, 'submitted', 'returned', 'editing'),
+               subtitle_drafts.updated_at desc
+      limit 1
+    ) as workflow_contributor_display_name,
+    (
+      select subtitle_drafts.submitted_at
+      from exercise_subtitle_drafts subtitle_drafts
+      where subtitle_drafts.exercise_id = ${exerciseAlias}.id
+        and subtitle_drafts.status = 'submitted'
+      order by subtitle_drafts.submitted_at desc
+      limit 1
+    ) as workflow_submitted_at,
+    (
+      select subtitle_drafts.review_note
+      from exercise_subtitle_drafts subtitle_drafts
+      where subtitle_drafts.exercise_id = ${exerciseAlias}.id
+        and subtitle_drafts.status = 'returned'
+      order by subtitle_drafts.updated_at desc
+      limit 1
+    ) as workflow_review_note,
+    (
+      select admins.display_name
+      from exercise_contributions contributions
+      inner join admin_users admins on admins.id = contributions.admin_user_id
+      where contributions.exercise_id = ${exerciseAlias}.id
+        and contributions.contribution_role = 'proofreader'
+      limit 1
+    ) as proofreader_display_name,
+    (
+      select admins.display_name
+      from exercise_contributions contributions
+      inner join admin_users admins on admins.id = contributions.admin_user_id
+      where contributions.exercise_id = ${exerciseAlias}.id
+        and contributions.contribution_role = 'second_reviewer'
+      limit 1
+    ) as second_reviewer_display_name
+    ,(
+      select json_object(
+        'adminUserId', assignees.admin_user_id,
+        'displayName', admins.display_name
+      )
+      from exercise_workflow_assignees assignees
+      inner join admin_users admins on admins.id = assignees.admin_user_id
+      where assignees.exercise_id = ${exerciseAlias}.id
+        and assignees.workflow_role = 'proofreader'
+      limit 1
+    ) as proofreader_assignee_json
+    ,(
+      select json_object(
+        'adminUserId', assignees.admin_user_id,
+        'displayName', admins.display_name
+      )
+      from exercise_workflow_assignees assignees
+      inner join admin_users admins on admins.id = assignees.admin_user_id
+      where assignees.exercise_id = ${exerciseAlias}.id
+        and assignees.workflow_role = 'second_reviewer'
+      limit 1
+    ) as second_reviewer_assignee_json
+    ,(
+      select coalesce(json_arrayagg(json_object(
+        'adminUserId', subtitle_drafts.admin_user_id,
+        'contributorDisplayName', admins.display_name,
+        'status', subtitle_drafts.status,
+        'submittedAt', subtitle_drafts.submitted_at,
+        'updatedAt', subtitle_drafts.updated_at,
+        'reviewNote', subtitle_drafts.review_note
+      )), json_array())
+      from exercise_subtitle_drafts subtitle_drafts
+      inner join admin_users admins on admins.id = subtitle_drafts.admin_user_id
+      where subtitle_drafts.exercise_id = ${exerciseAlias}.id
+    ) as subtitle_drafts_json
+`;
 
 const buildExerciseDetail = (
     row: ExerciseRow,
@@ -687,10 +856,7 @@ export async function listAllExercises(): Promise<CatalogExerciseSummary[]> {
               status,
               sort_order,
               created_at,
-              (
-                select count(*) from exercise_subtitle_drafts subtitle_drafts
-                where subtitle_drafts.exercise_id = exercises.id and subtitle_drafts.status = 'submitted'
-              ) as pending_subtitle_draft_count
+              ${adminWorkflowSelect('exercises')}
             from exercises
             order by sort_order asc, created_at desc, title asc
         `,
@@ -756,10 +922,7 @@ export async function listAdminExercisesPage(
             select e.id, e.category_id, e.title, e.source, e.difficulty, e.duration_label,
                    e.media_type, e.audio_url, e.audio_object_name, e.cover_image_url, e.summary,
                    e.transcript_json, e.status, e.sort_order, e.created_at,
-                   (
-                     select count(*) from exercise_subtitle_drafts subtitle_drafts
-                     where subtitle_drafts.exercise_id = e.id and subtitle_drafts.status = 'submitted'
-                   ) as pending_subtitle_draft_count
+                   ${adminWorkflowSelect('e')}
             from exercises e inner join categories c on c.id = e.category_id
             ${where}
             order by e.sort_order asc, e.created_at desc, e.title asc

@@ -422,12 +422,6 @@ export const apiClient = {
       { method: 'POST', body: JSON.stringify({ reviewNote }) },
       { adminToken },
     ),
-  publishExercise: (exerciseId: number, adminToken: string) =>
-    fetchJson<AdminContentResponse>(
-      `/api/v1/admin/exercises/${exerciseId}/publish`,
-      { method: 'POST' },
-      { adminToken },
-    ),
   getAdminMembers: (adminToken: string) =>
     fetchJson<{ items: AdminMember[] }>(
       '/api/v1/admin/collaboration/members',
@@ -448,6 +442,17 @@ export const apiClient = {
     fetchJson<AdminContentResponse>(
       `/api/v1/admin/collaboration/members/${memberId}/assignments`,
       { method: 'PUT', body: JSON.stringify({ exerciseIds }) },
+      { adminToken },
+    ),
+  updateExerciseWorkflowAssignee: (
+    exerciseId: number,
+    workflowRole: 'proofreader' | 'second_reviewer',
+    adminUserId: number | undefined,
+    adminToken: string,
+  ) =>
+    fetchJson<AdminContentResponse & { adminUserId: number | null }>(
+      `/api/v1/admin/exercises/${exerciseId}/workflow-assignees/${workflowRole}`,
+      { method: 'PUT', body: JSON.stringify({ adminUserId: adminUserId ?? null }) },
       { adminToken },
     ),
   resetAdminMemberPassword: (

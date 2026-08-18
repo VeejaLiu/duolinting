@@ -4,7 +4,10 @@ import type { FeedbackStatus } from '../../domain';
 import { requireAdminPasswordChanged, requireAdminToken, requireSuperAdmin } from '../../general/admin/admin-auth';
 import { changeAdminPassword, getAdminInfo, loginAdmin, logoutAdmin } from '../../general/admin/admin-service';
 import {
+    canAccessExerciseWorkflow,
     canEditExerciseSubtitles,
+    canReviewSubtitleDraft,
+    canSubmitSubtitleDraft,
     approveSubtitleDraft,
     createAdminMember,
     getAssignedExerciseIds,
@@ -16,6 +19,7 @@ import {
     saveSubtitleDraft,
     submitSubtitleDraft,
     replaceContributorAssignments,
+    updateExerciseWorkflowAssignee,
     updatePreviewVolunteer,
 } from '../../general/admin/collaboration-service';
 import {
@@ -40,6 +44,7 @@ import { getAdminGrowthReport } from '../../general/admin/user-activity-service'
 import { createTranslationJob, getTranslationJob } from '../../general/translate/translate-service';
 import { validateErrorCheck } from '../../lib/express-validator/express-validator-middleware';
 import { Logger } from '../../lib/logger';
+import { doRawQuery } from '../../models';
 import { authenticationRateLimitKeys, createRateLimit } from '../../lib/rate-limit';
 
 const router = express.Router();
@@ -152,7 +157,7 @@ router.get('/exercises/:exerciseId', async (req: any, res) => {
     if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
         return res.status(400).send({ success: false, message: 'Invalid exercise id' });
     }
-    if (!(await canEditExerciseSubtitles(req.admin, exerciseId))) {
+    if (!(await canAccessExerciseWorkflow(req.admin, exerciseId))) {
         return res.status(403).send({ success: false, message: 'This course is not assigned to you' });
     }
 
@@ -347,8 +352,8 @@ router.post('/exercises/:exerciseId/subtitle-drafts/submit', async (req: any, re
     if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
         return res.status(400).send({ success: false, message: 'Invalid exercise id' });
     }
-    if (isSuperAdmin(req.admin) || !(await canEditExerciseSubtitles(req.admin, exerciseId))) {
-        return res.status(403).send({ success: false, message: 'This course is not assigned to you' });
+    if (!(await canSubmitSubtitleDraft(req.admin, exerciseId))) {
+        return res.status(403).send({ success: false, message: 'You are not the assigned proofreader for this course' });
     }
     const lines = req.body?.lines;
     if (!Array.isArray(lines) || lines.length === 0) {
@@ -465,6 +470,33 @@ router.put(
 );
 
 router.put(
+    '/exercises/:exerciseId/workflow-assignees/:workflowRole',
+    requireSuperAdmin,
+    body('adminUserId').optional({ nullable: true }).isInt({ min: 1 }),
+    validateErrorCheck,
+    async (req, res) => {
+        const exerciseId = toId(req.params.exerciseId);
+        if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+            return res.status(400).send({ success: false, message: 'Invalid exercise id' });
+        }
+        const workflowRole = req.params.workflowRole;
+        if (workflowRole !== 'proofreader' && workflowRole !== 'second_reviewer') {
+            return res.status(400).send({ success: false, message: 'Invalid workflow role' });
+        }
+        const rawAdminUserId = req.body.adminUserId;
+        const adminUserId = rawAdminUserId === null || rawAdminUserId === undefined
+            ? null
+            : Number(rawAdminUserId);
+        const assignedAdminUserId = await updateExerciseWorkflowAssignee({
+            exerciseId,
+            workflowRole,
+            adminUserId,
+        });
+        res.status(200).send({ ok: true, adminUserId: assignedAdminUserId });
+    },
+);
+
+router.put(
     '/collaboration/members/:memberId/password',
     requireSuperAdmin,
     validateErrorCheck,
@@ -500,49 +532,19 @@ router.put(
     },
 );
 
-router.post(
-    '/exercises/:exerciseId/publish',
-    requireSuperAdmin,
-    async (req: any, res) => {
-        const exerciseId = toId(req.params.exerciseId);
-        if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
-            return res.status(400).send({ success: false, message: 'Invalid exercise id' });
-        }
-        const exercise = await getExercise(exerciseId, true, undefined, false, req.admin);
-        if (!exercise) {
-            return res.status(404).send({ success: false, message: 'Exercise not found' });
-        }
-        if (exercise.subtitleDrafts?.length) {
-            return res.status(409).send({ success: false, message: '请从对应字幕投稿的审核界面完成二次审核' });
-        }
-        if (exercise.status !== 'proofread') {
-            return res.status(409).send({ success: false, message: 'Only proofread courses can pass the second review and publish' });
-        }
-        await upsertExercise({
-            id: exercise.id,
-            categoryId: exercise.categoryId,
-            title: exercise.title,
-            source: exercise.source,
-            difficulty: exercise.difficulty,
-            durationLabel: exercise.durationLabel,
-            mediaType: exercise.mediaType,
-            audioUrl: exercise.audioUrl,
-            coverImageUrl: exercise.coverImageUrl,
-            summary: exercise.summary,
-            sortOrder: exercise.sortOrder,
-            status: 'published',
-            localizations: exercise.localizations,
-        });
-        res.status(200).send({ ok: true });
-    },
-);
-
-router.post('/subtitle-drafts/:draftId/approve', requireSuperAdmin, async (req: any, res) => {
+router.post('/subtitle-drafts/:draftId/approve', async (req: any, res) => {
     const draftId = toId(req.params.draftId);
     if (!Number.isInteger(draftId) || draftId <= 0) {
         return res.status(400).send({ success: false, message: 'Invalid subtitle draft id' });
     }
     try {
+        const rows = await doRawQuery<{ exercise_id: number | string }>({
+            query: 'select exercise_id from exercise_subtitle_drafts where id = ? limit 1',
+            params: [draftId],
+        });
+        if (!rows[0] || !(await canReviewSubtitleDraft(req.admin, Number(rows[0].exercise_id)))) {
+            return res.status(403).send({ success: false, message: 'You are not the assigned second reviewer for this course' });
+        }
         await approveSubtitleDraft({ draftId, reviewerId: req.admin.id });
         res.status(200).send({ ok: true });
     } catch (error) {
@@ -555,7 +557,6 @@ router.post('/subtitle-drafts/:draftId/approve', requireSuperAdmin, async (req: 
 
 router.post(
     '/subtitle-drafts/:draftId/return',
-    requireSuperAdmin,
     body('reviewNote').isString().trim().isLength({ min: 1, max: 4000 }),
     validateErrorCheck,
     async (req: any, res) => {
@@ -564,6 +565,13 @@ router.post(
             return res.status(400).send({ success: false, message: 'Invalid subtitle draft id' });
         }
         try {
+            const rows = await doRawQuery<{ exercise_id: number | string }>({
+                query: 'select exercise_id from exercise_subtitle_drafts where id = ? limit 1',
+                params: [draftId],
+            });
+            if (!rows[0] || !(await canReviewSubtitleDraft(req.admin, Number(rows[0].exercise_id)))) {
+                return res.status(403).send({ success: false, message: 'You are not the assigned second reviewer for this course' });
+            }
             await returnSubtitleDraft({
                 draftId,
                 reviewerId: req.admin.id,

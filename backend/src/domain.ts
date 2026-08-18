@@ -5,6 +5,8 @@ export type AdminRole = 'super_admin' | 'subtitle_contributor';
 export type CourseContributionRole = 'proofreader' | 'second_reviewer';
 /** 字幕贡献者个人工作稿的流转状态；它独立于课程面向学习端的发布状态。 */
 export type SubtitleDraftStatus = 'editing' | 'submitted' | 'returned' | 'approved';
+/** Admin 课程列表使用的协作工作流节点，不改变课程的对外发布状态。 */
+export type CourseWorkflowStage = 'draft' | 'proofreading' | 'awaiting_review' | 'returned' | 'published' | 'archived';
 
 export type UiLocale = 'zh-CN' | 'en-US' | 'th-TH' | 'ja-JP';
 export type ContentLocale = 'zh-CN' | 'en-US' | 'th-TH' | 'ja-JP';
@@ -89,6 +91,40 @@ export type CatalogExerciseSummary = Omit<ListeningExercise, 'lines'> & {
     lineCount: number;
     /** 仅管理后台列表使用，用来提示已发布课程仍有新的字幕稿等待审核。 */
     pendingSubtitleDraftCount?: number;
+    /** 仅管理后台返回：课程当前处于协作管线的哪一步以及相关负责人。 */
+    workflow?: CourseWorkflowSummary;
+};
+
+export type CourseWorkflowSummary = {
+    stage: CourseWorkflowStage;
+    contributorDisplayName?: string;
+    submittedAt?: string;
+    reviewNote?: string;
+    /** 当前被指派负责校对的人；这是职责，不等同于已公开的实际贡献署名。 */
+    proofreaderAssignee?: CourseWorkflowAssignee;
+    /** 当前被指派负责二次审核的人；同样必须是字幕贡献者。 */
+    secondReviewerAssignee?: CourseWorkflowAssignee;
+    /** 已通过流程后记录的实际校对署名。 */
+    proofreaderDisplayName?: string;
+    /** 已通过流程后记录的实际二审署名。 */
+    secondReviewerDisplayName?: string;
+    drafts?: CourseSubtitleDraftSummary[];
+};
+
+/** 管理员列表可见的课程工作流负责人；不含登录邮箱等身份资料。 */
+export type CourseWorkflowAssignee = {
+    adminUserId: number;
+    displayName: string;
+};
+
+/** 课程列表的完整投稿历史摘要，供工作流轨道直接解释每个环节。 */
+export type CourseSubtitleDraftSummary = {
+    adminUserId: number;
+    contributorDisplayName: string;
+    status: SubtitleDraftStatus;
+    submittedAt?: string;
+    updatedAt?: string;
+    reviewNote?: string;
 };
 
 export type SubtitleDraft = {
