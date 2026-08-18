@@ -8,6 +8,7 @@ import type {
   ListeningExercise,
   MaterialCategory,
   ContentLocale,
+  AdminRole,
 } from '@duolinting/shared'
 import type { AdminNoticeTone } from './admin/AdminFeedback'
 import { MediaCourseForm } from './admin/MediaCourseForm'
@@ -55,6 +56,7 @@ type AudioLessonImporterProps = {
   onRegisterSaveBeforeLeave: (
     handler: (() => Promise<boolean>) | null,
   ) => void
+  adminRole: AdminRole
 }
 
 type ClipboardPanelState =
@@ -192,6 +194,7 @@ export function AudioLessonImporter({
   onDraftConsumed,
   onUnsavedChangesChange,
   onRegisterSaveBeforeLeave,
+  adminRole,
 }: AudioLessonImporterProps) {
   const canWriteClipboard =
     typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function'
@@ -249,9 +252,14 @@ export function AudioLessonImporter({
     [courseForm, draftLines, subtitleDraft],
   )
   const [savedImporterSnapshot, setSavedImporterSnapshot] = useState('')
+  const [isSubmittingSubtitleDraft, setIsSubmittingSubtitleDraft] = useState(false)
   const hasUnsavedChanges = Boolean(
     savedImporterSnapshot && currentImporterSnapshot !== savedImporterSnapshot,
   )
+  const ownSubtitleDraft = adminRole === 'subtitle_contributor'
+    ? loadedExercise?.subtitleDrafts?.[0]
+    : undefined
+  const isSubmittedSubtitleDraft = ownSubtitleDraft?.status === 'submitted'
   const { playMedia, playMediaRange, stopPlayback } = useMediaPlayback({
     mediaRef,
   })
@@ -405,9 +413,14 @@ export function AudioLessonImporter({
     }
 
     const { exercise } = { exercise: loadedExercise }
+    // 贡献者重开课程时优先载入自己的工作稿（包括被退回的版本），
+    // 而不是再次显示课程当前的正式字幕，避免保存后看似“丢稿”。
+    const editableLines = adminRole === 'subtitle_contributor' && exercise.subtitleDrafts?.[0]
+      ? exercise.subtitleDrafts[0].lines
+      : exercise.lines
     const nextDraftLines =
-      exercise.lines.length > 0
-        ? exercise.lines.map((line, index) => ({
+      editableLines.length > 0
+        ? editableLines.map((line, index) => ({
             id: line.id || `l${index + 1}`,
             start: Number(line.start),
             end: Number(line.end),
@@ -447,9 +460,12 @@ export function AudioLessonImporter({
     setSavedImporterSnapshot(
       createImporterSnapshot(nextCourseForm, nextDraftLines, ''),
     )
-    onStatusChange(`已载入课程：${exercise.title}`, 'success')
+    const returnedNote = adminRole === 'subtitle_contributor' && exercise.subtitleDrafts?.[0]?.status === 'returned'
+      ? `；审核意见：${exercise.subtitleDrafts[0].reviewNote ?? '请按意见修改后重新提交'}`
+      : ''
+    onStatusChange(`已载入课程：${exercise.title}${returnedNote}`, 'success')
     onDraftConsumed()
-  }, [draft, loadedExercise, onDraftConsumed, onStatusChange])
+  }, [adminRole, draft, loadedExercise, onDraftConsumed, onStatusChange])
 
   const activeLine = draftLines[activeLineIndex] ?? draftLines[0]
   const validLineCount = useMemo(() => {
@@ -470,6 +486,9 @@ export function AudioLessonImporter({
     [categories, categoryGroups],
   )
   const saveDisabledReason = useMemo(() => {
+    if (isSubmittedSubtitleDraft) {
+      return '该字幕稿已提交二次审核，等待审核结果后才能继续修改'
+    }
     if (isUploadingMedia) {
       return '媒体上传中，请稍候'
     }
@@ -488,6 +507,7 @@ export function AudioLessonImporter({
     courseForm.categoryId,
     courseForm.title,
     isUploadingMedia,
+    isSubmittedSubtitleDraft,
     mediaFile,
   ])
 
@@ -969,6 +989,23 @@ export function AudioLessonImporter({
         }
       }
 
+      // 字幕贡献者只有被分配课程的字幕写入权。跳过课程元数据和媒体保存，
+      // 避免其本地表单中的标题、媒体或状态意外覆盖超级管理员维护的课程信息。
+      if (adminRole === 'subtitle_contributor') {
+        if (!courseForm.id) {
+          throw new Error('字幕贡献者只能编辑超级管理员已创建并分配的课程')
+        }
+        if (!hasTranscriptContent) {
+          throw new Error('请至少保留一条有效字幕后再保存校对草稿')
+        }
+        await apiClient.replaceTranscript(courseForm.id, transcript, adminToken)
+        setSavedImporterSnapshot(
+          createImporterSnapshot(courseForm, draftLines, subtitleDraft),
+        )
+        onStatusChange(`已保存校对草稿：${courseForm.title}`, 'success')
+        return true
+      }
+
       localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, adminToken)
       onStatusChange(
         hasTranscriptContent ? '正在保存课程和字幕...' : '正在保存课程...',
@@ -1024,6 +1061,7 @@ export function AudioLessonImporter({
     }
   }, [
     adminToken,
+    adminRole,
     courseForm,
     draftLines,
     exercises,
@@ -1035,6 +1073,37 @@ export function AudioLessonImporter({
     subtitleDraft,
     uploadedMediaUrl,
   ])
+
+  const submitSubtitleDraftForReview = useCallback(async () => {
+    if (adminRole !== 'subtitle_contributor') return
+    setIsSubmittingSubtitleDraft(true)
+    try {
+      if (!courseForm.id) {
+        throw new Error('字幕贡献者只能提交已分配的课程')
+      }
+      if (saveDisabledReason) {
+        throw new Error(saveDisabledReason)
+      }
+      const transcript = toTranscriptLines(draftLines)
+      const invalid = transcript.find((line) => !line.text || line.end <= line.start)
+      if (invalid || transcript.length === 0) {
+        throw new Error('请至少保留一条时间范围和文本都有效的字幕后再提交')
+      }
+      // 提交时携带当前编辑内容，避免用户忘记先保存而丢失最后一次微调。
+      await apiClient.submitSubtitleDraft(courseForm.id, transcript, adminToken)
+      // 重新读取后端状态：首次提交时此前可能不存在草稿，本地不能凭空构造草稿 ID。
+      setLoadedExercise(await apiClient.getAdminExercise(courseForm.id, adminToken))
+      setSavedImporterSnapshot(
+        createImporterSnapshot(courseForm, draftLines, subtitleDraft),
+      )
+      onStatusChange(`已提交二次审核：${courseForm.title}`, 'success')
+      await onRefreshCatalog()
+    } catch (error) {
+      onStatusChange(error instanceof Error ? error.message : '字幕稿提交失败', 'error')
+    } finally {
+      setIsSubmittingSubtitleDraft(false)
+    }
+  }, [adminRole, adminToken, courseForm, draftLines, onRefreshCatalog, onStatusChange, saveDisabledReason, subtitleDraft])
 
   useEffect(() => {
     onRegisterSaveBeforeLeave(saveImportedLesson)
@@ -1057,8 +1126,9 @@ export function AudioLessonImporter({
           adminToken={adminToken}
           categoriesByGroup={categoriesByGroup}
           courseForm={courseForm}
-          isSaving={isSaving}
+          isSaving={isSaving || isSubmittingSubtitleDraft}
           isSidebarCollapsed={isSidebarCollapsed}
+          isSubtitleContributor={adminRole === 'subtitle_contributor'}
           onToggleSidebar={() => setIsSidebarCollapsed((current) => !current)}
           saveDisabledReason={saveDisabledReason}
           localMediaUrl={localMediaUrl}
@@ -1081,7 +1151,17 @@ export function AudioLessonImporter({
                     ? '媒体已就绪'
                     : '媒体未上传'}
               </span>
-              <span>{courseForm.status === 'published' ? '发布后学习端可见' : '草稿仅后台保存'}</span>
+              <span>
+                {isSubmittedSubtitleDraft
+                  ? '已提交二次审核，当前不可继续修改'
+                  : ownSubtitleDraft?.status === 'returned'
+                    ? '审核已退回，请按意见修改后重新提交'
+                    : courseForm.status === 'published'
+                      ? '已完成二次审核，学习端公开可见'
+                      : courseForm.status === 'proofread'
+                        ? '已校对，志愿者可预览'
+                        : '草稿，志愿者可预览'}
+              </span>
             </div>
           }
           subtitleImporter={
@@ -1143,6 +1223,7 @@ export function AudioLessonImporter({
             void handleFileChange(file)
           }}
           onSaveLesson={() => void saveImportedLesson()}
+          onSubmitSubtitleDraft={() => void submitSubtitleDraftForReview()}
         />
       </div>
     </section>

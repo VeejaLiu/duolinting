@@ -5,7 +5,11 @@ import type {
   AdminExercisePage,
   AdminLoginRequest,
   AdminGrowthReport,
+  AdminMember,
+  AdminMemberProvisioning,
   AdminUser,
+  ChangeAdminPasswordRequest,
+  CreateAdminMemberRequest,
   CatalogExerciseSummary,
   CatalogResponse,
   CreateCategoryGroupRequest,
@@ -14,6 +18,7 @@ import type {
   CreateTranscriptLineRequest,
   ImageUploadResponse,
   ListeningExercise,
+  PreviewVolunteer,
   MediaUploadResponse,
   UpdateAcceptedAnswerFeedbackStatusRequest,
 } from '@duolinting/shared'
@@ -231,7 +236,7 @@ export const apiClient = {
       page: number
       pageSize: number
       search?: string
-      status?: 'draft' | 'published' | 'archived'
+      status?: 'draft' | 'proofread' | 'published' | 'archived'
     },
   ) => {
     const params = new URLSearchParams({
@@ -259,6 +264,12 @@ export const apiClient = {
       {
         method: 'GET',
       },
+      { adminToken },
+    ),
+  changeAdminPassword: (request: ChangeAdminPasswordRequest, adminToken: string) =>
+    fetchApiResult<AdminUser>(
+      '/api/v1/admin/auth/password',
+      { method: 'PUT', body: JSON.stringify(request) },
       { adminToken },
     ),
   adminLogout: (adminToken: string) =>
@@ -387,6 +398,81 @@ export const apiClient = {
         method: 'PUT',
         body: JSON.stringify({ lines }),
       },
+      { adminToken },
+    ),
+  submitSubtitleDraft: (
+    exerciseId: number,
+    lines: CreateTranscriptLineRequest[],
+    adminToken: string,
+  ) =>
+    fetchJson<AdminContentResponse>(
+      `/api/v1/admin/exercises/${exerciseId}/subtitle-drafts/submit`,
+      { method: 'POST', body: JSON.stringify({ lines }) },
+      { adminToken },
+    ),
+  approveSubtitleDraft: (draftId: number, adminToken: string) =>
+    fetchJson<AdminContentResponse>(
+      `/api/v1/admin/subtitle-drafts/${draftId}/approve`,
+      { method: 'POST' },
+      { adminToken },
+    ),
+  returnSubtitleDraft: (draftId: number, reviewNote: string, adminToken: string) =>
+    fetchJson<AdminContentResponse>(
+      `/api/v1/admin/subtitle-drafts/${draftId}/return`,
+      { method: 'POST', body: JSON.stringify({ reviewNote }) },
+      { adminToken },
+    ),
+  publishExercise: (exerciseId: number, adminToken: string) =>
+    fetchJson<AdminContentResponse>(
+      `/api/v1/admin/exercises/${exerciseId}/publish`,
+      { method: 'POST' },
+      { adminToken },
+    ),
+  getAdminMembers: (adminToken: string) =>
+    fetchJson<{ items: AdminMember[] }>(
+      '/api/v1/admin/collaboration/members',
+      { method: 'GET' },
+      { adminToken },
+    ),
+  createAdminMember: (request: CreateAdminMemberRequest, adminToken: string) =>
+    fetchJson<{ ok: true, member: AdminMemberProvisioning }>(
+      '/api/v1/admin/collaboration/members',
+      { method: 'POST', body: JSON.stringify(request) },
+      { adminToken },
+    ),
+  updateAdminMemberAssignments: (
+    memberId: number,
+    exerciseIds: number[],
+    adminToken: string,
+  ) =>
+    fetchJson<AdminContentResponse>(
+      `/api/v1/admin/collaboration/members/${memberId}/assignments`,
+      { method: 'PUT', body: JSON.stringify({ exerciseIds }) },
+      { adminToken },
+    ),
+  resetAdminMemberPassword: (
+    memberId: number,
+    adminToken: string,
+  ) =>
+    fetchJson<{ ok: true, member: AdminMemberProvisioning }>(
+      `/api/v1/admin/collaboration/members/${memberId}/password`,
+      { method: 'PUT' },
+      { adminToken },
+    ),
+  getPreviewVolunteers: (adminToken: string) =>
+    fetchJson<{ items: PreviewVolunteer[] }>(
+      '/api/v1/admin/collaboration/preview-volunteers',
+      { method: 'GET' },
+      { adminToken },
+    ),
+  updatePreviewVolunteer: (
+    userId: number,
+    isPreviewVolunteer: boolean,
+    adminToken: string,
+  ) =>
+    fetchJson<AdminContentResponse>(
+      `/api/v1/admin/collaboration/preview-volunteers/${userId}`,
+      { method: 'PUT', body: JSON.stringify({ isPreviewVolunteer }) },
       { adminToken },
     ),
   uploadMedia: (

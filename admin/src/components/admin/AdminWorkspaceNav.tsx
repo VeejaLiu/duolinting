@@ -1,14 +1,14 @@
 import { Menu } from 'antd'
 import type { MenuProps } from 'antd'
-import { BookOpen, Clapperboard, Layers3, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, Scissors, UserRound, Users } from 'lucide-react'
+import { BookOpen, Clapperboard, Layers3, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, UserRound, Users, UsersRound, type LucideIcon } from 'lucide-react'
 import type { AdminUser } from '@duolinting/shared'
 
-export type AdminSection = 'importer' | 'directory' | 'courses' | 'recorder' | 'feedback' | 'users'
+export type AdminSection = 'importer' | 'directory' | 'courses' | 'recorder' | 'feedback' | 'users' | 'collaboration'
 
 const adminSections: Array<{
   id: AdminSection
   label: string
-  Icon: typeof Scissors
+  Icon: LucideIcon
 }> = [
   {
     id: 'directory',
@@ -19,11 +19,6 @@ const adminSections: Array<{
     id: 'courses',
     label: '课程管理',
     Icon: BookOpen,
-  },
-  {
-    id: 'importer',
-    label: '制课工作台',
-    Icon: Scissors,
   },
   {
     id: 'recorder',
@@ -59,7 +54,15 @@ export function AdminWorkspaceNav({
   onLogout,
   onSectionChange,
 }: AdminWorkspaceNavProps) {
-  const workspaceItems: MenuProps['items'] = adminSections.map(({
+  // 制课工作台只作为“课程管理”里某门课程的编辑页入口，不在侧栏单独出现。
+  // 贡献者因此只看到自己获授权的课程管理入口；超级管理员保留完整管理菜单。
+  const visibleSections = adminSections.filter((section) =>
+    adminUser.role === 'super_admin' || section.id === 'courses',
+  )
+  if (adminUser.role === 'super_admin') {
+    visibleSections.push({ id: 'collaboration', label: '人员管理', Icon: UsersRound })
+  }
+  const workspaceItems: MenuProps['items'] = visibleSections.map(({
     id,
     label,
     Icon,
@@ -90,7 +93,7 @@ export function AdminWorkspaceNav({
       className: 'admin-menu-account',
       icon: <UserRound size={17} aria-hidden="true" />,
       key: 'account',
-      label: collapsed ? '管理员账号' : `${adminUser.displayName} · ${adminUser.username}`,
+      label: collapsed ? '后台账号' : `${adminUser.displayName} · ${adminUser.role === 'super_admin' ? '超级管理员' : '字幕贡献者'}`,
       children: [
         {
           icon: <LogOut size={16} aria-hidden="true" />,

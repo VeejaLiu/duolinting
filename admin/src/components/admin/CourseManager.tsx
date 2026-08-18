@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, BookOpen, Ellipsis, FilePenLine, Pencil, PlaySquare, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, BookOpen, Ellipsis, FilePenLine, Pencil, PlaySquare, Plus, RefreshCw, Search, Trash2, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Button, Card, Dropdown, Empty, Form, Image, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -21,18 +21,20 @@ type CourseManagerProps = {
   onMoveCourse: (exerciseId: number, direction: 'up' | 'down') => void
   onOpenRecorder: (exerciseId: number) => void
   onRenameCourse: (exercise: CatalogExerciseSummary, title: string) => Promise<void>
+  canManageCourses?: boolean
+  onReviewSubtitleDraft?: (exercise: CatalogExerciseSummary) => void
 }
 
-type CourseStatus = 'all' | 'draft' | 'published' | 'archived'
+type CourseStatus = 'all' | 'draft' | 'proofread' | 'published' | 'archived'
 
 const difficultyLabels = { beginner: '入门', intermediate: '进阶', advanced: '高阶' }
-const statusLabels = { draft: '草稿', published: '已发布', archived: '已归档' }
-const statusColors = { draft: 'default', published: 'success', archived: 'purple' } as const
+const statusLabels = { draft: '草稿', proofread: '已校对', published: '已发布', archived: '已归档' }
+const statusColors = { draft: 'default', proofread: 'processing', published: 'success', archived: 'purple' } as const
 const LAST_CATEGORY_STORAGE_KEY = 'duolinting.admin.last-course-category-id'
 
 export function CourseManager({
   adminToken, categoryGroups, categories, isCatalogLoading, catalogLoadError, onRefreshCatalog, categoryDraftName, isSaving, onCreateCourse,
-  onDeleteCourse, onEditCourse, onMoveCourse, onOpenRecorder, onRenameCourse,
+  onDeleteCourse, onEditCourse, onMoveCourse, onOpenRecorder, onRenameCourse, canManageCourses = true, onReviewSubtitleDraft,
 }: CourseManagerProps) {
   // 筛选器不提供"全部"选项：用户必须选中一个具体系列（目录加载完成前
   // 用 0 表示尚未就绪，此时不发起课程请求）。
@@ -177,7 +179,7 @@ export function CourseManager({
       render: (_, exercise) => <Space align="start" size={8}>
         {exercise.coverImageUrl ? <Image alt={`${exercise.title} 封面`} height={40} preview={false} src={resolveApiUrl(exercise.coverImageUrl)} width={56} style={{ borderRadius: 4, objectFit: 'cover' }} /> : <div className="course-table-cover">{exercise.mediaType === 'video' ? '视' : '音'}</div>}
         <Space direction="vertical" size={2}>
-          <Space size={4}><Typography.Text strong>{exercise.title}</Typography.Text><Tooltip title="快速修改名称"><Button icon={<Pencil size={13} />} onClick={() => openRenameDialog(exercise)} size="small" type="text" /></Tooltip></Space>
+          <Space size={4}><Typography.Text strong>{exercise.title}</Typography.Text>{canManageCourses && <Tooltip title="快速修改名称"><Button icon={<Pencil size={13} />} onClick={() => openRenameDialog(exercise)} size="small" type="text" /></Tooltip>}</Space>
           <Typography.Text ellipsis={{ tooltip: exercise.summary }} type="secondary" style={{ maxWidth: 170 }}>{exercise.summary || exercise.source}</Typography.Text>
         </Space>
       </Space>,
@@ -203,7 +205,13 @@ export function CourseManager({
       title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 72,
       render: (sortOrder: number) => <Typography.Text>{sortOrder}</Typography.Text>,
     },
-    { title: '状态', dataIndex: 'status', key: 'status', width: 78, render: (status: Exclude<CourseStatus, 'all'>) => <Tag color={statusColors[status]}>{statusLabels[status]}</Tag> },
+    {
+      title: '状态', dataIndex: 'status', key: 'status', width: 130,
+      render: (status: Exclude<CourseStatus, 'all'>, exercise) => <Space size={4} wrap>
+        <Tag color={statusColors[status]}>{statusLabels[status]}</Tag>
+        {(exercise.pendingSubtitleDraftCount ?? 0) > 0 && <Tag color="orange">待二审 {exercise.pendingSubtitleDraftCount}</Tag>}
+      </Space>,
+    },
     {
       title: '完整度', key: 'readiness', width: 100,
       render: (_, exercise) => <Space direction="vertical" size={1}>
@@ -215,16 +223,17 @@ export function CourseManager({
       title: '操作', key: 'actions', width: 172, fixed: 'right',
       render: (_, exercise) => <Space size={4}>
         <Button disabled={isSaving} icon={<FilePenLine size={15} />} onClick={() => onEditCourse(exercise)} size="small">编辑</Button>
-        <Tooltip title="在系列内上移"><Button disabled={isSaving || !canMove(exercise, 'up')} icon={<ArrowUp size={15} />} onClick={() => onMoveCourse(exercise.id, 'up')} size="small" type="text" /></Tooltip>
-        <Tooltip title="在系列内下移"><Button disabled={isSaving || !canMove(exercise, 'down')} icon={<ArrowDown size={15} />} onClick={() => onMoveCourse(exercise.id, 'down')} size="small" type="text" /></Tooltip>
-        <Tooltip title="打开视频录制台">
+        {canManageCourses && <Tooltip title="在系列内上移"><Button disabled={isSaving || !canMove(exercise, 'up')} icon={<ArrowUp size={15} />} onClick={() => onMoveCourse(exercise.id, 'up')} size="small" type="text" /></Tooltip>}
+        {canManageCourses && <Tooltip title="在系列内下移"><Button disabled={isSaving || !canMove(exercise, 'down')} icon={<ArrowDown size={15} />} onClick={() => onMoveCourse(exercise.id, 'down')} size="small" type="text" /></Tooltip>}
+        {canManageCourses && <Tooltip title="打开视频录制台">
           <Button icon={<PlaySquare size={15} />} onClick={() => openRecorder(exercise)} size="small" type="text" />
-        </Tooltip>
-        <Dropdown menu={{ items: [
+        </Tooltip>}
+        {canManageCourses && (exercise.pendingSubtitleDraftCount ?? 0) > 0 && onReviewSubtitleDraft && <Tooltip title="审核字幕投稿"><Button icon={<Undo2 size={15} />} onClick={() => onReviewSubtitleDraft(exercise)} size="small" type="text" /></Tooltip>}
+        {canManageCourses && <Dropdown menu={{ items: [
           { danger: true, disabled: isSaving, icon: <Trash2 size={15} />, key: 'delete', label: '删除课程' },
         ], onClick: ({ key }) => { if (key === 'delete') onDeleteCourse(exercise) } }}>
           <Button icon={<Ellipsis size={17} />} size="small" type="text" />
-        </Dropdown>
+        </Dropdown>}
       </Space>,
     },
   ]
@@ -251,11 +260,11 @@ export function CourseManager({
     className="course-manager"
     extra={<Space>
       <Button disabled={isSaving || isLoading || isCatalogLoading} icon={<RefreshCw size={15} />} onClick={() => void onRefreshCatalog().catch(() => undefined)}>刷新</Button>
-      <Tooltip title={createCourseDisabled ? createCourseDisabledReason : undefined}>
+      {canManageCourses && <Tooltip title={createCourseDisabled ? createCourseDisabledReason : undefined}>
         <span>
           <Button disabled={createCourseDisabled} icon={<Plus size={15} />} onClick={() => onCreateCourse(createTargetCategoryId)} type="primary">新建课程</Button>
         </span>
-      </Tooltip>
+      </Tooltip>}
     </Space>}
     title={<Space><BookOpen size={18} /><span>课程管理</span></Space>}
   >
@@ -271,7 +280,7 @@ export function CourseManager({
     <Form className="course-filter-form" layout="inline">
       <Form.Item label="内容分类"><Select value={selectedGroupId || undefined} placeholder="选择内容分类" onChange={(value) => changeGroup(Number(value))} options={categoryGroups.map((item) => ({ label: item.name, value: item.id }))} /></Form.Item>
       <Form.Item label="学习系列"><Select value={selectedCategoryId || undefined} placeholder="选择学习系列" onChange={(value) => changeCategory(Number(value))} options={visibleCategories.map((item) => ({ label: item.name, value: item.id }))} /></Form.Item>
-      <Form.Item label="发布状态"><Select value={selectedStatus} onChange={(value) => setSelectedStatus(value as CourseStatus)} options={[{ label: '全部状态', value: 'all' }, { label: '草稿', value: 'draft' }, { label: '已发布', value: 'published' }, { label: '已归档', value: 'archived' }]} /></Form.Item>
+      <Form.Item label="发布状态"><Select value={selectedStatus} onChange={(value) => setSelectedStatus(value as CourseStatus)} options={[{ label: '全部状态', value: 'all' }, { label: '草稿', value: 'draft' }, { label: '已校对', value: 'proofread' }, { label: '已发布', value: 'published' }, { label: '已归档', value: 'archived' }]} /></Form.Item>
       <Form.Item><Input allowClear prefix={<Search size={15} />} placeholder="搜索课程标题、来源或摘要" value={searchText} onChange={(event) => { setSearchText(event.target.value); setPage(1) }} /></Form.Item>
       <Button onClick={resetFilters} type="link">重置筛选</Button>
     </Form>

@@ -163,6 +163,53 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* 课程授权按内容分类、学习系列和课程三层展开，避免在长课程列表中失去上下文。 */
+.assignment-editor {
+  display: grid;
+  gap: 16px;
+}
+
+.assignment-editor-toolbar {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.assignment-tree {
+  display: grid;
+  gap: 12px;
+}
+
+.assignment-group {
+  background: #ffffff;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.assignment-category {
+  border-left: 2px solid #d9f1fc;
+  display: grid;
+  gap: 8px;
+  margin-left: 10px;
+  padding-left: 16px;
+}
+
+.assignment-course-list {
+  margin-left: 24px;
+}
+
+.assignment-empty {
+  margin-left: 24px;
+}
+
 .directory-editor-modal .directory-editor {
   border: 0;
   box-shadow: none;

@@ -449,7 +449,7 @@ export function ListeningVideoRecorder({
           />
         </div>
         <div className="recorder-course-status" aria-live="polite">
-          {exercise && <Tag bordered={false} color={exercise.status === 'published' ? 'green' : exercise.status === 'draft' ? 'gold' : 'default'}>{statusLabel(exercise.status)}</Tag>}
+          {exercise && <Tag bordered={false} color={exercise.status === 'published' ? 'green' : exercise.status === 'proofread' ? 'blue' : exercise.status === 'draft' ? 'gold' : 'default'}>{statusLabel(exercise.status)}</Tag>}
           {exercise && <Tag bordered={false} color={isVideoExercise ? 'blue' : 'cyan'}>{isVideoExercise ? '视频' : '音频'}</Tag>}
           {exercise && <span>{playableLineCount} 句可录制字幕</span>}
           {!exercise && !loading && <span>请选择课程</span>}
@@ -596,6 +596,7 @@ const hasLineLocale = (line: TranscriptLine, locale: ContentLocale) => {
 
 const statusLabel = (status: ListeningExercise['status']) => ({
   draft: '草稿',
+  proofread: '已校对',
   published: '已发布',
   archived: '已归档',
 })[status]

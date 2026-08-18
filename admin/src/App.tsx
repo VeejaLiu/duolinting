@@ -44,10 +44,16 @@ function App() {
     loadStoredAdminUser,
   )
   const [loginForm, setLoginForm] = useState({
-    username: 'admin',
+    email: '',
     password: '',
   })
   const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [confirmState, setConfirmState] = useState<{
     open: boolean
     title: string
@@ -129,7 +135,7 @@ function App() {
     }
     setCategoryGroups(catalog.categoryGroups)
     setCategories(catalog.categories)
-  }, [adminToken])
+  }, [adminToken, showNotice])
 
   const loadExercises = useCallback(async () => {
     const nextExercises = await apiClient.getAdminExercises(adminToken)
@@ -146,7 +152,11 @@ function App() {
       // 启动时先校验本地保存的 token 是否仍然有效；
       // 过期或后端不可用视为登录态失效，清空会话回登录页，避免界面假死。
       try {
-        await apiClient.getCurrentAdmin(adminToken)
+        const currentAdmin = await apiClient.getCurrentAdmin(adminToken)
+        // 旧浏览器本地可能还缓存 role="admin"。以后端会话返回的规范角色为准，
+        // 这样迁移后的超级管理员无需手动清除浏览器缓存就能看见协作管理面板。
+        localStorage.setItem(ADMIN_USER_STORAGE_KEY, JSON.stringify(currentAdmin))
+        setAdminUser(currentAdmin)
       } catch {
         clearAdminSession()
         showNotice('管理员登录已过期，请重新登录', 'error')
@@ -193,6 +203,33 @@ function App() {
     void login()
   }
 
+  const changeRequiredPassword = async () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      showNotice('两次输入的新密码不一致', 'error')
+      return
+    }
+    setIsChangingPassword(true)
+    try {
+      const updatedUser = await apiClient.changeAdminPassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      }, adminToken)
+      localStorage.setItem(ADMIN_USER_STORAGE_KEY, JSON.stringify(updatedUser))
+      setAdminUser(updatedUser)
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      showNotice('密码已修改，欢迎进入管理后台', 'success')
+    } catch (error) {
+      showNotice(error instanceof Error ? error.message : '密码修改失败', 'error')
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+
+  const handleChangeRequiredPassword: React.FormEventHandler<HTMLFormElement> = (event) => {
+    event.preventDefault()
+    void changeRequiredPassword()
+  }
+
   const loginPage = (
     <main className="app-shell login-shell">
       <section className="login-page" aria-label="管理员登录">
@@ -213,17 +250,21 @@ function App() {
             </div>
           </div>
           <label className="field">
-            <span>账户名</span>
+            <span>登录邮箱</span>
             <input
-              autoComplete="username"
-              value={loginForm.username}
+              autoComplete="email"
+              inputMode="email"
+              // 输入框保持文本类型，使尚未迁移邮箱的历史管理员仍可使用旧账号完成登录。
+              // 新开通的账号由服务端强制校验为邮箱，正常流程不会受到这一过渡兼容影响。
+              type="text"
+              value={loginForm.email}
               onChange={(event) =>
                 setLoginForm((current) => ({
                   ...current,
-                  username: event.target.value,
+                  email: event.target.value,
                 }))
               }
-              placeholder="admin"
+              placeholder="name@example.com"
             />
           </label>
           <label className="field">
@@ -249,6 +290,65 @@ function App() {
     </main>
   )
 
+  const requiredPasswordPage = (
+    <main className="app-shell login-shell">
+      <section className="login-page" aria-label="修改初始密码">
+        <div className="login-brand">
+          <img alt="DuolinTing" className="login-brand-logo" src="/duolinting-logo-ear.png" />
+          <div className="login-brand-copy">
+            <h1>欢迎加入</h1>
+            <p>请先保护你的后台账号</p>
+          </div>
+        </div>
+
+        <form className="login-panel" onSubmit={handleChangeRequiredPassword}>
+          <div className="login-panel-head">
+            <LockKeyhole size={20} aria-hidden="true" />
+            <div>
+              <h2>修改初始密码</h2>
+              <p>这是管理员为你开通的临时密码。修改后才能进入管理后台。</p>
+            </div>
+          </div>
+          <label className="field">
+            <span>临时密码</span>
+            <input
+              autoComplete="current-password"
+              type="password"
+              value={passwordForm.currentPassword}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
+            />
+          </label>
+          <label className="field">
+            <span>新密码（至少 8 位）</span>
+            <input
+              autoComplete="new-password"
+              minLength={8}
+              type="password"
+              value={passwordForm.newPassword}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
+            />
+          </label>
+          <label className="field">
+            <span>确认新密码</span>
+            <input
+              autoComplete="new-password"
+              minLength={8}
+              type="password"
+              value={passwordForm.confirmPassword}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+            />
+          </label>
+          <button className="command-button" disabled={isChangingPassword || passwordForm.newPassword.length < 8} type="submit">
+            {isChangingPassword ? '保存中' : '确认并进入后台'}
+          </button>
+          <button className="command-button secondary" disabled={isChangingPassword} onClick={() => void logout()} type="button">
+            退出登录
+          </button>
+        </form>
+      </section>
+    </main>
+  )
+
   if (!isAuthenticated) {
     return (
       <Routes>
@@ -259,6 +359,14 @@ function App() {
   }
 
   const currentAdminUser = adminUser as AdminUser
+
+  if (currentAdminUser.mustChangePassword) {
+    return (
+      <Routes>
+        <Route path="*" element={requiredPasswordPage} />
+      </Routes>
+    )
+  }
 
   return (
     <main className="app-shell">

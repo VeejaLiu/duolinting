@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { ConfigProvider, Layout } from 'antd'
+import { ConfigProvider, Input, Layout, Modal, Space, Typography } from 'antd'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import type {
   AcceptedAnswerFeedback,
@@ -29,6 +29,7 @@ import {
 import { CourseManager } from './admin/CourseManager'
 import { DirectoryManager } from './admin/DirectoryManager'
 import { ListeningVideoRecorder } from './admin/ListeningVideoRecorder'
+import { CollaborationManager } from './admin/CollaborationManager'
 import { apiClient } from '../lib/apiClient'
 
 type ContentAdminProps = {
@@ -145,6 +146,8 @@ export function ContentAdmin({
   const [growthLoading, setGrowthLoading] = useState(false)
   const [importerDraft, setImporterDraft] = useState<ImporterDraft>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [reviewingExercise, setReviewingExercise] = useState<import('@duolinting/shared').ListeningExercise | null>(null)
+  const [reviewNote, setReviewNote] = useState('')
   const [importerHasUnsavedChanges, setImporterHasUnsavedChanges] = useState(false)
   const importerHasUnsavedChangesRef = useRef(false)
   const onRequestConfirmRef = useRef(onRequestConfirm)
@@ -153,6 +156,9 @@ export function ContentAdmin({
   const lastImporterRouteKeyRef = useRef('')
 
   const activeSection = useMemo<AdminSection>(() => {
+    if (location.pathname.startsWith('/collaboration')) {
+      return 'collaboration'
+    }
     if (location.pathname.startsWith('/directory')) {
       return 'directory'
     }
@@ -174,6 +180,16 @@ export function ContentAdmin({
     return 'directory'
   }, [location.pathname])
 
+  // 贡献者可直接输入旧链接或书签；统一回到其被分配的课程列表，避免展示没有写权限的工作区。
+  useEffect(() => {
+    if (
+      adminUser.role === 'subtitle_contributor' &&
+      !['courses', 'importer'].includes(activeSection)
+    ) {
+      navigate('/courses', { replace: true })
+    }
+  }, [activeSection, adminUser.role, navigate])
+
   const refreshWorkspaceCatalog = useCallback(async () => {
     setIsCatalogLoading(true)
     setCatalogLoadError('')
@@ -190,7 +206,9 @@ export function ContentAdmin({
   }, [onEnsureCatalog, onNotify])
 
   useEffect(() => {
-    if (activeSection !== 'directory' && activeSection !== 'courses' && activeSection !== 'importer' && activeSection !== 'recorder') {
+    // 课程授权要按“内容分类 → 学习系列 → 课程”分级显示，
+    // 因此进入人员管理时也必须刷新目录数据，不能只依赖此前访问过课程页的缓存。
+    if (activeSection !== 'directory' && activeSection !== 'courses' && activeSection !== 'importer' && activeSection !== 'recorder' && activeSection !== 'collaboration') {
       return
     }
 
@@ -198,7 +216,8 @@ export function ContentAdmin({
   }, [activeSection, refreshWorkspaceCatalog])
 
   useEffect(() => {
-    if (activeSection !== 'importer' && activeSection !== 'recorder') {
+    // 协作页的课程授权同样需要完整课程列表，用于逐级勾选和全选。
+    if (activeSection !== 'importer' && activeSection !== 'recorder' && activeSection !== 'collaboration') {
       return
     }
 
@@ -248,6 +267,7 @@ export function ContentAdmin({
       location.pathname === '/importer/new' ||
       /^\/importer\/[^/]+$/.test(location.pathname) ||
       location.pathname === '/directory' ||
+      location.pathname === '/collaboration' ||
       location.pathname === '/courses' ||
       location.pathname === '/recorder' ||
       location.pathname === '/feedback' ||
@@ -541,6 +561,8 @@ export function ContentAdmin({
     navigate(
       section === 'directory'
         ? '/directory'
+        : section === 'collaboration'
+          ? '/collaboration'
         : section === 'courses'
           ? '/courses'
           : section === 'recorder'
@@ -739,6 +761,7 @@ export function ContentAdmin({
           onRegisterSaveBeforeLeave={(handler) => {
             saveImporterBeforeLeaveRef.current = handler
           }}
+          adminRole={adminUser.role}
         />
       )}
 
@@ -825,6 +848,22 @@ export function ContentAdmin({
               throw error
             }
           }}
+          canManageCourses={adminUser.role === 'super_admin'}
+          onReviewSubtitleDraft={(exercise) => {
+            void (async () => {
+              try {
+                const detail = await apiClient.getAdminExercise(exercise.id, adminToken)
+                if (!detail.subtitleDrafts?.length) {
+                  onNotify('这门课程当前没有待二次审核的字幕稿', 'info')
+                  return
+                }
+                setReviewNote('')
+                setReviewingExercise(detail)
+              } catch (error) {
+                onNotify(error instanceof Error ? error.message : '加载字幕稿失败', 'error')
+              }
+            })()
+          }}
         />
       )}
 
@@ -856,6 +895,63 @@ export function ContentAdmin({
           }}
         />
       )}
+
+      {activeSection === 'collaboration' && adminUser.role === 'super_admin' && (
+        <CollaborationManager
+          adminToken={adminToken}
+          categoryGroups={categoryGroups}
+          categories={categories}
+          exercises={exercises}
+          onEnsureExercises={onEnsureExercises}
+          onNotify={onNotify}
+        />
+      )}
+
+      <Modal
+        footer={null}
+        onCancel={() => { setReviewingExercise(null); setReviewNote('') }}
+        open={Boolean(reviewingExercise)}
+        title={reviewingExercise ? `二次审核：${reviewingExercise.title}` : '二次审核'}
+        width={760}
+      >
+        {reviewingExercise?.subtitleDrafts?.map((subtitleDraft) => (
+          <section key={subtitleDraft.id} style={{ borderTop: '1px solid #f0f0f0', marginTop: 16, paddingTop: 16 }}>
+            <Space direction="vertical" size={10} style={{ display: 'flex' }}>
+              <Typography.Text><strong>{subtitleDraft.contributorDisplayName}</strong> 提交的校对稿，共 {subtitleDraft.lines.length} 句。</Typography.Text>
+              <Typography.Paragraph style={{ maxHeight: 230, overflow: 'auto', whiteSpace: 'pre-wrap' }}>
+                {subtitleDraft.lines.map((line) => `[${line.start.toFixed(3)}–${line.end.toFixed(3)}] ${line.text}`).join('\n')}
+              </Typography.Paragraph>
+              <Input.TextArea
+                onChange={(event) => setReviewNote(event.target.value)}
+                placeholder="退回时请填写修改意见"
+                rows={3}
+                value={reviewNote}
+              />
+              <Space>
+                <Typography.Text type="secondary">审核通过会替换正式字幕并发布；退回不会影响当前已发布版本。</Typography.Text>
+                <Space>
+                  <button className="ant-btn" disabled={!reviewNote.trim()} onClick={() => {
+                    void runAdminTask(async () => {
+                      await apiClient.returnSubtitleDraft(subtitleDraft.id, reviewNote.trim(), adminToken)
+                      setReviewingExercise(null)
+                      await onRefreshCatalog()
+                      onNotify('字幕稿已退回并附上修改意见', 'success')
+                    }, '退回字幕稿失败')
+                  }}>退回修改</button>
+                  <button className="ant-btn ant-btn-primary" onClick={() => {
+                    void runAdminTask(async () => {
+                      await apiClient.approveSubtitleDraft(subtitleDraft.id, adminToken)
+                      setReviewingExercise(null)
+                      await onRefreshCatalog()
+                      onNotify('字幕稿已通过二次审核并发布', 'success')
+                    }, '审核发布失败')
+                  }}>审核通过并发布</button>
+                </Space>
+              </Space>
+            </Space>
+          </section>
+        ))}
+      </Modal>
         </Layout.Content>
       </Layout>
     </ConfigProvider>

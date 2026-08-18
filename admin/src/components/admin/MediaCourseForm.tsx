@@ -13,6 +13,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Save,
+  Send,
   Upload,
 } from 'lucide-react'
 import {
@@ -92,6 +93,7 @@ type MediaCourseFormProps = {
   courseForm: CreateExerciseRequest
   isSaving: boolean
   isSidebarCollapsed: boolean
+  isSubtitleContributor?: boolean
   saveDisabledReason?: string
   localMediaUrl: string
   mediaSize: number | null
@@ -112,6 +114,7 @@ type MediaCourseFormProps = {
   onNotify: (message: string, tone?: AdminNoticeTone) => void
   onFileChange: (file: File | null) => void
   onSaveLesson: () => void
+  onSubmitSubtitleDraft?: () => void
   onToggleSidebar: () => void
 }
 
@@ -166,6 +169,7 @@ export function MediaCourseForm({
   courseForm,
   isSaving,
   isSidebarCollapsed,
+  isSubtitleContributor = false,
   saveDisabledReason,
   localMediaUrl,
   mediaSize,
@@ -186,6 +190,7 @@ export function MediaCourseForm({
   onNotify,
   onFileChange,
   onSaveLesson,
+  onSubmitSubtitleDraft,
   onToggleSidebar,
 }: MediaCourseFormProps) {
   const [localizationLocale, setLocalizationLocale] = useState<ContentLocale>('en-US')
@@ -328,7 +333,11 @@ export function MediaCourseForm({
             </button>
           </div>
 
-          <div className="form-grid compact-form-grid">
+          <fieldset
+            className="form-grid compact-form-grid"
+            disabled={isSubtitleContributor}
+            style={{ border: 0, margin: 0, minInlineSize: 0, padding: 0 }}
+          >
             <FieldSelect
               label="内容分类"
               value={selectedGroupId}
@@ -413,9 +422,17 @@ export function MediaCourseForm({
               }
               options={[
                 { value: 'draft', label: '草稿' },
-                { value: 'published', label: '发布' },
+                ...(courseForm.status === 'proofread' ? [{ value: 'proofread', label: '已校对' }] : []),
+                ...(courseForm.status === 'published' ? [{ value: 'published', label: '已发布' }] : []),
+                ...(courseForm.status === 'archived' ? [{ value: 'archived', label: '已归档' }] : []),
               ]}
             />
+
+            {isSubtitleContributor && (
+              <div className="field wide">
+                <small>“保存校对草稿”只保存给你自己，不影响学习端；确认完成后请点“提交校对”，由超级管理员二次审核。课程元数据与媒体仅由超级管理员维护。</small>
+              </div>
+            )}
 
             <label className="field">
               <span>来源</span>
@@ -492,7 +509,7 @@ export function MediaCourseForm({
                 onNotify={onNotify}
               />
             </label>
-          </div>
+          </fieldset>
         </section>
         )}
       </aside>
@@ -511,8 +528,20 @@ export function MediaCourseForm({
             type="button"
           >
             <Save size={16} aria-hidden="true" />
-            {isSaving ? '保存中' : '保存'}
+            {isSaving ? '保存中' : isSubtitleContributor ? '保存校对草稿' : '保存'}
           </button>
+          {isSubtitleContributor && onSubmitSubtitleDraft && (
+            <button
+              className="command-button meta-save-command"
+              disabled={isSaving || Boolean(saveDisabledReason)}
+              onClick={onSubmitSubtitleDraft}
+              title={saveDisabledReason}
+              type="button"
+            >
+              <Send size={16} aria-hidden="true" />
+              提交校对
+            </button>
+          )}
         </div>
 
         <div className="media-preview-row">
@@ -542,7 +571,7 @@ export function MediaCourseForm({
             </span>
             <input
               accept="audio/*,video/*"
-              disabled={isSaving || Boolean(mediaUploadProgress)}
+              disabled={isSubtitleContributor || isSaving || Boolean(mediaUploadProgress)}
               type="file"
               onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
             />
