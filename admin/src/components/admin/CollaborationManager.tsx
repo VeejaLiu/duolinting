@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button, Card, Checkbox, Dropdown, Form, Input, List, Modal, Radio, Select, Space, Switch, Tag, Typography } from 'antd'
-import { MoreHorizontal, UserPlus, UsersRound } from 'lucide-react'
+import { ArrowLeft, MoreHorizontal, UserPlus, UsersRound } from 'lucide-react'
 import type { AdminMember, AdminMemberProvisioning, AdminRole, CatalogExerciseSummary, ExerciseCategory, MaterialCategory, PreviewVolunteer } from '@duolinting/shared'
 import { apiClient } from '../../lib/apiClient'
 
@@ -268,7 +268,6 @@ export function CollaborationManager({
         optionType="button"
         options={[
           { label: '后台人员', value: 'members' },
-          { label: '课程授权', value: 'assignments' },
           { label: '学习端成员', value: 'learners' },
         ]}
         value={activeArea}
@@ -295,6 +294,7 @@ export function CollaborationManager({
                 menu={{
                   items: [
                     { key: 'edit', label: '编辑资料' },
+                    ...(member.role === 'subtitle_contributor' ? [{ key: 'assignments', label: '课程授权' as const }] : []),
                     { key: 'reset-password', label: '重设密码' },
                     { key: 'force-password', label: '强制下次改密' },
                     { type: 'divider' },
@@ -305,6 +305,10 @@ export function CollaborationManager({
                     if (key === 'edit') {
                       setProfileTarget(member)
                       setProfileForm({ email: member.email, displayName: member.displayName, role: member.role })
+                    } else if (key === 'assignments') {
+                      setAssignmentTarget(member)
+                      setAssignmentIds(member.assignedExerciseIds)
+                      setActiveArea('assignments')
                     } else if (key === 'reset-password') {
                       setPasswordTarget(member)
                     } else if (key === 'force-password') {
@@ -337,12 +341,16 @@ export function CollaborationManager({
         />
       </Card>}
 
-      {activeArea === 'assignments' && <Card loading={loading} title="课程授权">
+      {activeArea === 'assignments' && <Card
+        extra={<Button icon={<ArrowLeft size={15} />} onClick={() => { setActiveArea('members'); setAssignmentTarget(null) }}>返回人员列表</Button>}
+        loading={loading}
+        title={assignmentTarget ? `${assignmentTarget.displayName} · 课程授权` : '课程授权'}
+      >
         <Typography.Paragraph type="secondary">
           课程与人员的协作关系仅在这里维护。超级管理员默认拥有所有课程权限，无需分配。
         </Typography.Paragraph>
         <Form layout="vertical">
-          <Form.Item label="字幕贡献者">
+          <Form.Item label="字幕贡献者（可切换人员）">
             <Select
               allowClear
               onChange={(memberId: number | undefined) => {
@@ -376,7 +384,16 @@ export function CollaborationManager({
               <Space>
                 <Button disabled={assignmentIds.length === sortedExercises.length} onClick={() => setAssignmentIds(sortedExercises.map((exercise) => exercise.id))}>全选所有课程</Button>
                 <Button disabled={assignmentIds.length === 0} onClick={() => setAssignmentIds([])}>取消全选</Button>
-                <Button loading={saving} onClick={() => void saveAssignments()} type="primary">保存课程权限</Button>
+                <Button
+                  loading={saving}
+                  onClick={() => Modal.confirm({
+                    title: `保存 ${assignmentTarget.displayName} 的课程权限？`,
+                    content: `将保留当前勾选的 ${assignmentIds.length} 门课程，未勾选的课程将移除编辑权限。`,
+                    okText: '确认保存',
+                    onOk: () => saveAssignments(),
+                  })}
+                  type="primary"
+                >保存课程权限</Button>
               </Space>
             </div>
 
