@@ -570,14 +570,16 @@ function LearnerAppShell() {
                     <BookOpenText size={18} />
                   </div>
                   <div className="study-chapter-banner-copy">
-                    <p className="study-chapter-banner-kicker">{t('app.chapterBanner.kicker')}</p>
+                    <div className="study-chapter-banner-kicker-row">
+                      <p className="study-chapter-banner-kicker">{t('app.chapterBanner.kicker')}</p>
+                      <ContributorCredits
+                        contributors={activeExercise.contributors}
+                        workflowCredits={activeExercise.workflowCredits}
+                      />
+                    </div>
                     <strong className="study-chapter-banner-title">
                       {activeExercise.title}
                     </strong>
-                    <ContributorCredits
-                      contributors={activeExercise.contributors}
-                      workflowCredits={activeExercise.workflowCredits}
-                    />
                   </div>
 	                  <div className="study-chapter-banner-metrics">
 	                    <span>

@@ -318,6 +318,14 @@
   margin: 0;
 }
 
+.study-chapter-banner-kicker-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-height: 18px;
+}
+
 .study-chapter-banner-title {
   color: #ffffff;
   display: block;
@@ -334,7 +342,7 @@
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .study-chapter-banner-credit {
@@ -344,11 +352,11 @@
   border-radius: 999px;
   color: #ffffff;
   display: inline-flex;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   line-height: 1.25;
-  min-height: 26px;
-  padding: 4px 9px;
+  min-height: 22px;
+  padding: 2px 7px;
   text-shadow: 0 1px 0 rgba(15, 40, 70, 0.16);
 }
 
