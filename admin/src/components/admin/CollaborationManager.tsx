@@ -198,6 +198,67 @@ export function CollaborationManager({
     })
   }, [memberRoleFilter, memberSearch, memberStatusFilter, members])
 
+  const adminMembers = filteredMembers.filter((member) => member.role === 'super_admin')
+  const contributorMembers = filteredMembers.filter((member) => member.role === 'subtitle_contributor')
+
+  const memberList = (items: AdminMember[], emptyText: string) => (
+    <List
+      dataSource={items}
+      locale={{ emptyText }}
+      renderItem={(member) => (
+        <List.Item actions={[
+          <Dropdown
+            key="actions"
+            menu={{
+              items: [
+                { key: 'edit', label: '编辑资料' },
+                ...(member.role === 'subtitle_contributor' ? [{ key: 'assignments', label: '课程授权' as const }] : []),
+                { key: 'reset-password', label: '重设密码' },
+                { key: 'force-password', label: '强制下次改密' },
+                { type: 'divider' },
+                { key: 'revoke', label: '撤销全部会话' },
+                { key: 'status', danger: member.isActive, label: member.isActive ? '停用账号' : '启用账号' },
+              ],
+              onClick: ({ key }) => {
+                if (key === 'edit') {
+                  setProfileTarget(member)
+                  setProfileForm({ email: member.email, displayName: member.displayName, role: member.role })
+                } else if (key === 'assignments') {
+                  setAssignmentTarget(member)
+                  setAssignmentIds(member.assignedExerciseIds)
+                  setActiveArea('assignments')
+                } else if (key === 'reset-password') {
+                  setPasswordTarget(member)
+                } else if (key === 'force-password') {
+                  setForcePasswordTarget(member)
+                } else if (key === 'revoke') {
+                  Modal.confirm({ title: `撤销 ${member.displayName} 的登录会话？`, content: '该成员需要重新登录，账号资料和课程权限不会改变。', okText: '确认撤销', onOk: () => revokeSessions(member) })
+                } else if (key === 'status') {
+                  Modal.confirm({ title: member.isActive ? `停用 ${member.displayName}？` : `启用 ${member.displayName}？`, content: member.isActive ? '停用后立即无法登录，并会撤销当前会话。历史贡献和课程关系会保留。' : '启用后该成员可以重新登录。', okText: member.isActive ? '停用账号' : '启用账号', okButtonProps: { danger: member.isActive }, onOk: () => changeMemberStatus(member, !member.isActive) })
+                }
+              },
+            }}
+            trigger={['click']}
+          >
+            <Button icon={<MoreHorizontal size={16} />}>更多操作</Button>
+          </Dropdown>,
+        ]}>
+          <List.Item.Meta
+            title={(
+              <Space wrap>
+                <span>{member.displayName}</span>
+                <Tag color={member.role === 'super_admin' ? 'purple' : 'blue'}>{roleLabel(member.role)}</Tag>
+                <Tag color={member.isActive ? 'green' : 'default'}>{member.isActive ? '正常' : '已停用'}</Tag>
+                {member.mustChangePassword && <Tag color="orange">待首次改密</Tag>}
+              </Space>
+            )}
+            description={<Space direction="vertical" size={2}><span>{member.email} · {member.role === 'subtitle_contributor' ? `负责 ${member.assignedExerciseIds.length} 门课程` : '拥有完整后台管理权限'}</span><Typography.Text type="secondary">创建于 {formatDate(member.createdAt)} · 最近登录 {formatDate(member.lastLoginAt)}</Typography.Text></Space>}
+          />
+        </List.Item>
+      )}
+    />
+  )
+
   const formatDate = (value?: string) => value ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '从未登录'
 
   const credentialText = provisionedMember
@@ -282,63 +343,12 @@ export function CollaborationManager({
           <Input allowClear onChange={(event) => setMemberSearch(event.target.value)} placeholder="搜索姓名或邮箱" value={memberSearch} style={{ width: 260 }} />
           <Select onChange={setMemberRoleFilter} options={[{ label: '全部角色', value: 'all' }, { label: '超级管理员', value: 'super_admin' }, { label: '字幕贡献者', value: 'subtitle_contributor' }]} value={memberRoleFilter} style={{ width: 150 }} />
           <Select onChange={setMemberStatusFilter} options={[{ label: '全部状态', value: 'all' }, { label: '正常', value: 'active' }, { label: '已停用', value: 'inactive' }]} value={memberStatusFilter} style={{ width: 130 }} />
-          <Typography.Text type="secondary">共 {filteredMembers.length} 人</Typography.Text>
+          <Typography.Text type="secondary">管理员 {adminMembers.length} 人 · 字幕贡献者 {contributorMembers.length} 人</Typography.Text>
         </Space>
-        <List
-          dataSource={filteredMembers}
-          locale={{ emptyText: '尚未添加后台成员。' }}
-          renderItem={(member) => (
-            <List.Item actions={[
-              <Dropdown
-                key="actions"
-                menu={{
-                  items: [
-                    { key: 'edit', label: '编辑资料' },
-                    ...(member.role === 'subtitle_contributor' ? [{ key: 'assignments', label: '课程授权' as const }] : []),
-                    { key: 'reset-password', label: '重设密码' },
-                    { key: 'force-password', label: '强制下次改密' },
-                    { type: 'divider' },
-                    { key: 'revoke', label: '撤销全部会话' },
-                    { key: 'status', danger: member.isActive, label: member.isActive ? '停用账号' : '启用账号' },
-                  ],
-                  onClick: ({ key }) => {
-                    if (key === 'edit') {
-                      setProfileTarget(member)
-                      setProfileForm({ email: member.email, displayName: member.displayName, role: member.role })
-                    } else if (key === 'assignments') {
-                      setAssignmentTarget(member)
-                      setAssignmentIds(member.assignedExerciseIds)
-                      setActiveArea('assignments')
-                    } else if (key === 'reset-password') {
-                      setPasswordTarget(member)
-                    } else if (key === 'force-password') {
-                      setForcePasswordTarget(member)
-                    } else if (key === 'revoke') {
-                      Modal.confirm({ title: `撤销 ${member.displayName} 的登录会话？`, content: '该成员需要重新登录，账号资料和课程权限不会改变。', okText: '确认撤销', onOk: () => revokeSessions(member) })
-                    } else if (key === 'status') {
-                      Modal.confirm({ title: member.isActive ? `停用 ${member.displayName}？` : `启用 ${member.displayName}？`, content: member.isActive ? '停用后立即无法登录，并会撤销当前会话。历史贡献和课程关系会保留。' : '启用后该成员可以重新登录。', okText: member.isActive ? '停用账号' : '启用账号', okButtonProps: { danger: member.isActive }, onOk: () => changeMemberStatus(member, !member.isActive) })
-                    }
-                  },
-                }}
-                trigger={['click']}
-              >
-                <Button icon={<MoreHorizontal size={16} />}>更多操作</Button>
-              </Dropdown>,
-            ]}>
-              <List.Item.Meta
-                title={(
-                  <Space wrap>
-                    <span>{member.displayName}</span>
-                    <Tag color={member.role === 'super_admin' ? 'purple' : 'blue'}>{roleLabel(member.role)}</Tag>
-                    <Tag color={member.isActive ? 'green' : 'default'}>{member.isActive ? '正常' : '已停用'}</Tag>
-                    {member.mustChangePassword && <Tag color="orange">待首次改密</Tag>}
-                  </Space>
-                )}
-                description={<Space direction="vertical" size={2}><span>{member.email} · {member.role === 'subtitle_contributor' ? `负责 ${member.assignedExerciseIds.length} 门课程` : '拥有完整后台管理权限'}</span><Typography.Text type="secondary">创建于 {formatDate(member.createdAt)} · 最近登录 {formatDate(member.lastLoginAt)}</Typography.Text></Space>}
-              />
-            </List.Item>
-          )}
-        />
+        <Space direction="vertical" size={20} style={{ display: 'flex' }}>
+          <Card size="small" title={`管理员账号（${adminMembers.length}）`}>{memberList(adminMembers, '暂无管理员账号。')}</Card>
+          <Card size="small" title={`字幕贡献者（${contributorMembers.length}）`}>{memberList(contributorMembers, '暂无字幕贡献者。')}</Card>
+        </Space>
       </Card>}
 
       {activeArea === 'assignments' && <Card
