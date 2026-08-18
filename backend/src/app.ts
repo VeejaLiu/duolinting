@@ -7,6 +7,7 @@ import { banner } from './lib/banner';
 import { loadMonitor } from './loaders/loadMonitor';
 import { loadWinston } from './loaders/winstonLoader';
 import { env } from './env';
+import { preparePublicMediaDelivery } from './general/media/media-service';
 import { closeSequelize } from './models/db-config-mysql';
 import { requestLogger } from './lib/requestLogger';
 
@@ -18,11 +19,18 @@ async function Main() {
     // use nginx's sanitized X-Forwarded-For value for authentication rate limits.
     app.set('trust proxy', 1);
     const server = http.createServer(app);
-    const allowedOrigins = env.cors.origins.split(',').map((origin) => origin.trim());
-    const localhostOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+    const allowedOrigins = env.cors.origins
+        .split(',')
+        .map((origin) => origin.trim());
+    const localhostOriginPattern =
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
     const privateNetworkOriginPattern =
         /^https?:\/\/(10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})(:\d+)?$/;
     loadWinston();
+
+    // CDN 直连媒体必须先确保 MinIO 仅开放匿名读取，才能让 nginx 绕过
+    // Express 取得对象。未设置 MEDIA_PUBLIC_BASE_URL 时该调用是无操作。
+    await preparePublicMediaDelivery();
 
     app.use(requestLogger);
     app.use((req, res, next) => {
@@ -34,7 +42,8 @@ async function Main() {
         const isAllowedDevelopmentOrigin =
             env.isDevelopment &&
             typeof origin === 'string' &&
-            (localhostOriginPattern.test(origin) || privateNetworkOriginPattern.test(origin));
+            (localhostOriginPattern.test(origin) ||
+                privateNetworkOriginPattern.test(origin));
 
         if (
             !origin ||
@@ -45,7 +54,10 @@ async function Main() {
             res.header('Access-Control-Allow-Origin', origin || '*');
         }
         res.header('Access-Control-Allow-Headers', '*');
-        res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+        res.header(
+            'Access-Control-Allow-Methods',
+            'GET,POST,PUT,DELETE,OPTIONS',
+        );
         if (req.method === 'OPTIONS') {
             return res.sendStatus(204);
         }

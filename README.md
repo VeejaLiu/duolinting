@@ -87,16 +87,16 @@ DuolinTing 是一个独立的开源项目，并非 YouZack 官方产品；上述
 
 这是一个 npm workspaces monorepo：
 
-| 项目 | 用途 | 主要技术 |
-| --- | --- | --- |
-| `web-app` | 浏览器学习端 | React 19、Vite、Radix UI |
-| `mobile-app` | iOS、Android 与移动 Web 学习端 | Expo 54、React Native |
-| `official-site` | 独立产品官网、网页学习端引导与 Android 下载说明 | vinext、React 19、Node.js 22 |
-| `admin` | 内容管理与真实媒体制课 | React 19、Ant Design、WaveSurfer |
-| `backend` | 目录、课程、账号、进度、反馈和媒体 API | Node.js、Express 5、Sequelize |
-| `packages/*` | 领域类型、API 客户端、运行配置和设计令牌 | TypeScript |
+| 项目            | 用途                                            | 主要技术                         |
+| --------------- | ----------------------------------------------- | -------------------------------- |
+| `web-app`       | 浏览器学习端                                    | React 19、Vite、Radix UI         |
+| `mobile-app`    | iOS、Android 与移动 Web 学习端                  | Expo 54、React Native            |
+| `official-site` | 独立产品官网、网页学习端引导与 Android 下载说明 | vinext、React 19、Node.js 22     |
+| `admin`         | 内容管理与真实媒体制课                          | React 19、Ant Design、WaveSurfer |
+| `backend`       | 目录、课程、账号、进度、反馈和媒体 API          | Node.js、Express 5、Sequelize    |
+| `packages/*`    | 领域类型、API 客户端、运行配置和设计令牌        | TypeScript                       |
 
-本地基础设施使用 MySQL、MinIO 和 Flyway。生产部署可以把三个前端作为独立应用运行，并通过同源 `/api/` 访问统一后端。
+本地基础设施使用 MySQL、MinIO 和 Flyway。生产部署可以把三个前端作为独立应用运行，并通过同源 `/api/` 访问统一后端。媒体流量较大时，可启用 [Cloudflare 媒体 CDN](docs/cloudflare-media-cdn.md)，使视频和音频直接从边缘缓存回源到 MinIO，不占用 Express 的播放带宽。
 
 ## 快速开始
 

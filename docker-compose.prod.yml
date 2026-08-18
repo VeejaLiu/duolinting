@@ -7,7 +7,6 @@ x-default-logging: &default-logging
     max-file: "5"
 
 services:
-
   mysql:
     image: mysql:8.4
     restart: unless-stopped
@@ -19,7 +18,11 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD}"]
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -59,8 +62,10 @@ services:
     volumes:
       - minio_data:/data
     ports:
-      - "${MINIO_PUBLIC_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PUBLIC_PORT:-9001}:9001"
+      # 对象读取由 reverse-proxy 的 /media/ 入口承接，避免绕过 Cloudflare
+      # 直接消耗源站带宽。仅本机可访问端口保留给运维和故障排查。
+      - "127.0.0.1:${MINIO_PUBLIC_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PUBLIC_PORT:-9001}:9001"
     logging: *default-logging
     networks:
       - duolinting-network
@@ -99,7 +104,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET: ${MINIO_BUCKET}
-      MINIO_PUBLIC_BASE_URL: ${PUBLIC_API_BASE_URL}/api/v1/media/objects
+      MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:-}
       ZHIPU_API_KEY: ${ZHIPU_API_KEY:-}
       ZHIPU_MODEL: ${ZHIPU_MODEL:-glm-4-flash}
     logging: *default-logging

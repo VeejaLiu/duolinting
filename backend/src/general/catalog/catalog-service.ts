@@ -14,7 +14,13 @@ import type {
     TranscriptLine,
 } from '../../domain';
 import { env } from '../../env';
-import { deleteMediaObject, statMediaObject } from '../media/media-service';
+import {
+    buildPublicMediaUrl,
+    buildStoredMediaUrl,
+    deleteMediaObject,
+    getManagedMediaObjectName,
+    statMediaObject,
+} from '../media/media-service';
 import { Logger } from '../../lib/logger';
 import { doRawQuery } from '../../models';
 import { sequelize } from '../../models/db-config-mysql';
@@ -49,11 +55,20 @@ type ExerciseRow = {
     created_at?: Date | string;
 };
 
-const supportedContentLocales = new Set<ContentLocale>(['zh-CN', 'en-US', 'th-TH', 'ja-JP']);
+const supportedContentLocales = new Set<ContentLocale>([
+    'zh-CN',
+    'en-US',
+    'th-TH',
+    'ja-JP',
+]);
 
-export const parseContentLocale = (value: unknown): ContentLocale | undefined => {
+export const parseContentLocale = (
+    value: unknown,
+): ContentLocale | undefined => {
     const locale = typeof value === 'string' ? value.trim() : '';
-    return supportedContentLocales.has(locale as ContentLocale) ? locale as ContentLocale : undefined;
+    return supportedContentLocales.has(locale as ContentLocale)
+        ? (locale as ContentLocale)
+        : undefined;
 };
 
 const parseJsonObject = (value: unknown): Record<string, unknown> => {
@@ -66,50 +81,81 @@ const parseJsonObject = (value: unknown): Record<string, unknown> => {
     try {
         const parsed = JSON.parse(value) as unknown;
         return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-            ? parsed as Record<string, unknown>
+            ? (parsed as Record<string, unknown>)
             : {};
     } catch {
         return {};
     }
 };
 
-const normalizeTranslations = (value: unknown) => Object.fromEntries(
-    Object.entries(parseJsonObject(value))
-        .filter(([locale, translation]) => supportedContentLocales.has(locale as ContentLocale) && typeof translation === 'string')
-        .map(([locale, translation]) => [locale, cleanSubtitleSpacing(translation as string)])
-        .filter(([, translation]) => Boolean(translation)),
-) as Partial<Record<ContentLocale, string>>;
+const normalizeTranslations = (value: unknown) =>
+    Object.fromEntries(
+        Object.entries(parseJsonObject(value))
+            .filter(
+                ([locale, translation]) =>
+                    supportedContentLocales.has(locale as ContentLocale) &&
+                    typeof translation === 'string',
+            )
+            .map(([locale, translation]) => [
+                locale,
+                cleanSubtitleSpacing(translation as string),
+            ])
+            .filter(([, translation]) => Boolean(translation)),
+    ) as Partial<Record<ContentLocale, string>>;
 
-const normalizeDirectoryLocalizations = (value: unknown) => Object.fromEntries(
-    Object.entries(parseJsonObject(value))
-        .filter(([locale, item]) => supportedContentLocales.has(locale as ContentLocale) && item && typeof item === 'object')
-        .map(([locale, item]) => {
-            const source = item as Record<string, unknown>;
-            const normalized: LocalizedDirectoryContent = {
-                ...(typeof source.name === 'string' && source.name.trim() ? { name: source.name.trim() } : {}),
-                ...(typeof source.description === 'string' && source.description.trim() ? { description: source.description.trim() } : {}),
-            };
-            return [locale, normalized];
-        })
-        .filter(([, item]) => Object.keys(item as object).length > 0),
-) as Partial<Record<ContentLocale, LocalizedDirectoryContent>>;
+const normalizeDirectoryLocalizations = (value: unknown) =>
+    Object.fromEntries(
+        Object.entries(parseJsonObject(value))
+            .filter(
+                ([locale, item]) =>
+                    supportedContentLocales.has(locale as ContentLocale) &&
+                    item &&
+                    typeof item === 'object',
+            )
+            .map(([locale, item]) => {
+                const source = item as Record<string, unknown>;
+                const normalized: LocalizedDirectoryContent = {
+                    ...(typeof source.name === 'string' && source.name.trim()
+                        ? { name: source.name.trim() }
+                        : {}),
+                    ...(typeof source.description === 'string' &&
+                    source.description.trim()
+                        ? { description: source.description.trim() }
+                        : {}),
+                };
+                return [locale, normalized];
+            })
+            .filter(([, item]) => Object.keys(item as object).length > 0),
+    ) as Partial<Record<ContentLocale, LocalizedDirectoryContent>>;
 
-const normalizeExerciseLocalizations = (value: unknown) => Object.fromEntries(
-    Object.entries(parseJsonObject(value))
-        .filter(([locale, item]) => supportedContentLocales.has(locale as ContentLocale) && item && typeof item === 'object')
-        .map(([locale, item]) => {
-            const source = item as Record<string, unknown>;
-            const normalized: LocalizedExerciseContent = {
-                ...(typeof source.title === 'string' && source.title.trim() ? { title: source.title.trim() } : {}),
-                ...(typeof source.summary === 'string' && source.summary.trim() ? { summary: source.summary.trim() } : {}),
-            };
-            return [locale, normalized];
-        })
-        .filter(([, item]) => Object.keys(item as object).length > 0),
-) as Partial<Record<ContentLocale, LocalizedExerciseContent>>;
+const normalizeExerciseLocalizations = (value: unknown) =>
+    Object.fromEntries(
+        Object.entries(parseJsonObject(value))
+            .filter(
+                ([locale, item]) =>
+                    supportedContentLocales.has(locale as ContentLocale) &&
+                    item &&
+                    typeof item === 'object',
+            )
+            .map(([locale, item]) => {
+                const source = item as Record<string, unknown>;
+                const normalized: LocalizedExerciseContent = {
+                    ...(typeof source.title === 'string' && source.title.trim()
+                        ? { title: source.title.trim() }
+                        : {}),
+                    ...(typeof source.summary === 'string' &&
+                    source.summary.trim()
+                        ? { summary: source.summary.trim() }
+                        : {}),
+                };
+                return [locale, normalized];
+            })
+            .filter(([, item]) => Object.keys(item as object).length > 0),
+    ) as Partial<Record<ContentLocale, LocalizedExerciseContent>>;
 
 const loadMediaSize = async (row: ExerciseRow) => {
-    const objectName = row.audio_object_name || getObjectNameFromUrl(row.audio_url ?? '');
+    const objectName =
+        row.audio_object_name || getObjectNameFromUrl(row.audio_url ?? '');
     if (!objectName) {
         return undefined;
     }
@@ -148,7 +194,8 @@ const englishPunctuationMap: Record<string, string> = {
     '　': ' ',
 };
 
-const cleanSubtitleSpacing = (value: string) => value.replace(/[ \t\u00a0\u3000]+/g, ' ').trim();
+const cleanSubtitleSpacing = (value: string) =>
+    value.replace(/[ \t\u00a0\u3000]+/g, ' ').trim();
 
 const cleanEnglishAnswerText = (value: string) =>
     cleanSubtitleSpacing(
@@ -182,7 +229,11 @@ const parseStringList = (value: unknown, cleanItem = cleanSubtitleSpacing) => {
     }
 };
 
-const normalizeTranscriptLine = (line: unknown, index: number, contentLocale?: ContentLocale): TranscriptLine | null => {
+const normalizeTranscriptLine = (
+    line: unknown,
+    index: number,
+    contentLocale?: ContentLocale,
+): TranscriptLine | null => {
     if (!line || typeof line !== 'object') {
         return null;
     }
@@ -195,15 +246,17 @@ const normalizeTranscriptLine = (line: unknown, index: number, contentLocale?: C
     }
 
     const translations = normalizeTranslations(item.translations);
-    const legacyTranslation = cleanSubtitleSpacing(String(item.translation ?? ''));
+    const legacyTranslation = cleanSubtitleSpacing(
+        String(item.translation ?? ''),
+    );
     // During rollout legacy JSON only has translation. Once translations exists,
     // it is authoritative and the old API field is derived for Mobile clients.
     if (!translations['zh-CN'] && legacyTranslation) {
         translations['zh-CN'] = legacyTranslation;
     }
     const resolvedTranslation = contentLocale
-        ? translations[contentLocale] ?? translations['zh-CN'] ?? ''
-        : translations['zh-CN'] ?? legacyTranslation;
+        ? (translations[contentLocale] ?? translations['zh-CN'] ?? '')
+        : (translations['zh-CN'] ?? legacyTranslation);
 
     return {
         id: String(item.id ?? `l${index + 1}`),
@@ -217,10 +270,15 @@ const normalizeTranscriptLine = (line: unknown, index: number, contentLocale?: C
     };
 };
 
-const parseTranscriptJson = (value: unknown, contentLocale?: ContentLocale): TranscriptLine[] => {
+const parseTranscriptJson = (
+    value: unknown,
+    contentLocale?: ContentLocale,
+): TranscriptLine[] => {
     if (Array.isArray(value)) {
         return value
-            .map((line, index) => normalizeTranscriptLine(line, index, contentLocale))
+            .map((line, index) =>
+                normalizeTranscriptLine(line, index, contentLocale),
+            )
             .filter((line): line is TranscriptLine => Boolean(line));
     }
 
@@ -232,7 +290,9 @@ const parseTranscriptJson = (value: unknown, contentLocale?: ContentLocale): Tra
         const parsed = JSON.parse(value) as unknown;
         return Array.isArray(parsed)
             ? parsed
-                  .map((line, index) => normalizeTranscriptLine(line, index, contentLocale))
+                  .map((line, index) =>
+                      normalizeTranscriptLine(line, index, contentLocale),
+                  )
                   .filter((line): line is TranscriptLine => Boolean(line))
             : [];
     } catch {
@@ -250,9 +310,13 @@ const serializeTranscriptLines = (lines: CreateTranscriptLineRequest[]) =>
         // while old rows are still in circulation; it is never used by new reads.
         translations: normalizeTranslations({
             ...(line.translations ?? {}),
-            ...(!line.translations?.['zh-CN'] && line.translation ? { 'zh-CN': line.translation } : {}),
+            ...(!line.translations?.['zh-CN'] && line.translation
+                ? { 'zh-CN': line.translation }
+                : {}),
         }),
-        ...(line.translation ? { translation: cleanSubtitleSpacing(String(line.translation)) } : {}),
+        ...(line.translation
+            ? { translation: cleanSubtitleSpacing(String(line.translation)) }
+            : {}),
         answers: parseStringList(line.answers, cleanEnglishAnswerText),
         keywords: parseStringList(line.keywords),
     }));
@@ -263,58 +327,18 @@ const toStoredMediaUrl = (value: string | null | undefined) => {
         return '';
     }
 
-    try {
-        const parsed = new URL(rawValue, env.app.backend_url);
-        if (parsed.pathname === '/api/v1/media/objects') {
-            return `${parsed.pathname}${parsed.search}`;
-        }
-
-        const marker = '/api/v1/media/objects/';
-        if (parsed.pathname.startsWith(marker)) {
-            return parsed.pathname;
-        }
-    } catch {
-        // Fall through to string matching for malformed legacy values.
-    }
-
-    const queryMarker = '/api/v1/media/objects?';
-    const queryMarkerIndex = rawValue.indexOf(queryMarker);
-    if (queryMarkerIndex >= 0) {
-        return rawValue.slice(queryMarkerIndex);
-    }
-
-    const pathMarker = '/api/v1/media/objects/';
-    const pathMarkerIndex = rawValue.indexOf(pathMarker);
-    if (pathMarkerIndex >= 0) {
-        return rawValue.slice(pathMarkerIndex);
-    }
-
-    return rawValue;
+    const objectName = getManagedMediaObjectName(rawValue);
+    return objectName ? buildStoredMediaUrl(objectName) : rawValue;
 };
 
-const getObjectNameFromUrl = (audioUrl: string) => {
-    try {
-        const parsed = new URL(audioUrl, env.app.backend_url);
-        const objectKey = parsed.searchParams.get('key');
-        if (objectKey) {
-            return objectKey;
-        }
-    } catch {
-        // Fall through to legacy path parsing for relative or invalid URLs.
-    }
+const getObjectNameFromUrl = getManagedMediaObjectName;
 
-    const marker = '/api/v1/media/objects/';
-    const markerIndex = audioUrl.indexOf(marker);
-    if (markerIndex < 0) {
-        return '';
-    }
-
-    const objectName = audioUrl.slice(markerIndex + marker.length);
-    try {
-        return decodeURIComponent(objectName);
-    } catch {
-        return objectName;
-    }
+// 所有数据库引用先还原为受控对象键，再在 API 响应阶段选择 CDN 或旧 API 地址。
+// 这样启用 CDN 后，历史课程无需数据迁移；非本系统的外部媒体 URL 也保持原样。
+const toDeliveryMediaUrl = (value: string | null | undefined) => {
+    const rawValue = String(value ?? '').trim();
+    const objectName = getManagedMediaObjectName(rawValue);
+    return objectName ? buildPublicMediaUrl(objectName) : rawValue;
 };
 
 const buildExerciseSummary = (
@@ -324,14 +348,20 @@ const buildExerciseSummary = (
 ): CatalogExerciseSummary => ({
     id: Number(row.id),
     categoryId: Number(row.category_id),
-    title: contentLocale ? normalizeExerciseLocalizations(row.localizations_json)[contentLocale]?.title ?? row.title : row.title,
+    title: contentLocale
+        ? (normalizeExerciseLocalizations(row.localizations_json)[contentLocale]
+              ?.title ?? row.title)
+        : row.title,
     source: row.source,
     difficulty: row.difficulty,
     durationLabel: row.duration_label,
     mediaType: row.media_type ?? 'audio',
-    audioUrl: toStoredMediaUrl(row.audio_url),
-    coverImageUrl: toStoredMediaUrl(row.cover_image_url) || undefined,
-    summary: contentLocale ? normalizeExerciseLocalizations(row.localizations_json)[contentLocale]?.summary ?? row.summary : row.summary,
+    audioUrl: toDeliveryMediaUrl(row.audio_url),
+    coverImageUrl: toDeliveryMediaUrl(row.cover_image_url) || undefined,
+    summary: contentLocale
+        ? (normalizeExerciseLocalizations(row.localizations_json)[contentLocale]
+              ?.summary ?? row.summary)
+        : row.summary,
     status: row.status,
     sortOrder: Number(row.sort_order ?? 0),
     lineCount,
@@ -346,15 +376,21 @@ const buildExerciseDetail = (
 ): ListeningExercise => ({
     id: Number(row.id),
     categoryId: Number(row.category_id),
-    title: contentLocale ? normalizeExerciseLocalizations(row.localizations_json)[contentLocale]?.title ?? row.title : row.title,
+    title: contentLocale
+        ? (normalizeExerciseLocalizations(row.localizations_json)[contentLocale]
+              ?.title ?? row.title)
+        : row.title,
     source: row.source,
     difficulty: row.difficulty,
     durationLabel: row.duration_label,
     mediaType: row.media_type ?? 'audio',
-    audioUrl: toStoredMediaUrl(row.audio_url),
+    audioUrl: toDeliveryMediaUrl(row.audio_url),
     mediaSize,
-    coverImageUrl: toStoredMediaUrl(row.cover_image_url) || undefined,
-    summary: contentLocale ? normalizeExerciseLocalizations(row.localizations_json)[contentLocale]?.summary ?? row.summary : row.summary,
+    coverImageUrl: toDeliveryMediaUrl(row.cover_image_url) || undefined,
+    summary: contentLocale
+        ? (normalizeExerciseLocalizations(row.localizations_json)[contentLocale]
+              ?.summary ?? row.summary)
+        : row.summary,
     status: row.status,
     sortOrder: Number(row.sort_order ?? 0),
     lines,
@@ -449,7 +485,11 @@ const loadCategoryIdsWithExercises = async (includeDrafts = false) => {
         `,
     });
 
-    return new Set((rows as Array<{ category_id: number | string }>).map((row) => Number(row.category_id)));
+    return new Set(
+        (rows as Array<{ category_id: number | string }>).map((row) =>
+            Number(row.category_id),
+        ),
+    );
 };
 
 export async function listCatalog(
@@ -460,37 +500,68 @@ export async function listCatalog(
     try {
         const categoryGroupRows = await loadCategoryGroupRows();
         const categoryRows = await loadCategoryRows();
-        const categoryIdsWithExercises = await loadCategoryIdsWithExercises(includeDrafts);
+        const categoryIdsWithExercises =
+            await loadCategoryIdsWithExercises(includeDrafts);
 
-        const mappedCategories: ExerciseCategory[] = categoryRows
-            .map((row: any) => ({
+        const mappedCategories: ExerciseCategory[] = categoryRows.map(
+            (row: any) => ({
                 id: Number(row.id),
                 groupId: Number(row.group_id),
-                name: contentLocale ? normalizeDirectoryLocalizations(row.localizations_json)[contentLocale]?.name ?? row.name : row.name,
-                description: contentLocale ? normalizeDirectoryLocalizations(row.localizations_json)[contentLocale]?.description ?? row.description : row.description,
+                name: contentLocale
+                    ? (normalizeDirectoryLocalizations(row.localizations_json)[
+                          contentLocale
+                      ]?.name ?? row.name)
+                    : row.name,
+                description: contentLocale
+                    ? (normalizeDirectoryLocalizations(row.localizations_json)[
+                          contentLocale
+                      ]?.description ?? row.description)
+                    : row.description,
                 accent: row.accent,
-                coverImageUrl: toStoredMediaUrl(row.cover_image_url) || undefined,
+                coverImageUrl:
+                    toDeliveryMediaUrl(row.cover_image_url) || undefined,
                 sortOrder: Number(row.sort_order ?? 0),
-                localizations: normalizeDirectoryLocalizations(row.localizations_json),
-            }));
+                localizations: normalizeDirectoryLocalizations(
+                    row.localizations_json,
+                ),
+            }),
+        );
         // Learners should only see series with content; administrators must also
         // manage newly created, currently empty categories and groups.
         const categories = includeEmptyDirectories
             ? mappedCategories
-            : mappedCategories.filter((category) => categoryIdsWithExercises.has(category.id));
-        const visibleGroupIds = new Set(categories.map((category) => category.groupId));
+            : mappedCategories.filter((category) =>
+                  categoryIdsWithExercises.has(category.id),
+              );
+        const visibleGroupIds = new Set(
+            categories.map((category) => category.groupId),
+        );
 
         const categoryGroups: MaterialCategory[] = categoryGroupRows
             .map((row: any) => ({
                 id: Number(row.id),
-                name: contentLocale ? normalizeDirectoryLocalizations(row.localizations_json)[contentLocale]?.name ?? row.name : row.name,
-                description: contentLocale ? normalizeDirectoryLocalizations(row.localizations_json)[contentLocale]?.description ?? row.description : row.description,
+                name: contentLocale
+                    ? (normalizeDirectoryLocalizations(row.localizations_json)[
+                          contentLocale
+                      ]?.name ?? row.name)
+                    : row.name,
+                description: contentLocale
+                    ? (normalizeDirectoryLocalizations(row.localizations_json)[
+                          contentLocale
+                      ]?.description ?? row.description)
+                    : row.description,
                 accent: row.accent,
-                coverImageUrl: toStoredMediaUrl(row.cover_image_url) || undefined,
+                coverImageUrl:
+                    toDeliveryMediaUrl(row.cover_image_url) || undefined,
                 sortOrder: Number(row.sort_order ?? 0),
-                localizations: normalizeDirectoryLocalizations(row.localizations_json),
+                localizations: normalizeDirectoryLocalizations(
+                    row.localizations_json,
+                ),
             }))
-            .filter((group) => includeEmptyDirectories || visibleGroupIds.has(group.id));
+            .filter(
+                (group) =>
+                    includeEmptyDirectories || visibleGroupIds.has(group.id),
+            );
 
         // exercises 不再随 catalog 返回，改为按系列懒加载
         return { categoryGroups, categories, exercises: [] };
@@ -615,7 +686,9 @@ type AdminExercisePageOptions = {
     pageSize: number;
 };
 
-export async function listAdminExercisesPage(options: AdminExercisePageOptions) {
+export async function listAdminExercisesPage(
+    options: AdminExercisePageOptions,
+) {
     const conditions: string[] = [];
     const replacements: Record<string, string | number> = {};
     if (options.categoryId) {
@@ -632,7 +705,9 @@ export async function listAdminExercisesPage(options: AdminExercisePageOptions) 
     }
     if (options.search) {
         // Search only operator-facing fields; the bound parameter prevents SQL injection.
-        conditions.push('(e.title like :search or e.source like :search or e.summary like :search)');
+        conditions.push(
+            '(e.title like :search or e.source like :search or e.summary like :search)',
+        );
         replacements.search = `%${options.search}%`;
     }
 
@@ -657,7 +732,12 @@ export async function listAdminExercisesPage(options: AdminExercisePageOptions) 
     });
 
     return {
-        items: rows.map((row) => buildExerciseSummary(row, parseTranscriptJson(row.transcript_json).length)),
+        items: rows.map((row) =>
+            buildExerciseSummary(
+                row,
+                parseTranscriptJson(row.transcript_json).length,
+            ),
+        ),
         page: options.page,
         pageSize: options.pageSize,
         total,
@@ -716,7 +796,9 @@ export async function upsertCategory(category: CreateCategoryRequest) {
         group_id: category.groupId,
         name: category.name,
         description: category.description,
-        localizations_json: normalizeDirectoryLocalizations(category.localizations),
+        localizations_json: normalizeDirectoryLocalizations(
+            category.localizations,
+        ),
         accent: category.accent,
         cover_image_url: toStoredMediaUrl(category.coverImageUrl) || null,
         sort_order: category.sortOrder,
@@ -730,7 +812,9 @@ export async function upsertCategoryGroup(group: CreateCategoryGroupRequest) {
         ...(group.id ? { id: group.id } : {}),
         name: group.name,
         description: group.description,
-        localizations_json: normalizeDirectoryLocalizations(group.localizations),
+        localizations_json: normalizeDirectoryLocalizations(
+            group.localizations,
+        ),
         accent: group.accent,
         cover_image_url: toStoredMediaUrl(group.coverImageUrl) || null,
         sort_order: group.sortOrder,
@@ -738,11 +822,11 @@ export async function upsertCategoryGroup(group: CreateCategoryGroupRequest) {
 }
 
 export async function deleteCategoryGroup(groupId: number) {
-    const group = await CategoryGroupModel.findOne({
+    const group = (await CategoryGroupModel.findOne({
         where: { id: groupId },
         attributes: ['cover_image_url'],
         raw: true,
-    }) as { cover_image_url?: string | null } | null;
+    })) as { cover_image_url?: string | null } | null;
     const categoryCount = await CategoryModel.count({
         where: { group_id: groupId },
     });
@@ -762,11 +846,11 @@ export async function deleteCategoryGroup(groupId: number) {
 }
 
 export async function deleteCategory(categoryId: number) {
-    const category = await CategoryModel.findOne({
+    const category = (await CategoryModel.findOne({
         where: { id: categoryId },
         attributes: ['cover_image_url'],
         raw: true,
-    }) as { cover_image_url?: string | null } | null;
+    })) as { cover_image_url?: string | null } | null;
     const exerciseCount = await ExerciseModel.count({
         where: { category_id: categoryId },
     });
@@ -779,18 +863,20 @@ export async function deleteCategory(categoryId: number) {
         where: { id: categoryId },
     });
 
-    const coverObjectName = getObjectNameFromUrl(category?.cover_image_url ?? '');
+    const coverObjectName = getObjectNameFromUrl(
+        category?.cover_image_url ?? '',
+    );
     if (coverObjectName) {
         await deleteMediaObject(coverObjectName);
     }
 }
 
 export async function deleteExercise(exerciseId: number) {
-    const exercise = await ExerciseModel.findOne({
+    const exercise = (await ExerciseModel.findOne({
         where: { id: exerciseId },
         attributes: ['audio_object_name', 'audio_url', 'cover_image_url'],
         raw: true,
-    }) as {
+    })) as {
         audio_object_name?: string | null;
         audio_url?: string | null;
         cover_image_url?: string | null;
@@ -800,28 +886,41 @@ export async function deleteExercise(exerciseId: number) {
         throw new Error('课程不存在');
     }
 
-    const objectName = exercise.audio_object_name || getObjectNameFromUrl(exercise.audio_url ?? '');
+    const objectName =
+        exercise.audio_object_name ||
+        getObjectNameFromUrl(exercise.audio_url ?? '');
     if (objectName) {
         await deleteMediaObject(objectName);
     }
-    const coverObjectName = getObjectNameFromUrl(exercise.cover_image_url ?? '');
+    const coverObjectName = getObjectNameFromUrl(
+        exercise.cover_image_url ?? '',
+    );
     if (coverObjectName) {
         await deleteMediaObject(coverObjectName);
     }
 
     await sequelize.transaction(async (transaction) => {
-        await sequelize.query('delete from line_progress where exercise_id = :exerciseId', {
-            replacements: { exerciseId },
-            transaction,
-        });
-        await sequelize.query('delete from exercise_progress where exercise_id = :exerciseId', {
-            replacements: { exerciseId },
-            transaction,
-        });
-        await sequelize.query('delete from vocabulary_items where exercise_id = :exerciseId', {
-            replacements: { exerciseId },
-            transaction,
-        });
+        await sequelize.query(
+            'delete from line_progress where exercise_id = :exerciseId',
+            {
+                replacements: { exerciseId },
+                transaction,
+            },
+        );
+        await sequelize.query(
+            'delete from exercise_progress where exercise_id = :exerciseId',
+            {
+                replacements: { exerciseId },
+                transaction,
+            },
+        );
+        await sequelize.query(
+            'delete from vocabulary_items where exercise_id = :exerciseId',
+            {
+                replacements: { exerciseId },
+                transaction,
+            },
+        );
         await ExerciseModel.destroy({
             where: { id: exerciseId },
             transaction,
@@ -834,11 +933,11 @@ export async function updateExerciseMedia(
     mediaType: ListeningExercise['mediaType'],
     audioUrl: string,
 ) {
-    const existing = await ExerciseModel.findOne({
+    const existing = (await ExerciseModel.findOne({
         where: { id: exerciseId },
         attributes: ['audio_object_name', 'audio_url'],
         raw: true,
-    }) as {
+    })) as {
         audio_object_name?: string | null;
         audio_url?: string | null;
     } | null;
@@ -849,38 +948,54 @@ export async function updateExerciseMedia(
 
     const storedAudioUrl = toStoredMediaUrl(audioUrl);
     const newAudioObjectName = getObjectNameFromUrl(storedAudioUrl);
-    await ExerciseModel.update({
-        media_type: mediaType,
-        audio_object_name: newAudioObjectName || null,
-        audio_url: storedAudioUrl,
-    }, {
-        where: { id: exerciseId },
-    });
+    await ExerciseModel.update(
+        {
+            media_type: mediaType,
+            audio_object_name: newAudioObjectName || null,
+            audio_url: storedAudioUrl,
+        },
+        {
+            where: { id: exerciseId },
+        },
+    );
 
     // 媒体替换接口只修改媒体字段，避免上传文件时覆盖课程的元数据、发布状态或字幕。
-    const oldAudioObjectName = existing.audio_object_name || getObjectNameFromUrl(existing.audio_url ?? '');
+    const oldAudioObjectName =
+        existing.audio_object_name ||
+        getObjectNameFromUrl(existing.audio_url ?? '');
     if (oldAudioObjectName && oldAudioObjectName !== newAudioObjectName) {
         try {
             await deleteMediaObject(oldAudioObjectName);
         } catch (error) {
-            logger.warn(`清理旧课程媒体失败 object=${oldAudioObjectName}`, error);
+            logger.warn(
+                `清理旧课程媒体失败 object=${oldAudioObjectName}`,
+                error,
+            );
         }
     }
 }
 
 export async function upsertExercise(exercise: CreateExerciseRequest) {
-    const existing = exercise.id ? await ExerciseModel.findOne({
-        where: { id: exercise.id },
-        // 取出旧的媒体 URL，用于更新后清理被替换掉的 MinIO 旧对象
-        attributes: ['transcript_json', 'localizations_json', 'audio_object_name', 'audio_url', 'cover_image_url'],
-        raw: true,
-    }) as {
-        transcript_json?: unknown;
-        localizations_json?: unknown;
-        audio_object_name?: string | null;
-        audio_url?: string | null;
-        cover_image_url?: string | null;
-    } | null : null;
+    const existing = exercise.id
+        ? ((await ExerciseModel.findOne({
+              where: { id: exercise.id },
+              // 取出旧的媒体 URL，用于更新后清理被替换掉的 MinIO 旧对象
+              attributes: [
+                  'transcript_json',
+                  'localizations_json',
+                  'audio_object_name',
+                  'audio_url',
+                  'cover_image_url',
+              ],
+              raw: true,
+          })) as {
+              transcript_json?: unknown;
+              localizations_json?: unknown;
+              audio_object_name?: string | null;
+              audio_url?: string | null;
+              cover_image_url?: string | null;
+          } | null)
+        : null;
 
     const storedAudioUrl = toStoredMediaUrl(exercise.audioUrl);
     const storedCoverImageUrl = toStoredMediaUrl(exercise.coverImageUrl);
@@ -894,13 +1009,14 @@ export async function upsertExercise(exercise: CreateExerciseRequest) {
         difficulty: exercise.difficulty,
         duration_label: exercise.durationLabel,
         media_type: exercise.mediaType,
-        audio_object_name: audioObjectName || existing?.audio_object_name || null,
+        audio_object_name:
+            audioObjectName || existing?.audio_object_name || null,
         audio_url: storedAudioUrl,
         cover_image_url: storedCoverImageUrl || null,
         summary: exercise.summary,
         localizations_json: exercise.localizations
             ? normalizeExerciseLocalizations(exercise.localizations)
-            : existing?.localizations_json ?? {},
+            : (existing?.localizations_json ?? {}),
         transcript_json: existing?.transcript_json ?? [],
         sort_order: exercise.sortOrder,
         status: exercise.status,
@@ -912,22 +1028,33 @@ export async function upsertExercise(exercise: CreateExerciseRequest) {
         // 媒体/封面被替换后，删除 MinIO 中的旧对象，避免孤儿文件。
         // 仅当旧值非空、与新值不同、且能解析出本系统 MinIO 对象名时才删除；
         // 删除失败只记日志，不影响主流程（与 deleteExercise 的清理口径一致）。
-        const oldAudioObjectName = existing.audio_object_name || getObjectNameFromUrl(existing.audio_url ?? '');
-        const newAudioObjectName = audioObjectName || getObjectNameFromUrl(storedAudioUrl);
+        const oldAudioObjectName =
+            existing.audio_object_name ||
+            getObjectNameFromUrl(existing.audio_url ?? '');
+        const newAudioObjectName =
+            audioObjectName || getObjectNameFromUrl(storedAudioUrl);
         if (oldAudioObjectName && oldAudioObjectName !== newAudioObjectName) {
             try {
                 await deleteMediaObject(oldAudioObjectName);
             } catch (error) {
-                logger.warn(`清理旧课程媒体失败 object=${oldAudioObjectName}`, error);
+                logger.warn(
+                    `清理旧课程媒体失败 object=${oldAudioObjectName}`,
+                    error,
+                );
             }
         }
-        const oldCoverObjectName = getObjectNameFromUrl(existing.cover_image_url ?? '');
+        const oldCoverObjectName = getObjectNameFromUrl(
+            existing.cover_image_url ?? '',
+        );
         const newCoverObjectName = getObjectNameFromUrl(storedCoverImageUrl);
         if (oldCoverObjectName && oldCoverObjectName !== newCoverObjectName) {
             try {
                 await deleteMediaObject(oldCoverObjectName);
             } catch (error) {
-                logger.warn(`清理旧课程封面失败 object=${oldCoverObjectName}`, error);
+                logger.warn(
+                    `清理旧课程封面失败 object=${oldCoverObjectName}`,
+                    error,
+                );
             }
         }
 
@@ -940,7 +1067,10 @@ export async function upsertExercise(exercise: CreateExerciseRequest) {
     // sortOrder 兜底：admin 前端的"下一个排序值"是按本地已加载的课程列表算的，
     // 列表未加载/过期时会算出与现有课程重复的值。创建前在服务端校验——
     // 目标排序值在同系列内已被占用时，自动落到 max+10，保证系列内不重复。
-    const sortOrderRows = await doRawQuery<{ max_order: number | null; conflict: number }>({
+    const sortOrderRows = await doRawQuery<{
+        max_order: number | null;
+        conflict: number;
+    }>({
         query: 'select max(sort_order) as max_order, sum(sort_order = ?) as conflict from exercises where category_id = ?',
         params: [payload.sort_order, payload.category_id],
     });
@@ -959,7 +1089,10 @@ export async function upsertExercise(exercise: CreateExerciseRequest) {
     return Number(createdId);
 }
 
-export async function replaceTranscriptLines(exerciseId: number, lines: CreateTranscriptLineRequest[]) {
+export async function replaceTranscriptLines(
+    exerciseId: number,
+    lines: CreateTranscriptLineRequest[],
+) {
     const exercise = await ExerciseModel.findByPk(exerciseId, {
         attributes: ['id'],
     });
@@ -969,9 +1102,12 @@ export async function replaceTranscriptLines(exerciseId: number, lines: CreateTr
 
     // MySQL updates that write identical JSON may report zero affected rows. The
     // existence check above distinguishes that harmless no-op from a missing course.
-    await ExerciseModel.update({
-        transcript_json: serializeTranscriptLines(lines),
-    } as any, {
-        where: { id: exerciseId },
-    });
+    await ExerciseModel.update(
+        {
+            transcript_json: serializeTranscriptLines(lines),
+        } as any,
+        {
+            where: { id: exerciseId },
+        },
+    );
 }
