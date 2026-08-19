@@ -79,6 +79,7 @@ function AccountSettingsPanel({ adminToken, adminUser, onNotify }: { adminToken:
   const [saving, setSaving] = useState(false)
   const [name, setName] = useState(adminUser.displayName)
   const [changingName, setChangingName] = useState(false)
+  const [isNameEditorOpen, setIsNameEditorOpen] = useState(false)
   const saveName = async () => {
     if (!name.trim() || name.trim() === adminUser.displayName) return
     setChangingName(true)
@@ -89,7 +90,7 @@ function AccountSettingsPanel({ adminToken, adminUser, onNotify }: { adminToken:
     setSaving(true)
     try { await apiClient.bindOwnLearnerAccount({ learnerEmail: email.trim(), learnerPassword: password }, adminToken); setPassword(''); onNotify('学习端账号绑定成功', 'success') } catch (error) { onNotify(error instanceof Error ? error.message : '学习端账号绑定失败', 'error') } finally { setSaving(false) }
   }
-  return <section className="admin-section"><div className="panel-title"><Typography.Title level={3} style={{ margin: 0 }}>我的账号</Typography.Title></div><Space direction="vertical" size={16} style={{ display: 'flex', maxWidth: 640 }}><Card title="公开资料"><Typography.Paragraph type="secondary">显示名称会展示在课程贡献者信息中，字幕贡献者每 90 天只能修改一次。</Typography.Paragraph><Space.Compact style={{ width: '100%' }}><Input value={name} onChange={(event) => setName(event.target.value)} /><Button loading={changingName} type="primary" onClick={() => void saveName()}>保存名称</Button></Space.Compact>{adminUser.nextDisplayNameChangeAt && <Typography.Text type="warning">下次可修改时间：{new Date(adminUser.nextDisplayNameChangeAt).toLocaleString('zh-CN')}</Typography.Text>}</Card><Card title="绑定学习端账号"><Typography.Paragraph type="secondary">请输入学习端登录邮箱和密码完成验证。绑定后，你负责的课程草稿会在学习端 App 和网页端中提供预览。</Typography.Paragraph><Input placeholder="学习端登录邮箱" type="email" value={email} onChange={(event) => setEmail(event.target.value)} /><Input.Password placeholder="学习端登录密码" value={password} onChange={(event) => setPassword(event.target.value)} style={{ marginTop: 12 }} /><Button loading={saving} disabled={!email.trim() || !password} type="primary" onClick={() => void bind()} style={{ marginTop: 12 }}>验证并绑定</Button>{adminUser.learnerUserId && <Typography.Text type="success" style={{ display: 'block', marginTop: 12 }}>当前已绑定：{adminUser.learnerDisplayName}（{adminUser.learnerEmail}）</Typography.Text>}</Card></Space></section>
+  return <section className="admin-section"><div className="panel-title"><Typography.Title level={3} style={{ margin: 0 }}>我的账号</Typography.Title></div><Space direction="vertical" size={16} style={{ display: 'flex', maxWidth: 640 }}><Card title="公开资料"><Typography.Paragraph type="secondary">当前显示名称：{adminUser.displayName}。该名称会展示在课程贡献者信息中。</Typography.Paragraph><Button disabled={Boolean(adminUser.nextDisplayNameChangeAt)} onClick={() => { setName(adminUser.displayName); setIsNameEditorOpen(true) }}>修改显示名称</Button>{adminUser.nextDisplayNameChangeAt && <Typography.Text type="warning" style={{ display: 'block', marginTop: 12 }}>下次可修改时间：{new Date(adminUser.nextDisplayNameChangeAt).toLocaleString('zh-CN')}</Typography.Text>}</Card><Card title="绑定学习端账号"><Typography.Paragraph type="secondary">请输入学习端登录邮箱和密码完成验证。绑定后，你负责的课程草稿会在学习端 App 和网页端中提供预览。</Typography.Paragraph><Input placeholder="学习端登录邮箱" type="email" value={email} onChange={(event) => setEmail(event.target.value)} /><Input.Password placeholder="学习端登录密码" value={password} onChange={(event) => setPassword(event.target.value)} style={{ marginTop: 12 }} /><Button loading={saving} disabled={!email.trim() || !password} type="primary" onClick={() => void bind()} style={{ marginTop: 12 }}>验证并绑定</Button>{adminUser.learnerUserId && <Typography.Text type="success" style={{ display: 'block', marginTop: 12 }}>当前已绑定：{adminUser.learnerDisplayName}（{adminUser.learnerEmail}）</Typography.Text>}</Card></Space><Modal confirmLoading={changingName} okButtonProps={{ disabled: !name.trim() || name.trim() === adminUser.displayName }} okText="确认修改" onCancel={() => setIsNameEditorOpen(false)} onOk={async () => { await saveName(); setIsNameEditorOpen(false) }} open={isNameEditorOpen} title="修改显示名称"><Typography.Paragraph type="secondary">保存后 90 天内不能再次修改。</Typography.Paragraph><Input autoFocus maxLength={120} onChange={(event) => setName(event.target.value)} value={name} /></Modal></section>
 }
 
 const initialCategoryForm: CreateCategoryRequest = {
@@ -984,7 +985,7 @@ export function ContentAdmin({
         />
       )}
 
-      {activeSection === 'account-settings' && (
+      {activeSection === 'account-settings' && adminUser.role === 'subtitle_contributor' && (
         <AccountSettingsPanel adminToken={adminToken} adminUser={adminUser} onNotify={onNotify} />
       )}
 

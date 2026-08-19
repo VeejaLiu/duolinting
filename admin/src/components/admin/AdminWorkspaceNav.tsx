@@ -63,7 +63,9 @@ export function AdminWorkspaceNav({
   // 制课工作台只作为“课程管理”里某门课程的编辑页入口，不在侧栏单独出现。
   // 贡献者因此只看到自己获授权的课程管理入口；超级管理员保留完整管理菜单。
   const visibleSections = adminSections.filter((section) =>
-    adminUser.role === 'super_admin' || section.id === 'courses' || section.id === 'activity' || section.id === 'account-settings',
+    adminUser.role === 'super_admin'
+      ? section.id !== 'account-settings'
+      : section.id === 'courses' || section.id === 'activity' || section.id === 'account-settings',
   )
   if (adminUser.role === 'super_admin') {
     visibleSections.push({ id: 'collaboration', label: '人员管理', Icon: UsersRound })
