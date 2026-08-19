@@ -595,6 +595,12 @@ export const apiClient = {
       { method: 'PUT' },
       { adminToken },
     ),
+  resetContributorDisplayNameCooldown: (memberId: number, adminToken: string) =>
+    fetchJson<{ ok: true }>(
+      `/api/v1/admin/collaboration/members/${memberId}/display-name-cooldown/reset`,
+      { method: 'PUT' },
+      { adminToken },
+    ),
   getPreviewVolunteers: (adminToken: string, search?: string) =>
     fetchJson<{ items: PreviewVolunteer[]; search?: string }>(
       `/api/v1/admin/collaboration/preview-volunteers${search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''}`,

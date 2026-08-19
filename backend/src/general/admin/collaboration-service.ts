@@ -603,6 +603,20 @@ export async function forceAdminMemberPasswordChange({ memberId, actorId }: { me
     );
 }
 
+/** 超级管理员可为字幕贡献者解除公开署名的 90 天改名冷却，不影响登录会话或历史署名。 */
+export async function resetContributorDisplayNameCooldown(memberId: number) {
+    const member = await AdminUserModel.findOne({
+        where: { id: memberId, role: 'subtitle_contributor' },
+        attributes: ['id'],
+        raw: true,
+    });
+    if (!member) throw new Error('字幕贡献者不存在');
+    await AdminUserModel.update(
+        { last_display_name_changed_at: null },
+        { where: { id: memberId } },
+    );
+}
+
 export async function getAssignedExerciseIds(adminId: number) {
     const rows = await doRawQuery<{ exercise_id: number | string }>({
         // 校对人与二审人都需要在“课程管理”中看见任务；待审核稿保留提交时的审核人快照，

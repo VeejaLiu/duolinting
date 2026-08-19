@@ -188,6 +188,16 @@ export function CollaborationManager({
     }
   }
 
+  const resetDisplayNameCooldown = async (member: AdminMember) => {
+    try {
+      await apiClient.resetContributorDisplayNameCooldown(member.id, adminToken)
+      await refresh()
+      onNotify(`已解除 ${member.displayName} 的改名冷却期`, 'success')
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : '重置改名冷却期失败', 'error')
+    }
+  }
+
   const filteredMembers = useMemo(() => {
     const query = memberSearch.trim().toLowerCase()
     return members.filter((member) => {
@@ -215,6 +225,7 @@ export function CollaborationManager({
                 { key: 'edit', label: '编辑资料' },
                 ...(member.role === 'subtitle_contributor' ? [{ key: 'assignments', label: '课程授权' as const }] : []),
                 ...(member.role === 'subtitle_contributor' ? [{ key: 'binding', label: '绑定学习端账号' as const }] : []),
+                ...(member.role === 'subtitle_contributor' ? [{ key: 'reset-display-name-cooldown', label: '重置改名冷却期' as const }] : []),
                 { key: 'reset-password', label: '重设密码' },
                 { key: 'force-password', label: '强制下次改密' },
                 { type: 'divider' },
@@ -233,6 +244,8 @@ export function CollaborationManager({
                   setBindingTarget(member)
                   setBindingSearch('')
                   setBindingResults([])
+                } else if (key === 'reset-display-name-cooldown') {
+                  Modal.confirm({ title: `解除 ${member.displayName} 的改名冷却期？`, content: '解除后，该贡献者可以立即在“我的账号”中修改公开显示名称。不会影响登录会话、课程授权或历史贡献署名。', okText: '确认解除', onOk: () => resetDisplayNameCooldown(member) })
                 } else if (key === 'reset-password') {
                   setPasswordTarget(member)
                 } else if (key === 'force-password') {

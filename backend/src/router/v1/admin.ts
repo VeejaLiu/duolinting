@@ -25,6 +25,7 @@ import {
     markMyWorkflowNotificationsRead,
     returnSubtitleDraft,
     resetAdminMemberPassword,
+    resetContributorDisplayNameCooldown,
     revokeAdminMemberSessions,
     saveSubtitleDraft,
     submitSubtitleDraft,
@@ -797,6 +798,17 @@ router.put(
         const memberId = toId(req.params.memberId);
         if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).send({ success: false, message: 'Invalid member id' });
         await forceAdminMemberPasswordChange({ memberId, actorId: req.admin.id });
+        res.status(200).send({ ok: true });
+    },
+);
+
+router.put(
+    '/collaboration/members/:memberId/display-name-cooldown/reset',
+    requireSuperAdmin,
+    async (req, res) => {
+        const memberId = toId(req.params.memberId);
+        if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).send({ success: false, message: 'Invalid member id' });
+        await resetContributorDisplayNameCooldown(memberId);
         res.status(200).send({ ok: true });
     },
 );
