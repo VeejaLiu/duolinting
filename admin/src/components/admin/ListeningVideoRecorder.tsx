@@ -125,6 +125,8 @@ export function ListeningVideoRecorder({
   const [playbackRound, setPlaybackRound] = useState(0)
   const [contentLocale, setContentLocale] = useState<ContentLocale>('zh-CN')
   const [mediaAspectRatio, setMediaAspectRatio] = useState<number | null>(null)
+  // 每门课的媒体元素必须独立完成就绪；不能沿用上一门课的 ready 状态就开始 seek/play。
+  const [isMediaReady, setIsMediaReady] = useState(false)
 
   // 目录选择器展示所有已保存内容，不能因为课程仍是草稿、还没有字幕而把它隐藏。
   // 能否实际开始录制在加载完整课程后单独判断，避免“新建后找不到课程”的错觉。
@@ -187,6 +189,7 @@ export function ListeningVideoRecorder({
     setCountdown(START_COUNTDOWN_SECONDS)
     setPlaybackRound(0)
     setMediaAspectRatio(null)
+    setIsMediaReady(false)
   }
 
   useEffect(() => {
@@ -317,6 +320,9 @@ export function ListeningVideoRecorder({
         }
         frameId = window.requestAnimationFrame(checkEnd)
       } catch {
+        if (runIdRef.current === runId) {
+          onNotify('媒体无法播放，已停止录制。请确认该课程的媒体文件可以正常播放。', 'error')
+        }
         finish(false)
       }
     }
@@ -334,7 +340,7 @@ export function ListeningVideoRecorder({
   }
 
   const runRecording = async () => {
-    if (!exercise || !mediaRef.current) return
+    if (!exercise || !mediaRef.current || !isMediaReady) return
     const runId = runIdRef.current + 1
     runIdRef.current = runId
     setActiveLineIndex(0)
@@ -390,8 +396,10 @@ export function ListeningVideoRecorder({
       ? '该课程还没有上传媒体'
       : playableLineCount === 0
         ? '该课程还没有可播放的字幕时间轴'
-        : null
-  const canStartRecording = !recordingUnavailableReason
+        : !isMediaReady
+          ? '正在准备课程媒体'
+          : null
+  const canStartRecording = !recordingUnavailableReason && isMediaReady
   const completedLineCount = exercise
     ? phase === 'complete'
       ? exercise.lines.length
@@ -513,8 +521,14 @@ export function ListeningVideoRecorder({
                     />
                   )}
                   <video
+                    key={`video-${exercise.id}`}
                     ref={(node) => { mediaRef.current = node }}
                     className="recorder-video"
+                    onCanPlay={(event) => {
+                      // React key 会重建节点；此比较仍防御极快切换时旧节点迟到的 canplay 事件。
+                      if (event.currentTarget === mediaRef.current) setIsMediaReady(true)
+                    }}
+                    onError={() => setIsMediaReady(false)}
                     onLoadedMetadata={(event) => {
                       const { videoHeight, videoWidth } = event.currentTarget
                       if (videoWidth > 0 && videoHeight > 0) setMediaAspectRatio(videoWidth / videoHeight)
@@ -589,7 +603,16 @@ export function ListeningVideoRecorder({
           </footer>
         </div>
       </div>
-      {!isVideoExercise && mediaUrl && <audio ref={(node) => { mediaRef.current = node }} preload="auto" src={mediaUrl} />}
+      {!isVideoExercise && mediaUrl && <audio
+        key={`audio-${exercise?.id}`}
+        onCanPlay={(event) => {
+          if (event.currentTarget === mediaRef.current) setIsMediaReady(true)
+        }}
+        onError={() => setIsMediaReady(false)}
+        ref={(node) => { mediaRef.current = node }}
+        preload="auto"
+        src={mediaUrl}
+      />}
     </div>
   )
 }
