@@ -80,21 +80,41 @@ function AccountSettingsPanel({ adminToken, adminUser, onNotify }: { adminToken:
   const [name, setName] = useState(adminUser.displayName)
   const [changingName, setChangingName] = useState(false)
   const [isNameEditorOpen, setIsNameEditorOpen] = useState(false)
+  const [isBindingEditorOpen, setIsBindingEditorOpen] = useState(false)
+  const [boundLearner, setBoundLearner] = useState({
+    id: adminUser.learnerUserId,
+    displayName: adminUser.learnerDisplayName,
+    email: adminUser.learnerEmail,
+  })
   const saveName = async () => {
     if (!name.trim() || name.trim() === adminUser.displayName) return
     setChangingName(true)
     try { await apiClient.changeOwnAdminDisplayName(name.trim(), adminToken); onNotify('显示名称已更新，请刷新页面查看', 'success') } catch (error) { onNotify(error instanceof Error ? error.message : '显示名称修改失败', 'error') } finally { setChangingName(false) }
   }
   const bind = async () => {
-    if (!email.trim() || !password) return
+    if (!email.trim() || !password) return false
     setSaving(true)
-    try { await apiClient.bindOwnLearnerAccount({ learnerEmail: email.trim(), learnerPassword: password }, adminToken); setPassword(''); onNotify('学习端账号绑定成功', 'success') } catch (error) { onNotify(error instanceof Error ? error.message : '学习端账号绑定失败', 'error') } finally { setSaving(false) }
+    try {
+      const updatedUser = await apiClient.bindOwnLearnerAccount({ learnerEmail: email.trim(), learnerPassword: password }, adminToken)
+      setBoundLearner({ id: updatedUser.learnerUserId, displayName: updatedUser.learnerDisplayName, email: updatedUser.learnerEmail })
+      setPassword('')
+      onNotify('学习端账号绑定成功', 'success')
+      return true
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : '学习端账号绑定失败', 'error')
+      return false
+    } finally { setSaving(false) }
   }
   const nameChangeLocked = Boolean(adminUser.nextDisplayNameChangeAt)
   const nextNameChangeAt = adminUser.nextDisplayNameChangeAt
     ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(adminUser.nextDisplayNameChangeAt))
     : ''
-  return <section className="admin-section"><div className="panel-title"><Typography.Title level={3} style={{ margin: 0 }}>我的账号</Typography.Title></div><Space direction="vertical" size={16} style={{ display: 'flex', maxWidth: 640 }}><Card title="公开资料"><Typography.Paragraph type="secondary">当前显示名称：{adminUser.displayName}。该名称会展示在课程贡献者信息中。</Typography.Paragraph>{nameChangeLocked && <Alert description={`你已进入显示名称冷却期，下次可修改时间：${nextNameChangeAt}。`} message="当前无法修改显示名称" showIcon type="warning" style={{ marginBottom: 12 }} />}<Tooltip title={nameChangeLocked ? `冷却期内不可修改；${nextNameChangeAt} 后可再次修改` : undefined}><span><Button disabled={nameChangeLocked} onClick={() => { setName(adminUser.displayName); setIsNameEditorOpen(true) }}>修改显示名称</Button></span></Tooltip></Card><Card title="绑定学习端账号"><Typography.Paragraph type="secondary">请输入学习端登录邮箱和密码完成验证。绑定后，你负责的课程草稿会在学习端 App 和网页端中提供预览。</Typography.Paragraph><Input placeholder="学习端登录邮箱" type="email" value={email} onChange={(event) => setEmail(event.target.value)} /><Input.Password placeholder="学习端登录密码" value={password} onChange={(event) => setPassword(event.target.value)} style={{ marginTop: 12 }} /><Button loading={saving} disabled={!email.trim() || !password} type="primary" onClick={() => void bind()} style={{ marginTop: 12 }}>验证并绑定</Button>{adminUser.learnerUserId && <Typography.Text type="success" style={{ display: 'block', marginTop: 12 }}>当前已绑定：{adminUser.learnerDisplayName}（{adminUser.learnerEmail}）</Typography.Text>}</Card></Space><Modal confirmLoading={changingName} okButtonProps={{ disabled: !name.trim() || name.trim() === adminUser.displayName }} okText="确认修改" onCancel={() => setIsNameEditorOpen(false)} onOk={async () => { await saveName(); setIsNameEditorOpen(false) }} open={isNameEditorOpen} title="修改显示名称"><Typography.Paragraph type="secondary">保存后 90 天内不能再次修改。</Typography.Paragraph><Input autoFocus maxLength={120} onChange={(event) => setName(event.target.value)} value={name} /></Modal></section>
+  const isBound = Boolean(boundLearner.id)
+  const boundLearnerLabel = boundLearner.displayName || boundLearner.email || '学习端账号'
+  const submitBinding = async () => {
+    if (await bind()) setIsBindingEditorOpen(false)
+  }
+  return <section className="admin-section"><div className="panel-title"><Typography.Title level={3} style={{ margin: 0 }}>我的账号</Typography.Title></div><Space direction="vertical" size={16} style={{ display: 'flex', maxWidth: 640 }}><Card title="公开资料"><Typography.Paragraph type="secondary">当前显示名称：{adminUser.displayName}。该名称会展示在课程贡献者信息中。</Typography.Paragraph>{nameChangeLocked && <Alert description={`你已进入显示名称冷却期，下次可修改时间：${nextNameChangeAt}。`} message="当前无法修改显示名称" showIcon type="warning" style={{ marginBottom: 12 }} />}<Tooltip title={nameChangeLocked ? `冷却期内不可修改；${nextNameChangeAt} 后可再次修改` : undefined}><span><Button disabled={nameChangeLocked} onClick={() => { setName(adminUser.displayName); setIsNameEditorOpen(true) }}>修改显示名称</Button></span></Tooltip></Card><Card title="绑定学习端账号">{isBound ? <Space direction="vertical" size={10}><Alert description="你负责课程的草稿已可在该账号的网页端和 App 中预览。" message="已绑定学习端账号" showIcon type="success" /><Typography.Text strong>{boundLearnerLabel}</Typography.Text>{boundLearner.displayName && boundLearner.email && <Typography.Text type="secondary">{boundLearner.email}</Typography.Text>}<Button onClick={() => { setEmail(''); setPassword(''); setIsBindingEditorOpen(true) }}>更换绑定</Button></Space> : <><Typography.Paragraph type="secondary">绑定后，你负责的课程草稿会在学习端 App 和网页端中提供预览。</Typography.Paragraph><Button type="primary" onClick={() => setIsBindingEditorOpen(true)}>绑定学习端账号</Button></>}</Card></Space><Modal confirmLoading={changingName} okButtonProps={{ disabled: !name.trim() || name.trim() === adminUser.displayName }} okText="确认修改" onCancel={() => setIsNameEditorOpen(false)} onOk={async () => { await saveName(); setIsNameEditorOpen(false) }} open={isNameEditorOpen} title="修改显示名称"><Typography.Paragraph type="secondary">保存后 90 天内不能再次修改。</Typography.Paragraph><Input autoFocus maxLength={120} onChange={(event) => setName(event.target.value)} value={name} /></Modal><Modal confirmLoading={saving} okButtonProps={{ disabled: !email.trim() || !password }} okText={isBound ? '验证并更换' : '验证并绑定'} onCancel={() => setIsBindingEditorOpen(false)} onOk={() => void submitBinding()} open={isBindingEditorOpen} title={isBound ? '更换学习端账号绑定' : '绑定学习端账号'}><Typography.Paragraph type="secondary">请输入学习端登录邮箱和密码完成验证。验证成功后，会{isBound ? '替换当前绑定账号' : '开启课程草稿预览'}。</Typography.Paragraph><Input autoFocus placeholder="学习端登录邮箱" type="email" value={email} onChange={(event) => setEmail(event.target.value)} /><Input.Password placeholder="学习端登录密码" value={password} onChange={(event) => setPassword(event.target.value)} style={{ marginTop: 12 }} /></Modal></section>
 }
 
 const initialCategoryForm: CreateCategoryRequest = {
