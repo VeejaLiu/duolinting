@@ -36,7 +36,7 @@ const recorderLocaleLabels: Record<ContentLocale, string> = {
   'ja-JP': '日本語',
 }
 
-const recorderMessages: Record<ContentLocale, Record<RecordingPhase | 'idleDescription' | 'listenHint' | 'listenPrompt' | 'completeHint' | 'brandTagline', string>> = {
+const recorderMessages: Record<ContentLocale, Record<RecordingPhase | 'idleDescription' | 'listenHint' | 'listenPrompt' | 'completeHint' | 'brandTagline' | 'webAppUrl' | 'mobileAppUrl', string>> = {
   'en-US': {
     idle: 'Ready to begin',
     countdown: 'Recording starts soon',
@@ -48,6 +48,8 @@ const recorderMessages: Record<ContentLocale, Record<RecordingPhase | 'idleDescr
     listenPrompt: 'Listen first, no subtitles',
     completeHint: 'Sentence practice complete',
     brandTagline: 'Open-source, non-profit English learning',
+    webAppUrl: 'Web · https://app.duolinting.cn',
+    mobileAppUrl: 'Mobile · https://mobile.duolinting.cn',
   },
   'zh-CN': {
     idle: '准备开始',
@@ -60,6 +62,8 @@ const recorderMessages: Record<ContentLocale, Record<RecordingPhase | 'idleDescr
     listenPrompt: '先听，不看字幕',
     completeHint: '本节逐句精听已完成',
     brandTagline: '开源非盈利 · 英语学习应用',
+    webAppUrl: '网页端 · https://app.duolinting.cn',
+    mobileAppUrl: '移动端 · https://mobile.duolinting.cn',
   },
   'th-TH': {
     idle: 'พร้อมเริ่ม',
@@ -72,6 +76,8 @@ const recorderMessages: Record<ContentLocale, Record<RecordingPhase | 'idleDescr
     listenPrompt: 'ฟังก่อน ไม่ดูคำบรรยาย',
     completeHint: 'ฝึกทีละประโยคเสร็จแล้ว',
     brandTagline: 'แอปเรียนอังกฤษโอเพนซอร์ส ไม่แสวงกำไร',
+    webAppUrl: 'เว็บ · https://app.duolinting.cn',
+    mobileAppUrl: 'มือถือ · https://mobile.duolinting.cn',
   },
   'ja-JP': {
     idle: '準備完了',
@@ -84,6 +90,8 @@ const recorderMessages: Record<ContentLocale, Record<RecordingPhase | 'idleDescr
     listenPrompt: 'まず聞く、字幕は見ない',
     completeHint: '文ごとの練習が完了しました',
     brandTagline: 'オープンソース・非営利の英語学習アプリ',
+    webAppUrl: 'Web版 · https://app.duolinting.cn',
+    mobileAppUrl: 'モバイル版 · https://mobile.duolinting.cn',
   },
 }
 
@@ -510,12 +518,12 @@ export function ListeningVideoRecorder({
                   ))}
                 </strong>
                 <small>{messages.brandTagline}</small>
-                <span aria-label="网页端 app.duolinting.cn，移动端 mobile.duolinting.cn" className="recorder-brand-url-ticker">
+                <span aria-label={`${messages.webAppUrl}，${messages.mobileAppUrl}`} className="recorder-brand-url-ticker">
                   <span className="recorder-brand-url-track">
-                    <span>网页端 · app.duolinting.cn</span>
-                    <span aria-hidden="true">移动端 · mobile.duolinting.cn</span>
+                    <span>{messages.webAppUrl}</span>
+                    <span aria-hidden="true">{messages.mobileAppUrl}</span>
                     {/* 重复首项让上下切换循环时不出现空白。 */}
-                    <span aria-hidden="true">网页端 · app.duolinting.cn</span>
+                    <span aria-hidden="true">{messages.webAppUrl}</span>
                   </span>
                 </span>
               </span>
