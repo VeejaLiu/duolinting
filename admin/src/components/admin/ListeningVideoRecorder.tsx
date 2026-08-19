@@ -121,12 +121,12 @@ export function ListeningVideoRecorder({
   // 目录选择器展示所有已保存内容，不能因为课程仍是草稿、还没有字幕而把它隐藏。
   // 能否实际开始录制在加载完整课程后单独判断，避免“新建后找不到课程”的错觉。
   const availableCategories = useMemo(
-    () => categories
+    () => [...categories]
       .sort((left, right) => left.sortOrder - right.sortOrder),
     [categories],
   )
   const availableCategoryGroups = useMemo(
-    () => categoryGroups
+    () => [...categoryGroups]
       .sort((left, right) => left.sortOrder - right.sortOrder),
     [categoryGroups],
   )
@@ -154,16 +154,33 @@ export function ListeningVideoRecorder({
     : ''
   const translatedLineCount = exercise?.lines.filter((line) => hasLineLocale(line, contentLocale)).length ?? 0
 
+  /**
+   * 切换课程时先同步撤销旧播放脚本并清空画布数据。
+   * 请求新课程详情是异步的；若等到响应返回才重置，画面会短暂出现“新选择器 + 旧字幕/倒计时”的混合状态。
+   */
+  const resetForExerciseChange = () => {
+    runIdRef.current += 1
+    mediaRef.current?.pause()
+    mediaBackdropRef.current?.pause()
+    setExercise(null)
+    setPhase('idle')
+    setActiveLineIndex(0)
+    setCountdown(START_COUNTDOWN_SECONDS)
+    setPlaybackRound(0)
+    setMediaAspectRatio(null)
+  }
+
   useEffect(() => {
     const exerciseId = searchParams.get('exerciseId')
     if (exerciseId && exercises.some((item) => item.id === Number(exerciseId))) {
+      if (exerciseId !== selectedExerciseId) resetForExerciseChange()
       setSelectedExerciseId(exerciseId)
       const selectedExercise = exercises.find((item) => item.id === Number(exerciseId))
       const selectedCategory = availableCategories.find((item) => item.id === selectedExercise?.categoryId)
       setSelectedCategoryId(String(selectedExercise?.categoryId ?? ''))
       setSelectedCategoryGroupId(String(selectedCategory?.groupId ?? ''))
     }
-  }, [availableCategories, exercises, searchParams])
+  }, [availableCategories, exercises, searchParams, selectedExerciseId])
 
   useEffect(() => {
     if (!selectedCategoryGroupId && availableCategoryGroups[0]) {
@@ -183,8 +200,9 @@ export function ListeningVideoRecorder({
 
   useEffect(() => {
     const exerciseId = Number(selectedExerciseId)
+    resetForExerciseChange()
     if (!exerciseId) {
-      setExercise(null)
+      setLoading(false)
       return
     }
 
@@ -194,10 +212,6 @@ export function ListeningVideoRecorder({
       .then((result) => {
         if (!cancelled) {
           setExercise(result)
-          setActiveLineIndex(0)
-          setPhase('idle')
-          setPlaybackRound(0)
-          setMediaAspectRatio(null)
         }
       })
       .catch((error) => {
@@ -352,17 +366,20 @@ export function ListeningVideoRecorder({
   }
 
   const selectExercise = (exerciseId: string) => {
-    stop()
+    if (exerciseId === selectedExerciseId) return
+    resetForExerciseChange()
     setSelectedExerciseId(exerciseId)
   }
 
   const selectCategory = (categoryId: string) => {
     stop()
+    resetForExerciseChange()
     setSelectedCategoryId(categoryId)
   }
 
   const selectCategoryGroup = (categoryGroupId: string) => {
     stop()
+    resetForExerciseChange()
     setSelectedCategoryGroupId(categoryGroupId)
   }
 
