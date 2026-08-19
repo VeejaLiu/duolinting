@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { ChevronDown, HandHeart, LogIn, LogOut, Settings, User } from 'lucide-react'
+import { ChevronDown, GitFork, HandHeart, LogIn, LogOut, Settings, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { AuthUser } from '@duolinting/shared'
 import { useLanguage } from '../i18n/LanguageProvider'
@@ -31,6 +31,16 @@ export function TopBar({ user, onOpenAccount, onLogout }: TopBarProps) {
         </div>
       </button>
       <div className="topbar-actions" aria-label={t('topbar.learningOverview')}>
+        <a
+          className="open-source-trigger"
+          href="https://github.com/VeejaLiu/duolinting"
+          rel="noreferrer"
+          target="_blank"
+        >
+          <GitFork size={17} aria-hidden="true" />
+          <span className="open-source-trigger-label">{t('topbar.openSource')}</span>
+          <span aria-hidden="true">↗</span>
+        </a>
         <button
           className="contribute-trigger"
           onClick={() => navigate('/contribute')}

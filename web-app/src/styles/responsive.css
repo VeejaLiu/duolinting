@@ -24,6 +24,10 @@
     padding: 16px;
   }
 
+  .open-source-trigger { padding: 0 11px; }
+
+  .open-source-trigger-label { display: none; }
+
   .view-tabs {
     overflow-x: auto;
     padding: 8px 14px;

@@ -78,6 +78,34 @@
   justify-content: flex-end;
 }
 
+.open-source-trigger {
+  align-items: center;
+  background: linear-gradient(135deg, #202b3d, #30405a);
+  border: 2px solid #202b3d;
+  border-radius: 16px;
+  box-shadow: 0 4px 0 #172033;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 900;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 13px;
+  text-decoration: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.open-source-trigger:hover {
+  border-color: #1cb0f6;
+  box-shadow: 0 6px 0 #172033, 0 10px 19px rgba(23, 32, 51, 0.18);
+  transform: translateY(-2px);
+}
+
+.open-source-trigger:active {
+  box-shadow: 0 2px 0 #172033;
+  transform: translateY(2px);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

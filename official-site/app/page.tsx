@@ -202,6 +202,7 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
           </nav>
           <div className="header-actions">
             <Link className="language-switch desktop-only" href={languagePath}>{languageLabel}</Link>
+            <a className="header-source" href="https://github.com/VeejaLiu/duolinting" target="_blank" rel="noreferrer"><span aria-hidden="true">&lt;/&gt;</span> GitHub {t.nav.openSource} <b aria-hidden="true">↗</b></a>
             {learnerWebUrl ? <a className="header-cta" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.hero.web}<span className="external-link-icon" aria-hidden="true">↗</span></a> : <button className="header-cta" type="button" disabled>{t.hero.web}</button>}
             <button className="menu-trigger" type="button" aria-expanded={menuOpen} aria-label="Toggle navigation menu" onClick={() => setMenuOpen(!menuOpen)}><span></span><span></span><span></span></button>
           </div>

@@ -137,7 +137,7 @@ export default function DownloadPage({ initialLocale = "zh" }: { initialLocale?:
       <header className="site-header">
         <div className="site-shell header-inner">
           <Link className="brand" href="/" aria-label="DuolinTing home"><Image className="brand-logo" src="/duolinting-logo-ear.png" alt="" width={44} height={42} priority /><span><strong>DuolinTing</strong><small>多邻听</small></span></Link>
-          <div className="download-header-actions"><Link className="language-switch" href={languagePath}>{locale === "zh" ? "EN" : "中文"}</Link><Link className="header-cta" href={initialLocale === "en" ? "/en" : "/"}>{t.home}</Link></div>
+          <div className="download-header-actions"><Link className="language-switch" href={languagePath}>{locale === "zh" ? "EN" : "中文"}</Link><a className="header-source" href="https://github.com/VeejaLiu/duolinting" target="_blank" rel="noreferrer"><span aria-hidden="true">&lt;/&gt;</span> GitHub</a><Link className="header-cta" href={initialLocale === "en" ? "/en" : "/"}>{t.home}</Link></div>
         </div>
       </header>
 
