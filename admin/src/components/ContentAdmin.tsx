@@ -86,6 +86,19 @@ function AccountSettingsPanel({ adminToken, adminUser, onNotify }: { adminToken:
     displayName: adminUser.learnerDisplayName,
     email: adminUser.learnerEmail,
   })
+  useEffect(() => {
+    let cancelled = false
+    void apiClient.getCurrentAdmin(adminToken).then((current) => {
+      if (!cancelled) {
+        setBoundLearner({
+          id: current.learnerUserId,
+          displayName: current.learnerDisplayName,
+          email: current.learnerEmail,
+        })
+      }
+    }).catch(() => undefined)
+    return () => { cancelled = true }
+  }, [adminToken])
   const saveName = async () => {
     if (!name.trim() || name.trim() === adminUser.displayName) return
     setChangingName(true)
@@ -109,8 +122,9 @@ function AccountSettingsPanel({ adminToken, adminUser, onNotify }: { adminToken:
   const nextNameChangeAt = adminUser.nextDisplayNameChangeAt
     ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(adminUser.nextDisplayNameChangeAt))
     : ''
-  const isBound = Boolean(boundLearner.id)
-  const boundLearnerLabel = boundLearner.displayName || boundLearner.email || '已验证的学习端账号'
+  // 旧浏览器缓存可能只有 learnerUserId，没有昵称/邮箱；先显示未绑定状态，等待 auth/me 刷新后再展示完整身份。
+  const isBound = Boolean(boundLearner.displayName || boundLearner.email)
+  const boundLearnerLabel = boundLearner.displayName || '学习端账号'
   const submitBinding = async () => {
     if (await bind()) setIsBindingEditorOpen(false)
   }
