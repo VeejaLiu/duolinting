@@ -51,6 +51,8 @@ export type ExerciseCategory = {
     description: string;
     accent: string;
     coverImageUrl?: string;
+    /** 系列素材的公开出处链接，仅接受 http(s) URL。 */
+    sourceUrl?: string;
     sortOrder: number;
     localizations?: Partial<Record<ContentLocale, LocalizedDirectoryContent>>;
 };
@@ -70,7 +72,10 @@ export type ListeningExercise = {
     id: number;
     categoryId: number;
     title: string;
+    /** 运营备注形式的来源名称，如节目、作者或导入渠道。 */
     source: string;
+    /** 原始素材的公开出处链接；与用于运营备注的 source 字段分开保存。 */
+    sourceUrl?: string;
     difficulty: Difficulty;
     durationLabel: string;
     mediaType: LessonMediaType;
@@ -232,6 +237,7 @@ export type CreateCategoryRequest = {
     description: string;
     accent: string;
     coverImageUrl?: string;
+    sourceUrl?: string;
     sortOrder: number;
     localizations?: Partial<Record<ContentLocale, LocalizedDirectoryContent>>;
 };
@@ -251,6 +257,7 @@ export type CreateExerciseRequest = {
     categoryId: number;
     title: string;
     source: string;
+    sourceUrl?: string;
     difficulty: Difficulty;
     durationLabel: string;
     mediaType: LessonMediaType;

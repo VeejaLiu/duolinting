@@ -54,6 +54,7 @@ type ExerciseRow = {
     category_id: number;
     title: string;
     source: string;
+    source_url?: string | null;
     difficulty: ListeningExercise['difficulty'];
     duration_label: string;
     media_type?: ListeningExercise['mediaType'];
@@ -356,6 +357,13 @@ const toStoredMediaUrl = (value: string | null | undefined) => {
 
 const getObjectNameFromUrl = getManagedMediaObjectName;
 
+// 外部来源链接不属于 MinIO 托管媒体。写入前统一去除两端空格，
+// 空字符串转为 NULL，避免接口返回看似存在但无法打开的空链接。
+const normalizeSourceUrl = (value: string | null | undefined) => {
+    const sourceUrl = value?.trim();
+    return sourceUrl || null;
+};
+
 // 所有数据库引用先还原为受控对象键，再在 API 响应阶段选择 CDN 或旧 API 地址。
 // 这样启用 CDN 后，历史课程无需数据迁移；非本系统的外部媒体 URL 也保持原样。
 const toDeliveryMediaUrl = (value: string | null | undefined) => {
@@ -424,6 +432,7 @@ const buildExerciseSummary = (
               ?.title ?? row.title)
         : row.title,
     source: row.source,
+    sourceUrl: normalizeSourceUrl(row.source_url) || undefined,
     difficulty: row.difficulty,
     durationLabel: row.duration_label,
     mediaType: row.media_type ?? 'audio',
@@ -565,6 +574,7 @@ const buildExerciseDetail = (
               ?.title ?? row.title)
         : row.title,
     source: row.source,
+    sourceUrl: normalizeSourceUrl(row.source_url) || undefined,
     difficulty: row.difficulty,
     durationLabel: row.duration_label,
     mediaType: row.media_type ?? 'audio',
@@ -596,6 +606,7 @@ const loadCategoryRows = async () => {
                   localizations_json,
                   accent,
                   cover_image_url,
+                  source_url,
                   sort_order
                 from categories
                 order by sort_order asc, name asc
@@ -603,7 +614,7 @@ const loadCategoryRows = async () => {
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        if (!message.includes('cover_image_url')) {
+        if (!message.includes('cover_image_url') && !message.includes('source_url')) {
             throw error;
         }
 
@@ -713,6 +724,7 @@ export async function listCatalog(
                 accent: row.accent,
                 coverImageUrl:
                     toDeliveryMediaUrl(row.cover_image_url) || undefined,
+                sourceUrl: normalizeSourceUrl(row.source_url) || undefined,
                 sortOrder: Number(row.sort_order ?? 0),
                 localizations: normalizeDirectoryLocalizations(
                     row.localizations_json,
@@ -779,6 +791,7 @@ export async function listCategoryExercises(
                   category_id,
                   title,
                   source,
+                  source_url,
                   difficulty,
                   duration_label,
                   media_type,
@@ -815,6 +828,7 @@ export async function listCategoryExercises(
                   category_id,
                   title,
                   source,
+                  source_url,
                   difficulty,
                   duration_label,
                   media_type,
@@ -848,6 +862,7 @@ export async function listAllExercises(): Promise<CatalogExerciseSummary[]> {
               category_id,
               title,
               source,
+              source_url,
               difficulty,
               duration_label,
               media_type,
@@ -923,7 +938,7 @@ export async function listAdminExercisesPage(
     const offset = (options.page - 1) * options.pageSize;
     const rows = await doRawQuery<ExerciseRow>({
         query: `
-            select e.id, e.category_id, e.title, e.source, e.difficulty, e.duration_label,
+            select e.id, e.category_id, e.title, e.source, e.source_url, e.difficulty, e.duration_label,
                    e.media_type, e.audio_url, e.audio_object_name, e.cover_image_url, e.summary,
                    e.transcript_json, e.status, e.sort_order, e.created_at,
                    ${adminWorkflowSelect('e')}
@@ -962,6 +977,7 @@ export async function getExercise(
               category_id,
               title,
               source,
+              source_url,
               difficulty,
               duration_label,
               media_type,
@@ -1023,6 +1039,7 @@ export async function upsertCategory(category: CreateCategoryRequest) {
         ),
         accent: category.accent,
         cover_image_url: toStoredMediaUrl(category.coverImageUrl) || null,
+        source_url: normalizeSourceUrl(category.sourceUrl),
         sort_order: category.sortOrder,
     } as any;
 
@@ -1228,6 +1245,7 @@ export async function upsertExercise(exercise: CreateExerciseRequest) {
         category_id: exercise.categoryId,
         title: exercise.title,
         source: exercise.source,
+        source_url: normalizeSourceUrl(exercise.sourceUrl),
         difficulty: exercise.difficulty,
         duration_label: exercise.durationLabel,
         media_type: exercise.mediaType,

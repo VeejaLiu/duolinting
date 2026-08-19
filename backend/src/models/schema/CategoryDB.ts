@@ -32,6 +32,10 @@ const CategorySchema: ModelAttributes = {
         type: Sequelize.STRING(1024),
         allowNull: true,
     },
+    source_url: {
+        type: Sequelize.STRING(2048),
+        allowNull: true,
+    },
     sort_order: {
         type: Sequelize.INTEGER,
         allowNull: false,
@@ -53,6 +57,7 @@ export interface CategoryDb {
     localizations_json: unknown;
     accent: string;
     cover_image_url?: string | null;
+    source_url?: string | null;
     sort_order: number;
     created_at?: Date;
     updated_at?: Date;
@@ -66,6 +71,7 @@ export class CategoryModel extends Model<CategoryDb> {
     public localizations_json!: unknown;
     public accent!: string;
     public cover_image_url!: string | null;
+    public source_url!: string | null;
     public sort_order!: number;
 }
 

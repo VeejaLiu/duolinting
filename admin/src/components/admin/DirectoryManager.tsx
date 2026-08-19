@@ -69,7 +69,7 @@ type DirectoryFormProps = {
   form: CreateCategoryGroupRequest | CreateCategoryRequest
   kind: 'group' | 'category'
   onCancel: () => void
-  onChange: (key: 'name' | 'accent' | 'description' | 'coverImageUrl' | 'localizations', value: string | Record<string, unknown>) => void
+  onChange: (key: 'name' | 'accent' | 'description' | 'coverImageUrl' | 'sourceUrl' | 'localizations', value: string | Record<string, unknown>) => void
   onNotify: (message: string, tone?: AdminNoticeTone) => void
   onSave: () => void
 }
@@ -148,6 +148,17 @@ function DirectoryForm({
         <Form.Item label={kind === 'group' ? '说明' : '描述'} style={{ marginTop: 16, marginBottom: 0 }}>
           <Input disabled={disabled} value={form.description} onChange={(event) => onChange('description', event.target.value)} />
         </Form.Item>
+        {kind === 'category' && (
+          <Form.Item label="来源链接（可选）" style={{ marginTop: 16, marginBottom: 0 }}>
+            <Input
+              disabled={disabled}
+              placeholder="https://example.com/original-material"
+              type="url"
+              value={(form as CreateCategoryRequest).sourceUrl ?? ''}
+              onChange={(event) => onChange('sourceUrl', event.target.value)}
+            />
+          </Form.Item>
+        )}
         <Divider style={{ margin: '20px 0 12px' }}>多语言内容</Divider>
         <Flex align="center" justify="space-between" gap={12} style={{ marginBottom: 12 }}>
           <Typography.Text type="secondary">同时检查和编辑所有语言，中文名称与说明作为 AI 翻译源。</Typography.Text>
@@ -331,7 +342,7 @@ export function DirectoryManager(props: DirectoryManagerProps) {
                       <ActionButton disabled={isSaving || groupIndex === categoryGroups.length - 1} label="下移内容分类" onClick={() => onMoveCategoryGroup(group.id, 'down')}><ArrowDown size={16} /></ActionButton>
                       <ActionButton label="编辑内容分类" onClick={() => { onEditCategoryGroup(group); setActiveEditor({ type: 'edit-group', groupId: group.id }) }}><Edit3 size={16} /></ActionButton>
                       <ActionButton danger disabled={isSaving} label="删除内容分类" onClick={() => void confirmDeleteGroup(group)}><Trash2 size={16} /></ActionButton>
-                      <ActionButton disabled={isSaving} label="新建学习系列" onClick={() => { onCategoryFormChange(() => ({ groupId: group.id, name: '', description: '', accent: group.accent, coverImageUrl: '', sortOrder: 10 })); setActiveEditor({ type: 'create-category', groupId: group.id }) }}><Plus size={16} /></ActionButton>
+                      <ActionButton disabled={isSaving} label="新建学习系列" onClick={() => { onCategoryFormChange(() => ({ groupId: group.id, name: '', description: '', accent: group.accent, coverImageUrl: '', sourceUrl: '', sortOrder: 10 })); setActiveEditor({ type: 'create-category', groupId: group.id }) }}><Plus size={16} /></ActionButton>
                     </Space>
                   </Flex>
                   <div className="directory-category-area">

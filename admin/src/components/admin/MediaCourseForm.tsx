@@ -449,6 +449,21 @@ export function MediaCourseForm({
             </label>
 
             <label className="field wide">
+              <span>来源链接（可选）</span>
+              <input
+                placeholder="https://example.com/original-material"
+                type="url"
+                value={courseForm.sourceUrl ?? ''}
+                onChange={(event) =>
+                  onCourseFormChange((current) => ({
+                    ...current,
+                    sourceUrl: event.target.value,
+                  }))
+                }
+              />
+            </label>
+
+            <label className="field wide">
               <span>摘要</span>
               <textarea
                 className="cover-summary-textarea"

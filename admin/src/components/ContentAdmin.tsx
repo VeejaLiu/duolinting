@@ -77,6 +77,7 @@ const initialCategoryForm: CreateCategoryRequest = {
   description: '面向新闻材料的学习系列',
   accent: '#3a7ca5',
   coverImageUrl: '',
+  sourceUrl: '',
   sortOrder: 10,
 }
 
@@ -582,6 +583,7 @@ export function ContentAdmin({
             description: category.description,
             accent: category.accent,
             coverImageUrl: category.coverImageUrl,
+            sourceUrl: category.sourceUrl,
             sortOrder: category.sortOrder,
             localizations: category.localizations,
           },
@@ -704,6 +706,7 @@ export function ContentAdmin({
             categoryId: exercise.categoryId,
             title: exercise.title,
             source: exercise.source,
+            sourceUrl: exercise.sourceUrl,
             difficulty: exercise.difficulty,
             durationLabel: exercise.durationLabel,
             mediaType: exercise.mediaType,
@@ -876,6 +879,7 @@ export function ContentAdmin({
                   categoryId: exercise.categoryId,
                   title,
                   source: exercise.source,
+                  sourceUrl: exercise.sourceUrl,
                   difficulty: exercise.difficulty,
                   durationLabel: exercise.durationLabel,
                   mediaType: exercise.mediaType,

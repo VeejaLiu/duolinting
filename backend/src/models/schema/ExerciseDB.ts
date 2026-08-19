@@ -19,6 +19,10 @@ const ExerciseSchema: ModelAttributes = {
         type: Sequelize.STRING(180),
         allowNull: false,
     },
+    source_url: {
+        type: Sequelize.STRING(2048),
+        allowNull: true,
+    },
     difficulty: {
         type: Sequelize.ENUM('beginner', 'intermediate', 'advanced'),
         allowNull: false,
@@ -79,6 +83,7 @@ export interface ExerciseDb {
     category_id: number;
     title: string;
     source: string;
+    source_url?: string | null;
     difficulty: 'beginner' | 'intermediate' | 'advanced';
     duration_label: string;
     media_type: 'audio' | 'video';
@@ -97,6 +102,7 @@ export class ExerciseModel extends Model<ExerciseDb> {
     public category_id!: number;
     public title!: string;
     public source!: string;
+    public source_url!: string | null;
     public difficulty!: 'beginner' | 'intermediate' | 'advanced';
     public duration_label!: string;
     public media_type!: 'audio' | 'video';

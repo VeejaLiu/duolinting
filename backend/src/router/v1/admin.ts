@@ -79,6 +79,27 @@ const isStoredAssetUrl = (value: unknown) => {
         return false;
     }
 };
+
+// 来源链接指向外部公开页面，不能复用媒体地址校验：媒体字段允许站内对象 URL，
+// 而这里必须是可被运营人员和学习者直接访问的 http(s) 页面。
+const isExternalHttpUrl = (value: unknown) => {
+    if (typeof value !== 'string') {
+        return false;
+    }
+
+    try {
+        const parsed = new URL(value.trim());
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+};
+
+// optional() 在清理空格之前判断空值；因此单独接受全空白输入，
+// 服务层会把它规范化为 NULL，避免可选字段因误输空格而无法保存。
+const isOptionalExternalHttpUrl = (value: unknown) =>
+    typeof value === 'string' &&
+    (!value.trim() || isExternalHttpUrl(value));
 const logger = new Logger(__filename);
 // Express 5 route params may be typed as string arrays for repeated parameters; IDs use the first value.
 const toId = (value: string | string[]) => Number.parseInt(Array.isArray(value) ? value[0] : value, 10);
@@ -257,6 +278,14 @@ router.post(
     body('description').optional().isString(),
     body('accent').isString().matches(/^#[0-9a-fA-F]{6}$/),
     body('coverImageUrl').optional({ values: 'falsy' }).custom(isStoredAssetUrl),
+    body('sourceUrl')
+        .optional({ values: 'falsy' })
+        .isString()
+        .trim()
+        .isLength({ max: 2048 })
+        .bail()
+        .custom(isOptionalExternalHttpUrl)
+        .withMessage('来源链接必须是有效的 http:// 或 https:// 地址'),
     body('sortOrder').isInt({ min: 0 }),
     validateErrorCheck,
     async (req, res) => {
@@ -312,6 +341,14 @@ router.post(
     body('mediaType').isIn(['audio', 'video']),
     body('audioUrl').custom(isStoredAssetUrl),
     body('coverImageUrl').optional({ values: 'falsy' }).custom(isStoredAssetUrl),
+    body('sourceUrl')
+        .optional({ values: 'falsy' })
+        .isString()
+        .trim()
+        .isLength({ max: 2048 })
+        .bail()
+        .custom(isOptionalExternalHttpUrl)
+        .withMessage('来源链接必须是有效的 http:// 或 https:// 地址'),
     body('summary').optional().isString(),
     body('sortOrder').isInt({ min: 0 }),
     body('status').isIn(['draft', 'proofread', 'published', 'archived']),
