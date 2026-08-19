@@ -26,6 +26,7 @@ type GuideCopy = {
   before: { eyebrow: string; title: string; lead: string; items: Array<{ mark: string; title: string; body: string }> };
   path: { eyebrow: string; title: string; lead: string; steps: Array<{ title: string; body: string }> };
   collaboration: { eyebrow: string; title: string; lead: string; note: string; steps: Array<{ title: string; body: string }>; images: Array<{ src: string; alt: string; title: string; body: string }> };
+  workflow: { eyebrow: string; title: string; lead: string; steps: Array<{ title: string; body: string }> };
   workspace: { eyebrow: string; title: string; lead: string; note: string; sections: Array<{ id: string; number: string; title: string; intro: string; actions: string[]; aside?: { title: string; body: string } }> };
   checklist: { eyebrow: string; title: string; lead: string; items: string[]; button: string };
   maintenance: { eyebrow: string; title: string; lead: string; cards: Array<{ mark: string; title: string; body: string }> };
@@ -40,7 +41,7 @@ const copy: Record<Locale, GuideCopy> = {
   zh: {
     home: "返回首页",
     language: "EN",
-    nav: [["加入协作", "collaboration"], ["后台工作台", "workspace"], ["发布检查", "checklist"], ["开源协作", "code"]],
+    nav: [["加入协作", "collaboration"], ["工作流", "workflow"], ["规则", "rules"], ["开源协作", "code"]],
     docs: {
       label: "贡献文档",
       breadcrumb: "内容贡献",
@@ -98,6 +99,17 @@ const copy: Record<Locale, GuideCopy> = {
         { src: "/contributor-account-provisioning.png", alt: "Admin 中添加字幕贡献者账号的表单", title: "账号由超级管理员开通", body: "使用邮箱登录，并填写会出现在课程中的显示名称。" },
         { src: "/contributor-first-login.png", alt: "一次性显示的字幕贡献者账号开通信息", title: "登录信息仅展示一次", body: "临时密码不会保存在后台；请立即安全发送给成员。" },
         { src: "/contributor-course-credit.png", alt: "课程标题栏中显示校对与审核贡献者名称", title: "贡献会被公开署名", body: "校对与审核人的显示名称会在网页和 App 的课程标题区域展示。" },
+      ],
+    },
+    workflow: {
+      eyebrow: "字幕工作流",
+      title: "四步完成一次协作。",
+      lead: "超级管理员管理课程与发布；字幕贡献者专注于校对和二审。",
+      steps: [
+        { title: "草稿", body: "管理员创建课程并分配校对人与二审人。" },
+        { title: "校对", body: "校对人直接在 Admin 工作台修改字幕。" },
+        { title: "二次审核", body: "提交后字幕锁定，流转给指定审核人通过或退回。" },
+        { title: "发布", body: "管理员确认后发布；草稿与已校对内容仅供志愿者预览。" },
       ],
     },
     workspace: {
@@ -171,7 +183,7 @@ const copy: Record<Locale, GuideCopy> = {
   en: {
     home: "Back to home",
     language: "中文",
-    nav: [["Join collaboration", "collaboration"], ["Workspace", "workspace"], ["Publish checks", "checklist"], ["Open source", "code"]],
+    nav: [["Join collaboration", "collaboration"], ["Workflow", "workflow"], ["Rules", "rules"], ["Open source", "code"]],
     docs: {
       label: "Contribution docs",
       breadcrumb: "Content contributions",
@@ -229,6 +241,17 @@ const copy: Record<Locale, GuideCopy> = {
         { src: "/contributor-account-provisioning.png", alt: "Admin form for adding a subtitle contributor", title: "Accounts are provisioned by a super administrator", body: "Contributors sign in by email and choose the display name shown on courses." },
         { src: "/contributor-first-login.png", alt: "One-time subtitle contributor account details", title: "Login details are shown only once", body: "Temporary passwords are not retained by Admin; send them securely right away." },
         { src: "/contributor-course-credit.png", alt: "Course title area showing proofreader and reviewer names", title: "Contributors receive visible credit", body: "Proofreader and reviewer display names appear in the course title area on web and mobile." },
+      ],
+    },
+    workflow: {
+      eyebrow: "Subtitle workflow",
+      title: "Four steps for every collaboration.",
+      lead: "Super administrators manage courses and release; subtitle contributors focus on proofreading and second review.",
+      steps: [
+        { title: "Draft", body: "An administrator creates the lesson and assigns the proofreader and reviewer." },
+        { title: "Proofread", body: "The proofreader edits subtitles directly in the Admin workspace." },
+        { title: "Second review", body: "Submission locks the draft and sends it to the assigned reviewer to approve or return." },
+        { title: "Publish", body: "An administrator releases approved work; draft and proofread content is for volunteer preview only." },
       ],
     },
     workspace: {
@@ -306,14 +329,9 @@ export function ContributeGuide({ initialLocale = "zh" }: { initialLocale?: Loca
           <nav>
             <p>{docs.sidebar.gettingStarted}</p>
             <a href="#overview" className="is-active">{docs.sidebar.overview}</a>
-            <a href="#start">{docs.sidebar.prepare}</a>
-            <a href="#path">{docs.sidebar.path}</a>
             <a href="#collaboration">{docs.sidebar.collaboration}</a>
-            <p>{docs.sidebar.workspace}</p>
-            {t.workspace.sections.map((section) => <a key={section.id} href={`#${section.id}`}>{docs.sidebar[section.id as "directory" | "course" | "workbench" | "subtitles" | "waveform" | "publish"]}</a>)}
+            <a href="#workflow">{locale === "zh" ? "字幕工作流" : "Subtitle workflow"}</a>
             <p>{docs.sidebar.publishing}</p>
-            <a href="#checklist">{docs.sidebar.checklist}</a>
-            <a href="#maintenance">{docs.sidebar.maintenance}</a>
             <a href="#rules">{docs.sidebar.rules}</a>
             <a href="#code">{docs.sidebar.code}</a>
           </nav>
@@ -330,21 +348,6 @@ export function ContributeGuide({ initialLocale = "zh" }: { initialLocale?: Loca
             <ul className="docs-facts">{t.hero.facts.map((fact) => <li key={fact}><span>✓</span>{fact}</li>)}</ul>
           </section>
 
-          <section className="docs-media-block">
-            <div><p className="docs-section-label">{t.workspace.eyebrow}</p><h2>{docs.media.title}</h2><p>{docs.media.body}</p></div>
-            <figure><div className="docs-browser-bar" aria-hidden="true"><i></i><i></i><i></i><span>DuolinTing · {locale === "zh" ? "制课工作台" : "Creation workspace"}</span></div><Image src="/admin-course-workbench.png" alt={t.hero.screenshot} width={1800} height={1328} sizes="(max-width: 900px) 100vw, 660px" priority /><figcaption>{docs.media.caption}</figcaption></figure>
-          </section>
-
-          <section id="start" className="docs-section">
-            <p className="docs-section-label">{t.before.eyebrow}</p><h2>{t.before.title}</h2><p>{t.before.lead}</p>
-            <ol className="docs-numbered-list">{t.before.items.map((item) => <li key={item.mark}><span>{item.mark}</span><div><h3>{item.title}</h3><p>{item.body}</p></div></li>)}</ol>
-          </section>
-
-          <section id="path" className="docs-section">
-            <p className="docs-section-label">{t.path.eyebrow}</p><h2>{t.path.title}</h2><p>{t.path.lead}</p>
-            <ol className="docs-path-list">{t.path.steps.map((step, index) => <li key={step.title}><span>{String(index + 1).padStart(2, "0")}</span><div><h3>{step.title}</h3><p>{step.body}</p></div></li>)}</ol>
-          </section>
-
           <section id="collaboration" className="docs-section docs-collaboration-section">
             <p className="docs-section-label">{t.collaboration.eyebrow}</p><h2>{t.collaboration.title}</h2><p>{t.collaboration.lead}</p>
             <p className="docs-callout"><span>i</span>{t.collaboration.note}</p>
@@ -352,20 +355,15 @@ export function ContributeGuide({ initialLocale = "zh" }: { initialLocale?: Loca
             <div className="docs-collaboration-media">{t.collaboration.images.map((image) => <figure key={image.src}><Image src={image.src} alt={image.alt} width={1024} height={824} sizes="(max-width: 820px) 100vw, 360px" /><figcaption><strong>{image.title}</strong><span>{image.body}</span></figcaption></figure>)}</div>
           </section>
 
-          <section id="workspace" className="docs-section docs-workspace-intro"><p className="docs-section-label">{t.workspace.eyebrow}</p><h2>{t.workspace.title}</h2><p>{t.workspace.lead}</p><p className="docs-callout"><span>i</span>{t.workspace.note}</p></section>
-          {t.workspace.sections.map((section) => <section className="docs-section docs-workspace-section" key={section.id} id={section.id}><div className="docs-section-heading"><span>{section.number}</span><h2>{section.title}</h2></div><p>{section.intro}</p><ul className="docs-check-list">{section.actions.map((action) => <li key={action}><span>✓</span>{action}</li>)}</ul>{section.aside && <aside className="docs-tip"><strong>{section.aside.title}</strong><p>{section.aside.body}</p></aside>}</section>)}
-
-          <section className="docs-section" id="checklist"><p className="docs-section-label">{t.checklist.eyebrow}</p><h2>{t.checklist.title}</h2><p>{t.checklist.lead}</p><ul className="docs-release-list">{t.checklist.items.map((item) => <li key={item}><span>✓</span>{item}</li>)}</ul></section>
-
-          <section className="docs-section" id="maintenance"><p className="docs-section-label">{t.maintenance.eyebrow}</p><h2>{t.maintenance.title}</h2><p>{t.maintenance.lead}</p><div className="docs-maintenance-list">{t.maintenance.cards.map((card) => <article key={card.title}><span>{card.mark}</span><div><h3>{card.title}</h3><p>{card.body}</p></div></article>)}</div></section>
+          <section id="workflow" className="docs-section"><p className="docs-section-label">{t.workflow.eyebrow}</p><h2>{t.workflow.title}</h2><p>{t.workflow.lead}</p><ol className="docs-path-list">{t.workflow.steps.map((step, index) => <li key={step.title}><span>{String(index + 1).padStart(2, "0")}</span><div><h3>{step.title}</h3><p>{step.body}</p></div></li>)}</ol></section>
 
           <section className="docs-section" id="rules"><p className="docs-section-label">{t.rules.eyebrow}</p><h2>{t.rules.title}</h2><p>{t.rules.lead}</p><ul className="docs-rules-list">{t.rules.items.map((item) => <li key={item}><span>!</span>{item}</li>)}</ul></section>
 
           <section className="docs-section" id="code"><p className="docs-section-label">{t.code.eyebrow}</p><h2>{t.code.title}</h2><p>{t.code.body}</p><a className="docs-action" href={githubUrl} target="_blank" rel="noreferrer">{t.code.action}<span>↗</span></a><p className="docs-fine-print">{t.code.note}</p></section>
-          <nav className="docs-pagination" aria-label="Contribution guide pagination"><a href="#start"><small>{docs.next.previous}</small><strong>← {docs.next.start}</strong></a><a href="#workspace"><small>{docs.next.next}</small><strong>{docs.next.workspace} →</strong></a></nav>
+          <nav className="docs-pagination" aria-label="Contribution guide pagination"><a href="#collaboration"><small>{docs.next.previous}</small><strong>← {docs.sidebar.collaboration}</strong></a><a href="#workflow"><small>{docs.next.next}</small><strong>{t.workflow.title} →</strong></a></nav>
         </article>
 
-        <aside className="docs-toc" aria-label="On this page"><p>{locale === "zh" ? "本页总览" : "On this page"}</p><nav><a href="#overview">{docs.toc.overview}</a><a href="#start">{docs.toc.start}</a><a href="#collaboration">{docs.toc.collaboration}</a><a href="#workspace">{docs.toc.workspace}</a><a href="#checklist">{docs.toc.checklist}</a><a href="#maintenance">{docs.toc.maintenance}</a><a href="#rules">{docs.toc.rules}</a><a href="#code">{docs.toc.code}</a></nav></aside>
+        <aside className="docs-toc" aria-label="On this page"><p>{locale === "zh" ? "本页总览" : "On this page"}</p><nav><a href="#overview">{docs.toc.overview}</a><a href="#collaboration">{docs.toc.collaboration}</a><a href="#workflow">{t.workflow.eyebrow}</a><a href="#rules">{docs.toc.rules}</a><a href="#code">{docs.toc.code}</a></nav></aside>
       </div>
     </main>
   );
