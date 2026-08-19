@@ -275,6 +275,12 @@ export const apiClient = {
       { method: 'PUT', body: JSON.stringify(request) },
       { adminToken },
     ),
+  changeOwnAdminDisplayName: (displayName: string, adminToken: string) =>
+    fetchApiResult<AdminUser>(
+      '/api/v1/admin/auth/display-name',
+      { method: 'PUT', body: JSON.stringify({ displayName }) },
+      { adminToken },
+    ),
   adminLogout: (adminToken: string) =>
     fetchJson<ApiResult<never>>(
       '/api/v1/admin/auth/logout',

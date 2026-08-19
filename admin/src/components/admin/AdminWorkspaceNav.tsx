@@ -1,6 +1,6 @@
 import { Menu } from 'antd'
 import type { MenuProps } from 'antd'
-import { BookOpen, Clapperboard, Layers3, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, UserRound, Users, UsersRound, type LucideIcon } from 'lucide-react'
+import { BookOpen, Clapperboard, Layers3, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, PencilLine, UserRound, Users, UsersRound, type LucideIcon } from 'lucide-react'
 import type { AdminUser } from '@duolinting/shared'
 
 export type AdminSection = 'importer' | 'directory' | 'courses' | 'recorder' | 'feedback' | 'users' | 'collaboration'
@@ -42,6 +42,7 @@ type AdminWorkspaceNavProps = {
   adminUser: AdminUser
   collapsed?: boolean
   onCollapsedChange: (collapsed: boolean) => void
+  onRequestDisplayNameChange: () => void
   onLogout: () => void
   onSectionChange: (section: AdminSection) => void
 }
@@ -51,6 +52,7 @@ export function AdminWorkspaceNav({
   adminUser,
   collapsed = false,
   onCollapsedChange,
+  onRequestDisplayNameChange,
   onLogout,
   onSectionChange,
 }: AdminWorkspaceNavProps) {
@@ -95,6 +97,11 @@ export function AdminWorkspaceNav({
       key: 'account',
       label: collapsed ? '后台账号' : `${adminUser.displayName} · ${adminUser.role === 'super_admin' ? '超级管理员' : '字幕贡献者'}`,
       children: [
+        ...(adminUser.role === 'subtitle_contributor' ? [{
+          icon: <PencilLine size={16} aria-hidden="true" />,
+          key: 'change-display-name',
+          label: '修改显示名称（90 天一次）',
+        }] : []),
         {
           icon: <LogOut size={16} aria-hidden="true" />,
           key: 'logout',
@@ -111,6 +118,10 @@ export function AdminWorkspaceNav({
     }
     if (key === 'logout') {
       onLogout()
+      return
+    }
+    if (key === 'change-display-name') {
+      onRequestDisplayNameChange()
       return
     }
     if (key !== 'account') {

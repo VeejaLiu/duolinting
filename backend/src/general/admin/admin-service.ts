@@ -14,6 +14,7 @@ export type AdminSessionUser = {
     mustChangePassword: boolean;
     createdAt?: string;
     lastLoginAt?: string;
+    nextDisplayNameChangeAt?: string;
 };
 
 export type AdminAuthResult = {
@@ -27,7 +28,15 @@ export type AdminAuthResult = {
 
 const plainAdmin = (admin: any) => (typeof admin.get === 'function' ? admin.get({ plain: true }) : admin);
 const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+// 贡献会公开署名在课程中，90 天的间隔避免名称频繁变动而难以追溯历史贡献。
+const DISPLAY_NAME_CHANGE_COOLDOWN_MS = 90 * 24 * 60 * 60 * 1000;
 const hashAdminToken = (token: string) => crypto.createHash('sha256').update(token).digest('hex');
+
+const getNextDisplayNameChangeAt = (lastChangedAt: Date | string | null | undefined) => {
+    if (!lastChangedAt) return undefined;
+    const nextChangeAt = new Date(lastChangedAt).getTime() + DISPLAY_NAME_CHANGE_COOLDOWN_MS;
+    return nextChangeAt > Date.now() ? new Date(nextChangeAt).toISOString() : undefined;
+};
 
 const mapAdminUser = (admin: any): AdminSessionUser => {
     const row = plainAdmin(admin);
@@ -41,6 +50,7 @@ const mapAdminUser = (admin: any): AdminSessionUser => {
         mustChangePassword: Boolean(row.must_change_password),
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
         lastLoginAt: row.last_login_at ? new Date(row.last_login_at).toISOString() : undefined,
+        nextDisplayNameChangeAt: getNextDisplayNameChangeAt(row.last_display_name_changed_at),
     };
 };
 
@@ -167,6 +177,69 @@ export async function changeAdminPassword({
         success: true,
         message: 'success',
         data: { ...mapAdminUser(row), mustChangePassword: false },
+    };
+}
+
+/**
+ * 贡献者可以自行修改公开署名，但以数据库中的时间戳为准执行 90 天冷却。
+ * 条件更新把“检查冷却期”和“写入新名称”绑定在一起，避免并发请求绕过限制。
+ */
+export async function changeOwnAdminDisplayName({
+    adminId,
+    displayName,
+}: {
+    adminId: number;
+    displayName: string;
+}): Promise<{ success: boolean; message: string; data?: AdminSessionUser }> {
+    const normalizedDisplayName = displayName.trim();
+    if (!normalizedDisplayName) {
+        return { success: false, message: '请填写显示名称' };
+    }
+
+    const adminRecord = await AdminUserModel.findByPk(adminId);
+    if (!adminRecord) {
+        return { success: false, message: '后台账号不存在' };
+    }
+    const row = plainAdmin(adminRecord);
+    if (normalizeAdminRole(row.role) !== 'subtitle_contributor') {
+        return { success: false, message: '仅字幕贡献者可以自行修改显示名称' };
+    }
+    if (row.display_name === normalizedDisplayName) {
+        return { success: false, message: '新显示名称与当前名称相同' };
+    }
+
+    const now = new Date();
+    const nextChangeAt = getNextDisplayNameChangeAt(row.last_display_name_changed_at);
+    if (nextChangeAt) {
+        return { success: false, message: `显示名称每 90 天只能修改一次，请在 ${nextChangeAt} 后再试` };
+    }
+
+    const cooldownCutoff = new Date(now.getTime() - DISPLAY_NAME_CHANGE_COOLDOWN_MS);
+    const [updatedCount] = await AdminUserModel.update(
+        {
+            display_name: normalizedDisplayName,
+            last_display_name_changed_at: now,
+        },
+        {
+            where: {
+                id: adminId,
+                [Op.or]: [
+                    { last_display_name_changed_at: null },
+                    { last_display_name_changed_at: { [Op.lte]: cooldownCutoff } },
+                ],
+            },
+        },
+    );
+    if (updatedCount !== 1) {
+        // 两次请求同时到达时，第二次会在条件更新处失败，仍需保留冷却规则。
+        return { success: false, message: '显示名称刚刚修改过，请在 90 天后再试' };
+    }
+
+    const updatedAdmin = await AdminUserModel.findByPk(adminId);
+    return {
+        success: true,
+        message: 'success',
+        data: mapAdminUser(updatedAdmin),
     };
 }
 

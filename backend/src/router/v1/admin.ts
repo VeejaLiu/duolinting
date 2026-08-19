@@ -2,7 +2,7 @@ import express from 'express';
 import { body } from 'express-validator';
 import type { FeedbackStatus } from '../../domain';
 import { requireAdminPasswordChanged, requireAdminToken, requireSuperAdmin } from '../../general/admin/admin-auth';
-import { changeAdminPassword, getAdminInfo, loginAdmin, logoutAdmin } from '../../general/admin/admin-service';
+import { changeAdminPassword, changeOwnAdminDisplayName, getAdminInfo, loginAdmin, logoutAdmin } from '../../general/admin/admin-service';
 import {
     canAccessExerciseWorkflow,
     canEditExerciseSubtitles,
@@ -124,6 +124,19 @@ router.put(
 
 // 除了认证资料和改密接口外，所有后台能力都要求成员完成初始密码修改。
 router.use(requireAdminToken, requireAdminPasswordChanged);
+
+router.put(
+    '/auth/display-name',
+    body('displayName').isString().trim().isLength({ min: 1, max: 120 }),
+    validateErrorCheck,
+    async (req: any, res) => {
+        const result = await changeOwnAdminDisplayName({
+            adminId: req.admin.id,
+            displayName: req.body.displayName,
+        });
+        res.status(result.success ? 200 : 400).send(result);
+    },
+);
 
 router.get('/catalog', async (_req: any, res) => {
     res.status(200).send(await listCatalog(true, true));

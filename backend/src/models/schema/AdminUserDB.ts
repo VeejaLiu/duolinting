@@ -21,6 +21,10 @@ const AdminUserSchema: ModelAttributes = {
         type: Sequelize.STRING(120),
         allowNull: false,
     },
+    last_display_name_changed_at: {
+        type: Sequelize.DATE,
+        allowNull: true,
+    },
     password_hash: {
         type: Sequelize.STRING(255),
         allowNull: false,
@@ -61,6 +65,7 @@ export interface AdminUserDb {
     username: string;
     email?: string | null;
     display_name: string;
+    last_display_name_changed_at?: Date | null;
     password_hash: string;
     role: 'super_admin' | 'subtitle_contributor' | 'admin';
     must_change_password: boolean;
@@ -77,6 +82,7 @@ export class AdminUserModel extends Model<AdminUserDb> {
     declare username: string;
     declare email: string | null;
     declare display_name: string;
+    declare last_display_name_changed_at: Date | null;
     declare password_hash: string;
     declare role: 'super_admin' | 'subtitle_contributor' | 'admin';
     declare must_change_password: boolean;

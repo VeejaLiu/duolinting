@@ -391,6 +391,8 @@ export type AdminUser = {
   mustChangePassword: boolean
   createdAt?: string
   lastLoginAt?: string
+  /** 仅字幕贡献者使用；有值时代表显示名称仍在 90 天自助修改冷却期内。 */
+  nextDisplayNameChangeAt?: string
 }
 
 export type CourseContributor = {
