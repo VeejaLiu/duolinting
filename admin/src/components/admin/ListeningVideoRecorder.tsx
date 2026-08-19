@@ -435,6 +435,7 @@ export function ListeningVideoRecorder({
           <Cascader
             className="recorder-course-select"
             disabled={isRunning || courseCascaderOptions.length === 0}
+            displayRender={(labels) => labels.join(' / ')}
             onChange={(value) => {
               const courseId = value[value.length - 1]
               if (typeof courseId === 'string' && /^\d+$/.test(courseId)) selectExercise(courseId)

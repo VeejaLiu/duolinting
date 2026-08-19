@@ -430,16 +430,18 @@
   border: 1px solid #d7dde5;
   border-radius: 8px;
   display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(300px, 1fr) auto minmax(260px, auto);
-  padding: 12px;
+  column-gap: 20px;
+  row-gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 14px 16px;
 }
 
 .recorder-course-picker {
   align-items: center;
   display: grid;
-  gap: 8px;
-  grid-template-columns: auto minmax(260px, 560px);
+  gap: 14px;
+  grid-template-columns: 88px minmax(0, 1fr);
+  grid-column: 1 / -1;
   min-width: 0;
 }
 
@@ -452,6 +454,11 @@
 
 .recorder-course-select {
   min-width: 0;
+  width: 100%;
+}
+
+.recorder-course-select .ant-select-selector {
+  min-width: 0;
 }
 
 .recorder-course-status {
@@ -461,8 +468,22 @@
   font-size: 12px;
   font-weight: 700;
   gap: 7px;
+  grid-column: 1;
+  min-width: 0;
   flex-wrap: wrap;
   white-space: normal;
+}
+
+/* Cascader 的已选路径应优先完整呈现；不足时只在极窄窗口截断，不与右侧控件重叠。 */
+.recorder-course-select .ant-select-selection-item {
+  min-width: 0;
+}
+
+@media (min-width: 721px) {
+  .recorder-translation-control {
+    grid-column: 2;
+    justify-self: end;
+  }
 }
 
 .recorder-course-status .ant-tag {
@@ -480,7 +501,7 @@
 
 .recorder-translation-control {
   align-items: center;
-  border-left: 1px solid #e2e8f0;
+  border-left: 1px solid #dbe3ee;
   display: flex;
   gap: 10px;
   padding-left: 16px;
@@ -504,7 +525,10 @@
 
 .recorder-locale-select {
   min-width: 112px;
+  width: 128px;
 }
+
+.recorder-locale-select .ant-select-selector { min-height: 32px; }
 
 .recorder-stage-area {
   background: #e8edf3;
