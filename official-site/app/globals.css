@@ -560,6 +560,7 @@ h1 em { color: var(--brand-strong); font-style: normal; }
 .docs-breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; color: #99a6b0; font-size: 12px; font-weight: 760; }
 .docs-breadcrumb a { color: #5c778a; text-decoration: none; }
 .docs-breadcrumb a:hover { color: var(--brand-strong); }
+.docs-breadcrumb time { margin-left: auto; color: #a0acb5; font-size: 11px; font-weight: 690; }
 .docs-kicker, .docs-section-label { margin: 0; color: #158bc4; font-size: 12px; font-weight: 900; letter-spacing: .035em; }
 .docs-intro h1 { max-width: 720px; margin: 15px 0 20px; color: #172033; font-size: clamp(40px, 4.35vw, 56px); line-height: 1.12; letter-spacing: -2.3px; }
 .docs-lead { max-width: 710px; margin: 0; color: #627286; font-size: 17px; font-weight: 620; line-height: 1.78; }
@@ -590,6 +591,16 @@ h1 em { color: var(--brand-strong); font-style: normal; }
 .docs-path-list { grid-template-columns: repeat(2,1fr); gap: 0 29px; border-top: 0; }
 .docs-path-list li { grid-template-columns: 35px 1fr; padding: 16px 0; }
 .docs-path-list li > span { width: 28px; height: 24px; background: #eefbe6; color: #469b0e; font-size: 9px; }
+.docs-collaboration-section { padding: 31px; border: 1px solid #cfe8f4; border-radius: 16px; background: linear-gradient(140deg, #f4fbff 0%, #fff 62%); }
+.docs-collaboration-section > .docs-callout { margin-top: 23px; }
+.docs-collaboration-section .docs-numbered-list { margin-top: 24px; }
+.docs-collaboration-media { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; margin-top: 28px; }
+.docs-collaboration-media figure { grid-column: span 1; margin: 0; overflow: hidden; border: 1px solid #d4e5ee; border-radius: 11px; background: #fff; box-shadow: 0 7px 18px rgba(25,78,110,.08); }
+.docs-collaboration-media figure:last-child { grid-column: 1 / -1; }
+.docs-collaboration-media img { display: block; width: 100%; height: auto; }
+.docs-collaboration-media figcaption { display: grid; gap: 4px; padding: 12px 13px; border-top: 1px solid #edf2f5; }
+.docs-collaboration-media figcaption strong { color: #385266; font-size: 12px; }
+.docs-collaboration-media figcaption span { color: #82919e; font-size: 11px; font-weight: 620; line-height: 1.55; }
 .docs-workspace-intro { padding-top: 42px; border-top: 1px solid #e6edf2; }
 .docs-workspace-section { margin-top: 51px; }
 .docs-section-heading { display: flex; align-items: center; gap: 12px; }
@@ -654,6 +665,7 @@ h1 em { color: var(--brand-strong); font-style: normal; }
   .docs-github-link { display: none; }
   .docs-article { padding-top: 40px; }
   .docs-media-block { padding: 24px; }
+  .docs-collaboration-section { padding: 24px; }
 }
 @media (max-width: 480px) {
   .docs-header-inner, .docs-shell { width: min(100% - 26px, 690px); }
@@ -663,11 +675,15 @@ h1 em { color: var(--brand-strong); font-style: normal; }
   .docs-header-actions { gap: 11px; }
   .docs-article { padding-top: 31px; padding-bottom: 68px; }
   .docs-breadcrumb { margin-bottom: 21px; }
+  .docs-breadcrumb time { display: none; }
   .docs-intro h1 { font-size: 36px; letter-spacing: -1.7px; }
   .docs-lead { font-size: 15px; }
   .docs-callout { font-size: 12px; }
   .docs-facts li, .docs-check-list li, .docs-release-list li { font-size: 12px; }
   .docs-media-block { margin-top: 38px; padding: 18px; }
+  .docs-collaboration-section { padding: 18px; }
+  .docs-collaboration-media { grid-template-columns: 1fr; }
+  .docs-collaboration-media figure:last-child { grid-column: auto; }
   .docs-media-block h2, .docs-section h2 { font-size: 24px; letter-spacing: -.8px; }
   .docs-media-block > div > p:last-child, .docs-section > p:not(.docs-section-label), .docs-tip p, .docs-maintenance-list p { font-size: 13px; }
   .docs-section { margin-top: 53px; }
