@@ -1,5 +1,5 @@
 import { ReloadOutlined } from '@ant-design/icons'
-import { Button, Card, Col, Empty, Row, Select, Space, Statistic, Table, Tag, Typography } from 'antd'
+import { Button, Card, Empty, Select, Space, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
@@ -12,6 +12,7 @@ import { apiClient } from '../../lib/apiClient'
 
 type WorkflowActivityPanelProps = {
   adminToken: string
+  currentAdminId: number
   onNotify: (message: string, tone?: AdminNoticeTone) => void
 }
 
@@ -62,9 +63,8 @@ const eventTagLabel: Record<AdminWorkflowActivityType, string> = {
 }
 
 /** 工作流数据通过独立接口按需请求，切换到其它后台页面不会产生协作动态请求。 */
-export function WorkflowActivityPanel({ adminToken, onNotify }: WorkflowActivityPanelProps) {
+export function WorkflowActivityPanel({ adminToken, currentAdminId, onNotify }: WorkflowActivityPanelProps) {
   const [page, setPage] = useState(1)
-  const [memberId, setMemberId] = useState<number | undefined>()
   const [eventType, setEventType] = useState<AdminWorkflowActivityType | undefined>()
   const [data, setData] = useState<AdminWorkflowActivityPage | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -77,7 +77,6 @@ export function WorkflowActivityPanel({ adminToken, onNotify }: WorkflowActivity
       const response = await apiClient.getWorkflowActivity(adminToken, {
         page,
         pageSize,
-        memberId,
         eventType,
       })
       // 筛选连续变化时，旧请求可能比新请求晚返回；只有最后一次请求能更新页面。
@@ -96,7 +95,7 @@ export function WorkflowActivityPanel({ adminToken, onNotify }: WorkflowActivity
         setIsLoading(false)
       }
     }
-  }, [adminToken, eventType, memberId, onNotify, page])
+  }, [adminToken, eventType, onNotify, page])
 
   useEffect(() => {
     // 延后到浏览器下一轮任务再开始请求，避免在 effect 同步阶段切换 loading 状态。
@@ -109,10 +108,13 @@ export function WorkflowActivityPanel({ adminToken, onNotify }: WorkflowActivity
     }
   }, [loadActivity])
 
-  const resetToFirstPage = (callback: () => void) => {
-    callback()
+  const resetToFirstPage = (nextEventType: AdminWorkflowActivityType | undefined) => {
+    setEventType(nextEventType)
     setPage(1)
   }
+
+  const isCurrentUserRelated = (event: AdminWorkflowActivity) =>
+    event.actorAdminUserId === currentAdminId || event.targetAdminUserId === currentAdminId
 
   const columns: ColumnsType<AdminWorkflowActivity> = [
     {
@@ -146,7 +148,12 @@ export function WorkflowActivityPanel({ adminToken, onNotify }: WorkflowActivity
     {
       title: '操作记录',
       key: 'description',
-      render: (_, event) => <Typography.Text>{eventLabel(event)}</Typography.Text>,
+      render: (_, event) => (
+        <Space size={8} wrap>
+          <Typography.Text strong={isCurrentUserRelated(event)}>{eventLabel(event)}</Typography.Text>
+          {isCurrentUserRelated(event) && <Tag color="blue">与我相关</Tag>}
+        </Space>
+      ),
     },
     {
       title: '审核意见',
@@ -169,18 +176,7 @@ export function WorkflowActivityPanel({ adminToken, onNotify }: WorkflowActivity
           <Select
             allowClear
             className="workflow-activity-filter"
-            onChange={(value) => resetToFirstPage(() => setMemberId(value))}
-            options={data?.members.map((member) => ({
-              label: member.isActive ? member.displayName : `${member.displayName}（已停用）`,
-              value: member.adminUserId,
-            })) ?? []}
-            placeholder="全部成员"
-            value={memberId}
-          />
-          <Select
-            allowClear
-            className="workflow-activity-filter"
-            onChange={(value) => resetToFirstPage(() => setEventType(value))}
+            onChange={resetToFirstPage}
             options={eventOptions}
             placeholder="全部动态"
             value={eventType}
@@ -189,26 +185,6 @@ export function WorkflowActivityPanel({ adminToken, onNotify }: WorkflowActivity
         <Button icon={<ReloadOutlined />} loading={isLoading} onClick={() => void loadActivity()}>
           刷新
         </Button>
-      </div>
-
-      <div className="workflow-activity-member-grid" aria-label="当前工作量">
-        {(data?.members ?? []).map((member) => (
-          <Card className="workflow-activity-member-card" key={member.adminUserId} size="small">
-            <Space align="center" size={8} wrap>
-              <Typography.Text strong>{member.displayName}</Typography.Text>
-              <Tag color={member.role === 'subtitle_contributor' ? 'blue' : 'purple'}>
-                {member.role === 'subtitle_contributor' ? '字幕贡献者' : '超级管理员'}
-              </Tag>
-              {!member.isActive && <Tag>已停用</Tag>}
-            </Space>
-            <Row gutter={8} style={{ marginTop: 12 }}>
-              <Col span={6}><Statistic title="校对" value={member.proofreaderAssignments} valueStyle={{ fontSize: 20 }} /></Col>
-              <Col span={6}><Statistic title="二审" value={member.reviewerAssignments} valueStyle={{ fontSize: 20 }} /></Col>
-              <Col span={6}><Statistic title="待审" value={member.awaitingReviewCount} valueStyle={{ color: '#d97706', fontSize: 20 }} /></Col>
-              <Col span={6}><Statistic title="退回" value={member.returnedCount} valueStyle={{ color: '#b45309', fontSize: 20 }} /></Col>
-            </Row>
-          </Card>
-        ))}
       </div>
 
       <Card className="workflow-activity-timeline" size="small" title="团队时间线">
@@ -225,6 +201,7 @@ export function WorkflowActivityPanel({ adminToken, onNotify }: WorkflowActivity
               total: data?.total ?? 0,
               onChange: (nextPage) => setPage(nextPage),
             }}
+            rowClassName={(event) => isCurrentUserRelated(event) ? 'workflow-activity-row-is-current-user' : ''}
             rowKey="id"
             scroll={{ x: 980 }}
           />

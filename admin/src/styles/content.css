@@ -152,26 +152,6 @@
   min-width: 174px;
 }
 
-.workflow-activity-member-grid {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(264px, 1fr));
-}
-
-.workflow-activity-member-card.ant-card {
-  border-color: #d7dde5;
-  border-radius: 6px;
-}
-
-.workflow-activity-member-card.ant-card:hover {
-  border-color: #1cb0f6;
-}
-
-.workflow-activity-member-card .ant-statistic-title {
-  color: #64748b;
-  font-size: 12px;
-}
-
 .workflow-activity-timeline.ant-card {
   border-color: #d7dde5;
   border-radius: 6px;
@@ -179,6 +159,14 @@
 
 .workflow-activity-timeline .ant-card-head {
   min-height: 46px;
+}
+
+.workflow-activity-timeline .workflow-activity-row-is-current-user > td {
+  background: #eef9ff !important;
+}
+
+.workflow-activity-timeline .workflow-activity-row-is-current-user:hover > td {
+  background: #e0f4fe !important;
 }
 
 .directory-manager .ant-list-item.directory-group-item {

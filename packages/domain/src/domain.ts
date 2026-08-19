@@ -228,6 +228,9 @@ export type AdminWorkflowActivity = {
   type: AdminWorkflowActivityType
   exerciseId: number
   exerciseTitle: string
+  /** 仅供已登录后台成员判断“是否与我相关”，页面不展示该内部 ID。 */
+  actorAdminUserId?: number
+  targetAdminUserId?: number
   actorDisplayName?: string
   targetDisplayName?: string
   workflowRole?: AdminSubtitleWorkflowTaskRole
@@ -236,21 +239,8 @@ export type AdminWorkflowActivity = {
   occurredAt: string
 }
 
-/** 每位成员当前承担的工作量，供协作动态页展示彼此的进行中进度。 */
-export type AdminWorkflowMemberProgress = {
-  adminUserId: number
-  displayName: string
-  role: AdminRole
-  isActive: boolean
-  proofreaderAssignments: number
-  reviewerAssignments: number
-  awaitingReviewCount: number
-  returnedCount: number
-}
-
 export type AdminWorkflowActivityPage = {
   items: AdminWorkflowActivity[]
-  members: AdminWorkflowMemberProgress[]
   page: number
   pageSize: number
   total: number

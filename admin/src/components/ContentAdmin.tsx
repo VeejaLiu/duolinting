@@ -984,6 +984,7 @@ export function ContentAdmin({
       {activeSection === 'activity' && (
         <WorkflowActivityPanel
           adminToken={adminToken}
+          currentAdminId={adminUser.id}
           onNotify={onNotify}
         />
       )}

@@ -6,7 +6,6 @@ import type {
     AdminWorkflowActivity,
     AdminWorkflowActivityPage,
     AdminWorkflowActivityType,
-    AdminWorkflowMemberProgress,
     AdminRole,
     AdminReviewTask,
     AdminSubtitleWorkflowTaskInbox,
@@ -1147,6 +1146,8 @@ export async function markMyWorkflowNotificationsRead(adminId: number, notificat
 type WorkflowActivityRow = {
     id: number | string;
     event_type: AdminWorkflowActivityType;
+    actor_admin_user_id: number | string | null;
+    target_admin_user_id: number | string | null;
     exercise_id: number | string;
     exercise_title: string;
     actor_display_name: string | null;
@@ -1157,20 +1158,9 @@ type WorkflowActivityRow = {
     occurred_at: Date | string;
 };
 
-type WorkflowMemberProgressRow = {
-    admin_user_id: number | string;
-    display_name: string;
-    role: string;
-    is_active: boolean | number;
-    proofreader_assignments: number | string | null;
-    reviewer_assignments: number | string | null;
-    awaiting_review_count: number | string | null;
-    returned_count: number | string | null;
-};
-
 /**
- * 团队动态向所有已登录后台成员开放，但只关联展示名。成员筛选会同时匹配操作者和接收人，
- * 所以一次“分配给某人”的记录能在管理员与被分配成员的视角中被找到。
+ * 团队动态向所有已登录后台成员开放。响应附带操作者与接收者的内部 ID，
+ * 仅用于客户端高亮当前成员的关联记录，界面仍只展示名称。
  */
 export async function listWorkflowActivity({
     page = 1,
@@ -1204,9 +1194,10 @@ export async function listWorkflowActivity({
         params.eventType = eventType;
     }
     const whereClause = filters.length ? `where ${filters.join(' and ')}` : '';
-    const [rows, totalRows, memberRows] = await Promise.all([
+    const [rows, totalRows] = await Promise.all([
         doRawQuery<WorkflowActivityRow>({
-            query: `select events.id, events.event_type, events.exercise_id,
+            query: `select events.id, events.event_type, events.actor_admin_user_id, events.target_admin_user_id,
+                           events.exercise_id,
                            coalesce(exercises.title, concat('已删除课程 #', events.exercise_id)) as exercise_title,
                            actor.display_name as actor_display_name,
                            target.display_name as target_display_name,
@@ -1226,54 +1217,15 @@ export async function listWorkflowActivity({
                 ? Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'limit' && key !== 'offset'))
                 : {},
         }),
-        doRawQuery<WorkflowMemberProgressRow>({
-            query: `select admins.id as admin_user_id, admins.display_name, admins.role, admins.is_active,
-                           coalesce(assignees.proofreader_assignments, 0) as proofreader_assignments,
-                           coalesce(assignees.reviewer_assignments, 0) as reviewer_assignments,
-                           coalesce(awaiting_reviews.awaiting_review_count, 0) as awaiting_review_count,
-                           coalesce(returned_drafts.returned_count, 0) as returned_count
-                    from admin_users admins
-                    left join (
-                      select admin_user_id,
-                             sum(workflow_role = 'proofreader') as proofreader_assignments,
-                             sum(workflow_role = 'second_reviewer') as reviewer_assignments
-                      from exercise_workflow_assignees
-                      group by admin_user_id
-                    ) assignees on assignees.admin_user_id = admins.id
-                    left join (
-                      select reviewer_admin_user_id as admin_user_id, count(*) as awaiting_review_count
-                      from exercise_subtitle_drafts
-                      where status = 'submitted' and reviewer_admin_user_id is not null
-                      group by reviewer_admin_user_id
-                    ) awaiting_reviews on awaiting_reviews.admin_user_id = admins.id
-                    left join (
-                      select admin_user_id, count(*) as returned_count
-                      from exercise_subtitle_drafts
-                      where status = 'returned'
-                      group by admin_user_id
-                    ) returned_drafts on returned_drafts.admin_user_id = admins.id
-                    where admins.role in ('super_admin', 'admin', 'subtitle_contributor')
-                    order by field(admins.role, 'super_admin', 'admin', 'subtitle_contributor'),
-                             admins.display_name asc, admins.id asc`,
-        }),
     ]);
-
-    const members: AdminWorkflowMemberProgress[] = memberRows.map((row) => ({
-        adminUserId: Number(row.admin_user_id),
-        displayName: row.display_name,
-        role: normalizeAdminRole(row.role),
-        isActive: Boolean(row.is_active),
-        proofreaderAssignments: Number(row.proofreader_assignments ?? 0),
-        reviewerAssignments: Number(row.reviewer_assignments ?? 0),
-        awaitingReviewCount: Number(row.awaiting_review_count ?? 0),
-        returnedCount: Number(row.returned_count ?? 0),
-    }));
 
     const items: AdminWorkflowActivity[] = rows.map((row) => ({
         id: Number(row.id),
         type: row.event_type,
         exerciseId: Number(row.exercise_id),
         exerciseTitle: row.exercise_title,
+        actorAdminUserId: row.actor_admin_user_id === null ? undefined : Number(row.actor_admin_user_id),
+        targetAdminUserId: row.target_admin_user_id === null ? undefined : Number(row.target_admin_user_id),
         actorDisplayName: row.actor_display_name || undefined,
         targetDisplayName: row.target_display_name || undefined,
         workflowRole: row.workflow_role || undefined,
@@ -1283,7 +1235,6 @@ export async function listWorkflowActivity({
     }));
     return {
         items,
-        members,
         page: resolvedPage,
         pageSize: resolvedPageSize,
         total: Number(totalRows[0]?.total ?? 0),
