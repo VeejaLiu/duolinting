@@ -85,10 +85,10 @@ const copy: Record<Locale, GuideCopy> = {
       ],
     },
     collaboration: {
-      eyebrow: "和我们一起做课",
+      eyebrow: "字幕协作流程",
       title: "现在，字幕贡献可以直接在 Admin 工作台完成。",
-      lead: "感谢已经加入的四位伙伴，也感谢每一位愿意投入时间的人。此前部分伙伴需要用剪辑软件修改字幕后再回传，过程容易反复。现在课程权限与任务分发已接入后台：拿到账号和课程后，就可以直接参与建设。",
-      note: "账号开通目前不使用邮箱验证码。因为协作人数还很少，我们采用互相信任的方式：请把常用邮箱和显示名称发给维护者；显示名称会用于课程公开署名。",
+      lead: "课程权限与任务分发已集成到 Admin 工作台。获得账号并被分配课程后，字幕贡献者可直接完成校对或二次审核，所有进度都在系统内追踪。",
+      note: "当前未接入邮箱验证码。账号由维护者人工开通；请提供常用邮箱和显示名称，显示名称会用于课程公开署名。",
       steps: [
         { title: "提供邮箱与显示名称", body: "通过邮件或其他约定渠道，把常用邮箱和希望展示在产品中的名字发给维护者。" },
         { title: "收到一次性登录信息", body: "超级管理员创建字幕贡献者账号后，临时密码只显示一次，并会通过私聊安全发送；首次登录必须立即修改密码。" },
@@ -227,10 +227,10 @@ const copy: Record<Locale, GuideCopy> = {
       ],
     },
     collaboration: {
-      eyebrow: "Build lessons with us",
+      eyebrow: "Subtitle collaboration",
       title: "Subtitle collaboration now happens directly in the Admin workspace.",
-      lead: "Thank you to the four people already contributing—and to everyone considering it. Earlier contributors edited subtitles in video software and sent files back, which created unnecessary handoffs. Course permissions and task assignment now make that work possible directly inside Admin.",
-      note: "We do not currently use email verification. Our small group works on trust: send a maintainer an email you use and the name you want publicly credited under. That name appears on the course.",
+      lead: "Course permissions and task assignment are built into the Admin workspace. Once contributors have an account and an assigned course, they can proofread or complete second review directly in the system, where progress is tracked.",
+      note: "Email verification is not currently integrated. Accounts are provisioned manually by maintainers; provide a preferred email and display name for public course credit.",
       steps: [
         { title: "Share an email and display name", body: "Use email or another agreed channel to send a maintainer your preferred email and the name you want shown in the product." },
         { title: "Receive one-time login details", body: "A super administrator creates your subtitle-contributor account. The temporary password is shown once and sent privately; you must change it on first login." },
