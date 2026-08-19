@@ -562,7 +562,7 @@
 }
 
 .recorder-brand-logo img {
-  animation: recorder-brand-logo-hop 4.2s cubic-bezier(.25, .9, .35, 1.2) infinite;
+  animation: recorder-brand-logo-hop 4.5s cubic-bezier(.25, .9, .35, 1.2) infinite;
   display: block;
   height: 42px;
   object-fit: contain;
@@ -586,8 +586,9 @@
 }
 
 .recorder-brand-title span {
-  animation: recorder-brand-title-letter 4.2s cubic-bezier(.22, 1.45, .42, 1) infinite;
-  animation-delay: calc(1.15s + var(--brand-letter-index) * 75ms);
+  animation: recorder-brand-title-letter 4.5s cubic-bezier(.22, 1.45, .42, 1) infinite;
+  /* 逐字延迟从 Logo 双跳结束之后才开始，所有字母完成后留出约 1 秒静止。 */
+  animation-delay: calc(1.1s + var(--brand-letter-index) * 65ms);
   display: inline-block;
   transform-origin: center bottom;
 }
@@ -627,23 +628,22 @@
 /* 白色卡片固定，只让里面的 Logo 做两次上下弹跳；无缩放，避免视觉上像整张卡片在跳。 */
 @keyframes recorder-brand-logo-hop {
   0%, 100% { transform: translateY(0); }
-  8% { transform: translateY(-9px); }
-  15% { transform: translateY(2px); }
-  21% { transform: translateY(-3px); }
-  27% { transform: translateY(0); }
-  38% { transform: translateY(-7px); }
-  45% { transform: translateY(2px); }
-  51% { transform: translateY(-2px); }
-  57%, 100% { transform: translateY(0); }
+  3% { transform: translateY(-9px); }
+  6% { transform: translateY(2px); }
+  9% { transform: translateY(-3px); }
+  12% { transform: translateY(0); }
+  15% { transform: translateY(-7px); }
+  18% { transform: translateY(2px); }
+  20% { transform: translateY(-2px); }
+  22%, 100% { transform: translateY(0); }
 }
 
 /* Logo 完成两次弹跳后，标题从左到右依次放大并回落，随后开始下一轮。 */
 @keyframes recorder-brand-title-letter {
-  0%, 28%, 100% { transform: scale(1); }
-  34% { transform: scale(1.32); }
-  40% { transform: scale(.96); }
-  46% { transform: scale(1.08); }
-  52%, 100% { transform: scale(1); }
+  0% { transform: scale(1); }
+  12% { transform: scale(1.32); }
+  20% { transform: scale(.96); }
+  28%, 100% { transform: scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
