@@ -10,6 +10,8 @@ import type {
   AdminUser,
   AdminReviewTask,
   AdminSubtitleWorkflowTaskInbox,
+  AdminWorkflowActivityPage,
+  AdminWorkflowActivityType,
   AdminWorkflowNotifications,
   ChangeAdminPasswordRequest,
   CreateAdminMemberRequest,
@@ -313,6 +315,27 @@ export const apiClient = {
       { method: 'GET' },
       { adminToken },
     ),
+  getWorkflowActivity: (
+    adminToken: string,
+    options: {
+      page?: number
+      pageSize?: number
+      memberId?: number
+      eventType?: AdminWorkflowActivityType
+    } = {},
+  ) => {
+    const params = new URLSearchParams({
+      page: String(options.page ?? 1),
+      pageSize: String(options.pageSize ?? 20),
+    })
+    if (options.memberId) params.set('memberId', String(options.memberId))
+    if (options.eventType) params.set('eventType', options.eventType)
+    return fetchJson<AdminWorkflowActivityPage>(
+      `/api/v1/admin/workflow-activity?${params.toString()}`,
+      { method: 'GET' },
+      { adminToken },
+    )
+  },
   markWorkflowNotificationsRead: (adminToken: string, notificationIds?: number[]) =>
     fetchJson<AdminContentResponse>(
       '/api/v1/admin/workflow-notifications/read',
