@@ -474,6 +474,12 @@ export function CollaborationManager({
         <List
           dataSource={volunteers}
           locale={{ emptyText: '还没有学习端成员。学习者注册后会显示在这里。' }}
+          pagination={{
+            defaultPageSize: 10,
+            pageSizeOptions: [10, 20, 50],
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 位成员`,
+          }}
           renderItem={(volunteer) => (
             <List.Item actions={[
               <Switch
