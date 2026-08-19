@@ -34,6 +34,7 @@ import { CourseManager } from './admin/CourseManager'
 import { DirectoryManager } from './admin/DirectoryManager'
 import { ListeningVideoRecorder } from './admin/ListeningVideoRecorder'
 import { CollaborationManager } from './admin/CollaborationManager'
+import { WorkflowActivityPanel } from './admin/WorkflowActivityPanel'
 import { apiClient } from '../lib/apiClient'
 
 type ContentAdminProps = {
@@ -170,6 +171,9 @@ export function ContentAdmin({
     if (location.pathname.startsWith('/collaboration')) {
       return 'collaboration'
     }
+    if (location.pathname.startsWith('/activity')) {
+      return 'activity'
+    }
     if (location.pathname.startsWith('/directory')) {
       return 'directory'
     }
@@ -195,7 +199,7 @@ export function ContentAdmin({
   useEffect(() => {
     if (
       adminUser.role === 'subtitle_contributor' &&
-      !['courses', 'importer'].includes(activeSection)
+      !['courses', 'importer', 'activity'].includes(activeSection)
     ) {
       navigate('/courses', { replace: true })
     }
@@ -315,6 +319,7 @@ export function ContentAdmin({
       /^\/importer\/[^/]+$/.test(location.pathname) ||
       location.pathname === '/directory' ||
       location.pathname === '/collaboration' ||
+      location.pathname === '/activity' ||
       location.pathname === '/courses' ||
       location.pathname === '/recorder' ||
       location.pathname === '/feedback' ||
@@ -611,6 +616,8 @@ export function ContentAdmin({
         ? '/directory'
         : section === 'collaboration'
           ? '/collaboration'
+        : section === 'activity'
+          ? '/activity'
         : section === 'courses'
           ? '/courses'
           : section === 'recorder'
@@ -971,6 +978,13 @@ export function ContentAdmin({
           onRefresh={() => {
             void refreshGrowth()
           }}
+        />
+      )}
+
+      {activeSection === 'activity' && (
+        <WorkflowActivityPanel
+          adminToken={adminToken}
+          onNotify={onNotify}
         />
       )}
 

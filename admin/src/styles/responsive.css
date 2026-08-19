@@ -16,4 +16,13 @@
   .form-grid {
     grid-template-columns: 1fr;
   }
+
+  .workflow-activity-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workflow-activity-filter {
+    min-width: min(100%, 220px);
+  }
 }
