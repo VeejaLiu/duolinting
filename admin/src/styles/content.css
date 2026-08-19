@@ -134,6 +134,7 @@
 .recorder-workspace {
   display: grid;
   gap: 16px;
+  min-height: calc(100vh - 116px);
 }
 
 .workflow-activity-panel {
@@ -526,10 +527,11 @@
   background: #e8edf3;
   border: 1px solid #d7dde5;
   border-radius: 8px;
-  display: grid;
-  min-height: 680px;
-  padding: 24px;
-  place-items: center;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: calc(100vh - 300px);
+  padding: 12px 24px 0;
 }
 
 .recorder-canvas {
@@ -540,9 +542,9 @@
   box-shadow: 0 18px 48px rgba(15, 23, 42, .28);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  max-height: 680px;
+  height: min(760px, calc(100vh - 300px));
   overflow: hidden;
-  width: min(100%, 382px);
+  width: auto;
 }
 
 .recorder-canvas-top {
@@ -875,13 +877,14 @@
   border: 0;
   border-radius: 0;
   min-height: 100vh;
-  padding: 24px;
+  align-items: flex-end;
+  padding: 12px 24px 8px;
 }
 
 /* 专注录制模式只放大环境，画布严格保持竖屏比例，适合系统录屏框选。 */
 .recorder-stage-area:fullscreen .recorder-canvas,
 .recorder-stage-area:-webkit-full-screen .recorder-canvas {
-  height: min(calc(100vh - 48px), calc((100vw - 48px) * 16 / 9));
+  height: min(calc(100vh - 20px), calc((100vw - 48px) * 16 / 9));
   max-height: none;
   width: auto;
 }
@@ -893,8 +896,9 @@
   .recorder-course-status { flex-basis: 100%; }
   .recorder-readiness-warning { flex-basis: 100%; }
   .recorder-translation-control { border-left: 0; border-top: 1px solid #e2e8f0; padding-left: 0; padding-top: 12px; }
+  .recorder-workspace { min-height: 0; }
   .recorder-stage-area { min-height: 560px; padding: 14px; }
-  .recorder-canvas { max-height: 540px; }
+  .recorder-canvas { height: min(540px, calc(100vh - 360px)); max-height: 540px; width: min(100%, 304px); }
 }
 
 .course-toolbar,
