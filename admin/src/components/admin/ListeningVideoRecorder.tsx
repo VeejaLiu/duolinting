@@ -1,4 +1,4 @@
-import { Expand, Play, RotateCcw, Square } from 'lucide-react'
+import { Expand, Minimize2, Play, RotateCcw, Square } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Cascader, Select, Tag } from 'antd'
@@ -415,6 +415,11 @@ export function ListeningVideoRecorder({
     })
   }
 
+  const closeCanvasFullscreen = () => {
+    const documentRef = focusShellRef.current?.ownerDocument
+    if (documentRef?.fullscreenElement) void documentRef.exitFullscreen?.()
+  }
+
   const selectExercise = (exerciseId: string) => {
     if (exerciseId === selectedExerciseId) return
     resetForExerciseChange()
@@ -509,6 +514,18 @@ export function ListeningVideoRecorder({
       </section>
 
       <div className="recorder-stage-area" ref={focusShellRef}>
+        {/* 全屏后页面顶部工具栏不在全屏元素内，因此在专注容器内提供同一组播放控制。 */}
+        <div className="recorder-focus-controls" role="toolbar" aria-label="专注录制控制">
+          {!isRunning && (
+            <button className="command-button" disabled={!canStartRecording || loading} onClick={() => void runRecording()} type="button">
+              <Play size={15} /> 开始录制
+            </button>
+          )}
+          {isRunning && <button className="command-button secondary" onClick={stop} type="button"><Square size={15} /> 停止</button>}
+          <button className="command-button secondary" onClick={closeCanvasFullscreen} type="button">
+            <Minimize2 size={15} /> 退出专注
+          </button>
+        </div>
         <div className="recorder-canvas" ref={canvasRef}>
           <header className="recorder-canvas-top">
             <div className="recorder-brand">

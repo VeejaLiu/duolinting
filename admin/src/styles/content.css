@@ -532,6 +532,14 @@
   justify-content: center;
   min-height: calc(100vh - 300px);
   padding: 12px 24px 0;
+  position: relative;
+}
+
+/* The normal toolbar lives outside the fullscreen element.  Show a compact
+   duplicate inside the focus shell so playback remains controllable after
+   the browser hides everything outside that element. */
+.recorder-focus-controls {
+  display: none;
 }
 
 .recorder-canvas {
@@ -675,22 +683,31 @@
 }
 
 .recorder-canvas-body {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  /* Keep the media viewport and the learning copy as two independent
+     vertical regions.  A grid's second flexible row can make the copy look
+     vertically centred (especially for portrait media); flex keeps it
+     directly below the media while leaving any spare space underneath. */
+  display: flex;
+  flex-direction: column;
   min-height: 0;
+  overflow: hidden;
   padding: 0;
 }
 
 .recorder-media-frame {
   align-items: center;
   background: transparent;
+  contain: layout paint;
   display: grid;
   /* 默认以 16:9 展示；加载元数据后由课程视频自身宽高比替换，始终按原比例撑满画布宽度。 */
   aspect-ratio: 16 / 9;
+  flex: 0 0 auto;
   justify-items: center;
   min-height: 0;
   overflow: hidden;
   position: relative;
+  isolation: isolate;
+  width: 100%;
 }
 
 .recorder-media-frame.is-audio {
@@ -715,6 +732,7 @@
   /* 至多占可用画布高度约四成；纵向片不会因为原始比例而吞掉字幕区。 */
   aspect-ratio: auto;
   background: #101010;
+  flex-basis: min(40vh, 42%);
   height: min(40vh, 42%);
   min-height: 180px;
 }
@@ -790,16 +808,27 @@
   height: 106px;
   justify-content: center;
   line-height: 1;
+  left: 50%;
   position: absolute;
+  /* The portrait foreground video is intentionally above the blur layer;
+     keep the countdown above both media layers so it remains visible. */
+  z-index: 3;
+  pointer-events: none;
+  top: 50%;
+  transform: translate(-50%, -50%);
   width: 106px;
 }
 
 .recorder-learning-panel {
   /* 媒体区限高后，学习信息应紧接媒体出现；不能在剩余区域垂直居中而留下大段空白。 */
-  align-content: start;
-  display: grid;
+  align-self: stretch;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   gap: 15px;
   min-height: 0;
+  overflow: auto;
+  overflow-x: hidden;
   padding: 20px 21px 22px;
   text-align: left;
 }
@@ -885,6 +914,17 @@
   min-height: 100vh;
   align-items: flex-end;
   padding: 12px 24px 8px;
+}
+
+.recorder-stage-area:fullscreen .recorder-focus-controls,
+.recorder-stage-area:-webkit-full-screen .recorder-focus-controls {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  position: absolute;
+  right: 24px;
+  top: 18px;
+  z-index: 10;
 }
 
 /* 专注录制模式只放大环境，画布严格保持竖屏比例，适合系统录屏框选。 */
