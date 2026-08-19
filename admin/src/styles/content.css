@@ -249,6 +249,56 @@
   font: inherit;
 }
 
+.open-content-api-request-card {
+  background: #f8fbfd;
+  border: 1px solid #cfe8f5;
+  border-radius: 8px;
+  margin: 16px 0;
+  max-width: 1000px;
+  padding: 16px;
+}
+
+.open-content-api-request-title {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.open-content-api-request-title .ant-tag {
+  margin-inline-end: 0;
+}
+
+.open-content-api-request-block {
+  margin-top: 14px;
+}
+
+.open-content-api-request-table {
+  margin-top: 8px;
+}
+
+.open-content-api-request-table .ant-table {
+  background: #fff;
+}
+
+.open-content-api-request-empty {
+  align-items: center;
+  background: #fff;
+  border: 1px dashed #b9c8d2;
+  border-radius: 6px;
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 10px 12px;
+}
+
+.open-content-response-label {
+  display: block;
+  margin-top: 18px;
+}
+
 .open-content-api-field-table {
   max-width: 920px;
 }

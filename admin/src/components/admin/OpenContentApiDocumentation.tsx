@@ -19,6 +19,21 @@ type CodeExampleProps = {
   onNotify: OpenContentApiDocumentationProps['onNotify']
 }
 
+type ApiRequestHeader = {
+  name: string
+  required: string
+  value: string
+  description: string
+}
+
+type ApiRequestCardProps = {
+  method: 'GET'
+  path: string
+  description: string
+  headers: ApiRequestHeader[]
+  pathParams?: Array<{ name: string; description: string; example: string }>
+}
+
 const copyText = async (
   value: string,
   onNotify: OpenContentApiDocumentationProps['onNotify'],
@@ -51,6 +66,87 @@ function CodeExample({ code, language, onNotify }: CodeExampleProps) {
   )
 }
 
+const apiRequestHeaderColumns: ColumnsType<ApiRequestHeader> = [
+  {
+    dataIndex: 'name',
+    key: 'name',
+    title: '请求头',
+    width: '24%',
+    render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
+  },
+  {
+    dataIndex: 'required',
+    key: 'required',
+    title: '必填',
+    width: 64,
+    render: (value: string) => <Tag color="red">{value}</Tag>,
+  },
+  {
+    dataIndex: 'value',
+    key: 'value',
+    title: '值',
+    width: '30%',
+    render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
+  },
+  {
+    dataIndex: 'description',
+    key: 'description',
+    title: '说明',
+  },
+]
+
+function ApiRequestCard({ method, path, description, headers, pathParams }: ApiRequestCardProps) {
+  return (
+    <div className="open-content-api-request-card">
+      <div className="open-content-api-request-title">
+        <Space size={8}>
+          <Tag color="blue">{method}</Tag>
+          <Typography.Text code copyable>{path}</Typography.Text>
+        </Space>
+        <Typography.Text type="secondary">{description}</Typography.Text>
+      </div>
+
+      {pathParams && pathParams.length > 0 && (
+        <div className="open-content-api-request-block">
+          <Typography.Text strong>路径参数</Typography.Text>
+          <Table
+            className="open-content-api-request-table"
+            columns={[
+              { dataIndex: 'name', key: 'name', title: '参数', render: (value: string) => <Typography.Text code>{value}</Typography.Text> },
+              { dataIndex: 'example', key: 'example', title: '示例值', render: (value: string) => <Typography.Text code>{value}</Typography.Text> },
+              { dataIndex: 'description', key: 'description', title: '说明' },
+            ]}
+            dataSource={pathParams}
+            pagination={false}
+            rowKey="name"
+            size="small"
+          />
+        </div>
+      )}
+
+      <div className="open-content-api-request-block">
+        <Typography.Text strong>请求头</Typography.Text>
+        <Table
+          className="open-content-api-request-table"
+          columns={apiRequestHeaderColumns}
+          dataSource={headers}
+          pagination={false}
+          rowKey="name"
+          size="small"
+        />
+      </div>
+
+      <div className="open-content-api-request-block">
+        <Typography.Text strong>请求体</Typography.Text>
+        <div className="open-content-api-request-empty">
+          <Typography.Text type="secondary">无请求体</Typography.Text>
+          <Typography.Text type="secondary">这是 GET 请求，参数全部位于 URL 和请求头中。</Typography.Text>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const dltjsonFields: DltjsonField[] = [
   { field: 'version', description: '格式版本；当前固定为 "2.0"。' },
   { field: 'type', description: '文件类型；当前固定为 "dltjson"。' },
@@ -74,6 +170,15 @@ const dltjsonColumns: ColumnsType<DltjsonField> = [
     dataIndex: 'description',
     key: 'description',
     title: '说明',
+  },
+]
+
+const apiKeyHeaders: ApiRequestHeader[] = [
+  {
+    name: 'X-DuolinTing-API-Key',
+    required: '是',
+    value: '$DUOLINTING_OPEN_CONTENT_API_KEY',
+    description: '开放内容 API Key。请使用环境变量，不要把明文 Key 写进代码仓库。',
   },
 ]
 
@@ -254,7 +359,14 @@ export function OpenContentApiDocumentation({
         <Typography.Paragraph>
           先请求目录，再依据 <Typography.Text code>groupId</Typography.Text> 和 <Typography.Text code>categoryId</Typography.Text> 组织“内容分类 / 学习系列 / 课程”三级目录。每门课程的 <Typography.Text code>dltjsonUrl</Typography.Text> 是下载字幕的唯一入口。
         </Typography.Paragraph>
+        <ApiRequestCard
+          description="返回所有已发布课程的目录和下载地址。"
+          headers={apiKeyHeaders}
+          method="GET"
+          path="/api/v1/open-content/catalog"
+        />
         <CodeExample code={catalogRequestExample} language="shell" onNotify={onNotify} />
+        <Typography.Text className="open-content-response-label" strong>响应示例（200 OK）</Typography.Text>
         <CodeExample code={catalogExample} language="json" onNotify={onNotify} />
       </section>
 
@@ -265,7 +377,15 @@ export function OpenContentApiDocumentation({
         <Typography.Paragraph>
           把目录响应中的 <Typography.Text code>dltjsonUrl</Typography.Text> 拼接到 API 域名后下载。下面的 <Typography.Text code>123</Typography.Text> 仅为示例，请替换为目录返回的课程 ID。
         </Typography.Paragraph>
+        <ApiRequestCard
+          description="返回一门已发布课程的 dltjson 字幕文件。"
+          headers={apiKeyHeaders}
+          method="GET"
+          path="/api/v1/open-content/courses/:courseId/dltjson"
+          pathParams={[{ name: 'courseId', example: '123', description: '目录响应中的课程 ID，必须是正整数。' }]}
+        />
         <CodeExample code={courseDownloadExample} language="shell" onNotify={onNotify} />
+        <Typography.Text className="open-content-response-label" strong>响应示例（200 OK）</Typography.Text>
         <CodeExample code={dltjsonExample} language="json" onNotify={onNotify} />
       </section>
 
@@ -306,7 +426,7 @@ export function OpenContentApiDocumentation({
       <section className="open-content-api-documentation-section">
         <Typography.Title level={4}>6. 鉴权与错误处理</Typography.Title>
         <Space direction="vertical" size={8} style={{ display: 'flex' }}>
-          <Typography.Text><Tag color="blue">请求头</Tag> 新接入使用 <Typography.Text code>X-DuolinTing-API-Key</Typography.Text>；<Typography.Text code>X-API-Key</Typography.Text> 仅为兼容通用命令行工具保留。</Typography.Text>
+          <Typography.Text><Tag color="blue">请求头兼容</Tag> 新接入使用 <Typography.Text code>X-DuolinTing-API-Key</Typography.Text>；<Typography.Text code>X-API-Key</Typography.Text> 仅为兼容通用命令行工具保留。上面的请求卡片展示的是推荐写法。</Typography.Text>
           <Typography.Text><Tag color="red">401</Tag> 未提供、无效、已过期或已删除的 API Key。请由超级管理员检查 Key 的状态，必要时新建 Key 或调整到期时间。</Typography.Text>
           <Typography.Text><Tag color="orange">404</Tag> 课程不存在，或课程尚未发布，不能导出。</Typography.Text>
           <Typography.Text><Tag color="gold">400</Tag> 课程 ID 不是正整数。</Typography.Text>
