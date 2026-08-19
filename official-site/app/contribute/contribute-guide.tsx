@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { officialSiteHref } from "../content/site-url";
 import { StructuredData } from "../components/structured-data";
+import { GitHubMark } from "../components/github-mark";
 
 type Locale = "zh" | "en";
 
@@ -318,7 +319,7 @@ export function ContributeGuide({ initialLocale = "zh" }: { initialLocale?: Loca
           </nav>
           <div className="docs-header-actions">
             <Link className="language-switch" href={languagePath}>{t.language}</Link>
-            <a className="docs-header-source" href={githubUrl} target="_blank" rel="noreferrer"><span aria-hidden="true">&lt;/&gt;</span> GitHub</a>
+            <a className="docs-header-source" href={githubUrl} target="_blank" rel="noreferrer"><GitHubMark /> GitHub</a>
             <Link className="docs-home-link" href={initialLocale === "en" ? "/en" : "/"}>{t.home} <span aria-hidden="true">↗</span></Link>
             <button className="docs-menu-trigger" type="button" aria-expanded={menuOpen} aria-label="Toggle contribution guide navigation" onClick={() => setMenuOpen(!menuOpen)}><span></span><span></span><span></span></button>
           </div>
@@ -336,7 +337,7 @@ export function ContributeGuide({ initialLocale = "zh" }: { initialLocale?: Loca
             <a href="#rules">{docs.sidebar.rules}</a>
             <a href="#code">{docs.sidebar.code}</a>
           </nav>
-          <a className="docs-github-link" href={githubUrl} target="_blank" rel="noreferrer"><span>&lt;/&gt;</span>{t.code.action}</a>
+          <a className="docs-github-link" href={githubUrl} target="_blank" rel="noreferrer"><GitHubMark />{t.code.action}</a>
         </aside>
 
         <article className="docs-article">

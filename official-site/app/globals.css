@@ -32,7 +32,7 @@ button:focus-visible { outline: 3px solid rgba(28, 176, 246, .42); outline-offse
 .header-cta { padding: 0 15px; background: #fff; border-color: #d7e7f1; box-shadow: 0 3px 0 #d7e4ef; color: #31415c; font-size: 13px; }
 .header-cta:hover { border-color: var(--brand); color: var(--brand-strong); }
 .header-source, .docs-header-source { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border: 1px solid #26374d; border-radius: 12px; background: linear-gradient(135deg, #172033, #30405a); box-shadow: 0 3px 0 #172033; color: #fff; font-size: 12px; font-weight: 900; text-decoration: none; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
-.header-source span, .docs-header-source span { font-size: 11px; font-weight: 950; }
+.header-source .github-mark, .docs-header-source .github-mark { width: 16px; height: 16px; flex: 0 0 auto; filter: brightness(0) invert(1); }
 .header-source b { font-size: 13px; }
 .header-source:hover, .docs-header-source:hover { border-color: #1cb0f6; box-shadow: 0 5px 0 #172033, 0 10px 18px rgba(23,32,51,.17); color: #fff; transform: translateY(-2px); }
 .header-source:active, .docs-header-source:active { box-shadow: 0 1px 0 #172033; transform: translateY(2px); }
@@ -140,7 +140,7 @@ h1 em { color: var(--brand-strong); font-style: normal; }
 .button-on-dark:hover { border-color: var(--brand); color: var(--brand-strong); }
 .source-mark { position: relative; display: grid; width: 246px; height: 246px; place-items: center; margin: auto; border: 2px solid rgba(255,255,255,.24); border-radius: 50%; background: rgba(28,176,246,.13); }
 .source-mark img { width: 142px; height: 133px; object-fit: contain; filter: brightness(0) invert(1); opacity: .9; }
-.source-mark span { position: absolute; right: 7px; bottom: 24px; display: grid; width: 50px; height: 43px; place-items: center; border-radius: 14px; background: var(--green); color: #fff; font-size: 17px; font-weight: 900; }
+.source-mark .github-mark { position: absolute; right: 7px; bottom: 24px; width: 50px; height: 43px; padding: 12px; border-radius: 14px; background: var(--green); color: #fff; filter: brightness(0) invert(1); }
 .source-panel small { position: absolute; bottom: 20px; left: 54px; color: #8db3c7; font-size: 11px; font-weight: 800; }
 
 .faq-section { background: #fff; }
@@ -460,7 +460,7 @@ h1 em { color: var(--brand-strong); font-style: normal; }
 .code-panel .button { margin-top: 25px; }
 .code-symbol { position: relative; z-index: 1; display: grid; width: 220px; height: 220px; place-items: center; margin: auto; border: 2px solid rgba(255,255,255,.23); border-radius: 50%; background: rgba(28,176,246,.14); }
 .code-symbol img { width: 126px; height: auto; filter: brightness(0) invert(1); opacity: .94; }
-.code-symbol span { position: absolute; right: 3px; bottom: 21px; display: grid; width: 50px; height: 42px; place-items: center; border-radius: 14px; background: var(--green); color: #fff; font-size: 16px; font-weight: 950; }
+.code-symbol .github-mark { position: absolute; right: 3px; bottom: 21px; width: 50px; height: 42px; padding: 12px; border-radius: 14px; background: var(--green); color: #fff; filter: brightness(0) invert(1); }
 .code-panel small { position: absolute; bottom: 22px; left: 55px; color: #9bc1d3; font-size: 11px; font-weight: 750; }
 
 @media (max-width: 1050px) {
@@ -562,7 +562,7 @@ h1 em { color: var(--brand-strong); font-style: normal; }
 .docs-sidebar nav a.is-active { background: #e6f7ff; color: #087fb8; font-weight: 850; }
 .docs-github-link { display: flex; align-items: center; gap: 8px; margin: 32px 12px 0; color: #466276; font-size: 12px; font-weight: 800; text-decoration: none; }
 .docs-github-link:hover { color: var(--brand-strong); }
-.docs-github-link span { display: grid; width: 23px; height: 23px; place-items: center; border-radius: 7px; background: #e6f7ff; color: #148bc4; font-size: 10px; }
+.docs-github-link .github-mark { width: 23px; height: 23px; padding: 5px; border-radius: 7px; background: #e6f7ff; color: #148bc4; }
 .docs-article { min-width: 0; padding: 54px 0 100px; }
 .docs-breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; color: #99a6b0; font-size: 12px; font-weight: 760; }
 .docs-breadcrumb a { color: #5c778a; text-decoration: none; }

@@ -24,6 +24,8 @@ test("server-renders the DuolinTing official site", async () => {
   assert.match(html, /DuolinTing/);
   assert.match(html, /把真实世界的音频和视频/);
   assert.match(html, /下载 Android APK/);
+  assert.match(html, /github-mark\.svg/);
+  assert.doesNotMatch(html, /&lt;\/&gt;/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/);
 });
 

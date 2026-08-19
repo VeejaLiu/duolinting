@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { learnerWebUrl } from "./content/learner-web";
 import { organizationSchema, softwareApplicationSchema, StructuredData, websiteSchema } from "./components/structured-data";
+import { GitHubMark } from "./components/github-mark";
 
 type Locale = "zh" | "en";
 
@@ -202,7 +203,7 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
           </nav>
           <div className="header-actions">
             <Link className="language-switch desktop-only" href={languagePath}>{languageLabel}</Link>
-            <a className="header-source" href="https://github.com/VeejaLiu/duolinting" target="_blank" rel="noreferrer"><span aria-hidden="true">&lt;/&gt;</span> GitHub {t.nav.openSource} <b aria-hidden="true">↗</b></a>
+            <a className="header-source" href="https://github.com/VeejaLiu/duolinting" target="_blank" rel="noreferrer"><GitHubMark /> GitHub {t.nav.openSource} <b aria-hidden="true">↗</b></a>
             {learnerWebUrl ? <a className="header-cta" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.hero.web}<span className="external-link-icon" aria-hidden="true">↗</span></a> : <button className="header-cta" type="button" disabled>{t.hero.web}</button>}
             <button className="menu-trigger" type="button" aria-expanded={menuOpen} aria-label="Toggle navigation menu" onClick={() => setMenuOpen(!menuOpen)}><span></span><span></span><span></span></button>
           </div>
@@ -247,7 +248,7 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
       </section>
 
       <section id="open-source" className="open-source-section section-pad">
-        <div className="site-shell source-panel"><div><p className="eyebrow"><span></span>{t.source.eyebrow}</p><h2>{t.source.title}</h2><p>{t.source.body}</p><a className="button button-on-dark" href="https://github.com/VeejaLiu/duolinting" target="_blank" rel="noreferrer">{t.source.action}</a></div><div className="source-mark" aria-hidden="true"><Image src="/duolinting-logo-ear.png" alt="" width={188} height={176} /><span>&lt;/&gt;</span></div><small>{t.source.note}</small></div>
+        <div className="site-shell source-panel"><div><p className="eyebrow"><span></span>{t.source.eyebrow}</p><h2>{t.source.title}</h2><p>{t.source.body}</p><a className="button button-on-dark" href="https://github.com/VeejaLiu/duolinting" target="_blank" rel="noreferrer">{t.source.action}</a></div><div className="source-mark" aria-hidden="true"><Image src="/duolinting-logo-ear.png" alt="" width={188} height={176} /><GitHubMark /></div><small>{t.source.note}</small></div>
       </section>
 
       <section className="faq-section section-pad"><div className="site-shell faq-layout"><div><p className="eyebrow"><span></span>{t.faq.eyebrow}</p><h2>{t.faq.title}</h2></div><div className="faq-list">{t.faq.items.map((item, index) => <article key={item.question} className={openFaq === index ? "open" : ""}><button type="button" aria-expanded={openFaq === index} onClick={() => setOpenFaq(openFaq === index ? null : index)}><strong>{item.question}</strong><span>+</span></button><div><p>{item.answer}</p></div></article>)}</div></div></section>
