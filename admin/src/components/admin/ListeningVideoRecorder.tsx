@@ -266,9 +266,33 @@ export function ListeningVideoRecorder({
     if (!media.seeking) finish()
   })
 
-  const playRange = (start: number, end: number | undefined, runId: number) => new Promise<boolean>((resolve) => {
-    const media = mediaRef.current
-    if (!media || runIdRef.current !== runId) {
+  /** 播放按钮可能在 React 刚替换媒体节点的瞬间被点击；等待当前节点就绪，避免流程无声退出。 */
+  const waitForMediaReady = (media: HTMLMediaElement, runId: number) => new Promise<boolean>((resolve) => {
+    if (media.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      resolve(runIdRef.current === runId)
+      return
+    }
+    let finished = false
+    const finish = (ready: boolean) => {
+      if (finished) return
+      finished = true
+      window.clearTimeout(timeoutId)
+      media.removeEventListener('loadeddata', onReady)
+      media.removeEventListener('canplay', onReady)
+      media.removeEventListener('error', onError)
+      resolve(ready && runIdRef.current === runId)
+    }
+    const onReady = () => finish(true)
+    const onError = () => finish(false)
+    const timeoutId = window.setTimeout(() => finish(false), 5000)
+    media.addEventListener('loadeddata', onReady, { once: true })
+    media.addEventListener('canplay', onReady, { once: true })
+    media.addEventListener('error', onError, { once: true })
+    media.load()
+  })
+
+  const playRange = (media: HTMLMediaElement, start: number, end: number | undefined, runId: number) => new Promise<boolean>((resolve) => {
+    if (runIdRef.current !== runId) {
       resolve(false)
       return
     }
@@ -340,9 +364,18 @@ export function ListeningVideoRecorder({
   }
 
   const runRecording = async () => {
-    if (!exercise || !mediaRef.current || !isMediaReady) return
+    const media = mediaRef.current
+    if (!exercise || !media) return
     const runId = runIdRef.current + 1
     runIdRef.current = runId
+    // 先展示倒计时，再等待媒体节点完成最后一小段缓冲；否则切课后的等待会让用户误以为播放按钮失效。
+    setPhase('countdown')
+    setCountdown(START_COUNTDOWN_SECONDS)
+    if (!await waitForMediaReady(media, runId)) {
+      onNotify('课程媒体还没有准备好，请稍候再试。', 'info')
+      setPhase('idle')
+      return
+    }
     setActiveLineIndex(0)
     setPlaybackRound(0)
 
@@ -359,14 +392,14 @@ export function ListeningVideoRecorder({
       setActiveLineIndex(index)
       setPhase('blind-listen')
       setPlaybackRound(1)
-      if (!await playRange(line.start, line.end, runId)) return
+      if (!await playRange(media, line.start, line.end, runId)) return
       if (!await wait(PLAYBACK_GAP_MS, runId)) return
       setPlaybackRound(2)
-      if (!await playRange(line.start, line.end, runId)) return
+      if (!await playRange(media, line.start, line.end, runId)) return
       if (!await wait(PLAYBACK_GAP_MS, runId)) return
       setPhase('show-transcript')
       setPlaybackRound(3)
-      if (!await playRange(line.start, line.end, runId)) return
+      if (!await playRange(media, line.start, line.end, runId)) return
       if (!await wait(PLAYBACK_GAP_MS, runId)) return
     }
 
@@ -399,7 +432,7 @@ export function ListeningVideoRecorder({
         : !isMediaReady
           ? '正在准备课程媒体'
           : null
-  const canStartRecording = !recordingUnavailableReason && isMediaReady
+  const canStartRecording = !recordingUnavailableReason || recordingUnavailableReason === '正在准备课程媒体'
   const completedLineCount = exercise
     ? phase === 'complete'
       ? exercise.lines.length
