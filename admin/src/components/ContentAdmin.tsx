@@ -347,6 +347,7 @@ export function ContentAdmin({
       location.pathname === '/collaboration' ||
       location.pathname === '/courses' ||
       location.pathname === '/activity' ||
+      location.pathname === '/account-settings' ||
       location.pathname === '/recorder' ||
       location.pathname === '/feedback' ||
       location.pathname === '/users' ||
