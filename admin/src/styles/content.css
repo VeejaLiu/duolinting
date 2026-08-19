@@ -716,6 +716,7 @@
   aspect-ratio: auto;
   background: #101010;
   height: min(40vh, 42%);
+  min-height: 180px;
 }
 
 .recorder-media-frame.is-vertical .recorder-video {
@@ -734,6 +735,11 @@
   position: absolute;
   transform: scale(1.08);
   width: calc(100% + 40px);
+}
+
+/* 横屏不显示背景层，但让节点保留在 DOM 中，切换到竖屏时只改变可见性，不重排播放器。 */
+.recorder-media-frame:not(.is-vertical) .recorder-video-blur {
+  display: none;
 }
 
 .recorder-cover-image {

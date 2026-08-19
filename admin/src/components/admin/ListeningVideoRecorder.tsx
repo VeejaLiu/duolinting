@@ -542,17 +542,17 @@ export function ListeningVideoRecorder({
             >
               {isVideoExercise && mediaUrl && (
                 <>
-                  {isVerticalVideo && (
-                    <video
-                      aria-hidden="true"
-                      className="recorder-video-blur"
-                      muted
-                      playsInline
-                      preload="auto"
-                      ref={mediaBackdropRef}
-                      src={mediaUrl}
-                    />
-                  )}
+                  {/* 背景视频始终挂载，避免竖屏元数据到达后临时插入节点导致前景播放重排/暂停。 */}
+                  <video
+                    aria-hidden="true"
+                    className="recorder-video-blur"
+                    key={`backdrop-${exercise.id}`}
+                    muted
+                    playsInline
+                    preload="auto"
+                    ref={mediaBackdropRef}
+                    src={mediaUrl}
+                  />
                   <video
                     key={`video-${exercise.id}`}
                     ref={(node) => { mediaRef.current = node }}
