@@ -227,7 +227,7 @@ export function ContentAdmin({
   useEffect(() => {
     if (
       adminUser.role === 'subtitle_contributor' &&
-      !['courses', 'importer', 'activity'].includes(activeSection)
+      !['courses', 'importer', 'activity', 'account-settings'].includes(activeSection)
     ) {
       navigate('/courses', { replace: true })
     }
