@@ -1,5 +1,5 @@
 import { Expand, Play, RotateCcw, Square } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Select, Tag } from 'antd'
 import type {
@@ -504,7 +504,11 @@ export function ListeningVideoRecorder({
                 <img alt="DuolinTing" src="/duolinting-logo-ear.png" />
               </span>
               <span className="recorder-brand-copy">
-                <strong>DuolinTing</strong>
+                <strong aria-label="DuolinTing" className="recorder-brand-title">
+                  {'DuolinTing'.split('').map((letter, index) => (
+                    <span key={`${letter}-${index}`} style={{ '--brand-letter-index': index } as CSSProperties}>{letter}</span>
+                  ))}
+                </strong>
                 <small>{messages.brandTagline}</small>
                 <span aria-label="网页端 app.duolinting.cn，移动端 mobile.duolinting.cn" className="recorder-brand-url-ticker">
                   <span className="recorder-brand-url-track">

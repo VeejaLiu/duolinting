@@ -581,6 +581,17 @@
   font-weight: 900;
 }
 
+.recorder-brand-title {
+  display: inline-flex;
+}
+
+.recorder-brand-title span {
+  animation: recorder-brand-title-letter 3.2s cubic-bezier(.22, 1.45, .42, 1) infinite;
+  animation-delay: calc(1.15s + var(--brand-letter-index) * 75ms);
+  display: inline-block;
+  transform-origin: center bottom;
+}
+
 .recorder-brand-copy small {
   color: #a3a3a3;
   font-size: 11px;
@@ -626,9 +637,19 @@
   68% { transform: translateY(0) scale(1); }
 }
 
+/* Logo 完成两次弹跳后，标题从左到右依次放大并回落，随后开始下一轮。 */
+@keyframes recorder-brand-title-letter {
+  0%, 36%, 100% { transform: scale(1); }
+  43% { transform: scale(1.32); }
+  51% { transform: scale(.96); }
+  58% { transform: scale(1.08); }
+  65% { transform: scale(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .recorder-brand-url-track,
-  .recorder-brand-logo { animation: none; }
+  .recorder-brand-logo,
+  .recorder-brand-title span { animation: none; }
 }
 
 .recorder-course-progress {
