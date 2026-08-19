@@ -552,7 +552,7 @@
 
 .recorder-brand-logo {
   align-items: center;
-  animation: recorder-brand-logo-hop 8s ease-in-out infinite;
+  animation: recorder-brand-logo-hop 3.2s cubic-bezier(.22, 1.45, .42, 1) infinite;
   background: #ffffff;
   border-radius: 12px;
   display: inline-flex;
@@ -613,11 +613,17 @@
   100% { transform: translateY(-24px); }
 }
 
-/* 仅在每个循环开始时轻跳两次，给品牌一个可感知但不过度分散注意的提示。 */
+/* 每个短循环包含两次明显弹跳；落地有轻微回弹，录制成片中依然保持顺滑。 */
 @keyframes recorder-brand-logo-hop {
-  0%, 3%, 7%, 100% { transform: translateY(0) scale(1); }
-  1.5% { transform: translateY(-5px) scale(1.03); }
-  5% { transform: translateY(-2px) scale(1.01); }
+  0%, 100% { transform: translateY(0) scale(1); }
+  10% { transform: translateY(-11px) scale(1.08); }
+  19% { transform: translateY(1px) scale(.97); }
+  25% { transform: translateY(-4px) scale(1.03); }
+  31% { transform: translateY(0) scale(1); }
+  47% { transform: translateY(-8px) scale(1.06); }
+  56% { transform: translateY(1px) scale(.98); }
+  62% { transform: translateY(-3px) scale(1.02); }
+  68% { transform: translateY(0) scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
