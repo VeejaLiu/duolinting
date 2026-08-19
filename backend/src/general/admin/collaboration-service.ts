@@ -169,6 +169,10 @@ export async function replaceContributorAssignments(
     }
     await ensureExerciseIdsExist(exerciseIds);
     await sequelize.transaction(async (transaction) => {
+        const previousAssignments = await sequelize.query<{ exercise_id: number | string }>(
+            `select exercise_id from exercise_contributor_assignments where admin_user_id = :contributorId`,
+            { replacements: { contributorId }, type: QueryTypes.SELECT, transaction },
+        );
         await sequelize.query(
             'delete from exercise_contributor_assignments where admin_user_id = :contributorId',
             { replacements: { contributorId }, transaction },
@@ -183,15 +187,51 @@ export async function replaceContributorAssignments(
                 },
             );
         }
+
+        // 课程授权与当前简化工作流保持一致：同一位贡献者自动承担校对和二次审核，
+        // 这样分配课程后即可直接开始校对，提交时也一定有明确的审核接收人。
+        if (exerciseIds.length > 0) {
+            // 当前简化模式一门课程只保留一位字幕贡献者；重新分配时替换旧的课程授权。
+            await sequelize.query(
+                `delete from exercise_contributor_assignments
+                 where exercise_id in (:exerciseIds) and admin_user_id <> :contributorId`,
+                { replacements: { exerciseIds, contributorId }, transaction },
+            );
+            await sequelize.query(
+                `delete from exercise_workflow_assignees
+                 where exercise_id in (:exerciseIds)
+                   and workflow_role in ('proofreader', 'second_reviewer')`,
+                { replacements: { exerciseIds }, transaction },
+            );
+            await sequelize.query(
+                `insert into exercise_workflow_assignees (exercise_id, workflow_role, admin_user_id)
+                 values ${exerciseIds.flatMap(() => ["(?, 'proofreader', ?)", "(?, 'second_reviewer', ?)"]).join(', ')}`,
+                {
+                    replacements: exerciseIds.flatMap((exerciseId) => [exerciseId, contributorId, exerciseId, contributorId]),
+                    transaction,
+                },
+            );
+        }
+        const removedExerciseIds = previousAssignments
+            .map((row) => Number(row.exercise_id))
+            .filter((exerciseId) => !exerciseIds.includes(exerciseId));
+        if (removedExerciseIds.length > 0) {
+            await sequelize.query(
+                `delete from exercise_workflow_assignees
+                 where exercise_id in (:removedExerciseIds)
+                   and admin_user_id = :contributorId
+                   and workflow_role in ('proofreader', 'second_reviewer')`,
+                { replacements: { removedExerciseIds, contributorId }, transaction },
+            );
+        }
     });
     return exerciseIds;
 }
 
 /** 从课程维度维护授权，供课程列表中的贡献者下拉框直接调用。 */
 /**
- * 为一个工作流步骤指定唯一负责人。校对与二审都由字幕贡献者承担：
- * 两个步骤可由同一位成员完成；超级管理员只负责配置，不会被误写入贡献者工作流。指定校对人时同步保留
- * 旧课程授权表中的编辑资格，以兼容贡献者课程列表与字幕编辑入口。
+ * 为课程指定唯一字幕贡献者。当前简化流程中，该成员同时承担校对和二次审核；
+ * 超级管理员只负责配置，不会被误写入贡献者工作流。
  */
 export async function updateExerciseWorkflowAssignee({
     exerciseId,
@@ -231,53 +271,54 @@ export async function updateExerciseWorkflowAssignee({
         );
         const previousProofreaderId = Number(existingAssignees.find((row) => row.workflow_role === 'proofreader')?.admin_user_id ?? 0);
         const previousReviewerId = Number(existingAssignees.find((row) => row.workflow_role === 'second_reviewer')?.admin_user_id ?? 0);
-        const previousAssigneeId = workflowRole === 'proofreader'
-            ? previousProofreaderId
-            : previousReviewerId;
+        const previousAssigneeId = previousProofreaderId || previousReviewerId;
+        // 当前流程由同一位贡献者负责校对和二审；从任一步骤选择人员时同步更新两步。
         await sequelize.query(
             `delete from exercise_workflow_assignees
-             where exercise_id = :exerciseId and workflow_role = :workflowRole`,
-            { replacements: { exerciseId, workflowRole }, transaction },
+             where exercise_id = :exerciseId and workflow_role in ('proofreader', 'second_reviewer')`,
+            { replacements: { exerciseId }, transaction },
         );
         if (adminUserId !== null) {
             await sequelize.query(
                 `insert into exercise_workflow_assignees (exercise_id, workflow_role, admin_user_id)
-                 values (:exerciseId, :workflowRole, :adminUserId)`,
-                { replacements: { exerciseId, workflowRole, adminUserId }, transaction },
+                 values (:exerciseId, 'proofreader', :adminUserId),
+                        (:exerciseId, 'second_reviewer', :adminUserId)`,
+                { replacements: { exerciseId, adminUserId }, transaction },
             );
-            if (workflowRole === 'second_reviewer') {
-                // 仅补齐旧流程遗留的“未分配待审稿”。这些稿件此前没有接收人；管理员在此
-                // 明确指定审核人后才流转，之后无论再如何改负责人，已交付的稿件都不会漂移。
-                await sequelize.query(
-                    `insert into admin_workflow_notifications
-                       (recipient_admin_user_id, actor_admin_user_id, exercise_id, subtitle_draft_id, notification_type)
-                     select :adminUserId, drafts.admin_user_id, drafts.exercise_id, drafts.id, 'subtitle_submitted'
-                     from exercise_subtitle_drafts drafts
-                     where drafts.exercise_id = :exerciseId
-                       and drafts.status = 'submitted'
-                       and drafts.reviewer_admin_user_id is null`,
-                    { replacements: { exerciseId, adminUserId }, transaction },
-                );
-                await sequelize.query(
-                    `update exercise_subtitle_drafts
-                     set reviewer_admin_user_id = :adminUserId
-                     where exercise_id = :exerciseId
-                       and status = 'submitted'
-                       and reviewer_admin_user_id is null`,
-                    { replacements: { exerciseId, adminUserId }, transaction },
-                );
-            }
-            if (workflowRole === 'proofreader') {
-                // 课程编辑权限由“校对负责人”派生，避免配置完还需重复授权。
-                await sequelize.query(
-                    `insert into exercise_contributor_assignments (exercise_id, admin_user_id)
-                     values (:exerciseId, :adminUserId)
-                     on duplicate key update admin_user_id = values(admin_user_id)`,
-                    { replacements: { exerciseId, adminUserId }, transaction },
-                );
-            }
+            // 补齐旧流程遗留的“未分配待审稿”，让它们进入这位贡献者的队列。
+            await sequelize.query(
+                `insert into admin_workflow_notifications
+                   (recipient_admin_user_id, actor_admin_user_id, exercise_id, subtitle_draft_id, notification_type)
+                 select :adminUserId, drafts.admin_user_id, drafts.exercise_id, drafts.id, 'subtitle_submitted'
+                 from exercise_subtitle_drafts drafts
+                 where drafts.exercise_id = :exerciseId
+                   and drafts.status = 'submitted'
+                   and drafts.reviewer_admin_user_id is null`,
+                { replacements: { exerciseId, adminUserId }, transaction },
+            );
+            await sequelize.query(
+                `update exercise_subtitle_drafts
+                 set reviewer_admin_user_id = :adminUserId
+                 where exercise_id = :exerciseId
+                   and status = 'submitted'
+                   and reviewer_admin_user_id is null`,
+                { replacements: { exerciseId, adminUserId }, transaction },
+            );
+            // 课程编辑权限由“课程分配”派生，工作流负责人配置也要保留该兼容授权。
+            await sequelize.query(
+                `insert into exercise_contributor_assignments (exercise_id, admin_user_id)
+                 values (:exerciseId, :adminUserId)
+                 on duplicate key update admin_user_id = values(admin_user_id)`,
+                { replacements: { exerciseId, adminUserId }, transaction },
+            );
         }
-        if (workflowRole === 'proofreader' && adminUserId !== previousProofreaderId && previousProofreaderId > 0 && previousProofreaderId !== previousReviewerId) {
+        if (adminUserId === null && previousAssigneeId > 0) {
+            await sequelize.query(
+                `delete from exercise_contributor_assignments
+                 where exercise_id = :exerciseId and admin_user_id in (:adminUserIds)`,
+                { replacements: { exerciseId, adminUserIds: [...new Set([previousProofreaderId, previousReviewerId].filter((id) => id > 0))] }, transaction },
+            );
+        } else if (adminUserId !== previousProofreaderId && previousProofreaderId > 0 && previousProofreaderId !== previousReviewerId) {
             // 校对负责人拥有的编辑权限由该负责人派生；取消或改派后清理旧权限。
             // 若同一人仍担任二审负责人，则保留其课程访问权，确保审核任务不中断。
             await sequelize.query(
@@ -488,8 +529,26 @@ export async function getAssignedExerciseIds(adminId: number) {
 export async function canEditExerciseSubtitles(admin: AdminActor, exerciseId: number) {
     if (isSuperAdmin(admin)) return true;
     const rows = await doRawQuery<{ id: number | string }>({
-        query: `select id from exercise_contributor_assignments
-                where admin_user_id = ? and exercise_id = ? limit 1`,
+        query: `select assignments.id
+                from exercise_contributor_assignments assignments
+                left join exercise_subtitle_drafts drafts
+                  on drafts.exercise_id = assignments.exercise_id and drafts.admin_user_id = assignments.admin_user_id
+                where assignments.admin_user_id = ? and assignments.exercise_id = ?
+                  and (drafts.id is null or drafts.status in ('editing', 'returned'))
+                  and (
+                    exists (
+                      select 1 from exercise_workflow_assignees workflow
+                      where workflow.exercise_id = assignments.exercise_id
+                        and workflow.workflow_role = 'proofreader'
+                        and workflow.admin_user_id = assignments.admin_user_id
+                    )
+                    or not exists (
+                      select 1 from exercise_workflow_assignees workflow
+                      where workflow.exercise_id = assignments.exercise_id
+                        and workflow.workflow_role = 'proofreader'
+                    )
+                  )
+                limit 1`,
         params: [admin.id, exerciseId],
     });
     return rows.length > 0;

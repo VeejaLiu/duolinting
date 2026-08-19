@@ -556,8 +556,15 @@ router.post('/exercises/:exerciseId/subtitle-drafts/submit', async (req: any, re
     if (invalidRange) {
         return res.status(400).send({ success: false, message: `Line ${invalidRange.id} must end after it starts and have non-empty text` });
     }
-    await submitSubtitleDraft({ exerciseId, adminId: req.admin.id, lines });
-    res.status(200).send({ ok: true });
+    try {
+        await submitSubtitleDraft({ exerciseId, adminId: req.admin.id, lines });
+        res.status(200).send({ ok: true });
+    } catch (error) {
+        if (error instanceof Error) {
+            return res.status(400).send({ success: false, message: error.message });
+        }
+        throw error;
+    }
 });
 
 router.post(

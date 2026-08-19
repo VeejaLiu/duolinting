@@ -88,7 +88,7 @@ function CourseWorkflow({
           ? `校对：${workflow.proofreaderDisplayName ?? '—'} · 二审：${workflow.secondReviewerDisplayName ?? '—'}`
           : workflow.stage === 'archived'
             ? '课程已归档'
-            : '请先分别分配校对与二次审核负责人'
+            : '分配一位字幕贡献者后，将自动负责校对和二次审核'
 
   const workflowStepRole = (index: number) => index === 1
     ? 'proofreader' as const
@@ -113,7 +113,7 @@ function CourseWorkflow({
             <span className={index === activeIndex ? 'course-workflow-dot is-active' : 'course-workflow-dot'}>{index + 1}</span>
             <span>{step}</span>
           </div>
-          {workflowRole && (canManageCourses ? (
+          {workflowRole && (canManageCourses && workflowRole === 'proofreader' ? (
             <Select
               allowClear
               className="course-workflow-assignee-select"
@@ -128,7 +128,7 @@ function CourseWorkflow({
             />
           ) : (
             <Typography.Text className="course-workflow-assignee-name" ellipsis type="secondary">
-              {assignee?.displayName ?? '未分配'}
+              {assignee?.displayName ?? (workflowRole === 'second_reviewer' ? '跟随校对人' : '未分配')}
             </Typography.Text>
           ))}
         </div>
@@ -266,7 +266,12 @@ export function CourseManager({
   // 未分配二审人的历史课程则保留原有的被授权即可编辑行为。
   const canEditCourseSubtitles = (exercise: CatalogExerciseSummary) => (
     canManageCourses
-    || exercise.workflow?.proofreaderAssignee?.adminUserId === currentAdminId
+    || (
+      exercise.workflow?.proofreaderAssignee?.adminUserId === currentAdminId
+      && !['submitted', 'approved'].includes(
+        exercise.workflow?.drafts?.find((draft) => draft.adminUserId === currentAdminId)?.status ?? '',
+      )
+    )
     // 已流转给当前成员的审核任务只能从“开始审核”进入，避免把审核人误带进校对编辑器。
     || (!reviewTasks.some((task) => task.exerciseId === exercise.id)
       && exercise.workflow?.secondReviewerAssignee?.adminUserId !== currentAdminId)
