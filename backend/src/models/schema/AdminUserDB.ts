@@ -17,6 +17,11 @@ const AdminUserSchema: ModelAttributes = {
         allowNull: true,
         unique: true,
     },
+    learner_user_id: {
+        type: Sequelize.BIGINT.UNSIGNED,
+        allowNull: true,
+        unique: true,
+    },
     display_name: {
         type: Sequelize.STRING(120),
         allowNull: false,
@@ -64,6 +69,7 @@ export interface AdminUserDb {
     id: number;
     username: string;
     email?: string | null;
+    learner_user_id?: number | null;
     display_name: string;
     last_display_name_changed_at?: Date | null;
     password_hash: string;
@@ -81,6 +87,7 @@ export class AdminUserModel extends Model<AdminUserDb> {
     declare id: number;
     declare username: string;
     declare email: string | null;
+    declare learner_user_id: number | null;
     declare display_name: string;
     declare last_display_name_changed_at: Date | null;
     declare password_hash: string;

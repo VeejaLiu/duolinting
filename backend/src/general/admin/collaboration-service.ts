@@ -52,6 +52,9 @@ type ContributorRow = {
 type AdminMemberRow = Omit<ContributorRow, 'role'> & {
     role: string;
     must_change_password: boolean | number;
+    learner_user_id: number | string | null;
+    learner_email: string | null;
+    learner_display_name: string | null;
 };
 
 /** 人员管理需要同时列出超级管理员和字幕贡献者；课程分配仅对后者有效。 */
@@ -59,8 +62,11 @@ export async function listAdminMembers() {
     const rows = await doRawQuery<AdminMemberRow>({
         query: `
             select a.id, a.username, a.email, a.display_name, a.role, a.must_change_password,
-                   a.is_active, a.created_at, a.last_login_at, assignments.exercise_id
+                   a.is_active, a.created_at, a.last_login_at, a.learner_user_id,
+                   learners.email as learner_email, learners.display_name as learner_display_name,
+                   assignments.exercise_id
             from admin_users a
+            left join users learners on learners.id = a.learner_user_id
             left join exercise_contributor_assignments assignments on assignments.admin_user_id = a.id
             order by field(a.role, 'super_admin', 'admin', 'subtitle_contributor'),
                      a.display_name asc, a.username asc, assignments.exercise_id asc
@@ -76,6 +82,9 @@ export async function listAdminMembers() {
         createdAt?: string;
         lastLoginAt?: string;
         assignedExerciseIds: number[];
+        learnerUserId?: number;
+        learnerEmail?: string;
+        learnerDisplayName?: string;
     }>();
     for (const row of rows) {
         const id = Number(row.id);
@@ -89,6 +98,9 @@ export async function listAdminMembers() {
             createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
             lastLoginAt: row.last_login_at ? new Date(row.last_login_at).toISOString() : undefined,
             assignedExerciseIds: [],
+            learnerUserId: row.learner_user_id ? Number(row.learner_user_id) : undefined,
+            learnerEmail: row.learner_email || undefined,
+            learnerDisplayName: row.learner_display_name || undefined,
         };
         if (row.exercise_id && existing.role === 'subtitle_contributor') {
             existing.assignedExerciseIds.push(Number(row.exercise_id));
@@ -96,6 +108,59 @@ export async function listAdminMembers() {
         members.set(id, existing);
     }
     return [...members.values()];
+}
+
+/** 搜索可绑定的学习端账号；已被其他贡献者绑定的账号仍返回，供界面明确提示冲突。 */
+export async function listLearnerUsers(search: string) {
+    const normalizedSearch = search.trim().slice(0, 120);
+    if (!normalizedSearch) return [];
+    const rows = await doRawQuery<{
+        id: number | string; email: string; display_name: string;
+        bound_admin_member_id: number | string | null; bound_admin_display_name: string | null;
+    }>({
+        query: `select learners.id, learners.email, learners.display_name,
+                       bound.id as bound_admin_member_id, bound.display_name as bound_admin_display_name
+                from users learners
+                left join admin_users bound on bound.learner_user_id = learners.id
+                where learners.email like :search or learners.display_name like :search
+                order by learners.display_name asc, learners.email asc limit 50`,
+        params: { search: `%${normalizedSearch}%` },
+    });
+    return rows.map((row) => ({
+        id: Number(row.id), email: row.email, displayName: row.display_name,
+        boundAdminMemberId: row.bound_admin_member_id ? Number(row.bound_admin_member_id) : undefined,
+        boundAdminDisplayName: row.bound_admin_display_name || undefined,
+    }));
+}
+
+/** 绑定关系独立于账号资料与课程授权；只有字幕贡献者可以绑定学习端账号。 */
+export async function updateContributorLearnerBinding(memberId: number, learnerUserId: number | null) {
+    const member = await AdminUserModel.findOne({ where: { id: memberId, role: 'subtitle_contributor' }, raw: true });
+    if (!member) throw new Error('字幕贡献者不存在');
+    if (learnerUserId !== null) {
+        const learner = await UserModel.findByPk(learnerUserId, { attributes: ['id'], raw: true });
+        if (!learner) throw new Error('学习端用户不存在');
+        const occupied = await AdminUserModel.findOne({
+            where: { learner_user_id: learnerUserId, id: { [Op.ne]: memberId } },
+            attributes: ['id'], raw: true,
+        });
+        if (occupied) throw new Error('该学习端用户已经绑定其他字幕贡献者');
+    }
+    await AdminUserModel.update({ learner_user_id: learnerUserId }, { where: { id: memberId } });
+}
+
+/** 根据后台课程负责人派生学习端可预览的课程范围。 */
+export async function getPreviewExerciseIdsForLearner(userId: number | undefined) {
+    if (!userId) return [];
+    const rows = await doRawQuery<{ exercise_id: number | string }>({
+        query: `select distinct assignees.exercise_id
+                from admin_users admins
+                inner join exercise_workflow_assignees assignees on assignees.admin_user_id = admins.id
+                where admins.learner_user_id = :userId
+                  and assignees.workflow_role in ('proofreader', 'second_reviewer')`,
+        params: { userId },
+    });
+    return rows.map((row) => Number(row.exercise_id));
 }
 
 const normalizeAssignedExerciseIds = (ids: unknown) =>
@@ -705,8 +770,9 @@ export async function listExerciseSubtitleDrafts(
     return rows.map(toSubtitleDraft);
 }
 
-/** 学习端志愿者只读取最新一份已提交稿，绝不暴露贡献者的个人编辑稿。 */
-export async function getLatestSubmittedSubtitleDraft(exerciseId: number) {
+/** 学习端负责人可读取自己课程的最新工作稿，普通学习者永远不可见。 */
+export async function getPreviewSubtitleDraftForLearner(exerciseId: number, learnerUserId: number | undefined) {
+    if (!learnerUserId) return undefined;
     const rows = await doRawQuery<SubtitleDraftRow>({
         query: `
             select drafts.id, drafts.exercise_id, drafts.admin_user_id, admins.display_name,
@@ -714,10 +780,31 @@ export async function getLatestSubmittedSubtitleDraft(exerciseId: number) {
                    drafts.submitted_at, drafts.updated_at
             from exercise_subtitle_drafts drafts
             inner join admin_users admins on admins.id = drafts.admin_user_id
-            where drafts.exercise_id = :exerciseId and drafts.status = 'submitted'
-            order by drafts.submitted_at desc, drafts.updated_at desc
+            inner join exercise_workflow_assignees assignees
+              on assignees.exercise_id = drafts.exercise_id
+             and assignees.admin_user_id = admins.id
+             and assignees.workflow_role in ('proofreader', 'second_reviewer')
+            where drafts.exercise_id = :exerciseId
+              and admins.learner_user_id = :learnerUserId
+              and drafts.status in ('editing', 'submitted', 'returned')
+            order by drafts.updated_at desc
             limit 1
         `,
+        params: { exerciseId, learnerUserId },
+    });
+    return rows[0] ? toSubtitleDraft(rows[0]) : undefined;
+}
+
+/** 兼容后台/旧调用：仅保留已提交稿查询，不用于学习端授权。 */
+export async function getLatestSubmittedSubtitleDraft(exerciseId: number) {
+    const rows = await doRawQuery<SubtitleDraftRow>({
+        query: `select drafts.id, drafts.exercise_id, drafts.admin_user_id, admins.display_name,
+                       drafts.transcript_json, drafts.status, drafts.review_note,
+                       drafts.submitted_at, drafts.updated_at
+                from exercise_subtitle_drafts drafts
+                inner join admin_users admins on admins.id = drafts.admin_user_id
+                where drafts.exercise_id = :exerciseId and drafts.status = 'submitted'
+                order by drafts.submitted_at desc, drafts.updated_at desc limit 1`,
         params: { exerciseId },
     });
     return rows[0] ? toSubtitleDraft(rows[0]) : undefined;

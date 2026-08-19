@@ -1,6 +1,6 @@
 import express from 'express';
 import { getExercise, parseContentLocale } from '../../general/catalog/catalog-service';
-import { isPreviewVolunteer } from '../../general/admin/collaboration-service';
+import { getPreviewExerciseIdsForLearner } from '../../general/admin/collaboration-service';
 import { optionalUserTokenMiddleware } from '../../lib/token/verifyTokenMiddleware';
 
 const router = express.Router();
@@ -12,8 +12,8 @@ router.get('/:exerciseId', optionalUserTokenMiddleware, async (req: any, res) =>
         return res.status(400).send({ success: false, message: 'Invalid exercise id' });
     }
 
-    const includePreview = await isPreviewVolunteer(req.user?.userId);
-    const exercise = await getExercise(exerciseId, false, parseContentLocale(req.query.contentLocale), includePreview);
+    const previewExerciseIds = await getPreviewExerciseIdsForLearner(req.user?.userId);
+    const exercise = await getExercise(exerciseId, false, parseContentLocale(req.query.contentLocale), previewExerciseIds, undefined, req.user?.userId);
     if (!exercise) {
         return res.status(404).send({ success: false, message: 'Exercise not found' });
     }

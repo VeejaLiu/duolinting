@@ -23,7 +23,7 @@ import {
     listExerciseContributors,
     getExerciseWorkflowCredits,
     listExerciseSubtitleDrafts,
-    getLatestSubmittedSubtitleDraft,
+    getPreviewSubtitleDraftForLearner,
 } from '../admin/collaboration-service';
 import type { AdminActor } from '../admin/collaboration-service';
 import {
@@ -672,13 +672,15 @@ const loadCategoryGroupRows = async () => {
     }
 };
 
-const buildLearnerStatusFilter = (includePreview = false) =>
-    includePreview
-        ? `status in ('draft', 'proofread', 'published')`
+const buildLearnerStatusFilter = (previewExerciseIds: number[] = []) => {
+    const ids = previewExerciseIds.filter((id) => Number.isInteger(id) && id > 0);
+    return ids.length > 0
+        ? `(status = 'published' or (id in (${ids.join(',')}) and status in ('draft', 'proofread', 'published')))`
         : `status = 'published'`;
+};
 
-const loadCategoryIdsWithExercises = async (includeDrafts = false, includePreview = false) => {
-    const statusFilter = includeDrafts ? '' : `where ${buildLearnerStatusFilter(includePreview)}`;
+const loadCategoryIdsWithExercises = async (includeDrafts = false, previewExerciseIds: number[] = []) => {
+    const statusFilter = includeDrafts ? '' : `where ${buildLearnerStatusFilter(previewExerciseIds)}`;
     const rows = await doRawQuery<any>({
         query: `
             select distinct category_id
@@ -698,13 +700,13 @@ export async function listCatalog(
     includeDrafts = false,
     includeEmptyDirectories = false,
     contentLocale?: ContentLocale,
-    includePreview = false,
+    previewExerciseIds: number[] = [],
 ): Promise<CatalogResponse> {
     try {
         const categoryGroupRows = await loadCategoryGroupRows();
         const categoryRows = await loadCategoryRows();
         const categoryIdsWithExercises =
-            await loadCategoryIdsWithExercises(includeDrafts, includePreview);
+            await loadCategoryIdsWithExercises(includeDrafts, previewExerciseIds);
 
         const mappedCategories: ExerciseCategory[] = categoryRows.map(
             (row: any) => ({
@@ -778,9 +780,9 @@ export async function listCategoryExercises(
     categoryId: number,
     includeDrafts = false,
     contentLocale?: ContentLocale,
-    includePreview = false,
+    previewExerciseIds: number[] = [],
 ): Promise<CatalogExerciseSummary[]> {
-    const statusFilter = includeDrafts ? '' : `and ${buildLearnerStatusFilter(includePreview)}`;
+    const statusFilter = includeDrafts ? '' : `and ${buildLearnerStatusFilter(previewExerciseIds)}`;
 
     try {
         const exerciseRows = await doRawQuery<any>({
@@ -966,8 +968,9 @@ export async function getExercise(
     exerciseId: number,
     includeDrafts = false,
     contentLocale?: ContentLocale,
-    includePreview = false,
+    previewExerciseIds: number[] = [],
     adminActor?: AdminActor,
+    previewLearnerUserId?: number,
 ) {
     const rows = await doRawQuery<ExerciseRow>({
         query: `
@@ -991,7 +994,7 @@ export async function getExercise(
               created_at
             from exercises
             where id = ?
-              ${includeDrafts ? '' : `and ${buildLearnerStatusFilter(includePreview)}`}
+              ${includeDrafts ? '' : `and ${buildLearnerStatusFilter(previewExerciseIds)}`}
             limit 1
         `,
         params: [exerciseId],
@@ -1011,8 +1014,8 @@ export async function getExercise(
     // A volunteer sees the latest submitted revision for review.  Personal
     // editing drafts never leave Admin; ordinary learners still receive the
     // last approved transcript stored on the course itself.
-    const previewDraft = includePreview && !adminActor
-        ? await getLatestSubmittedSubtitleDraft(exerciseId)
+    const previewDraft = previewExerciseIds.includes(exerciseId) && !adminActor
+        ? await getPreviewSubtitleDraftForLearner(exerciseId, previewLearnerUserId)
         : undefined;
     return buildExerciseDetail(
         row,

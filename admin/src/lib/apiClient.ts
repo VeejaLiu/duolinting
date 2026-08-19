@@ -519,6 +519,16 @@ export const apiClient = {
       { method: 'GET' },
       { adminToken },
     ),
+  searchLearnerUsers: (search: string, adminToken: string) =>
+    fetchJson<{ items: Array<{ id: number; email: string; displayName: string; boundAdminMemberId?: number; boundAdminDisplayName?: string }>; search: string }>(
+      `/api/v1/admin/collaboration/learner-users?search=${encodeURIComponent(search)}`,
+      { method: 'GET' }, { adminToken },
+    ),
+  updateContributorLearnerBinding: (memberId: number, learnerUserId: number | null, adminToken: string) =>
+    fetchJson<{ ok: true; learnerUserId: number | null }>(
+      `/api/v1/admin/collaboration/members/${memberId}/learner-binding`,
+      { method: 'PUT', body: JSON.stringify({ learnerUserId }) }, { adminToken },
+    ),
   createAdminMember: (request: CreateAdminMemberRequest, adminToken: string) =>
     fetchJson<{ ok: true, member: AdminMemberProvisioning }>(
       '/api/v1/admin/collaboration/members',

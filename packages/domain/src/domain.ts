@@ -493,6 +493,9 @@ export type AdminUser = {
   lastLoginAt?: string
   /** 仅字幕贡献者使用；有值时代表显示名称仍在 90 天自助修改冷却期内。 */
   nextDisplayNameChangeAt?: string
+  learnerUserId?: number
+  learnerEmail?: string
+  learnerDisplayName?: string
 }
 
 export type CourseContributor = {

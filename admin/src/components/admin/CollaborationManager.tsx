@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, Card, Checkbox, Dropdown, Form, Input, List, Modal, Radio, Select, Space, Switch, Tag, Typography } from 'antd'
+import { Button, Card, Checkbox, Dropdown, Form, Input, List, Modal, Radio, Select, Space, Tag, Typography } from 'antd'
 import { ArrowLeft, MoreHorizontal, UserPlus, UsersRound } from 'lucide-react'
-import type { AdminMember, AdminMemberProvisioning, AdminRole, CatalogExerciseSummary, ExerciseCategory, MaterialCategory, PreviewVolunteer } from '@duolinting/shared'
+import type { AdminMember, AdminMemberProvisioning, AdminRole, CatalogExerciseSummary, ExerciseCategory, MaterialCategory } from '@duolinting/shared'
 import { apiClient } from '../../lib/apiClient'
 
 type CollaborationManagerProps = {
@@ -39,10 +39,10 @@ export function CollaborationManager({
   onNotify,
 }: CollaborationManagerProps) {
   const [members, setMembers] = useState<AdminMember[]>([])
-  const [volunteers, setVolunteers] = useState<PreviewVolunteer[]>([])
-  const [learnerSearch, setLearnerSearch] = useState('')
-  const [learnerSearchResults, setLearnerSearchResults] = useState<PreviewVolunteer[]>([])
   const [learnerSearchLoading, setLearnerSearchLoading] = useState(false)
+  const [bindingTarget, setBindingTarget] = useState<AdminMember | null>(null)
+  const [bindingResults, setBindingResults] = useState<Array<{ id: number; email: string; displayName: string; boundAdminMemberId?: number; boundAdminDisplayName?: string }>>([])
+  const [bindingSearch, setBindingSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [memberFormOpen, setMemberFormOpen] = useState(false)
@@ -69,13 +69,11 @@ export function CollaborationManager({
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const [nextMembers, nextVolunteers, nextExercises] = await Promise.all([
+      const [nextMembers, nextExercises] = await Promise.all([
         apiClient.getAdminMembers(adminToken),
-        apiClient.getPreviewVolunteers(adminToken),
         exercises.length > 0 ? Promise.resolve(exercises) : onEnsureExercises(),
       ])
       setMembers(nextMembers.items)
-      setVolunteers(nextVolunteers.items)
       setAvailableExercises(nextExercises)
     } catch (error) {
       onNotify(error instanceof Error ? error.message : '人员数据加载失败', 'error')
@@ -216,6 +214,7 @@ export function CollaborationManager({
               items: [
                 { key: 'edit', label: '编辑资料' },
                 ...(member.role === 'subtitle_contributor' ? [{ key: 'assignments', label: '课程授权' as const }] : []),
+                ...(member.role === 'subtitle_contributor' ? [{ key: 'binding', label: '绑定学习端账号' as const }] : []),
                 { key: 'reset-password', label: '重设密码' },
                 { key: 'force-password', label: '强制下次改密' },
                 { type: 'divider' },
@@ -230,6 +229,10 @@ export function CollaborationManager({
                   setAssignmentTarget(member)
                   setAssignmentIds(member.assignedExerciseIds)
                   setActiveArea('assignments')
+                } else if (key === 'binding') {
+                  setBindingTarget(member)
+                  setBindingSearch('')
+                  setBindingResults([])
                 } else if (key === 'reset-password') {
                   setPasswordTarget(member)
                 } else if (key === 'force-password') {
@@ -255,7 +258,7 @@ export function CollaborationManager({
                 {member.mustChangePassword && <Tag color="orange">待首次改密</Tag>}
               </Space>
             )}
-            description={<Space direction="vertical" size={2}><span>{member.email} · {member.role === 'subtitle_contributor' ? `负责 ${member.assignedExerciseIds.length} 门课程` : '拥有完整后台管理权限'}</span><Typography.Text type="secondary">创建于 {formatDate(member.createdAt)} · 最近登录 {formatDate(member.lastLoginAt)}</Typography.Text></Space>}
+            description={<Space direction="vertical" size={2}><span>{member.email} · {member.role === 'subtitle_contributor' ? `负责 ${member.assignedExerciseIds.length} 门课程` : '拥有完整后台管理权限'}</span>{member.role === 'subtitle_contributor' && <Typography.Text type={member.learnerUserId ? 'success' : 'warning'}>{member.learnerUserId ? `学习端：${member.learnerDisplayName}（${member.learnerEmail}）` : '尚未绑定学习端账号'}</Typography.Text>}<Typography.Text type="secondary">创建于 {formatDate(member.createdAt)} · 最近登录 {formatDate(member.lastLoginAt)}</Typography.Text></Space>}
           />
         </List.Item>
       )}
@@ -275,44 +278,6 @@ export function CollaborationManager({
       onNotify('账号开通信息已复制', 'success')
     } catch {
       onNotify('复制失败，请手动复制后再关闭此窗口', 'error')
-    }
-  }
-
-  const toggleVolunteer = async (volunteer: PreviewVolunteer, checked: boolean) => {
-    try {
-      await apiClient.updatePreviewVolunteer(volunteer.id, checked, adminToken)
-      setVolunteers((current) => current.map((item) => (
-        item.id === volunteer.id ? { ...item, isPreviewVolunteer: checked } : item
-      )))
-      setLearnerSearchResults((current) => current.map((item) => (
-        item.id === volunteer.id ? { ...item, isPreviewVolunteer: checked } : item
-      )))
-      if (checked && !volunteers.some((item) => item.id === volunteer.id)) {
-        setVolunteers((current) => [...current, { ...volunteer, isPreviewVolunteer: true }])
-      }
-      if (!checked) {
-        setVolunteers((current) => current.filter((item) => item.id !== volunteer.id))
-      }
-      onNotify(checked ? '已开启志愿者预览' : '已关闭志愿者预览', 'success')
-    } catch (error) {
-      onNotify(error instanceof Error ? error.message : '志愿者状态更新失败', 'error')
-    }
-  }
-
-  const searchLearners = async () => {
-    const search = learnerSearch.trim()
-    if (!search) {
-      setLearnerSearchResults([])
-      return
-    }
-    setLearnerSearchLoading(true)
-    try {
-      const result = await apiClient.getPreviewVolunteers(adminToken, search)
-      setLearnerSearchResults(result.items)
-    } catch (error) {
-      onNotify(error instanceof Error ? error.message : '学习端成员搜索失败', 'error')
-    } finally {
-      setLearnerSearchLoading(false)
     }
   }
 
@@ -499,70 +464,50 @@ export function CollaborationManager({
         )}
       </Card>}
 
-      {activeArea === 'learners' && <Card loading={loading} title="学习端成员">
-        <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-          <Space.Compact style={{ width: '100%' }}>
-            <Input
-              onChange={(event) => setLearnerSearch(event.target.value)}
-              onPressEnter={() => void searchLearners()}
-              placeholder="按邮箱或显示名称搜索学习者"
-              value={learnerSearch}
-            />
-            <Button loading={learnerSearchLoading} onClick={() => void searchLearners()} type="primary">搜索并添加</Button>
-          </Space.Compact>
-          {learnerSearch.trim() && <Typography.Text type="secondary">搜索结果仅显示最多 50 位匹配学习者；开启“志愿者”后会保存到下方列表。</Typography.Text>}
-          {learnerSearchResults.length > 0 && <List
-            bordered
-            dataSource={learnerSearchResults}
-            header={<Typography.Text strong>搜索结果</Typography.Text>}
-            renderItem={(learner) => (
-              <List.Item actions={[
-                <Switch
-                  checked={learner.isPreviewVolunteer}
-                  checkedChildren="已添加"
-                  key="preview-search"
-                  onChange={(checked) => void toggleVolunteer(learner, checked)}
-                  unCheckedChildren="添加"
-                />,
-              ]}>
-                <List.Item.Meta title={learner.displayName} description={learner.email} />
-              </List.Item>
-            )}
-          />}
-        </Space>
-        <Typography.Title level={5} style={{ marginTop: 20 }}>已保存的志愿者</Typography.Title>
-        <List
-          dataSource={volunteers}
-          locale={{ emptyText: '还没有保存的志愿者。请先搜索学习者并添加。' }}
-          pagination={{
-            defaultPageSize: 10,
-            pageSizeOptions: [10, 20, 50],
-            showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 位成员`,
-          }}
-          renderItem={(volunteer) => (
-            <List.Item actions={[
-              <Switch
-                checked={volunteer.isPreviewVolunteer}
-                checkedChildren="志愿者"
-                key="preview"
-                onChange={(checked) => void toggleVolunteer(volunteer, checked)}
-                unCheckedChildren="普通"
-              />,
-            ]}>
-              <List.Item.Meta
-                title={(
-                  <Space>
-                    <span>{volunteer.displayName}</span>
-                    {volunteer.isPreviewVolunteer && <Tag color="green">志愿者预览</Tag>}
-                  </Space>
-                )}
-                description={`${volunteer.email} · ${volunteer.isPreviewVolunteer ? '可预览草稿与已校对课程' : '仅可查看已发布课程'}`}
-              />
-            </List.Item>
-          )}
-        />
+      {activeArea === 'learners' && <Card title="贡献者学习端绑定">
+        <Typography.Paragraph type="secondary">
+          学习端预览权限由课程校对人和二审人的绑定关系自动产生，不再使用全局志愿者开关。请在“后台人员”中对字幕贡献者选择“绑定学习端账号”。
+        </Typography.Paragraph>
+        <List dataSource={contributorMembers} pagination={{ pageSize: 10, showSizeChanger: true }} renderItem={(member) => (
+          <List.Item actions={[<Button key="binding" onClick={() => { setBindingTarget(member); setBindingSearch(''); setBindingResults([]) }}>管理绑定</Button>] }>
+            <List.Item.Meta title={member.displayName} description={member.learnerUserId ? `${member.learnerDisplayName} · ${member.learnerEmail}` : '尚未绑定学习端账号'} />
+          </List.Item>
+        )} />
       </Card>}
+
+      <Modal
+        open={Boolean(bindingTarget)}
+        title={bindingTarget ? `绑定 ${bindingTarget.displayName} 的学习端账号` : '绑定学习端账号'}
+        confirmLoading={saving}
+        okButtonProps={{ disabled: !bindingTarget }}
+        okText="保存绑定"
+        onCancel={() => setBindingTarget(null)}
+        onOk={async () => {
+          if (!bindingTarget) return
+          setSaving(true)
+          try {
+            await apiClient.updateContributorLearnerBinding(bindingTarget.id, bindingTarget.learnerUserId ?? null, adminToken)
+            await refresh()
+            setBindingTarget(null)
+            onNotify('学习端绑定已更新', 'success')
+          } catch (error) {
+            onNotify(error instanceof Error ? error.message : '学习端绑定失败', 'error')
+          } finally { setSaving(false) }
+        }}
+      >
+        <Typography.Paragraph type="secondary">绑定后，该贡献者负责的课程草稿会在对应学习端账号的 App 和网页端预览。绑定关系不影响课程授权。</Typography.Paragraph>
+        <Space.Compact style={{ width: '100%' }}>
+          <Input value={bindingSearch} onChange={(event) => setBindingSearch(event.target.value)} onPressEnter={async () => { if (!bindingSearch.trim()) return; setLearnerSearchLoading(true); try { setBindingResults((await apiClient.searchLearnerUsers(bindingSearch, adminToken)).items) } finally { setLearnerSearchLoading(false) } }} placeholder="按学习端邮箱或名称搜索" />
+          <Button loading={learnerSearchLoading} type="primary" onClick={async () => { if (!bindingSearch.trim()) return; setLearnerSearchLoading(true); try { setBindingResults((await apiClient.searchLearnerUsers(bindingSearch, adminToken)).items) } finally { setLearnerSearchLoading(false) } }}>搜索</Button>
+        </Space.Compact>
+        <List
+          style={{ marginTop: 16 }}
+          dataSource={bindingResults}
+          locale={{ emptyText: '搜索后选择一个学习端账号' }}
+          renderItem={(item) => <List.Item actions={[<Button key="select" type={bindingTarget?.learnerUserId === item.id ? 'primary' : 'default'} disabled={Boolean(item.boundAdminMemberId && item.boundAdminMemberId !== bindingTarget?.id)} onClick={() => setBindingTarget((current) => current ? { ...current, learnerUserId: item.id, learnerEmail: item.email, learnerDisplayName: item.displayName } : current)}>{item.boundAdminMemberId && item.boundAdminMemberId !== bindingTarget?.id ? `已绑定：${item.boundAdminDisplayName}` : bindingTarget?.learnerUserId === item.id ? '已选择' : '选择'}</Button>] }><List.Item.Meta title={item.displayName} description={item.email} /></List.Item>}
+        />
+        {bindingTarget?.learnerUserId && <Button danger type="link" onClick={() => setBindingTarget((current) => current ? { ...current, learnerUserId: undefined, learnerEmail: undefined, learnerDisplayName: undefined } : current)}>解除当前绑定</Button>}
+      </Modal>
 
       <Modal
         confirmLoading={saving}

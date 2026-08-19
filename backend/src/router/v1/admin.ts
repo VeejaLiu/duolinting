@@ -19,6 +19,8 @@ import {
     listMySubtitleWorkflowInbox,
     listMyWorkflowNotifications,
     listPreviewVolunteers,
+    listLearnerUsers,
+    updateContributorLearnerBinding,
     markMyWorkflowNotificationsRead,
     returnSubtitleDraft,
     resetAdminMemberPassword,
@@ -331,7 +333,7 @@ router.get('/exercises/:exerciseId', async (req: any, res) => {
         return res.status(403).send({ success: false, message: 'This course is not assigned to you' });
     }
 
-    const exercise = await getExercise(exerciseId, true, undefined, false, req.admin);
+    const exercise = await getExercise(exerciseId, true, undefined, [], req.admin);
     if (!exercise) {
         return res.status(404).send({ success: false, message: 'Exercise not found' });
     }
@@ -632,6 +634,27 @@ router.put(
 router.get('/collaboration/members', requireSuperAdmin, async (_req, res) => {
     res.status(200).send({ items: await listAdminMembers() });
 });
+
+router.get('/collaboration/learner-users', requireSuperAdmin, async (req, res) => {
+    const search = typeof req.query.search === 'string' ? req.query.search : '';
+    res.status(200).send({ items: await listLearnerUsers(search), search: search.trim() });
+});
+
+router.put(
+    '/collaboration/members/:memberId/learner-binding',
+    requireSuperAdmin,
+    async (req, res) => {
+        const memberId = toId(req.params.memberId);
+        if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).send({ success: false, message: 'Invalid member id' });
+        const rawLearnerId = req.body?.learnerUserId;
+        const learnerUserId = rawLearnerId === null || rawLearnerId === undefined || rawLearnerId === '' ? null : Number(rawLearnerId);
+        if (learnerUserId !== null && (!Number.isInteger(learnerUserId) || learnerUserId <= 0)) {
+            return res.status(400).send({ success: false, message: 'Invalid learner user id' });
+        }
+        await updateContributorLearnerBinding(memberId, learnerUserId);
+        res.status(200).send({ ok: true, learnerUserId });
+    },
+);
 
 router.post(
     '/collaboration/members',

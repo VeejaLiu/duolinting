@@ -15,6 +15,9 @@ export type AdminSessionUser = {
     createdAt?: string;
     lastLoginAt?: string;
     nextDisplayNameChangeAt?: string;
+    learnerUserId?: number;
+    learnerEmail?: string;
+    learnerDisplayName?: string;
 };
 
 export type AdminAuthResult = {
@@ -51,6 +54,9 @@ const mapAdminUser = (admin: any): AdminSessionUser => {
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
         lastLoginAt: row.last_login_at ? new Date(row.last_login_at).toISOString() : undefined,
         nextDisplayNameChangeAt: getNextDisplayNameChangeAt(row.last_display_name_changed_at),
+        learnerUserId: row.learner_user_id ? Number(row.learner_user_id) : undefined,
+        learnerEmail: row.learner_email || undefined,
+        learnerDisplayName: row.learner_display_name || undefined,
     };
 };
 

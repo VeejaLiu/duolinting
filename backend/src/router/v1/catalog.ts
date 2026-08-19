@@ -1,14 +1,14 @@
 import express from 'express';
 import { listCatalog, listCategoryExercises, parseContentLocale } from '../../general/catalog/catalog-service';
-import { isPreviewVolunteer } from '../../general/admin/collaboration-service';
+import { getPreviewExerciseIdsForLearner } from '../../general/admin/collaboration-service';
 import { optionalUserTokenMiddleware } from '../../lib/token/verifyTokenMiddleware';
 
 const router = express.Router();
 const toId = (value: string) => Number.parseInt(value, 10);
 
 router.get('/', optionalUserTokenMiddleware, async (req: any, res) => {
-    const includePreview = await isPreviewVolunteer(req.user?.userId);
-    res.status(200).send(await listCatalog(false, false, parseContentLocale(req.query.contentLocale), includePreview));
+    const previewExerciseIds = await getPreviewExerciseIdsForLearner(req.user?.userId);
+    res.status(200).send(await listCatalog(false, false, parseContentLocale(req.query.contentLocale), previewExerciseIds));
 });
 
 router.get('/category/:categoryId/exercises', optionalUserTokenMiddleware, async (req: any, res) => {
@@ -17,8 +17,8 @@ router.get('/category/:categoryId/exercises', optionalUserTokenMiddleware, async
         return res.status(400).send({ success: false, message: 'Invalid category id' });
     }
 
-    const includePreview = await isPreviewVolunteer(req.user?.userId);
-    const exercises = await listCategoryExercises(categoryId, false, parseContentLocale(req.query.contentLocale), includePreview);
+    const previewExerciseIds = await getPreviewExerciseIdsForLearner(req.user?.userId);
+    const exercises = await listCategoryExercises(categoryId, false, parseContentLocale(req.query.contentLocale), previewExerciseIds);
     res.status(200).send(exercises);
 });
 
