@@ -318,6 +318,12 @@ export const apiClient = {
       { method: 'PUT', body: JSON.stringify({ displayName }) },
       { adminToken },
     ),
+  bindOwnLearnerAccount: (request: { learnerEmail: string; learnerPassword: string }, adminToken: string) =>
+    fetchApiResult<AdminUser>(
+      '/api/v1/admin/auth/learner-binding',
+      { method: 'PUT', body: JSON.stringify(request) },
+      { adminToken },
+    ),
   adminLogout: (adminToken: string) =>
     fetchJson<ApiResult<never>>(
       '/api/v1/admin/auth/logout',

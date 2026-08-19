@@ -21,6 +21,7 @@ import {
     listPreviewVolunteers,
     listLearnerUsers,
     updateContributorLearnerBinding,
+    bindOwnContributorLearner,
     markMyWorkflowNotificationsRead,
     returnSubtitleDraft,
     resetAdminMemberPassword,
@@ -192,6 +193,26 @@ router.put(
             displayName: req.body.displayName,
         });
         res.status(result.success ? 200 : 400).send(result);
+    },
+);
+
+router.put(
+    '/auth/learner-binding',
+    body('learnerEmail').isEmail().normalizeEmail(),
+    body('learnerPassword').isString().isLength({ min: 1, max: 255 }),
+    validateErrorCheck,
+    async (req: any, res) => {
+        try {
+            const binding = await bindOwnContributorLearner({
+                adminId: req.admin.id,
+                learnerEmail: req.body.learnerEmail,
+                learnerPassword: req.body.learnerPassword,
+            });
+            const current = await getAdminInfo(req.headers.authorization?.replace(/^Bearer\s+/i, '') ?? '');
+            res.status(200).send({ success: true, message: 'success', data: { ...current.data, ...binding } });
+        } catch (error) {
+            res.status(400).send({ success: false, message: error instanceof Error ? error.message : '学习端账号绑定失败' });
+        }
     },
 );
 

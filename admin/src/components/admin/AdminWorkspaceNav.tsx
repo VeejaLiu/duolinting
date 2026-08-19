@@ -3,7 +3,7 @@ import type { MenuProps } from 'antd'
 import { BookOpen, Clapperboard, KeyRound, Layers3, ListChecks, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, PencilLine, UserRound, Users, UsersRound, type LucideIcon } from 'lucide-react'
 import type { AdminUser } from '@duolinting/shared'
 
-export type AdminSection = 'importer' | 'directory' | 'courses' | 'recorder' | 'feedback' | 'users' | 'collaboration' | 'activity' | 'api-keys'
+export type AdminSection = 'importer' | 'directory' | 'courses' | 'recorder' | 'feedback' | 'users' | 'collaboration' | 'activity' | 'api-keys' | 'account-settings'
 
 const adminSections: Array<{
   id: AdminSection
@@ -40,6 +40,7 @@ const adminSections: Array<{
     label: '增长分析',
     Icon: Users,
   },
+  { id: 'account-settings', label: '我的账号', Icon: UserRound },
 ]
 
 type AdminWorkspaceNavProps = {
@@ -64,7 +65,7 @@ export function AdminWorkspaceNav({
   // 制课工作台只作为“课程管理”里某门课程的编辑页入口，不在侧栏单独出现。
   // 贡献者因此只看到自己获授权的课程管理入口；超级管理员保留完整管理菜单。
   const visibleSections = adminSections.filter((section) =>
-    adminUser.role === 'super_admin' || section.id === 'courses' || section.id === 'activity',
+    adminUser.role === 'super_admin' || section.id === 'courses' || section.id === 'activity' || section.id === 'account-settings',
   )
   if (adminUser.role === 'super_admin') {
     visibleSections.push({ id: 'collaboration', label: '人员管理', Icon: UsersRound })

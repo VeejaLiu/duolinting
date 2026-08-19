@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { ConfigProvider, Input, Layout, Modal, Space, Typography } from 'antd'
+import { Button, Card, ConfigProvider, Input, Layout, Modal, Space, Typography } from 'antd'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import type {
   AcceptedAnswerFeedback,
@@ -73,6 +73,25 @@ type ImporterDraft =
       exercise: CatalogExerciseSummary
     }
   | null
+
+function AccountSettingsPanel({ adminToken, adminUser, onNotify }: { adminToken: string; adminUser: AdminUser; onNotify: (message: string, tone?: AdminNoticeTone) => void }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [name, setName] = useState(adminUser.displayName)
+  const [changingName, setChangingName] = useState(false)
+  const saveName = async () => {
+    if (!name.trim() || name.trim() === adminUser.displayName) return
+    setChangingName(true)
+    try { await apiClient.changeOwnAdminDisplayName(name.trim(), adminToken); onNotify('显示名称已更新，请刷新页面查看', 'success') } catch (error) { onNotify(error instanceof Error ? error.message : '显示名称修改失败', 'error') } finally { setChangingName(false) }
+  }
+  const bind = async () => {
+    if (!email.trim() || !password) return
+    setSaving(true)
+    try { await apiClient.bindOwnLearnerAccount({ learnerEmail: email.trim(), learnerPassword: password }, adminToken); setPassword(''); onNotify('学习端账号绑定成功', 'success') } catch (error) { onNotify(error instanceof Error ? error.message : '学习端账号绑定失败', 'error') } finally { setSaving(false) }
+  }
+  return <section className="admin-section"><div className="panel-title"><Typography.Title level={3} style={{ margin: 0 }}>我的账号</Typography.Title></div><Space direction="vertical" size={16} style={{ display: 'flex', maxWidth: 640 }}><Card title="公开资料"><Typography.Paragraph type="secondary">显示名称会展示在课程贡献者信息中，字幕贡献者每 90 天只能修改一次。</Typography.Paragraph><Space.Compact style={{ width: '100%' }}><Input value={name} onChange={(event) => setName(event.target.value)} /><Button loading={changingName} type="primary" onClick={() => void saveName()}>保存名称</Button></Space.Compact>{adminUser.nextDisplayNameChangeAt && <Typography.Text type="warning">下次可修改时间：{new Date(adminUser.nextDisplayNameChangeAt).toLocaleString('zh-CN')}</Typography.Text>}</Card><Card title="绑定学习端账号"><Typography.Paragraph type="secondary">请输入学习端登录邮箱和密码完成验证。绑定后，你负责的课程草稿会在学习端 App 和网页端中提供预览。</Typography.Paragraph><Input placeholder="学习端登录邮箱" type="email" value={email} onChange={(event) => setEmail(event.target.value)} /><Input.Password placeholder="学习端登录密码" value={password} onChange={(event) => setPassword(event.target.value)} style={{ marginTop: 12 }} /><Button loading={saving} disabled={!email.trim() || !password} type="primary" onClick={() => void bind()} style={{ marginTop: 12 }}>验证并绑定</Button>{adminUser.learnerUserId && <Typography.Text type="success" style={{ display: 'block', marginTop: 12 }}>当前已绑定：{adminUser.learnerDisplayName}（{adminUser.learnerEmail}）</Typography.Text>}</Card></Space></section>
+}
 
 const initialCategoryForm: CreateCategoryRequest = {
   groupId: 1,
@@ -175,6 +194,9 @@ export function ContentAdmin({
     }
     if (location.pathname.startsWith('/activity')) {
       return 'activity'
+    }
+    if (location.pathname.startsWith('/account-settings')) {
+      return 'account-settings'
     }
     if (location.pathname.startsWith('/directory')) {
       return 'directory'
@@ -636,7 +658,9 @@ export function ContentAdmin({
             ? '/users'
             : section === 'api-keys'
               ? '/api-keys'
-            : '/importer',
+              : section === 'account-settings'
+                ? '/account-settings'
+                : '/importer',
     )
   }, [activeSection, confirmSaveImporterBeforeLeave, isOpenContentDocumentation, navigate])
 
@@ -866,7 +890,7 @@ export function ContentAdmin({
         />
       )}
 
-          {activeSection === 'courses' && (
+      {activeSection === 'courses' && (
         <CourseManager
           adminToken={adminToken}
           currentAdminId={adminUser.id}
@@ -960,6 +984,10 @@ export function ContentAdmin({
             }
           }}
         />
+      )}
+
+      {activeSection === 'account-settings' && (
+        <AccountSettingsPanel adminToken={adminToken} adminUser={adminUser} onNotify={onNotify} />
       )}
 
       {activeSection === 'feedback' && (

@@ -534,6 +534,11 @@ export type ChangeAdminPasswordRequest = {
   newPassword: string
 }
 
+export type BindOwnLearnerAccountRequest = {
+  learnerEmail: string
+  learnerPassword: string
+}
+
 export type UpdateContributorAssignmentsRequest = {
   exerciseIds: number[]
 }

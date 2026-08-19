@@ -149,6 +149,33 @@ export async function updateContributorLearnerBinding(memberId: number, learnerU
     await AdminUserModel.update({ learner_user_id: learnerUserId }, { where: { id: memberId } });
 }
 
+/** 贡献者自助绑定学习端账号：必须用学习端账号凭据重新验证，不能只提交一个用户 ID。 */
+export async function bindOwnContributorLearner({
+    adminId,
+    learnerEmail,
+    learnerPassword,
+}: {
+    adminId: number;
+    learnerEmail: string;
+    learnerPassword: string;
+}) {
+    const member = await AdminUserModel.findOne({ where: { id: adminId, role: 'subtitle_contributor' }, raw: true });
+    if (!member) throw new Error('仅字幕贡献者可以绑定学习端账号');
+    const learner = await UserModel.findOne({ where: { email: learnerEmail.trim().toLowerCase() }, raw: true }) as UserDbLike | null;
+    if (!learner || !learner.password_hash || !(await bcrypt.compare(learnerPassword, learner.password_hash))) {
+        throw new Error('学习端邮箱或密码不正确');
+    }
+    const occupied = await AdminUserModel.findOne({
+        where: { learner_user_id: Number(learner.id), id: { [Op.ne]: adminId } },
+        attributes: ['id'], raw: true,
+    });
+    if (occupied) throw new Error('该学习端账号已经绑定其他字幕贡献者');
+    await AdminUserModel.update({ learner_user_id: Number(learner.id) }, { where: { id: adminId } });
+    return { learnerUserId: Number(learner.id), learnerEmail: learner.email, learnerDisplayName: learner.display_name };
+}
+
+type UserDbLike = { id: number | string; email: string; display_name: string; password_hash?: string | null };
+
 /** 根据后台课程负责人派生学习端可预览的课程范围。 */
 export async function getPreviewExerciseIdsForLearner(userId: number | undefined) {
     if (!userId) return [];
