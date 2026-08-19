@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { Op } from 'sequelize';
 import { v4 as uuidv4 } from 'uuid';
 import { AdminUserModel } from '../../models/schema/AdminUserDB';
+import { UserModel } from '../../models/schema/UserDB';
 import { normalizeAdminRole } from './collaboration-service';
 
 export type AdminSessionUser = {
@@ -41,7 +42,7 @@ const getNextDisplayNameChangeAt = (lastChangedAt: Date | string | null | undefi
     return nextChangeAt > Date.now() ? new Date(nextChangeAt).toISOString() : undefined;
 };
 
-const mapAdminUser = (admin: any): AdminSessionUser => {
+const mapAdminUser = (admin: any, learner?: { id: number; email: string; display_name: string } | null): AdminSessionUser => {
     const row = plainAdmin(admin);
     return {
         id: Number(row.id),
@@ -54,11 +55,23 @@ const mapAdminUser = (admin: any): AdminSessionUser => {
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
         lastLoginAt: row.last_login_at ? new Date(row.last_login_at).toISOString() : undefined,
         nextDisplayNameChangeAt: getNextDisplayNameChangeAt(row.last_display_name_changed_at),
-        learnerUserId: row.learner_user_id ? Number(row.learner_user_id) : undefined,
-        learnerEmail: row.learner_email || undefined,
-        learnerDisplayName: row.learner_display_name || undefined,
+        learnerUserId: learner ? Number(learner.id) : undefined,
+        learnerEmail: learner?.email,
+        learnerDisplayName: learner?.display_name,
     };
 };
+
+/** 后台会话资料独立加载绑定的学习端账号，避免把后台账号邮箱误当成学习端身份展示。 */
+async function mapAdminUserWithLearner(admin: any): Promise<AdminSessionUser> {
+    const row = plainAdmin(admin);
+    const learner = row.learner_user_id
+        ? await UserModel.findByPk(row.learner_user_id, {
+            attributes: ['id', 'email', 'display_name'],
+            raw: true,
+        }) as unknown as { id: number; email: string; display_name: string } | null
+        : null;
+    return mapAdminUser(row, learner);
+}
 
 export async function loginAdmin({
     email,
@@ -90,7 +103,7 @@ export async function loginAdmin({
         return { success: false, message: 'Invalid email or password' };
     }
 
-    const user = mapAdminUser(row);
+    const user = await mapAdminUserWithLearner(row);
     const token = uuidv4();
     await AdminUserModel.update(
         {
@@ -134,7 +147,7 @@ export async function getAdminByToken(token: string) {
         return null;
     }
 
-    return mapAdminUser(adminRecord);
+    return mapAdminUserWithLearner(adminRecord);
 }
 
 export async function logoutAdmin(adminId: number) {
@@ -182,7 +195,7 @@ export async function changeAdminPassword({
     return {
         success: true,
         message: 'success',
-        data: { ...mapAdminUser(row), mustChangePassword: false },
+        data: { ...(await mapAdminUserWithLearner(row)), mustChangePassword: false },
     };
 }
 
@@ -245,7 +258,7 @@ export async function changeOwnAdminDisplayName({
     return {
         success: true,
         message: 'success',
-        data: mapAdminUser(updatedAdmin),
+        data: await mapAdminUserWithLearner(updatedAdmin),
     };
 }
 
