@@ -169,6 +169,90 @@
   background: #e0f4fe !important;
 }
 
+.open-content-api-documentation {
+  background: #ffffff;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 24px;
+}
+
+.open-content-api-documentation-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.open-content-api-documentation-header .ant-typography {
+  margin-bottom: 6px;
+}
+
+.open-content-api-documentation-header .ant-typography.ant-typography-h2 {
+  align-items: center;
+  display: flex;
+  font-size: 22px;
+  gap: 9px;
+}
+
+.open-content-api-documentation-section {
+  max-width: 100%;
+}
+
+.open-content-api-documentation-section .ant-typography-h4 {
+  align-items: center;
+  display: flex;
+  font-size: 16px;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.open-content-api-documentation-section > .ant-typography {
+  max-width: 920px;
+}
+
+.open-content-code-example {
+  border: 1px solid #d7dde5;
+  border-radius: 6px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+
+.open-content-code-toolbar {
+  align-items: center;
+  background: #f5f7fb;
+  border-bottom: 1px solid #d7dde5;
+  display: flex;
+  justify-content: space-between;
+  min-height: 34px;
+  padding-left: 10px;
+}
+
+.open-content-code-toolbar .ant-tag {
+  margin-inline-end: 0;
+}
+
+.open-content-code-example pre {
+  background: #1f2937;
+  color: #f8fafc;
+  font: 12px/1.55 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  margin: 0;
+  max-height: 520px;
+  overflow: auto;
+  padding: 14px 16px;
+  tab-size: 2;
+}
+
+.open-content-code-example code {
+  font: inherit;
+}
+
+.open-content-api-field-table {
+  max-width: 920px;
+}
+
 .directory-manager .ant-list-item.directory-group-item {
   display: block;
   padding: 20px 0;

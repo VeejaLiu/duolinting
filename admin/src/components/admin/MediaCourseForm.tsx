@@ -106,11 +106,11 @@ type MediaCourseFormProps = {
   onCourseFormChange: React.Dispatch<React.SetStateAction<CreateExerciseRequest>>
   clipboardPanel: ClipboardPanelState
   onClipboardPanelChange: React.Dispatch<React.SetStateAction<ClipboardPanelState>>
-  onHtjsonCopy: () => void
-  onHtjsonExport: () => void
-  onHtjsonImport: (file: File) => void
-  onHtjsonPaste: () => void
-  onManualHtjsonImport: () => void
+  onDltjsonCopy: () => void
+  onDltjsonExport: () => void
+  onDltjsonImport: (file: File) => void
+  onDltjsonPaste: () => void
+  onManualDltjsonImport: () => void
   onNotify: (message: string, tone?: AdminNoticeTone) => void
   onFileChange: (file: File | null) => void
   onSaveLesson: () => void
@@ -182,11 +182,11 @@ export function MediaCourseForm({
   onCourseFormChange,
   clipboardPanel,
   onClipboardPanelChange,
-  onHtjsonCopy,
-  onHtjsonExport,
-  onHtjsonImport,
-  onHtjsonPaste,
-  onManualHtjsonImport,
+  onDltjsonCopy,
+  onDltjsonExport,
+  onDltjsonImport,
+  onDltjsonPaste,
+  onManualDltjsonImport,
   onNotify,
   onFileChange,
   onSaveLesson,
@@ -621,44 +621,44 @@ export function MediaCourseForm({
         </div>
 
         <div className="workbench-bottom-actions">
-          <div className="htjson-actions">
+          <div className="dltjson-actions">
             <button
               className="mini-command secondary"
-              onClick={onHtjsonCopy}
+              onClick={onDltjsonCopy}
               type="button"
-              title="复制 htjson 到剪切板，不支持时会打开手动复制面板"
+              title="复制 dltjson 到剪切板，不支持时会打开手动复制面板"
             >
               <Clipboard size={14} aria-hidden="true" />
-              复制 htjson
+              复制 dltjson
             </button>
             <button
               className="mini-command secondary"
-              onClick={onHtjsonPaste}
+              onClick={onDltjsonPaste}
               type="button"
-              title="打开 htjson 粘贴输入框"
+              title="打开 dltjson 粘贴输入框"
             >
               <ClipboardPaste size={14} aria-hidden="true" />
-              粘贴 htjson
+              粘贴 dltjson
             </button>
             <button
               className="mini-command"
-              onClick={onHtjsonExport}
+              onClick={onDltjsonExport}
               type="button"
-              title="导出为 htjson 文件"
+              title="导出为 dltjson 文件"
             >
               <Download size={14} aria-hidden="true" />
-              导出 htjson
+              导出 dltjson
             </button>
             <label className="mini-command file-label">
               <Upload size={14} aria-hidden="true" />
-              导入 htjson
+              导入 dltjson
               <input
-                accept=".htjson,.json"
+                accept=".dltjson,.htjson,.json"
                 type="file"
                 onChange={(event) => {
                   const file = event.target.files?.[0]
                   if (file) {
-                    onHtjsonImport(file)
+                    onDltjsonImport(file)
                     event.target.value = ''
                   }
                 }}
@@ -679,11 +679,11 @@ export function MediaCourseForm({
         }}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="htjson-dialog-overlay" />
-          <Dialog.Content className="htjson-dialog-content">
-            <div className="htjson-dialog-header">
-              <Dialog.Title className="htjson-dialog-title">
-                {clipboardPanel.mode === 'copy' ? '复制 htjson' : '粘贴 htjson'}
+          <Dialog.Overlay className="dltjson-dialog-overlay" />
+          <Dialog.Content className="dltjson-dialog-content">
+            <div className="dltjson-dialog-header">
+              <Dialog.Title className="dltjson-dialog-title">
+                {clipboardPanel.mode === 'copy' ? '复制 dltjson' : '粘贴 dltjson'}
               </Dialog.Title>
               <Dialog.Close asChild>
                 <button className="mini-command secondary" type="button">
@@ -693,7 +693,7 @@ export function MediaCourseForm({
             </div>
 
             <textarea
-              className="htjson-manual-textarea"
+              className="dltjson-manual-textarea"
               readOnly={clipboardPanel.mode === 'copy'}
               rows={12}
               value={clipboardPanel.mode === 'hidden' ? '' : clipboardPanel.content}
@@ -715,17 +715,17 @@ export function MediaCourseForm({
               placeholder={
                 clipboardPanel.mode === 'copy'
                   ? ''
-                  : '把 htjson 内容粘贴到这里，然后点击“导入粘贴内容”'
+                  : '把 dltjson 内容粘贴到这里，然后点击“导入粘贴内容”'
               }
             />
 
-            <div className="htjson-dialog-actions">
+            <div className="dltjson-dialog-actions">
               {clipboardPanel.mode === 'paste' ? (
-                <button className="mini-command" onClick={onManualHtjsonImport} type="button">
+                <button className="mini-command" onClick={onManualDltjsonImport} type="button">
                   导入粘贴内容
                 </button>
               ) : (
-                <span className="htjson-dialog-hint">点击文本框可全选后手动复制</span>
+                <span className="dltjson-dialog-hint">点击文本框可全选后手动复制</span>
               )}
             </div>
           </Dialog.Content>

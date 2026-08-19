@@ -1,0 +1,318 @@
+import { Alert, Button, Divider, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import { ArrowLeft, BookOpenText, Copy, Download, KeyRound } from 'lucide-react'
+import type { AdminNoticeTone } from './AdminFeedback'
+
+type OpenContentApiDocumentationProps = {
+  onBack: () => void
+  onNotify: (message: string, tone?: AdminNoticeTone) => void
+}
+
+type DltjsonField = {
+  field: string
+  description: string
+}
+
+type CodeExampleProps = {
+  code: string
+  language: string
+  onNotify: OpenContentApiDocumentationProps['onNotify']
+}
+
+const copyText = async (
+  value: string,
+  onNotify: OpenContentApiDocumentationProps['onNotify'],
+) => {
+  try {
+    await navigator.clipboard.writeText(value)
+    onNotify('示例已复制', 'success')
+  } catch {
+    onNotify('复制失败，请手动复制', 'error')
+  }
+}
+
+function CodeExample({ code, language, onNotify }: CodeExampleProps) {
+  return (
+    <div className="open-content-code-example">
+      <div className="open-content-code-toolbar">
+        <Tag>{language}</Tag>
+        <Tooltip title="复制代码">
+          <Button
+            aria-label="复制代码"
+            icon={<Copy size={15} />}
+            onClick={() => void copyText(code, onNotify)}
+            size="small"
+            type="text"
+          />
+        </Tooltip>
+      </div>
+      <pre><code>{code}</code></pre>
+    </div>
+  )
+}
+
+const dltjsonFields: DltjsonField[] = [
+  { field: 'version', description: '格式版本；当前固定为 "2.0"。' },
+  { field: 'type', description: '文件类型；当前固定为 "dltjson"。' },
+  { field: 'course', description: '课程元数据，包括标题、来源、难度、排序和本地化内容。' },
+  { field: 'lines[].id', description: '句子的稳定标识。外部仓库更新内容时应保留该值。' },
+  { field: 'lines[].start / end', description: '句子在原媒体时间轴上的起止秒数，均为 number。' },
+  { field: 'lines[].text', description: '英文原句。' },
+  { field: 'lines[].translation / translations', description: '兼容译文与按语言存放的多语言译文。' },
+  { field: 'lines[].answers / keywords', description: '可接受答案与关键词数组。' },
+]
+
+const dltjsonColumns: ColumnsType<DltjsonField> = [
+  {
+    dataIndex: 'field',
+    key: 'field',
+    title: '字段',
+    width: '34%',
+    render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
+  },
+  {
+    dataIndex: 'description',
+    key: 'description',
+    title: '说明',
+  },
+]
+
+const catalogExample = [
+  '{',
+  '  "version": "1.0",',
+  '  "generatedAt": "2026-08-19T10:30:00.000Z",',
+  '  "categoryGroups": [',
+  '    { "id": 10, "name": "动画", "sortOrder": 10 }',
+  '  ],',
+  '  "categories": [',
+  '    { "id": 21, "groupId": 10, "name": "小猪佩奇", "sortOrder": 10 }',
+  '  ],',
+  '  "courses": [',
+  '    {',
+  '      "id": 123,',
+  '      "categoryId": 21,',
+  '      "title": "Muddy Puddles",',
+  '      "lineCount": 68,',
+  '      "dltjsonUrl": "/api/v1/open-content/courses/123/dltjson"',
+  '    }',
+  '  ]',
+  '}',
+].join('\n')
+
+const dltjsonExample = [
+  '{',
+  '  "version": "2.0",',
+  '  "type": "dltjson",',
+  '  "course": {',
+  '    "id": 123,',
+  '    "categoryId": 21,',
+  '    "title": "Muddy Puddles",',
+  '    "source": "Peppa Pig",',
+  '    "difficulty": "beginner",',
+  '    "durationLabel": "5:00",',
+  '    "summary": "...",',
+  '    "sortOrder": 10',
+  '  },',
+  '  "lines": [',
+  '    {',
+  '      "id": "line-001",',
+  '      "start": 0.32,',
+  '      "end": 2.48,',
+  '      "text": "It is raining today.",',
+  '      "translation": "今天在下雨。",',
+  '      "translations": { "zh-CN": "今天在下雨。" },',
+  '      "answers": ["It is raining today"],',
+  '      "keywords": ["raining"]',
+  '    }',
+  '  ]',
+  '}',
+].join('\n')
+
+const syncScript = [
+  "import { mkdir, writeFile } from 'node:fs/promises'",
+  "import { join, resolve } from 'node:path'",
+  '',
+  "const apiBase = process.env.DUOLINTING_API_BASE?.replace(/\\/+$/, '')",
+  "const apiKey = process.env.DUOLINTING_OPEN_CONTENT_API_KEY",
+  "const outputDirectory = resolve(process.env.DUOLINTING_OPEN_CONTENT_OUTPUT ?? './duolinting-content')",
+  '',
+  "if (!apiBase || !apiKey) {",
+  "  throw new Error('Set DUOLINTING_API_BASE and DUOLINTING_OPEN_CONTENT_API_KEY first.')",
+  '}',
+  '',
+  'const requestJson = async (path) => {',
+  '  const response = await fetch(`${apiBase}${path}`, {',
+  "    headers: { 'X-DuolinTing-API-Key': apiKey },",
+  '  })',
+  '  if (!response.ok) {',
+  '    throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`)',
+  '  }',
+  '  return response.json()',
+  '}',
+  '',
+  '// Windows, macOS and Linux can all use these folder and file names.',
+  'const safeName = (value) => {',
+  '  const normalized = String(value ?? \'\')',
+  "    .normalize('NFKC')",
+  '    .replace(/[<>:"/\\\\|?*\\u0000-\\u001f]/g, \'-\')',
+  "    .replace(/\\s+/g, ' ')",
+  '    .trim()',
+  "    .replace(/[. ]+$/g, '')",
+  "  return normalized || 'untitled'",
+  '}',
+  '',
+  "const sortToken = (value) => String(value ?? 0).padStart(4, '0')",
+  '',
+  "const catalog = await requestJson('/api/v1/open-content/catalog')",
+  'const groupById = new Map(catalog.categoryGroups.map((group) => [group.id, group]))',
+  'const categoryById = new Map(catalog.categories.map((category) => [category.id, category]))',
+  '',
+  'await mkdir(outputDirectory, { recursive: true })',
+  "await writeFile(join(outputDirectory, 'catalog.json'), `${JSON.stringify(catalog, null, 2)}\\n`)",
+  '',
+  'const courses = [...catalog.courses].sort((left, right) => {',
+  '  const categoryOrder = left.categoryId - right.categoryId',
+  '  return categoryOrder || left.sortOrder - right.sortOrder || left.id - right.id',
+  '})',
+  '',
+  'for (const course of courses) {',
+  '  const category = categoryById.get(course.categoryId)',
+  '  const group = category && groupById.get(category.groupId)',
+  '  if (!category || !group) {',
+  '    console.warn(`Skip course ${course.id}: missing directory metadata.`)',
+  '    continue',
+  '  }',
+  '',
+  '  const directory = join(',
+  '    outputDirectory,',
+  '    `${sortToken(group.sortOrder)}-${safeName(group.name)}`,',
+  '    `${sortToken(category.sortOrder)}-${safeName(category.name)}`,',
+  '  )',
+  '  const dltjson = await requestJson(course.dltjsonUrl)',
+  '  const fileName = `${sortToken(course.sortOrder)}-${safeName(course.title)}.dltjson`',
+  '  await mkdir(directory, { recursive: true })',
+  '  await writeFile(join(directory, fileName), `${JSON.stringify(dltjson, null, 2)}\\n`)',
+  '  console.log(`Saved ${join(directory, fileName)}`)',
+  '}',
+].join('\n')
+
+export function OpenContentApiDocumentation({
+  onBack,
+  onNotify,
+}: OpenContentApiDocumentationProps) {
+  const apiOrigin = window.location.origin
+  const environmentExample = [
+    `export DUOLINTING_API_BASE="${apiOrigin}"`,
+    'export DUOLINTING_OPEN_CONTENT_API_KEY="dltak_replace_with_the_key_shown_once"',
+  ].join('\n')
+  const catalogRequestExample = [
+    'curl --fail --silent --show-error \\',
+    '  -H "X-DuolinTing-API-Key: $DUOLINTING_OPEN_CONTENT_API_KEY" \\',
+    '  "$DUOLINTING_API_BASE/api/v1/open-content/catalog"',
+  ].join('\n')
+  const courseDownloadExample = [
+    'curl --fail --silent --show-error \\',
+    '  -H "X-DuolinTing-API-Key: $DUOLINTING_OPEN_CONTENT_API_KEY" \\',
+    '  "$DUOLINTING_API_BASE/api/v1/open-content/courses/123/dltjson" \\',
+    '  --output "0001-Muddy Puddles.dltjson"',
+  ].join('\n')
+
+  return (
+    <main className="open-content-api-documentation">
+      <div className="open-content-api-documentation-header">
+        <div>
+          <Typography.Title level={2}>开放内容 API 文档</Typography.Title>
+          <Typography.Paragraph type="secondary">
+            用独立 API Key 将已发布课程的目录和字幕同步到开源仓库。接口不会返回音频、视频、封面或其他媒体字段。
+          </Typography.Paragraph>
+        </div>
+        <Button icon={<ArrowLeft size={16} />} onClick={onBack}>返回 API Key</Button>
+      </div>
+
+      <Alert
+        message="仅同步已发布课程"
+        description="目录中的课程都带有 dltjsonUrl。草稿、校对中、已归档或不存在的课程不会通过此接口导出。"
+        showIcon
+        type="info"
+      />
+
+      <section className="open-content-api-documentation-section">
+        <Typography.Title level={4}><KeyRound size={18} />1. 配置访问凭据</Typography.Title>
+        <Typography.Paragraph>
+          先在 API Key 管理页创建一个 Key 并立即保存明文。之后将它放入环境变量；不要将 Key 写进仓库、提交记录或浏览器前端代码。
+        </Typography.Paragraph>
+        <CodeExample code={environmentExample} language="shell" onNotify={onNotify} />
+        <Typography.Paragraph type="secondary">
+          当前后台所在域名已预填为 <Typography.Text code>{apiOrigin}</Typography.Text>。外部同步仓库部署到其他环境时，只需改动 DUOLINTING_API_BASE。
+        </Typography.Paragraph>
+      </section>
+
+      <Divider />
+
+      <section className="open-content-api-documentation-section">
+        <Typography.Title level={4}><BookOpenText size={18} />2. 读取目录</Typography.Title>
+        <Typography.Paragraph>
+          先请求目录，再依据 <Typography.Text code>groupId</Typography.Text> 和 <Typography.Text code>categoryId</Typography.Text> 组织“内容分类 / 学习系列 / 课程”三级目录。每门课程的 <Typography.Text code>dltjsonUrl</Typography.Text> 是下载字幕的唯一入口。
+        </Typography.Paragraph>
+        <CodeExample code={catalogRequestExample} language="shell" onNotify={onNotify} />
+        <CodeExample code={catalogExample} language="json" onNotify={onNotify} />
+      </section>
+
+      <Divider />
+
+      <section className="open-content-api-documentation-section">
+        <Typography.Title level={4}><Download size={18} />3. 下载单门课程</Typography.Title>
+        <Typography.Paragraph>
+          把目录响应中的 <Typography.Text code>dltjsonUrl</Typography.Text> 拼接到 API 域名后下载。下面的 <Typography.Text code>123</Typography.Text> 仅为示例，请替换为目录返回的课程 ID。
+        </Typography.Paragraph>
+        <CodeExample code={courseDownloadExample} language="shell" onNotify={onNotify} />
+        <CodeExample code={dltjsonExample} language="json" onNotify={onNotify} />
+      </section>
+
+      <Divider />
+
+      <section className="open-content-api-documentation-section">
+        <Typography.Title level={4}>4. 完整同步脚本</Typography.Title>
+        <Typography.Paragraph>
+          将下面代码保存为 <Typography.Text code>sync-open-content.mjs</Typography.Text>，使用 Node.js 22 或更高版本执行。它会保存目录快照，并将所有课程写入“内容分类 / 学习系列 / 课程.dltjson”。文件名会自动清理跨平台不支持的字符并保留排序号。
+        </Typography.Paragraph>
+        <CodeExample code={syncScript} language="node" onNotify={onNotify} />
+        <CodeExample
+          code="node sync-open-content.mjs"
+          language="shell"
+          onNotify={onNotify}
+        />
+      </section>
+
+      <Divider />
+
+      <section className="open-content-api-documentation-section">
+        <Typography.Title level={4}>5. dltjson 格式</Typography.Title>
+        <Typography.Paragraph>
+          <Typography.Text code>start</Typography.Text> 与 <Typography.Text code>end</Typography.Text> 的单位为秒，且应保持与原课程时间轴一致。同步脚本按原样保存每个文件，不会合成、重排或修改字幕。
+        </Typography.Paragraph>
+        <Table
+          className="open-content-api-field-table"
+          columns={dltjsonColumns}
+          dataSource={dltjsonFields}
+          pagination={false}
+          rowKey="field"
+          size="small"
+        />
+      </section>
+
+      <Divider />
+
+      <section className="open-content-api-documentation-section">
+        <Typography.Title level={4}>6. 鉴权与错误处理</Typography.Title>
+        <Space direction="vertical" size={8} style={{ display: 'flex' }}>
+          <Typography.Text><Tag color="blue">请求头</Tag> 新接入使用 <Typography.Text code>X-DuolinTing-API-Key</Typography.Text>；<Typography.Text code>X-API-Key</Typography.Text> 仅为兼容通用命令行工具保留。</Typography.Text>
+          <Typography.Text><Tag color="red">401</Tag> 未提供、无效、已过期或已删除的 API Key。请由超级管理员检查 Key 的状态，必要时新建 Key 或调整到期时间。</Typography.Text>
+          <Typography.Text><Tag color="orange">404</Tag> 课程不存在，或课程尚未发布，不能导出。</Typography.Text>
+          <Typography.Text><Tag color="gold">400</Tag> 课程 ID 不是正整数。</Typography.Text>
+          <Typography.Text type="secondary">接口响应使用 private, no-store 缓存策略。若外部仓库需要版本历史，应由同步任务在自己的仓库中提交版本，而不是依赖接口缓存。</Typography.Text>
+        </Space>
+      </section>
+    </main>
+  )
+}

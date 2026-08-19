@@ -7,6 +7,7 @@ import type {
   AdminGrowthReport,
   AdminMember,
   AdminMemberProvisioning,
+  AdminOpenContentApiKey,
   AdminUser,
   AdminReviewTask,
   AdminSubtitleWorkflowTaskInbox,
@@ -15,6 +16,8 @@ import type {
   AdminWorkflowNotifications,
   ChangeAdminPasswordRequest,
   CreateAdminMemberRequest,
+  CreateOpenContentApiKeyRequest,
+  CreateOpenContentApiKeyResponse,
   CatalogExerciseSummary,
   CatalogResponse,
   CreateCategoryGroupRequest,
@@ -26,6 +29,7 @@ import type {
   PreviewVolunteer,
   MediaUploadResponse,
   UpdateAcceptedAnswerFeedbackStatusRequest,
+  UpdateOpenContentApiKeyRequest,
 } from '@duolinting/shared'
 
 // 生产与本地开发都走同源（空字符串）：生产由前端 nginx 容器把 /api/ 代理到 backend，
@@ -258,6 +262,37 @@ export const apiClient = {
       { adminToken },
     )
   },
+  getOpenContentApiKeys: (adminToken: string) =>
+    fetchJson<{ items: AdminOpenContentApiKey[] }>(
+      '/api/v1/admin/open-content/api-keys',
+      { method: 'GET' },
+      { adminToken },
+    ),
+  createOpenContentApiKey: (
+    request: CreateOpenContentApiKeyRequest,
+    adminToken: string,
+  ) =>
+    fetchApiResult<CreateOpenContentApiKeyResponse>(
+      '/api/v1/admin/open-content/api-keys',
+      { method: 'POST', body: JSON.stringify(request) },
+      { adminToken },
+    ),
+  updateOpenContentApiKey: (
+    apiKeyId: number,
+    request: UpdateOpenContentApiKeyRequest,
+    adminToken: string,
+  ) =>
+    fetchApiResult<AdminOpenContentApiKey>(
+      `/api/v1/admin/open-content/api-keys/${apiKeyId}`,
+      { method: 'PUT', body: JSON.stringify(request) },
+      { adminToken },
+    ),
+  deleteOpenContentApiKey: (apiKeyId: number, adminToken: string) =>
+    fetchJson<AdminContentResponse>(
+      `/api/v1/admin/open-content/api-keys/${apiKeyId}`,
+      { method: 'DELETE' },
+      { adminToken },
+    ),
   adminLogin: (request: AdminLoginRequest) =>
     fetchApiResult<AdminAuthResponse>('/api/v1/admin/auth/login', {
       method: 'POST',

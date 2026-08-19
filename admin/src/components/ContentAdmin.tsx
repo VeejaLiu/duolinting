@@ -35,6 +35,8 @@ import { DirectoryManager } from './admin/DirectoryManager'
 import { ListeningVideoRecorder } from './admin/ListeningVideoRecorder'
 import { CollaborationManager } from './admin/CollaborationManager'
 import { WorkflowActivityPanel } from './admin/WorkflowActivityPanel'
+import { OpenContentApiDocumentation } from './admin/OpenContentApiDocumentation'
+import { OpenContentApiKeyManager } from './admin/OpenContentApiKeyManager'
 import { apiClient } from '../lib/apiClient'
 
 type ContentAdminProps = {
@@ -192,8 +194,12 @@ export function ContentAdmin({
     if (location.pathname.startsWith('/users')) {
       return 'users'
     }
+    if (location.pathname.startsWith('/api-keys')) {
+      return 'api-keys'
+    }
     return 'directory'
   }, [location.pathname])
+  const isOpenContentDocumentation = location.pathname === '/api-keys/docs'
 
   // 贡献者可直接输入旧链接或书签；统一回到其被分配的课程列表，避免展示没有写权限的工作区。
   useEffect(() => {
@@ -319,11 +325,13 @@ export function ContentAdmin({
       /^\/importer\/[^/]+$/.test(location.pathname) ||
       location.pathname === '/directory' ||
       location.pathname === '/collaboration' ||
-      location.pathname === '/activity' ||
       location.pathname === '/courses' ||
+      location.pathname === '/activity' ||
       location.pathname === '/recorder' ||
       location.pathname === '/feedback' ||
-      location.pathname === '/users'
+      location.pathname === '/users' ||
+      location.pathname === '/api-keys' ||
+      location.pathname === '/api-keys/docs'
 
     if (!isKnownPath) {
       navigate('/directory', { replace: true })
@@ -600,7 +608,7 @@ export function ContentAdmin({
     }, '学习系列排序失败')
 
   const changeSection = useCallback(async (section: AdminSection) => {
-    if (section === activeSection) {
+    if (section === activeSection && !(section === 'api-keys' && isOpenContentDocumentation)) {
       return
     }
 
@@ -626,9 +634,11 @@ export function ContentAdmin({
           ? '/feedback'
           : section === 'users'
             ? '/users'
+            : section === 'api-keys'
+              ? '/api-keys'
             : '/importer',
     )
-  }, [activeSection, confirmSaveImporterBeforeLeave, navigate])
+  }, [activeSection, confirmSaveImporterBeforeLeave, isOpenContentDocumentation, navigate])
 
   const openImporterForCategory = async (categoryId: number) => {
     if (activeSection === 'importer') {
@@ -998,6 +1008,20 @@ export function ContentAdmin({
           onEnsureExercises={onEnsureExercises}
           onNotify={onNotify}
         />
+      )}
+
+      {activeSection === 'api-keys' && adminUser.role === 'super_admin' && (
+        isOpenContentDocumentation
+          ? <OpenContentApiDocumentation
+            onBack={() => navigate('/api-keys')}
+            onNotify={onNotify}
+          />
+          : <OpenContentApiKeyManager
+            adminToken={adminToken}
+            onNotify={onNotify}
+            onOpenDocumentation={() => navigate('/api-keys/docs')}
+            onRequestConfirm={onRequestConfirm}
+          />
       )}
 
       <Modal

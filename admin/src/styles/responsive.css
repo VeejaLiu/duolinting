@@ -13,6 +13,19 @@
 
   .admin-workspace-content { padding: 14px; }
 
+  .open-content-api-documentation {
+    padding: 16px;
+  }
+
+  .open-content-api-documentation-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .open-content-api-documentation-header > .ant-btn {
+    align-self: flex-start;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
   }

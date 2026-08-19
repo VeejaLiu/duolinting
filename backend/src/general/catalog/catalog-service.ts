@@ -26,7 +26,6 @@ import {
     getLatestSubmittedSubtitleDraft,
 } from '../admin/collaboration-service';
 import type { AdminActor } from '../admin/collaboration-service';
-import { env } from '../../env';
 import {
     buildPublicMediaUrl,
     buildStoredMediaUrl,
@@ -1026,6 +1025,51 @@ export async function getExercise(
         workflowCredits,
         subtitleDrafts,
     );
+}
+
+/**
+ * 开放内容导出只读取已发布课程的文本数据。它不复用 getExercise，原因是后者还会检查
+ * MinIO 媒体大小并加载协作信息；这些数据既不会导出，也不应成为字幕同步的依赖。
+ */
+export async function getPublishedExerciseForOpenContent(exerciseId: number) {
+    const rows = await doRawQuery<ExerciseRow>({
+        query: `
+            select
+              id,
+              category_id,
+              title,
+              source,
+              source_url,
+              difficulty,
+              duration_label,
+              summary,
+              localizations_json,
+              transcript_json,
+              sort_order
+            from exercises
+            where id = ? and status = 'published'
+            limit 1
+        `,
+        params: [exerciseId],
+    });
+    const row = rows[0];
+    if (!row) {
+        return null;
+    }
+
+    return {
+        id: Number(row.id),
+        categoryId: Number(row.category_id),
+        title: row.title,
+        source: row.source,
+        sourceUrl: normalizeSourceUrl(row.source_url) || undefined,
+        difficulty: row.difficulty,
+        durationLabel: row.duration_label,
+        summary: row.summary,
+        sortOrder: Number(row.sort_order ?? 0),
+        localizations: normalizeExerciseLocalizations(row.localizations_json),
+        lines: parseTranscriptJson(row.transcript_json),
+    };
 }
 
 export async function upsertCategory(category: CreateCategoryRequest) {

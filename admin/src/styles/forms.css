@@ -125,20 +125,20 @@ button:focus-visible {
   justify-content: flex-end;
 }
 
-.htjson-actions {
+.dltjson-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.htjson-dialog-overlay {
+.dltjson-dialog-overlay {
   background: rgba(15, 23, 42, 0.48);
   inset: 0;
   position: fixed;
   z-index: 30;
 }
 
-.htjson-dialog-content {
+.dltjson-dialog-content {
   background: #ffffff;
   border: 1px solid #d7dde5;
   border-radius: 8px;
@@ -156,22 +156,22 @@ button:focus-visible {
   z-index: 31;
 }
 
-.htjson-dialog-header,
-.htjson-dialog-actions {
+.dltjson-dialog-header,
+.dltjson-dialog-actions {
   align-items: center;
   display: flex;
   justify-content: space-between;
   gap: 10px;
 }
 
-.htjson-dialog-title {
+.dltjson-dialog-title {
   color: #111827;
   font-size: 16px;
   font-weight: 700;
   margin: 0;
 }
 
-.htjson-manual-textarea {
+.dltjson-manual-textarea {
   background: #ffffff;
   border: 1px solid #cfd6df;
   border-radius: 6px;
@@ -183,13 +183,13 @@ button:focus-visible {
   width: 100%;
 }
 
-.htjson-manual-textarea:focus {
+.dltjson-manual-textarea:focus {
   border-color: #2563eb;
   outline: 2px solid rgba(37, 99, 235, 0.16);
   outline-offset: 1px;
 }
 
-.htjson-dialog-hint {
+.dltjson-dialog-hint {
   color: #6b7280;
   font-size: 12px;
   font-weight: 600;

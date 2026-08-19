@@ -1,5 +1,5 @@
 import express from 'express';
-import { body } from 'express-validator';
+import { body, param } from 'express-validator';
 import type { AdminWorkflowActivityType, FeedbackStatus } from '../../domain';
 import { requireAdminPasswordChanged, requireAdminToken, requireSuperAdmin } from '../../general/admin/admin-auth';
 import { changeAdminPassword, changeOwnAdminDisplayName, getAdminInfo, loginAdmin, logoutAdmin } from '../../general/admin/admin-service';
@@ -50,6 +50,12 @@ import {
     updateAcceptedAnswerFeedbackStatus,
 } from '../../general/feedback/feedback-service';
 import { getAdminGrowthReport } from '../../general/admin/user-activity-service';
+import {
+    createOpenContentApiKey,
+    deleteOpenContentApiKey,
+    listOpenContentApiKeys,
+    updateOpenContentApiKey,
+} from '../../general/open-content/open-content-api-key-service';
 import { createTranslationJob, getTranslationJob } from '../../general/translate/translate-service';
 import { validateErrorCheck } from '../../lib/express-validator/express-validator-middleware';
 import { Logger } from '../../lib/logger';
@@ -190,6 +196,75 @@ router.put(
 router.get('/catalog', async (_req: any, res) => {
     res.status(200).send(await listCatalog(true, true));
 });
+
+// 开放内容 Key 可以访问另一个独立路由，因此只允许超级管理员创建、改期和撤销。
+// 创建响应中的 secret 是唯一一次明文返回，列表接口始终只返回安全摘要视图。
+router.get('/open-content/api-keys', requireSuperAdmin, async (_req, res) => {
+    res.status(200).send({ items: await listOpenContentApiKeys() });
+});
+
+router.post(
+    '/open-content/api-keys',
+    requireSuperAdmin,
+    body('name').isString().trim().isLength({ min: 1, max: 120 }),
+    body('expiresAt').optional({ values: 'null' }).isISO8601(),
+    validateErrorCheck,
+    async (req: any, res) => {
+        try {
+            const data = await createOpenContentApiKey({
+                name: req.body.name,
+                expiresAt: req.body.expiresAt,
+                createdByAdminId: req.admin.id,
+            });
+            res.status(201).send({ success: true, message: 'success', data });
+        } catch (error) {
+            res.status(400).send({
+                success: false,
+                message: error instanceof Error ? error.message : '创建 API Key 失败',
+            });
+        }
+    },
+);
+
+router.put(
+    '/open-content/api-keys/:keyId',
+    requireSuperAdmin,
+    param('keyId').isInt({ min: 1 }),
+    body('name').optional().isString().trim().isLength({ min: 1, max: 120 }),
+    body('expiresAt').optional({ values: 'null' }).isISO8601(),
+    validateErrorCheck,
+    async (req, res) => {
+        try {
+            const apiKey = await updateOpenContentApiKey(
+                toId(req.params.keyId),
+                req.body,
+            );
+            if (!apiKey) {
+                return res.status(404).send({ success: false, message: 'API Key 不存在' });
+            }
+            res.status(200).send({ success: true, message: 'success', data: apiKey });
+        } catch (error) {
+            res.status(400).send({
+                success: false,
+                message: error instanceof Error ? error.message : '更新 API Key 失败',
+            });
+        }
+    },
+);
+
+router.delete(
+    '/open-content/api-keys/:keyId',
+    requireSuperAdmin,
+    param('keyId').isInt({ min: 1 }),
+    validateErrorCheck,
+    async (req, res) => {
+        const deleted = await deleteOpenContentApiKey(toId(req.params.keyId));
+        if (!deleted) {
+            return res.status(404).send({ success: false, message: 'API Key 不存在' });
+        }
+        res.status(200).send({ success: true, message: 'success' });
+    },
+);
 
 /** 当前成员的站内工作流消息；已读状态由调用方显式确认，避免打开课程就丢失提醒。 */
 router.get('/workflow-notifications', async (req: any, res) => {

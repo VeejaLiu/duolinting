@@ -107,13 +107,13 @@ const createImporterSnapshot = (
     subtitleDraft,
   })
 
-const exportToHtjson = (
+const exportToDltjson = (
   draftLines: DraftLine[],
 ): string => {
-  // htjson 只承载字幕编辑所需的稳定字段，便于文件和剪切板共用同一份格式。
-  const htjson = {
+  // dltjson 只承载字幕编辑所需的稳定字段，便于文件和剪切板共用同一份格式。
+  const dltjson = {
     version: '2.0',
-    type: 'htjson',
+    type: 'dltjson',
     lines: draftLines.map((line) => ({
       start: line.start,
       end: line.end,
@@ -124,35 +124,39 @@ const exportToHtjson = (
       keywordsText: line.keywordsText,
     })),
   }
-  return JSON.stringify(htjson, null, 2)
+  return JSON.stringify(dltjson, null, 2)
 }
 
-type HtjsonV2 = {
+type DltjsonV2 = {
   version: '2.0'
-  type: 'htjson'
+  type: 'dltjson' | 'htjson'
   lines: Array<{
+    id?: string
     start: number
     end: number
     text: string
     translation: string
     translations?: Partial<Record<ContentLocale, string>>
-    answers: string[]
-    keywordsText: string
+    answers?: string[]
+    // 旧编辑器文件保存为逗号文本；开放 API 的 dltjson 使用结构化 keywords 数组。
+    keywordsText?: string
+    keywords?: string[]
   }>
 }
 
-// htjson 格式说明：
+// dltjson 格式说明：
 // - version: "2.0"
 // - 时间格式：统一使用秒（seconds），例如 2.56 秒表示 2.56
 // - lines 数组：每个元素包含 start、end（秒）、text、translation 等字段
 
-const importFromHtjson = (content: string): { lines: HtjsonV2['lines'] } => {
+const importFromDltjson = (content: string): { lines: DltjsonV2['lines'] } => {
   const parsed = JSON.parse(content)
-  if (parsed.type !== 'htjson') {
-    throw new Error('无效的 htjson 格式')
+  // 新文件统一使用 dltjson；兼容历史 htjson，避免旧字幕文件无法继续使用。
+  if (parsed.type !== 'dltjson' && parsed.type !== 'htjson') {
+    throw new Error('无效的 dltjson 格式')
   }
   if (!parsed.lines || !Array.isArray(parsed.lines)) {
-    throw new Error('htjson 缺少 lines 字段')
+    throw new Error('dltjson 缺少 lines 字段')
   }
   return { lines: parsed.lines }
 }
@@ -896,31 +900,32 @@ export function AudioLessonImporter({
     }
   }
 
-  const handleHtjsonExport = () => {
-    const htjson = exportToHtjson(draftLines)
-    const blob = new Blob([htjson], { type: 'application/json' })
+  const handleDltjsonExport = () => {
+    const dltjson = exportToDltjson(draftLines)
+    const blob = new Blob([dltjson], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${courseForm.title.trim() || 'untitled'}.htjson`
+    a.download = `${courseForm.title.trim() || 'untitled'}.dltjson`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    onStatusChange('字幕已导出为 htjson 文件', 'success')
+    onStatusChange('字幕已导出为 dltjson 文件', 'success')
   }
 
-  const applyImportedHtjson = (content: string) => {
-    const imported = importFromHtjson(content)
+  const applyImportedDltjson = (content: string) => {
+    const imported = importFromDltjson(content)
     const nextDraftLines = imported.lines.map((line, index) => ({
       ...createEmptyDraftLine(index),
+      ...(line.id ? { id: line.id } : {}),
       start: line.start,
       end: line.end,
       text: line.text,
       translation: line.translation,
       translations: line.translations ?? (line.translation ? { 'zh-CN': line.translation } : {}),
-      answers: line.answers,
-      keywordsText: line.keywordsText,
+      answers: line.answers ?? [],
+      keywordsText: line.keywordsText ?? (line.keywords ?? []).join(', '),
     }))
 
     setDraftLines(nextDraftLines)
@@ -928,43 +933,43 @@ export function AudioLessonImporter({
     return imported.lines.length
   }
 
-  const handleHtjsonImport = async (file: File) => {
+  const handleDltjsonImport = async (file: File) => {
     try {
       const content = await file.text()
-      const lineCount = applyImportedHtjson(content)
+      const lineCount = applyImportedDltjson(content)
       onStatusChange(`已从文件导入 ${lineCount} 句字幕`, 'success')
     } catch (error) {
-      onStatusChange(error instanceof Error ? error.message : 'htjson 导入失败', 'error')
+      onStatusChange(error instanceof Error ? error.message : 'dltjson 导入失败', 'error')
     }
   }
 
-  const handleHtjsonCopyToClipboard = async () => {
+  const handleDltjsonCopyToClipboard = async () => {
     if (!canWriteClipboard) {
       setClipboardPanel({
         mode: 'copy',
-        content: exportToHtjson(draftLines),
+        content: exportToDltjson(draftLines),
       })
       onStatusChange('当前环境不支持直接写入剪切板，请在面板中手动复制', 'info')
       return
     }
 
     try {
-      await navigator.clipboard.writeText(exportToHtjson(draftLines))
-      onStatusChange('htjson 已复制到剪切板', 'success')
+      await navigator.clipboard.writeText(exportToDltjson(draftLines))
+      onStatusChange('dltjson 已复制到剪切板', 'success')
     } catch (error) {
-      onStatusChange(error instanceof Error ? error.message : '复制 htjson 失败', 'error')
+      onStatusChange(error instanceof Error ? error.message : '复制 dltjson 失败', 'error')
     }
   }
 
-  const handleHtjsonPasteFromClipboard = () => {
+  const handleDltjsonPasteFromClipboard = () => {
     setClipboardPanel({
       mode: 'paste',
       content: '',
     })
-    onStatusChange('请把 htjson 粘贴到输入框后再导入', 'info')
+    onStatusChange('请把 dltjson 粘贴到输入框后再导入', 'info')
   }
 
-  const handleManualHtjsonImport = () => {
+  const handleManualDltjsonImport = () => {
     if (clipboardPanel.mode !== 'paste') {
       return
     }
@@ -972,13 +977,13 @@ export function AudioLessonImporter({
     try {
       const content = clipboardPanel.content.trim()
       if (!content) {
-        throw new Error('请先粘贴 htjson 内容')
+        throw new Error('请先粘贴 dltjson 内容')
       }
-      const lineCount = applyImportedHtjson(content)
+      const lineCount = applyImportedDltjson(content)
       setClipboardPanel({ mode: 'hidden' })
       onStatusChange(`已从粘贴面板导入 ${lineCount} 句字幕`, 'success')
     } catch (error) {
-      onStatusChange(error instanceof Error ? error.message : '粘贴面板导入 htjson 失败', 'error')
+      onStatusChange(error instanceof Error ? error.message : '粘贴面板导入 dltjson 失败', 'error')
     }
   }
 
@@ -1223,13 +1228,13 @@ export function AudioLessonImporter({
           onCourseFormChange={setCourseForm}
           clipboardPanel={clipboardPanel}
           onClipboardPanelChange={setClipboardPanel}
-          onHtjsonCopy={handleHtjsonCopyToClipboard}
-          onHtjsonExport={handleHtjsonExport}
-          onHtjsonImport={(file) => {
-            void handleHtjsonImport(file)
+          onDltjsonCopy={handleDltjsonCopyToClipboard}
+          onDltjsonExport={handleDltjsonExport}
+          onDltjsonImport={(file) => {
+            void handleDltjsonImport(file)
           }}
-          onHtjsonPaste={handleHtjsonPasteFromClipboard}
-          onManualHtjsonImport={handleManualHtjsonImport}
+          onDltjsonPaste={handleDltjsonPasteFromClipboard}
+          onManualDltjsonImport={handleManualDltjsonImport}
           onFileChange={(file) => {
             void handleFileChange(file)
           }}

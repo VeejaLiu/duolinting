@@ -382,6 +382,67 @@ export type CreateTranscriptLineRequest = {
   keywords: string[]
 }
 
+/** 后台开放内容 Key 的安全视图；不包含只在创建当次返回的明文 Key。 */
+export type AdminOpenContentApiKey = {
+  id: number
+  name: string
+  keyPrefix: string
+  createdAt: string
+  expiresAt: string | null
+  lastUsedAt: string | null
+}
+
+export type CreateOpenContentApiKeyRequest = {
+  name: string
+  /** null 表示永不过期。 */
+  expiresAt?: string | null
+}
+
+export type UpdateOpenContentApiKeyRequest = {
+  name?: string
+  /** null 表示取消已有的到期时间。 */
+  expiresAt?: string | null
+}
+
+/** 明文 secret 只允许在创建响应内出现一次，客户端不得持久化或再次请求。 */
+export type CreateOpenContentApiKeyResponse = {
+  apiKey: AdminOpenContentApiKey
+  secret: string
+}
+
+/** dltjson 是课程字幕的可交换文件格式，时间单位为秒，course 为公开导出时附带的课程元数据。 */
+export type DltjsonCourse = {
+  id: number
+  categoryId: number
+  title: string
+  source: string
+  sourceUrl?: string
+  difficulty: Difficulty
+  durationLabel: string
+  summary: string
+  sortOrder: number
+  localizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>
+}
+
+export type DltjsonFile = {
+  version: '2.0'
+  type: 'dltjson'
+  course?: DltjsonCourse
+  lines: TranscriptLine[]
+}
+
+/** 外部仓库同步目录所需的最小公开结构；所有媒体字段均被刻意排除。 */
+export type OpenContentCatalogResponse = {
+  version: '1.0'
+  generatedAt: string
+  categoryGroups: Array<Omit<MaterialCategory, 'coverImageUrl'>>
+  categories: Array<Omit<ExerciseCategory, 'coverImageUrl'>>
+  courses: Array<DltjsonCourse & {
+    lineCount: number
+    dltjsonUrl: string
+  }>
+}
+
 export type AdminContentResponse = {
   ok: true
   id?: number
