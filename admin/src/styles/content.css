@@ -429,19 +429,17 @@
   background: #fff;
   border: 1px solid #d7dde5;
   border-radius: 8px;
-  display: grid;
-  column-gap: 20px;
-  row-gap: 10px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
   padding: 14px 16px;
 }
 
 .recorder-course-picker {
   align-items: center;
-  display: grid;
+  display: flex;
+  flex: 1 1 480px;
   gap: 14px;
-  grid-template-columns: 88px minmax(0, 1fr);
-  grid-column: 1 / -1;
   min-width: 0;
 }
 
@@ -453,6 +451,7 @@
 }
 
 .recorder-course-select {
+  flex: 1 1 auto;
   min-width: 0;
   width: 100%;
 }
@@ -468,7 +467,7 @@
   font-size: 12px;
   font-weight: 700;
   gap: 7px;
-  grid-column: 1;
+  flex: 0 1 auto;
   min-width: 0;
   flex-wrap: wrap;
   white-space: normal;
@@ -477,13 +476,6 @@
 /* Cascader 的已选路径应优先完整呈现；不足时只在极窄窗口截断，不与右侧控件重叠。 */
 .recorder-course-select .ant-select-selection-item {
   min-width: 0;
-}
-
-@media (min-width: 721px) {
-  .recorder-translation-control {
-    grid-column: 2;
-    justify-self: end;
-  }
 }
 
 .recorder-course-status .ant-tag {
@@ -495,14 +487,14 @@
   color: #b45309;
   font-size: 12px;
   font-weight: 700;
-  grid-column: 1 / -1;
-  justify-self: end;
+  flex: 1 0 100%;
 }
 
 .recorder-translation-control {
   align-items: center;
   border-left: 1px solid #dbe3ee;
   display: flex;
+  flex: 0 1 auto;
   gap: 10px;
   padding-left: 16px;
 }
@@ -896,9 +888,10 @@
 
 @media (max-width: 720px) {
   .recorder-header { align-items: flex-start; flex-direction: column; }
-  .recorder-settings { align-items: stretch; grid-template-columns: 1fr; }
-  .recorder-course-picker { grid-template-columns: 1fr; }
-  .recorder-readiness-warning { grid-column: auto; justify-self: start; }
+  .recorder-settings { align-items: stretch; }
+  .recorder-course-picker { align-items: stretch; flex-basis: 100%; flex-direction: column; gap: 6px; }
+  .recorder-course-status { flex-basis: 100%; }
+  .recorder-readiness-warning { flex-basis: 100%; }
   .recorder-translation-control { border-left: 0; border-top: 1px solid #e2e8f0; padding-left: 0; padding-top: 12px; }
   .recorder-stage-area { min-height: 560px; padding: 14px; }
   .recorder-canvas { max-height: 540px; }
