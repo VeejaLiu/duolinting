@@ -8,7 +8,7 @@
 
 多邻听是一套开源的语言听力学习产品，也是一套完整的听力内容制作工具。它不只是一个播放器：学习者可以沿着「泛听 → 精听 → 难点复习」的路径学习真实材料；内容创作者则可以上传媒体、切分字幕、校准时间轴、生成多语言翻译，再把课程发布给学习者。
 
-项目目前包含 Web 学习端、移动端、内容管理后台和统一后端，适合个人学习、教师制课、语言培训和自建听力资料库。
+项目目前包含 Web 学习端、移动端、内容管理后台、统一后端，以及一个独立的产品官网。它适合个人学习、教师制课、语言培训和自建听力资料库。
 
 ## 灵感与致敬
 
@@ -96,7 +96,7 @@ DuolinTing 是一个独立的开源项目，并非 YouZack 官方产品；上述
 | `backend`       | 目录、课程、账号、进度、反馈和媒体 API          | Node.js、Express 5、Sequelize    |
 | `packages/*`    | 领域类型、API 客户端、运行配置和设计令牌        | TypeScript                       |
 
-本地基础设施使用 MySQL、MinIO 和 Flyway。生产部署可以把三个前端作为独立应用运行，并通过同源 `/api/` 访问统一后端。媒体流量较大时，可启用 [Cloudflare 媒体 CDN](docs/cloudflare-media-cdn.md)，使视频和音频直接从边缘缓存回源到 MinIO，不占用 Express 的播放带宽。
+本地基础设施使用 MySQL、MinIO 和 Flyway。生产部署可以把三个业务前端（`web-app`、`admin`、`mobile-app`）作为独立应用运行，并通过同源 `/api/` 访问统一后端；`official-site` 则作为独立的 Node.js 官网服务运行。媒体流量较大时，可启用 [Cloudflare 媒体 CDN](docs/cloudflare-media-cdn.md)，使视频和音频直接从边缘缓存回源到 MinIO，不占用 Express 的播放带宽。
 
 ## 快速开始
 
@@ -110,12 +110,16 @@ npm run db:migrate
 npm run dev
 ```
 
+根目录的 `npm run dev` 会启动后端、Web 学习端和管理后台；移动端与官方站点需要按下面的方式单独启动。
+
 启动后可以访问：
 
 - 学习端：<http://127.0.0.1:8101>
 - 管理后台：<http://127.0.0.1:8102>
+- 移动端（Expo Web）：<http://127.0.0.1:8103>
 - 后端健康检查：<http://127.0.0.1:8100/api/health>
 - MinIO 控制台：<http://127.0.0.1:9001>
+- 官方站点：<http://localhost:3000>
 
 只启动某个应用：
 
@@ -126,7 +130,16 @@ npm run dev:admin
 npm run dev:mobile-app
 ```
 
-官网是主仓库内的独立项目，不属于上面的 npm workspaces。可使用 VS Code 的 `Dev: Official Site` 任务启动；它会使用官网固定的 Node.js 22.13.1。官网的本地 Test 与线上学习端跳转地址、Docker 镜像和线上部署规则见 [official-site/README.md](official-site/README.md)。
+官方站点是主仓库内的独立项目，不属于上面的 npm workspaces。首次启动官网时，请单独安装它的依赖：
+
+```bash
+cd official-site
+nvm use
+npm ci
+npm run dev
+```
+
+也可以使用 VS Code 的 `Dev: Official Site` 任务启动；它会使用官网固定的 Node.js 22.13.1。官网的本地 Test、生产构建、线上学习端跳转地址、Docker 镜像和线上部署规则见 [official-site/README.md](official-site/README.md)。
 
 ## 内容是如何进入学习端的？
 
@@ -154,10 +167,21 @@ npm run dev:mobile-app
 
 ## 常用质量检查
 
+根目录命令检查 backend、packages、web-app 和 admin：
+
 ```bash
 npm run typecheck
 npm run build
 npm run lint
+```
+
+官方站点使用独立的 Node.js 项目配置，请在 `official-site/` 目录单独检查：
+
+```bash
+cd official-site
+npm run lint
+npm run build
+npm test
 ```
 
 ## 参与项目
