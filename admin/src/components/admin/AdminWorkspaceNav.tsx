@@ -1,6 +1,6 @@
 import { Menu } from 'antd'
 import type { MenuProps } from 'antd'
-import { BookOpen, Clapperboard, KeyRound, Layers3, ListChecks, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, PencilLine, UserRound, Users, UsersRound, type LucideIcon } from 'lucide-react'
+import { BookOpen, Clapperboard, KeyRound, Layers3, ListChecks, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, UserRound, Users, UsersRound, type LucideIcon } from 'lucide-react'
 import type { AdminUser } from '@duolinting/shared'
 
 export type AdminSection = 'importer' | 'directory' | 'courses' | 'recorder' | 'feedback' | 'users' | 'collaboration' | 'activity' | 'api-keys' | 'account-settings'
@@ -40,6 +40,7 @@ const adminSections: Array<{
     label: '增长分析',
     Icon: Users,
   },
+  { id: 'account-settings', label: '我的账号', Icon: UserRound },
 ]
 
 type AdminWorkspaceNavProps = {
@@ -47,7 +48,6 @@ type AdminWorkspaceNavProps = {
   adminUser: AdminUser
   collapsed?: boolean
   onCollapsedChange: (collapsed: boolean) => void
-  onRequestDisplayNameChange: () => void
   onLogout: () => void
   onSectionChange: (section: AdminSection) => void
 }
@@ -57,14 +57,13 @@ export function AdminWorkspaceNav({
   adminUser,
   collapsed = false,
   onCollapsedChange,
-  onRequestDisplayNameChange,
   onLogout,
   onSectionChange,
 }: AdminWorkspaceNavProps) {
   // 制课工作台只作为“课程管理”里某门课程的编辑页入口，不在侧栏单独出现。
   // 贡献者因此只看到自己获授权的课程管理入口；超级管理员保留完整管理菜单。
   const visibleSections = adminSections.filter((section) =>
-    adminUser.role === 'super_admin' || section.id === 'courses' || section.id === 'activity',
+    adminUser.role === 'super_admin' || section.id === 'courses' || section.id === 'activity' || section.id === 'account-settings',
   )
   if (adminUser.role === 'super_admin') {
     visibleSections.push({ id: 'collaboration', label: '人员管理', Icon: UsersRound })
@@ -104,16 +103,6 @@ export function AdminWorkspaceNav({
       label: collapsed ? '后台账号' : `${adminUser.displayName} · ${adminUser.role === 'super_admin' ? '超级管理员' : '字幕贡献者'}`,
       children: [
         {
-          icon: <UserRound size={16} aria-hidden="true" />,
-          key: 'account-settings',
-          label: '我的账号',
-        },
-        ...(adminUser.role === 'subtitle_contributor' ? [{
-          icon: <PencilLine size={16} aria-hidden="true" />,
-          key: 'change-display-name',
-          label: '修改显示名称（90 天一次）',
-        }] : []),
-        {
           icon: <LogOut size={16} aria-hidden="true" />,
           key: 'logout',
           label: '退出登录',
@@ -129,14 +118,6 @@ export function AdminWorkspaceNav({
     }
     if (key === 'logout') {
       onLogout()
-      return
-    }
-    if (key === 'change-display-name') {
-      onRequestDisplayNameChange()
-      return
-    }
-    if (key === 'account-settings') {
-      onSectionChange('account-settings')
       return
     }
     if (key !== 'account') {

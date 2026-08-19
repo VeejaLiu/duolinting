@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { LockKeyhole } from 'lucide-react'
-import { Alert, Input, Modal, Space, Typography, message } from 'antd'
+import { message } from 'antd'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import type {
   AdminUser,
@@ -54,9 +54,6 @@ function App() {
     confirmPassword: '',
   })
   const [isChangingPassword, setIsChangingPassword] = useState(false)
-  const [isDisplayNameModalOpen, setIsDisplayNameModalOpen] = useState(false)
-  const [displayNameForm, setDisplayNameForm] = useState('')
-  const [isChangingDisplayName, setIsChangingDisplayName] = useState(false)
   const [confirmState, setConfirmState] = useState<{
     open: boolean
     title: string
@@ -233,32 +230,6 @@ function App() {
     void changeRequiredPassword()
   }
 
-  const requestDisplayNameChange = () => {
-    if (!adminUser || adminUser.role !== 'subtitle_contributor') {
-      return
-    }
-    setDisplayNameForm(adminUser.displayName)
-    setIsDisplayNameModalOpen(true)
-  }
-
-  const changeOwnDisplayName = async () => {
-    const nextDisplayName = displayNameForm.trim()
-    if (!nextDisplayName || nextDisplayName === adminUser?.displayName) {
-      return
-    }
-    setIsChangingDisplayName(true)
-    try {
-      const updatedUser = await apiClient.changeOwnAdminDisplayName(nextDisplayName, adminToken)
-      localStorage.setItem(ADMIN_USER_STORAGE_KEY, JSON.stringify(updatedUser))
-      setAdminUser(updatedUser)
-      setIsDisplayNameModalOpen(false)
-      showNotice('显示名称已修改；下次可在 90 天后再次修改', 'success')
-    } catch (error) {
-      showNotice(error instanceof Error ? error.message : '显示名称修改失败', 'error')
-    } finally {
-      setIsChangingDisplayName(false)
-    }
-  }
 
   const loginPage = (
     <main className="app-shell login-shell">
@@ -417,7 +388,6 @@ function App() {
               onRequestConfirm={requestConfirm}
               onRequestUnsavedLeaveConfirm={requestUnsavedLeaveConfirm}
               adminUser={currentAdminUser}
-              onRequestDisplayNameChange={requestDisplayNameChange}
               onLogout={() => void logout()}
               onRegisterBeforeLogout={(handler) => {
                 beforeLogoutRef.current = handler
@@ -438,47 +408,6 @@ function App() {
         onAlternate={() => closeConfirm('discard')}
         onConfirm={() => closeConfirm(true)}
       />
-      <Modal
-        cancelText="取消"
-        confirmLoading={isChangingDisplayName}
-        okButtonProps={{ disabled: Boolean(currentAdminUser.nextDisplayNameChangeAt) || !displayNameForm.trim() || displayNameForm.trim() === currentAdminUser.displayName }}
-        okText="确认修改"
-        onCancel={() => setIsDisplayNameModalOpen(false)}
-        onOk={() => void changeOwnDisplayName()}
-        open={isDisplayNameModalOpen}
-        title="修改显示名称"
-      >
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
-          <Typography.Paragraph style={{ marginBottom: 0 }} type="secondary">
-            显示名称会用于课程的校对与二审署名。
-          </Typography.Paragraph>
-          {currentAdminUser.nextDisplayNameChangeAt ? (
-            <Alert
-              description={`下次可修改时间：${new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(currentAdminUser.nextDisplayNameChangeAt))}`}
-              message="显示名称每 90 天只能修改一次"
-              showIcon
-              type="warning"
-            />
-          ) : (
-            <Alert
-              description="本次保存后，90 天内将不能再次修改。"
-              message="显示名称每 90 天只能修改一次"
-              showIcon
-              type="info"
-            />
-          )}
-          <div>
-            <Typography.Text strong>显示名称</Typography.Text>
-            <Input
-              autoFocus
-              maxLength={120}
-              onChange={(event) => setDisplayNameForm(event.target.value)}
-              style={{ marginTop: 8 }}
-              value={displayNameForm}
-            />
-          </div>
-        </Space>
-      </Modal>
     </main>
   )
 }

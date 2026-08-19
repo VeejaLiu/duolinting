@@ -49,7 +49,6 @@ type ContentAdminProps = {
   onEnsureExercises: () => Promise<CatalogExerciseSummary[]>
   onNotify: (message: string, tone?: AdminNoticeTone) => void
   adminUser: AdminUser
-  onRequestDisplayNameChange: () => void
   onLogout: () => void
   // 注册退出登录前的确认钩子（复用制课工作台的保存确认），null 表示注销
   onRegisterBeforeLogout?: (handler: (() => Promise<boolean>) | null) => void
@@ -153,7 +152,6 @@ export function ContentAdmin({
   onEnsureExercises,
   onNotify,
   adminUser,
-  onRequestDisplayNameChange,
   onLogout,
   onRegisterBeforeLogout,
   onRequestConfirm,
@@ -831,7 +829,6 @@ export function ContentAdmin({
             adminUser={adminUser}
             collapsed={isSidebarCollapsed}
             onCollapsedChange={setIsSidebarCollapsed}
-            onRequestDisplayNameChange={onRequestDisplayNameChange}
             onLogout={onLogout}
             onSectionChange={(section) => void changeSection(section)}
           />
