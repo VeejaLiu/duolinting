@@ -510,9 +510,8 @@ export function ListeningVideoRecorder({
                   <span className="recorder-brand-url-track">
                     <span>网页端 · app.duolinting.cn</span>
                     <span aria-hidden="true">移动端 · mobile.duolinting.cn</span>
-                    {/* 重复一组内容让跑马灯衔接平滑，录制成片中不会出现空白。 */}
+                    {/* 重复首项让上下切换循环时不出现空白。 */}
                     <span aria-hidden="true">网页端 · app.duolinting.cn</span>
-                    <span aria-hidden="true">移动端 · mobile.duolinting.cn</span>
                   </span>
                 </span>
               </span>

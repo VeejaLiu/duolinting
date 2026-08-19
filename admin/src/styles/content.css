@@ -552,6 +552,7 @@
 
 .recorder-brand-logo {
   align-items: center;
+  animation: recorder-brand-logo-hop 8s ease-in-out infinite;
   background: #ffffff;
   border-radius: 12px;
   display: inline-flex;
@@ -593,26 +594,35 @@
   font-size: 10px;
   font-weight: 800;
   letter-spacing: .02em;
+  height: 12px;
   max-width: 236px;
   overflow: hidden;
   white-space: nowrap;
 }
 
 .recorder-brand-url-track {
-  align-items: center;
-  animation: recorder-brand-url-scroll 13s linear infinite;
-  display: inline-flex;
-  gap: 28px;
-  min-width: max-content;
+  animation: recorder-brand-url-switch 6s ease-in-out infinite;
+  display: flex;
+  flex-direction: column;
+  line-height: 12px;
 }
 
-@keyframes recorder-brand-url-scroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+@keyframes recorder-brand-url-switch {
+  0%, 38% { transform: translateY(0); }
+  47%, 88% { transform: translateY(-12px); }
+  100% { transform: translateY(-24px); }
+}
+
+/* 仅在每个循环开始时轻跳两次，给品牌一个可感知但不过度分散注意的提示。 */
+@keyframes recorder-brand-logo-hop {
+  0%, 3%, 7%, 100% { transform: translateY(0) scale(1); }
+  1.5% { transform: translateY(-5px) scale(1.03); }
+  5% { transform: translateY(-2px) scale(1.01); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .recorder-brand-url-track { animation: none; }
+  .recorder-brand-url-track,
+  .recorder-brand-logo { animation: none; }
 }
 
 .recorder-course-progress {
