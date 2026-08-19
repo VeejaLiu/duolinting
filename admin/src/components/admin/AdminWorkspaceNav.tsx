@@ -104,6 +104,11 @@ export function AdminWorkspaceNav({
       key: 'account',
       label: collapsed ? '后台账号' : `${adminUser.displayName} · ${adminUser.role === 'super_admin' ? '超级管理员' : '字幕贡献者'}`,
       children: [
+        {
+          icon: <UserRound size={16} aria-hidden="true" />,
+          key: 'account-settings',
+          label: '我的账号',
+        },
         ...(adminUser.role === 'subtitle_contributor' ? [{
           icon: <PencilLine size={16} aria-hidden="true" />,
           key: 'change-display-name',
