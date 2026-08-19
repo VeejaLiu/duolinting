@@ -542,6 +542,11 @@ export type PreviewVolunteer = {
   isPreviewVolunteer: boolean
 }
 
+export type PreviewVolunteerSearchResponse = {
+  items: PreviewVolunteer[]
+  search?: string
+}
+
 export type UpdatePreviewVolunteerRequest = {
   isPreviewVolunteer: boolean
 }

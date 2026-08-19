@@ -757,8 +757,9 @@ router.put(
     },
 );
 
-router.get('/collaboration/preview-volunteers', requireSuperAdmin, async (_req, res) => {
-    res.status(200).send({ items: await listPreviewVolunteers() });
+router.get('/collaboration/preview-volunteers', requireSuperAdmin, async (req, res) => {
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    res.status(200).send({ items: await listPreviewVolunteers(search), ...(search?.trim() ? { search: search.trim() } : {}) });
 });
 
 router.put(

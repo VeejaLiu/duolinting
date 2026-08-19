@@ -579,9 +579,9 @@ export const apiClient = {
       { method: 'PUT' },
       { adminToken },
     ),
-  getPreviewVolunteers: (adminToken: string) =>
-    fetchJson<{ items: PreviewVolunteer[] }>(
-      '/api/v1/admin/collaboration/preview-volunteers',
+  getPreviewVolunteers: (adminToken: string, search?: string) =>
+    fetchJson<{ items: PreviewVolunteer[]; search?: string }>(
+      `/api/v1/admin/collaboration/preview-volunteers${search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''}`,
       { method: 'GET' },
       { adminToken },
     ),

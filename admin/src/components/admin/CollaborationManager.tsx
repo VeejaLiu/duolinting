@@ -40,6 +40,9 @@ export function CollaborationManager({
 }: CollaborationManagerProps) {
   const [members, setMembers] = useState<AdminMember[]>([])
   const [volunteers, setVolunteers] = useState<PreviewVolunteer[]>([])
+  const [learnerSearch, setLearnerSearch] = useState('')
+  const [learnerSearchResults, setLearnerSearchResults] = useState<PreviewVolunteer[]>([])
+  const [learnerSearchLoading, setLearnerSearchLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [memberFormOpen, setMemberFormOpen] = useState(false)
@@ -281,9 +284,35 @@ export function CollaborationManager({
       setVolunteers((current) => current.map((item) => (
         item.id === volunteer.id ? { ...item, isPreviewVolunteer: checked } : item
       )))
+      setLearnerSearchResults((current) => current.map((item) => (
+        item.id === volunteer.id ? { ...item, isPreviewVolunteer: checked } : item
+      )))
+      if (checked && !volunteers.some((item) => item.id === volunteer.id)) {
+        setVolunteers((current) => [...current, { ...volunteer, isPreviewVolunteer: true }])
+      }
+      if (!checked) {
+        setVolunteers((current) => current.filter((item) => item.id !== volunteer.id))
+      }
       onNotify(checked ? '已开启志愿者预览' : '已关闭志愿者预览', 'success')
     } catch (error) {
       onNotify(error instanceof Error ? error.message : '志愿者状态更新失败', 'error')
+    }
+  }
+
+  const searchLearners = async () => {
+    const search = learnerSearch.trim()
+    if (!search) {
+      setLearnerSearchResults([])
+      return
+    }
+    setLearnerSearchLoading(true)
+    try {
+      const result = await apiClient.getPreviewVolunteers(adminToken, search)
+      setLearnerSearchResults(result.items)
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : '学习端成员搜索失败', 'error')
+    } finally {
+      setLearnerSearchLoading(false)
     }
   }
 
@@ -471,9 +500,40 @@ export function CollaborationManager({
       </Card>}
 
       {activeArea === 'learners' && <Card loading={loading} title="学习端成员">
+        <Space direction="vertical" size={16} style={{ display: 'flex' }}>
+          <Space.Compact style={{ width: '100%' }}>
+            <Input
+              onChange={(event) => setLearnerSearch(event.target.value)}
+              onPressEnter={() => void searchLearners()}
+              placeholder="按邮箱或显示名称搜索学习者"
+              value={learnerSearch}
+            />
+            <Button loading={learnerSearchLoading} onClick={() => void searchLearners()} type="primary">搜索并添加</Button>
+          </Space.Compact>
+          {learnerSearch.trim() && <Typography.Text type="secondary">搜索结果仅显示最多 50 位匹配学习者；开启“志愿者”后会保存到下方列表。</Typography.Text>}
+          {learnerSearchResults.length > 0 && <List
+            bordered
+            dataSource={learnerSearchResults}
+            header={<Typography.Text strong>搜索结果</Typography.Text>}
+            renderItem={(learner) => (
+              <List.Item actions={[
+                <Switch
+                  checked={learner.isPreviewVolunteer}
+                  checkedChildren="已添加"
+                  key="preview-search"
+                  onChange={(checked) => void toggleVolunteer(learner, checked)}
+                  unCheckedChildren="添加"
+                />,
+              ]}>
+                <List.Item.Meta title={learner.displayName} description={learner.email} />
+              </List.Item>
+            )}
+          />}
+        </Space>
+        <Typography.Title level={5} style={{ marginTop: 20 }}>已保存的志愿者</Typography.Title>
         <List
           dataSource={volunteers}
-          locale={{ emptyText: '还没有学习端成员。学习者注册后会显示在这里。' }}
+          locale={{ emptyText: '还没有保存的志愿者。请先搜索学习者并添加。' }}
           pagination={{
             defaultPageSize: 10,
             pageSizeOptions: [10, 20, 50],

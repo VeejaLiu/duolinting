@@ -1370,10 +1370,16 @@ export async function getExerciseWorkflowCredits(exerciseId: number): Promise<Co
         : undefined;
 }
 
-export async function listPreviewVolunteers() {
+/** 默认只返回已保存的志愿者；提供搜索词时才查找学习端成员，避免后台首屏加载全量用户。 */
+export async function listPreviewVolunteers(search?: string) {
+    const normalizedSearch = search?.trim().slice(0, 120) ?? '';
     const rows = await UserModel.findAll({
         attributes: ['id', 'email', 'display_name', 'is_preview_volunteer'],
+        where: normalizedSearch
+            ? { [Op.or]: [{ email: { [Op.like]: `%${normalizedSearch}%` } }, { display_name: { [Op.like]: `%${normalizedSearch}%` } }] }
+            : { is_preview_volunteer: true },
         order: [['created_at', 'DESC']],
+        limit: normalizedSearch ? 50 : undefined,
         raw: true,
     }) as unknown as Array<{
         id: number | string;
