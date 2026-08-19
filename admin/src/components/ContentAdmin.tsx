@@ -160,7 +160,7 @@ export function ContentAdmin({
   const [reviewNote, setReviewNote] = useState('')
   const [workflowContributors, setWorkflowContributors] = useState<AdminMember[]>([])
   const [reviewTasks, setReviewTasks] = useState<AdminReviewTask[]>([])
-  const [workflowInbox, setWorkflowInbox] = useState<AdminSubtitleWorkflowTaskInbox>({ items: [], counts: { proofreading: 0, awaitingReview: 0, returned: 0, completed: 0 } })
+  const [workflowInbox, setWorkflowInbox] = useState<AdminSubtitleWorkflowTaskInbox>({ items: [], counts: { proofreading: 0, awaitingReview: 0, returned: 0, completedProofreading: 0, completedSecondReview: 0 } })
   const [workflowNotifications, setWorkflowNotifications] = useState<AdminWorkflowNotifications>({ items: [], unreadCount: 0 })
   const [importerHasUnsavedChanges, setImporterHasUnsavedChanges] = useState(false)
   const importerHasUnsavedChangesRef = useRef(false)

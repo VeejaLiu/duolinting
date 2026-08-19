@@ -464,17 +464,17 @@ export function CourseManager({
       type="warning"
     />}
     <Card className="subtitle-task-center" size="small" title={<Space><ClipboardCheck size={16} /><span>我的字幕任务</span></Space>}>
+      <Typography.Text className="subtitle-task-section-label" strong>当前任务</Typography.Text>
       <Space className="subtitle-task-counts" wrap>
         <Tag color="blue">待校对 {workflowInbox.counts.proofreading}</Tag>
         <Tag color="orange">待审核 {workflowInbox.counts.awaitingReview}</Tag>
         <Tag color="gold">待修改 {workflowInbox.counts.returned}</Tag>
-        <Tag color="green">已完成 {workflowInbox.counts.completed}</Tag>
       </Space>
-      {workflowInbox.items.length === 0 ? (
-        <Typography.Text type="secondary">当前没有字幕任务。</Typography.Text>
+      {workflowInbox.items.filter((task) => task.stage !== 'completed').length === 0 ? (
+        <Typography.Text type="secondary">当前没有待处理字幕任务。</Typography.Text>
       ) : (
         <div className="subtitle-task-center-list">
-          {workflowInbox.items.slice(0, 8).map((task) => (
+          {workflowInbox.items.filter((task) => task.stage !== 'completed').slice(0, 8).map((task) => (
             <div className="subtitle-task-center-item" key={`${task.exerciseId}-${task.draftId}-${task.role}-${task.stage}`}>
               <Space direction="vertical" size={1}>
                 <Typography.Text strong>{task.exerciseTitle}</Typography.Text>
@@ -495,6 +495,25 @@ export function CourseManager({
                   type="primary"
                 >{task.stage === 'returned' ? '继续修改' : '开始校对'}</Button>
               )}
+            </div>
+          ))}
+        </div>
+      )}
+      <Typography.Text className="subtitle-task-section-label" strong>历史贡献</Typography.Text>
+      <Space className="subtitle-task-counts" wrap>
+        <Tag color="green">已完成校对 {workflowInbox.counts.completedProofreading}</Tag>
+        <Tag color="cyan">已完成二审 {workflowInbox.counts.completedSecondReview}</Tag>
+      </Space>
+      {workflowInbox.items.filter((task) => task.stage === 'completed').length > 0 && (
+        <div className="subtitle-task-center-list subtitle-task-history-list">
+          {workflowInbox.items.filter((task) => task.stage === 'completed').slice(0, 8).map((task) => (
+            <div className="subtitle-task-center-item" key={`${task.exerciseId}-${task.draftId}-${task.role}-history`}>
+              <Space direction="vertical" size={1}>
+                <Typography.Text strong>{task.exerciseTitle}</Typography.Text>
+                <Typography.Text type="secondary">
+                  {task.role === 'second_reviewer' ? '已完成二次审核' : '已完成字幕校对'}{task.updatedAt ? ` · ${formatSubmittedAt(task.updatedAt)}` : ''}
+                </Typography.Text>
+              </Space>
             </div>
           ))}
         </div>

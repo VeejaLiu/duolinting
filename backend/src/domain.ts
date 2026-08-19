@@ -178,7 +178,7 @@ export type AdminSubtitleWorkflowTask = {
 };
 export type AdminSubtitleWorkflowTaskInbox = {
     items: AdminSubtitleWorkflowTask[];
-    counts: { proofreading: number; awaitingReview: number; returned: number; completed: number };
+    counts: { proofreading: number; awaitingReview: number; returned: number; completedProofreading: number; completedSecondReview: number };
 };
 
 /** 后台工作流通知由服务端保存，重新登录后仍可查阅。 */

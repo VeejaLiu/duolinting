@@ -1100,7 +1100,8 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
             proofreading: items.filter((item) => item.stage === 'proofreading').length,
             awaitingReview: items.filter((item) => item.stage === 'awaiting_review').length,
             returned: items.filter((item) => item.stage === 'returned').length,
-            completed: items.filter((item) => item.stage === 'completed').length,
+            completedProofreading: items.filter((item) => item.stage === 'completed' && item.role === 'proofreader').length,
+            completedSecondReview: items.filter((item) => item.stage === 'completed' && item.role === 'second_reviewer').length,
         },
     };
 }

@@ -192,7 +192,8 @@ export type AdminSubtitleWorkflowTaskInbox = {
     proofreading: number
     awaitingReview: number
     returned: number
-    completed: number
+    completedProofreading: number
+    completedSecondReview: number
   }
 }
 
