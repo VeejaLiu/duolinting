@@ -431,17 +431,15 @@
   border-radius: 8px;
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(170px, .7fr) minmax(190px, .8fr) minmax(230px, 1fr) auto auto;
+  grid-template-columns: minmax(300px, 1fr) auto minmax(260px, auto);
   padding: 12px;
 }
 
-.recorder-group-picker,
-.recorder-series-picker,
 .recorder-course-picker {
   align-items: center;
   display: grid;
   gap: 8px;
-  grid-template-columns: auto minmax(220px, 440px);
+  grid-template-columns: auto minmax(260px, 560px);
   min-width: 0;
 }
 
@@ -463,7 +461,8 @@
   font-size: 12px;
   font-weight: 700;
   gap: 7px;
-  white-space: nowrap;
+  flex-wrap: wrap;
+  white-space: normal;
 }
 
 .recorder-course-status .ant-tag {
@@ -475,7 +474,7 @@
   color: #b45309;
   font-size: 12px;
   font-weight: 700;
-  grid-column: 3 / -1;
+  grid-column: 1 / -1;
   justify-self: end;
 }
 
@@ -874,8 +873,6 @@
 @media (max-width: 720px) {
   .recorder-header { align-items: flex-start; flex-direction: column; }
   .recorder-settings { align-items: stretch; grid-template-columns: 1fr; }
-  .recorder-group-picker,
-  .recorder-series-picker,
   .recorder-course-picker { grid-template-columns: 1fr; }
   .recorder-readiness-warning { grid-column: auto; justify-self: start; }
   .recorder-translation-control { border-left: 0; border-top: 1px solid #e2e8f0; padding-left: 0; padding-top: 12px; }

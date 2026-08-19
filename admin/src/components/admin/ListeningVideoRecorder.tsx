@@ -1,7 +1,7 @@
 import { Expand, Play, RotateCcw, Square } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Select, Tag } from 'antd'
+import { Cascader, Select, Tag } from 'antd'
 import type {
   CatalogExerciseSummary,
   ContentLocale,
@@ -117,8 +117,6 @@ export function ListeningVideoRecorder({
   // 课程管理页会用 URL 预选一门课程；记录已处理的参数，避免它在手动切课后反复覆盖用户选择。
   const appliedUrlExerciseIdRef = useRef<string | null>(null)
   const [selectedExerciseId, setSelectedExerciseId] = useState('')
-  const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState('')
-  const [selectedCategoryId, setSelectedCategoryId] = useState('')
   const [exercise, setExercise] = useState<ListeningExercise | null>(null)
   const [loading, setLoading] = useState(false)
   const [phase, setPhase] = useState<RecordingPhase>('idle')
@@ -140,16 +138,27 @@ export function ListeningVideoRecorder({
       .sort((left, right) => left.sortOrder - right.sortOrder),
     [categoryGroups],
   )
-  const visibleCategories = useMemo(
-    () => availableCategories.filter((category) => !selectedCategoryGroupId || category.groupId === Number(selectedCategoryGroupId)),
-    [availableCategories, selectedCategoryGroupId],
-  )
-  const visibleExercises = useMemo(
-    () => exercises
-      .filter((item) => !selectedCategoryId || item.categoryId === Number(selectedCategoryId))
-      .sort((left, right) => left.sortOrder - right.sortOrder),
-    [exercises, selectedCategoryId],
-  )
+  // 分类、系列、课程是一条完整路径，使用 Cascader 避免三个横向下拉框在窄屏相互挤压。
+  const courseCascaderOptions = useMemo(() => availableCategoryGroups.map((group) => ({
+    label: group.name,
+    value: `group-${group.id}`,
+    children: availableCategories
+      .filter((category) => category.groupId === group.id)
+      .map((category) => ({
+        label: category.name,
+        value: `category-${category.id}`,
+        children: exercises
+          .filter((item) => item.categoryId === category.id)
+          .sort((left, right) => left.sortOrder - right.sortOrder)
+          .map((item) => ({ label: item.title, value: String(item.id) })),
+      }))
+      .filter((category) => category.children.length > 0),
+  })).filter((group) => group.children.length > 0), [availableCategories, availableCategoryGroups, exercises])
+  const selectedCoursePath = useMemo(() => {
+    const item = exercises.find((candidate) => candidate.id === Number(selectedExerciseId))
+    const category = availableCategories.find((candidate) => candidate.id === item?.categoryId)
+    return item && category ? [`group-${category.groupId}`, `category-${category.id}`, String(item.id)] : undefined
+  }, [availableCategories, exercises, selectedExerciseId])
   const activeLine = exercise?.lines[activeLineIndex]
   const isRunning = !['idle', 'complete'].includes(phase)
   const mediaUrl = resolveApiUrl(exercise?.audioUrl)
@@ -192,28 +201,13 @@ export function ListeningVideoRecorder({
         resetForExerciseChange()
       }
       setSelectedExerciseId(exerciseId)
-      const selectedExercise = exercises.find((item) => item.id === Number(exerciseId))
-      const selectedCategory = availableCategories.find((item) => item.id === selectedExercise?.categoryId)
-      setSelectedCategoryId(String(selectedExercise?.categoryId ?? ''))
-      setSelectedCategoryGroupId(String(selectedCategory?.groupId ?? ''))
     }
-  }, [availableCategories, exercises, searchParams, selectedExerciseId])
+  }, [exercises, searchParams, selectedExerciseId])
 
   useEffect(() => {
-    if (!selectedCategoryGroupId && availableCategoryGroups[0]) {
-      setSelectedCategoryGroupId(String(availableCategoryGroups[0].id))
-    }
-  }, [availableCategoryGroups, selectedCategoryGroupId])
-
-  useEffect(() => {
-    if (selectedCategoryId && visibleCategories.some((item) => item.id === Number(selectedCategoryId))) return
-    setSelectedCategoryId(visibleCategories[0] ? String(visibleCategories[0].id) : '')
-  }, [selectedCategoryId, visibleCategories])
-
-  useEffect(() => {
-    if (selectedExerciseId && visibleExercises.some((item) => item.id === Number(selectedExerciseId))) return
-    setSelectedExerciseId(visibleExercises[0] ? String(visibleExercises[0].id) : '')
-  }, [selectedExerciseId, visibleExercises])
+    if (selectedExerciseId || exercises.length === 0) return
+    setSelectedExerciseId(String([...exercises].sort((left, right) => left.sortOrder - right.sortOrder)[0].id))
+  }, [exercises, selectedExerciseId])
 
   useEffect(() => {
     const exerciseId = Number(selectedExerciseId)
@@ -388,18 +382,6 @@ export function ListeningVideoRecorder({
     setSelectedExerciseId(exerciseId)
   }
 
-  const selectCategory = (categoryId: string) => {
-    stop()
-    resetForExerciseChange()
-    setSelectedCategoryId(categoryId)
-  }
-
-  const selectCategoryGroup = (categoryGroupId: string) => {
-    stop()
-    resetForExerciseChange()
-    setSelectedCategoryGroupId(categoryGroupId)
-  }
-
   const isTranscriptVisible = phase === 'show-transcript' || phase === 'complete'
   const playableLineCount = exercise?.lines.filter(isPlayableLine).length ?? 0
   const recordingUnavailableReason = !exercise
@@ -448,38 +430,18 @@ export function ListeningVideoRecorder({
       </header>
 
       <section className="recorder-settings" aria-label="录制配置">
-        <div className="recorder-group-picker">
-          <span className="recorder-settings-label">内容分类</span>
-          <Select
-            className="recorder-course-select"
-            disabled={isRunning || availableCategoryGroups.length === 0}
-            onChange={selectCategoryGroup}
-            options={availableCategoryGroups.map((item) => ({ label: item.name, value: String(item.id) }))}
-            placeholder="选择内容分类"
-            value={selectedCategoryGroupId || undefined}
-          />
-        </div>
-        <div className="recorder-series-picker">
-          <span className="recorder-settings-label">学习系列</span>
-          <Select
-            className="recorder-course-select"
-            disabled={isRunning || visibleCategories.length === 0}
-            onChange={selectCategory}
-            options={visibleCategories.map((item) => ({ label: item.name, value: String(item.id) }))}
-            placeholder="选择学习系列"
-            value={selectedCategoryId || undefined}
-          />
-        </div>
         <div className="recorder-course-picker">
           <span className="recorder-settings-label">录制课程</span>
-          <Select
+          <Cascader
             className="recorder-course-select"
-            disabled={isRunning || visibleExercises.length === 0}
-            loading={loading}
-            onChange={selectExercise}
-            options={visibleExercises.map((item) => ({ label: item.title, value: String(item.id) }))}
-            placeholder="选择课程"
-            value={selectedExerciseId || undefined}
+            disabled={isRunning || courseCascaderOptions.length === 0}
+            onChange={(value) => {
+              const courseId = value[value.length - 1]
+              if (typeof courseId === 'string' && /^\d+$/.test(courseId)) selectExercise(courseId)
+            }}
+            options={courseCascaderOptions}
+            placeholder="选择内容分类、学习系列和课程"
+            value={selectedCoursePath}
           />
         </div>
         <div className="recorder-course-status" aria-live="polite">
