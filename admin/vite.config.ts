@@ -16,7 +16,9 @@ export default defineConfig({
        * 生产里由 nginx 把 /api/ 代理到 backend；本地没有 nginx，
        * 所以由 Vite dev server 承担同样的代理角色，转发到 8100 端口的 backend。
        */
-      '/api': {
+      // 必须带尾部斜线：`/api` 会把前端页面 `/api-keys` 也误代理到后端，
+      // 使直接打开或刷新该页面变成后端的 "Cannot GET"。
+      '/api/': {
         target: 'http://127.0.0.1:8100',
         changeOrigin: true,
       },
