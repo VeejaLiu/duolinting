@@ -483,8 +483,8 @@ export function ListeningVideoRecorder({
           />
         </div>
         <div className="recorder-course-status" aria-live="polite">
-          {exercise && <Tag bordered={false} color={exercise.status === 'published' ? 'green' : exercise.status === 'proofread' ? 'blue' : exercise.status === 'draft' ? 'gold' : 'default'}>{statusLabel(exercise.status)}</Tag>}
-          {exercise && <Tag bordered={false} color={isVideoExercise ? 'blue' : 'cyan'}>{isVideoExercise ? '视频' : '音频'}</Tag>}
+          {exercise && <Tag color={exercise.status === 'published' ? 'green' : exercise.status === 'proofread' ? 'blue' : exercise.status === 'draft' ? 'gold' : 'default'} variant="filled">{statusLabel(exercise.status)}</Tag>}
+          {exercise && <Tag color={isVideoExercise ? 'blue' : 'cyan'} variant="filled">{isVideoExercise ? '视频' : '音频'}</Tag>}
           {exercise && <span>{playableLineCount} 句可录制字幕</span>}
           {!exercise && !loading && <span>请选择课程</span>}
         </div>

@@ -106,7 +106,8 @@ export function AdminWorkspaceNav({
       children: [
         {
           icon: <UserRound size={16} aria-hidden="true" />,
-          key: 'account-settings',
+          // 与侧栏工作区使用不同 key，避免 Ant Design 在同一 Menu 树中报重复 key。
+          key: 'open-account-settings',
           label: '我的账号',
         },
         ...(adminUser.role === 'subtitle_contributor' ? [{
@@ -134,6 +135,10 @@ export function AdminWorkspaceNav({
     }
     if (key === 'change-display-name') {
       onRequestDisplayNameChange()
+      return
+    }
+    if (key === 'open-account-settings') {
+      onSectionChange('account-settings')
       return
     }
     if (key !== 'account') {
