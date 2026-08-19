@@ -3,10 +3,13 @@ import { randomBytes } from 'node:crypto';
 import { Op } from 'sequelize';
 import { QueryTypes } from 'sequelize';
 import type {
+    AdminWorkflowActivity,
+    AdminWorkflowActivityPage,
+    AdminWorkflowActivityType,
+    AdminWorkflowMemberProgress,
     AdminRole,
     AdminReviewTask,
     AdminSubtitleWorkflowTaskInbox,
-    AdminWorkflowNotification,
     AdminWorkflowNotifications,
     AdminWorkflowNotificationType,
     CourseContributionRole,
@@ -16,6 +19,7 @@ import type {
     SubtitleDraftStatus,
     TranscriptLine,
 } from '../../domain';
+import type { Transaction } from 'sequelize';
 import { doRawQuery } from '../../models';
 import { sequelize } from '../../models/db-config-mysql';
 import { AdminUserModel } from '../../models/schema/AdminUserDB';
@@ -113,6 +117,45 @@ async function ensureExerciseIdsExist(exerciseIds: number[]) {
     }
 }
 
+type WorkflowActivityEventInput = {
+    eventType: AdminWorkflowActivityType;
+    actorAdminUserId?: number | null;
+    targetAdminUserId?: number | null;
+    exerciseId: number;
+    subtitleDraftId?: number | null;
+    workflowRole?: CourseContributionRole | null;
+    reviewNote?: string | null;
+};
+
+/**
+ * 协作动态是审计记录而不是可变的任务状态：每个关键动作只插入一行，
+ * 与原业务写入共用 transaction，因此不会出现“任务已完成但团队动态缺失”。
+ */
+async function recordWorkflowActivity(
+    event: WorkflowActivityEventInput,
+    transaction: Transaction,
+) {
+    await sequelize.query(
+        `insert into admin_workflow_activity_events
+           (event_type, actor_admin_user_id, target_admin_user_id, exercise_id,
+            subtitle_draft_id, workflow_role, review_note)
+         values (:eventType, :actorAdminUserId, :targetAdminUserId, :exerciseId,
+                 :subtitleDraftId, :workflowRole, :reviewNote)`,
+        {
+            replacements: {
+                eventType: event.eventType,
+                actorAdminUserId: event.actorAdminUserId ?? null,
+                targetAdminUserId: event.targetAdminUserId ?? null,
+                exerciseId: event.exerciseId,
+                subtitleDraftId: event.subtitleDraftId ?? null,
+                workflowRole: event.workflowRole ?? null,
+                reviewNote: event.reviewNote ?? null,
+            },
+            transaction,
+        },
+    );
+}
+
 export async function replaceContributorAssignments(
     contributorId: number,
     exerciseIdsInput: unknown,
@@ -155,10 +198,12 @@ export async function updateExerciseWorkflowAssignee({
     exerciseId,
     workflowRole,
     adminUserId,
+    actorAdminUserId,
 }: {
     exerciseId: number;
     workflowRole: CourseContributionRole;
     adminUserId: number | null;
+    actorAdminUserId: number;
 }) {
     if (workflowRole !== 'proofreader' && workflowRole !== 'second_reviewer') {
         throw new Error('无效的工作流步骤');
@@ -187,6 +232,9 @@ export async function updateExerciseWorkflowAssignee({
         );
         const previousProofreaderId = Number(existingAssignees.find((row) => row.workflow_role === 'proofreader')?.admin_user_id ?? 0);
         const previousReviewerId = Number(existingAssignees.find((row) => row.workflow_role === 'second_reviewer')?.admin_user_id ?? 0);
+        const previousAssigneeId = workflowRole === 'proofreader'
+            ? previousProofreaderId
+            : previousReviewerId;
         await sequelize.query(
             `delete from exercise_workflow_assignees
              where exercise_id = :exerciseId and workflow_role = :workflowRole`,
@@ -238,6 +286,26 @@ export async function updateExerciseWorkflowAssignee({
                  where exercise_id = :exerciseId and admin_user_id = :previousProofreaderId`,
                 { replacements: { exerciseId, previousProofreaderId }, transaction },
             );
+        }
+        if (previousAssigneeId !== (adminUserId ?? 0)) {
+            if (previousAssigneeId > 0) {
+                await recordWorkflowActivity({
+                    eventType: 'workflow_unassigned',
+                    actorAdminUserId,
+                    targetAdminUserId: previousAssigneeId,
+                    exerciseId,
+                    workflowRole,
+                }, transaction);
+            }
+            if (adminUserId !== null) {
+                await recordWorkflowActivity({
+                    eventType: 'workflow_assigned',
+                    actorAdminUserId,
+                    targetAdminUserId: adminUserId,
+                    exerciseId,
+                    workflowRole,
+                }, transaction);
+            }
         }
     });
     return adminUserId;
@@ -714,6 +782,22 @@ export async function submitSubtitleDraft({
                 transaction,
             },
         );
+        const [draft] = await sequelize.query<{ id: number | string }>(
+            `select id from exercise_subtitle_drafts
+             where exercise_id = :exerciseId and admin_user_id = :adminId limit 1`,
+            { replacements: { exerciseId, adminId }, type: QueryTypes.SELECT, transaction },
+        );
+        if (!draft) {
+            throw new Error('字幕稿保存后无法读取');
+        }
+        await recordWorkflowActivity({
+            eventType: 'subtitle_submitted',
+            actorAdminUserId: adminId,
+            targetAdminUserId: assignees.reviewerId,
+            exerciseId,
+            subtitleDraftId: Number(draft.id),
+            workflowRole: 'proofreader',
+        }, transaction);
     });
 }
 
@@ -726,56 +810,68 @@ export async function returnSubtitleDraft({
     reviewerId: number;
     reviewNote: string;
 }) {
-    const rows = await sequelize.query<{
-        exercise_id: number | string;
-        admin_user_id: number | string;
-        reviewer_admin_user_id: number | string | null;
-    }>(
-        `select exercise_id, admin_user_id, reviewer_admin_user_id
-         from exercise_subtitle_drafts where id = :draftId and status = 'submitted' limit 1`,
-        { replacements: { draftId }, type: QueryTypes.SELECT },
-    );
-    const draft = rows[0];
-    if (!draft || Number(draft.reviewer_admin_user_id) !== reviewerId) {
-        throw new Error('这份字幕稿已不在你的待审核队列中');
-    }
-    const [, metadata] = await sequelize.query(
-        `update exercise_subtitle_drafts
-         set status = 'returned', review_note = :reviewNote, reviewed_at = current_timestamp,
-             reviewed_by_admin_user_id = :reviewerId
-         where id = :draftId and status = 'submitted'`,
-        { replacements: { draftId, reviewerId, reviewNote } },
-    );
-    if ((metadata as { affectedRows?: number }).affectedRows === 0) {
-        throw new Error('这份字幕稿已不在待审核队列中');
-    }
+    await sequelize.transaction(async (transaction) => {
+        const rows = await sequelize.query<{
+            exercise_id: number | string;
+            admin_user_id: number | string;
+            reviewer_admin_user_id: number | string | null;
+        }>(
+            `select exercise_id, admin_user_id, reviewer_admin_user_id
+             from exercise_subtitle_drafts where id = :draftId and status = 'submitted' limit 1`,
+            { replacements: { draftId }, type: QueryTypes.SELECT, transaction },
+        );
+        const draft = rows[0];
+        if (!draft || Number(draft.reviewer_admin_user_id) !== reviewerId) {
+            throw new Error('这份字幕稿已不在你的待审核队列中');
+        }
+        const [, metadata] = await sequelize.query(
+            `update exercise_subtitle_drafts
+             set status = 'returned', review_note = :reviewNote, reviewed_at = current_timestamp,
+                 reviewed_by_admin_user_id = :reviewerId
+             where id = :draftId and status = 'submitted'`,
+            { replacements: { draftId, reviewerId, reviewNote }, transaction },
+        );
+        if ((metadata as { affectedRows?: number }).affectedRows === 0) {
+            throw new Error('这份字幕稿已不在待审核队列中');
+        }
 
-    await sequelize.query(
-        `insert into admin_workflow_notifications
-           (recipient_admin_user_id, actor_admin_user_id, exercise_id, subtitle_draft_id, notification_type, review_note)
-         values (:recipientId, :reviewerId, :exerciseId, :draftId, 'subtitle_returned', :reviewNote)`,
-        {
-            replacements: {
-                recipientId: Number(draft.admin_user_id), reviewerId,
-                exerciseId: Number(draft.exercise_id), draftId, reviewNote,
+        await sequelize.query(
+            `insert into admin_workflow_notifications
+               (recipient_admin_user_id, actor_admin_user_id, exercise_id, subtitle_draft_id, notification_type, review_note)
+             values (:recipientId, :reviewerId, :exerciseId, :draftId, 'subtitle_returned', :reviewNote)`,
+            {
+                replacements: {
+                    recipientId: Number(draft.admin_user_id), reviewerId,
+                    exerciseId: Number(draft.exercise_id), draftId, reviewNote,
+                },
+                transaction,
             },
-        },
-    );
+        );
+        await recordWorkflowActivity({
+            eventType: 'subtitle_returned',
+            actorAdminUserId: reviewerId,
+            targetAdminUserId: Number(draft.admin_user_id),
+            exerciseId: Number(draft.exercise_id),
+            subtitleDraftId: draftId,
+            workflowRole: 'second_reviewer',
+            reviewNote,
+        }, transaction);
 
-    // 初次制课若所有投稿都退回，课程回到草稿；已发布课程则始终保留发布状态。
-    await sequelize.query(
-        `update exercises course
-         set course.status = 'draft', course.updated_at = current_timestamp
-         where course.status = 'proofread'
-           and course.id = (
-             select draft.exercise_id from exercise_subtitle_drafts draft where draft.id = :draftId
-           )
-           and not exists (
-             select 1 from exercise_subtitle_drafts remaining
-             where remaining.exercise_id = course.id and remaining.status = 'submitted'
-           )`,
-        { replacements: { draftId } },
-    );
+        // 初次制课若所有投稿都退回，课程回到草稿；已发布课程则始终保留发布状态。
+        await sequelize.query(
+            `update exercises course
+             set course.status = 'draft', course.updated_at = current_timestamp
+             where course.status = 'proofread'
+               and course.id = (
+                 select draft.exercise_id from exercise_subtitle_drafts draft where draft.id = :draftId
+               )
+               and not exists (
+                 select 1 from exercise_subtitle_drafts remaining
+                 where remaining.exercise_id = course.id and remaining.status = 'submitted'
+               )`,
+            { replacements: { draftId }, transaction },
+        );
+    });
 }
 
 /** 仅在二次审核通过时替换课程正式字幕，保持事务内状态和署名同步。 */
@@ -866,6 +962,14 @@ export async function approveSubtitleDraft({
                 transaction,
             },
         );
+        await recordWorkflowActivity({
+            eventType: 'subtitle_approved',
+            actorAdminUserId: reviewerId,
+            targetAdminUserId: Number(draft.admin_user_id),
+            exerciseId: Number(draft.exercise_id),
+            subtitleDraftId: draftId,
+            workflowRole: 'second_reviewer',
+        }, transaction);
     });
 }
 
@@ -1038,6 +1142,152 @@ export async function markMyWorkflowNotificationsRead(adminId: number, notificat
          where recipient_admin_user_id = :adminId${ids.length ? ' and id in (:ids)' : ''}`,
         { replacements: ids.length ? { adminId, ids } : { adminId } },
     );
+}
+
+type WorkflowActivityRow = {
+    id: number | string;
+    event_type: AdminWorkflowActivityType;
+    exercise_id: number | string;
+    exercise_title: string;
+    actor_display_name: string | null;
+    target_display_name: string | null;
+    subtitle_draft_id: number | string | null;
+    workflow_role: CourseContributionRole | null;
+    review_note: string | null;
+    occurred_at: Date | string;
+};
+
+type WorkflowMemberProgressRow = {
+    admin_user_id: number | string;
+    display_name: string;
+    role: string;
+    is_active: boolean | number;
+    proofreader_assignments: number | string | null;
+    reviewer_assignments: number | string | null;
+    awaiting_review_count: number | string | null;
+    returned_count: number | string | null;
+};
+
+/**
+ * 团队动态向所有已登录后台成员开放，但只关联展示名。成员筛选会同时匹配操作者和接收人，
+ * 所以一次“分配给某人”的记录能在管理员与被分配成员的视角中被找到。
+ */
+export async function listWorkflowActivity({
+    page = 1,
+    pageSize = 50,
+    memberId,
+    eventType,
+}: {
+    page?: number;
+    pageSize?: number;
+    memberId?: number;
+    eventType?: AdminWorkflowActivityType;
+} = {}): Promise<AdminWorkflowActivityPage> {
+    const resolvedPage = Number.isInteger(page) && page > 0 ? page : 1;
+    const resolvedPageSize = Number.isInteger(pageSize)
+        ? Math.min(Math.max(pageSize, 10), 100)
+        : 50;
+    const normalizedMemberId = Number.isInteger(memberId) && (memberId ?? 0) > 0
+        ? memberId
+        : undefined;
+    const filters: string[] = [];
+    const params: Record<string, number | string> = {
+        limit: resolvedPageSize,
+        offset: (resolvedPage - 1) * resolvedPageSize,
+    };
+    if (normalizedMemberId) {
+        filters.push('(events.actor_admin_user_id = :memberId or events.target_admin_user_id = :memberId)');
+        params.memberId = normalizedMemberId;
+    }
+    if (eventType) {
+        filters.push('events.event_type = :eventType');
+        params.eventType = eventType;
+    }
+    const whereClause = filters.length ? `where ${filters.join(' and ')}` : '';
+    const [rows, totalRows, memberRows] = await Promise.all([
+        doRawQuery<WorkflowActivityRow>({
+            query: `select events.id, events.event_type, events.exercise_id,
+                           coalesce(exercises.title, concat('已删除课程 #', events.exercise_id)) as exercise_title,
+                           actor.display_name as actor_display_name,
+                           target.display_name as target_display_name,
+                           events.subtitle_draft_id, events.workflow_role, events.review_note, events.occurred_at
+                    from admin_workflow_activity_events events
+                    left join exercises on exercises.id = events.exercise_id
+                    left join admin_users actor on actor.id = events.actor_admin_user_id
+                    left join admin_users target on target.id = events.target_admin_user_id
+                    ${whereClause}
+                    order by events.occurred_at desc, events.id desc
+                    limit :limit offset :offset`,
+            params,
+        }),
+        doRawQuery<{ total: number | string }>({
+            query: `select count(*) as total from admin_workflow_activity_events events ${whereClause}`,
+            params: normalizedMemberId || eventType
+                ? Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'limit' && key !== 'offset'))
+                : {},
+        }),
+        doRawQuery<WorkflowMemberProgressRow>({
+            query: `select admins.id as admin_user_id, admins.display_name, admins.role, admins.is_active,
+                           coalesce(assignees.proofreader_assignments, 0) as proofreader_assignments,
+                           coalesce(assignees.reviewer_assignments, 0) as reviewer_assignments,
+                           coalesce(awaiting_reviews.awaiting_review_count, 0) as awaiting_review_count,
+                           coalesce(returned_drafts.returned_count, 0) as returned_count
+                    from admin_users admins
+                    left join (
+                      select admin_user_id,
+                             sum(workflow_role = 'proofreader') as proofreader_assignments,
+                             sum(workflow_role = 'second_reviewer') as reviewer_assignments
+                      from exercise_workflow_assignees
+                      group by admin_user_id
+                    ) assignees on assignees.admin_user_id = admins.id
+                    left join (
+                      select reviewer_admin_user_id as admin_user_id, count(*) as awaiting_review_count
+                      from exercise_subtitle_drafts
+                      where status = 'submitted' and reviewer_admin_user_id is not null
+                      group by reviewer_admin_user_id
+                    ) awaiting_reviews on awaiting_reviews.admin_user_id = admins.id
+                    left join (
+                      select admin_user_id, count(*) as returned_count
+                      from exercise_subtitle_drafts
+                      where status = 'returned'
+                      group by admin_user_id
+                    ) returned_drafts on returned_drafts.admin_user_id = admins.id
+                    where admins.role in ('super_admin', 'admin', 'subtitle_contributor')
+                    order by field(admins.role, 'super_admin', 'admin', 'subtitle_contributor'),
+                             admins.display_name asc, admins.id asc`,
+        }),
+    ]);
+
+    const members: AdminWorkflowMemberProgress[] = memberRows.map((row) => ({
+        adminUserId: Number(row.admin_user_id),
+        displayName: row.display_name,
+        role: normalizeAdminRole(row.role),
+        isActive: Boolean(row.is_active),
+        proofreaderAssignments: Number(row.proofreader_assignments ?? 0),
+        reviewerAssignments: Number(row.reviewer_assignments ?? 0),
+        awaitingReviewCount: Number(row.awaiting_review_count ?? 0),
+        returnedCount: Number(row.returned_count ?? 0),
+    }));
+
+    const items: AdminWorkflowActivity[] = rows.map((row) => ({
+        id: Number(row.id),
+        type: row.event_type,
+        exerciseId: Number(row.exercise_id),
+        exerciseTitle: row.exercise_title,
+        actorDisplayName: row.actor_display_name || undefined,
+        targetDisplayName: row.target_display_name || undefined,
+        workflowRole: row.workflow_role || undefined,
+        subtitleDraftId: row.subtitle_draft_id === null ? undefined : Number(row.subtitle_draft_id),
+        reviewNote: row.review_note || undefined,
+        occurredAt: new Date(row.occurred_at).toISOString(),
+    }));
+    return {
+        items,
+        members,
+        page: resolvedPage,
+        pageSize: resolvedPageSize,
+        total: Number(totalRows[0]?.total ?? 0),
+    };
 }
 
 export async function recordExerciseContribution({

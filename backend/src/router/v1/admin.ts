@@ -1,6 +1,6 @@
 import express from 'express';
 import { body } from 'express-validator';
-import type { FeedbackStatus } from '../../domain';
+import type { AdminWorkflowActivityType, FeedbackStatus } from '../../domain';
 import { requireAdminPasswordChanged, requireAdminToken, requireSuperAdmin } from '../../general/admin/admin-auth';
 import { changeAdminPassword, changeOwnAdminDisplayName, getAdminInfo, loginAdmin, logoutAdmin } from '../../general/admin/admin-service';
 import {
@@ -13,6 +13,7 @@ import {
     forceAdminMemberPasswordChange,
     getAssignedExerciseIds,
     isSuperAdmin,
+    listWorkflowActivity,
     listAdminMembers,
     listMySubtitleReviewTasks,
     listMySubtitleWorkflowInbox,
@@ -103,6 +104,17 @@ const isOptionalExternalHttpUrl = (value: unknown) =>
 const logger = new Logger(__filename);
 // Express 5 route params may be typed as string arrays for repeated parameters; IDs use the first value.
 const toId = (value: string | string[]) => Number.parseInt(Array.isArray(value) ? value[0] : value, 10);
+const workflowActivityTypes: AdminWorkflowActivityType[] = [
+    'workflow_assigned',
+    'workflow_unassigned',
+    'subtitle_submitted',
+    'subtitle_returned',
+    'subtitle_approved',
+];
+const toBoundedPositiveInt = (value: unknown, fallback: number, max: number) => {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? Math.min(parsed, max) : fallback;
+};
 router.post(
     '/auth/login',
     adminLoginRateLimit,
@@ -145,6 +157,22 @@ router.put(
 
 // 除了认证资料和改密接口外，所有后台能力都要求成员完成初始密码修改。
 router.use(requireAdminToken, requireAdminPasswordChanged);
+
+/** 团队共享的工作流时间线。所有完成初始密码设置的后台成员都可查看，但无写权限。 */
+router.get('/workflow-activity', async (req: any, res) => {
+    const rawMemberId = Array.isArray(req.query.memberId) ? req.query.memberId[0] : req.query.memberId;
+    const rawEventType = Array.isArray(req.query.eventType) ? req.query.eventType[0] : req.query.eventType;
+    const memberId = toBoundedPositiveInt(rawMemberId, 0, Number.MAX_SAFE_INTEGER) || undefined;
+    const eventType = typeof rawEventType === 'string' && workflowActivityTypes.includes(rawEventType as AdminWorkflowActivityType)
+        ? rawEventType as AdminWorkflowActivityType
+        : undefined;
+    res.status(200).send(await listWorkflowActivity({
+        page: toBoundedPositiveInt(req.query.page, 1, 100000),
+        pageSize: toBoundedPositiveInt(req.query.pageSize, 50, 100),
+        memberId,
+        eventType,
+    }));
+});
 
 router.put(
     '/auth/display-name',
@@ -557,7 +585,7 @@ router.put(
     requireSuperAdmin,
     body('adminUserId').optional({ nullable: true }).isInt({ min: 1 }),
     validateErrorCheck,
-    async (req, res) => {
+    async (req: any, res) => {
         const exerciseId = toId(req.params.exerciseId);
         if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
             return res.status(400).send({ success: false, message: 'Invalid exercise id' });
@@ -574,6 +602,7 @@ router.put(
             exerciseId,
             workflowRole,
             adminUserId,
+            actorAdminUserId: req.admin.id,
         });
         res.status(200).send({ ok: true, adminUserId: assignedAdminUserId });
     },

@@ -215,6 +215,47 @@ export type AdminWorkflowNotifications = {
   unreadCount: number
 }
 
+/** 面向全体后台成员的协作审计事件。事件只追加，避免改派或后续审核覆盖既有责任记录。 */
+export type AdminWorkflowActivityType =
+  | 'workflow_assigned'
+  | 'workflow_unassigned'
+  | 'subtitle_submitted'
+  | 'subtitle_returned'
+  | 'subtitle_approved'
+
+export type AdminWorkflowActivity = {
+  id: number
+  type: AdminWorkflowActivityType
+  exerciseId: number
+  exerciseTitle: string
+  actorDisplayName?: string
+  targetDisplayName?: string
+  workflowRole?: AdminSubtitleWorkflowTaskRole
+  subtitleDraftId?: number
+  reviewNote?: string
+  occurredAt: string
+}
+
+/** 每位成员当前承担的工作量，供协作动态页展示彼此的进行中进度。 */
+export type AdminWorkflowMemberProgress = {
+  adminUserId: number
+  displayName: string
+  role: AdminRole
+  isActive: boolean
+  proofreaderAssignments: number
+  reviewerAssignments: number
+  awaitingReviewCount: number
+  returnedCount: number
+}
+
+export type AdminWorkflowActivityPage = {
+  items: AdminWorkflowActivity[]
+  members: AdminWorkflowMemberProgress[]
+  page: number
+  pageSize: number
+  total: number
+}
+
 /**
  * 单句学习状态：
  * - unclear: 用户显式标记“这句没听懂”，后续难点复习依赖它筛选句子。
