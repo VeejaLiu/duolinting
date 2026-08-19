@@ -106,6 +106,8 @@ export function ListeningVideoRecorder({
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const focusShellRef = useRef<HTMLDivElement | null>(null)
   const runIdRef = useRef(0)
+  // 课程管理页会用 URL 预选一门课程；记录已处理的参数，避免它在手动切课后反复覆盖用户选择。
+  const appliedUrlExerciseIdRef = useRef<string | null>(null)
   const [selectedExerciseId, setSelectedExerciseId] = useState('')
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState('')
   const [selectedCategoryId, setSelectedCategoryId] = useState('')
@@ -172,8 +174,15 @@ export function ListeningVideoRecorder({
 
   useEffect(() => {
     const exerciseId = searchParams.get('exerciseId')
-    if (exerciseId && exercises.some((item) => item.id === Number(exerciseId))) {
-      if (exerciseId !== selectedExerciseId) resetForExerciseChange()
+    if (
+      exerciseId
+      && exerciseId !== appliedUrlExerciseIdRef.current
+      && exercises.some((item) => item.id === Number(exerciseId))
+    ) {
+      appliedUrlExerciseIdRef.current = exerciseId
+      if (exerciseId !== selectedExerciseId) {
+        resetForExerciseChange()
+      }
       setSelectedExerciseId(exerciseId)
       const selectedExercise = exercises.find((item) => item.id === Number(exerciseId))
       const selectedCategory = availableCategories.find((item) => item.id === selectedExercise?.categoryId)
