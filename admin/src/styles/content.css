@@ -587,11 +587,32 @@
   white-space: nowrap;
 }
 
-.recorder-brand-copy .recorder-brand-url {
+.recorder-brand-url-ticker {
   color: #7dd3fc;
+  display: block;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: .02em;
+  max-width: 236px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.recorder-brand-url-track {
+  align-items: center;
+  animation: recorder-brand-url-scroll 13s linear infinite;
+  display: inline-flex;
+  gap: 28px;
+  min-width: max-content;
+}
+
+@keyframes recorder-brand-url-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recorder-brand-url-track { animation: none; }
 }
 
 .recorder-course-progress {

@@ -497,7 +497,15 @@ export function ListeningVideoRecorder({
               <span className="recorder-brand-copy">
                 <strong>DuolinTing</strong>
                 <small>{messages.brandTagline}</small>
-                <small className="recorder-brand-url">https://app.duolinting.cn</small>
+                <span aria-label="网页端 app.duolinting.cn，移动端 mobile.duolinting.cn" className="recorder-brand-url-ticker">
+                  <span className="recorder-brand-url-track">
+                    <span>网页端 · app.duolinting.cn</span>
+                    <span aria-hidden="true">移动端 · mobile.duolinting.cn</span>
+                    {/* 重复一组内容让跑马灯衔接平滑，录制成片中不会出现空白。 */}
+                    <span aria-hidden="true">网页端 · app.duolinting.cn</span>
+                    <span aria-hidden="true">移动端 · mobile.duolinting.cn</span>
+                  </span>
+                </span>
               </span>
             </div>
             <span className="recorder-course-progress">{exercise ? `${completedLineCount} / ${exercise.lines.length}` : '0 / 0'}</span>
