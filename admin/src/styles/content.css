@@ -2331,3 +2331,130 @@
   color: #1d4ed8;
   flex-shrink: 0;
 }
+
+/* 任务广场（任务领取 + 我的字幕任务） */
+.task-pool .ant-card-head {
+  border-bottom: 1px solid #eef2f7;
+  min-height: 56px;
+}
+
+.task-pool-tabs .ant-tabs-nav {
+  margin-bottom: 16px;
+}
+
+.task-stat-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.task-stat-card {
+  background: #ffffff;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  display: grid;
+  gap: 2px;
+  padding: 14px 16px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.task-stat-card:hover {
+  border-color: #1cb0f6;
+  box-shadow: 0 2px 10px rgba(28, 176, 246, 0.12);
+}
+
+.task-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.task-stat-label {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.task-section-title {
+  display: block;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.task-pool-list {
+  display: grid;
+  gap: 10px;
+}
+
+.task-pool-item {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px 16px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.task-pool-item:hover {
+  border-color: #1cb0f6;
+  box-shadow: 0 2px 10px rgba(28, 176, 246, 0.1);
+}
+
+.task-pool-item-main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.task-pool-item-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.my-task-list {
+  display: grid;
+  gap: 8px;
+}
+
+.my-task-item {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px 14px;
+  transition: border-color 0.15s ease;
+}
+
+.my-task-item:hover {
+  border-color: #1cb0f6;
+}
+
+.my-task-item.is-completed {
+  background: #f8fafc;
+}
+
+.my-task-item-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.my-task-item-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.my-task-item-actions {
+  flex: 0 0 auto;
+}
+
+.task-sub-card .ant-card-head {
+  min-height: 40px;
+}

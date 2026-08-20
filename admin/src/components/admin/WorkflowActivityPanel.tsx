@@ -21,6 +21,9 @@ const pageSize = 20
 const eventOptions: Array<{ label: string; value: AdminWorkflowActivityType }> = [
   { value: 'workflow_assigned', label: '分配任务' },
   { value: 'workflow_unassigned', label: '取消分配' },
+  { value: 'workflow_claimed', label: '领取任务' },
+  { value: 'workflow_claim_released', label: '放弃任务' },
+  { value: 'workflow_claim_expired', label: '任务超时释放' },
   { value: 'subtitle_submitted', label: '提交字幕' },
   { value: 'subtitle_returned', label: '退回修改' },
   { value: 'subtitle_approved', label: '审核通过' },
@@ -37,6 +40,12 @@ const eventLabel = (event: AdminWorkflowActivity) => {
       return `${actor} 将${roleLabel(event.workflowRole)}任务分配给 ${target}`
     case 'workflow_unassigned':
       return `${actor} 取消了 ${target} 的${roleLabel(event.workflowRole)}任务`
+    case 'workflow_claimed':
+      return `${actor} 领取了课程任务`
+    case 'workflow_claim_released':
+      return `${actor} 放弃了课程任务，任务回到任务池`
+    case 'workflow_claim_expired':
+      return `课程任务超时未提交，已自动释放回任务池（原负责人 ${target}）`
     case 'subtitle_submitted':
       return `${actor} 提交了字幕稿，交由 ${target} 二审`
     case 'subtitle_returned':
@@ -49,6 +58,9 @@ const eventLabel = (event: AdminWorkflowActivity) => {
 const eventTagColor: Record<AdminWorkflowActivityType, string> = {
   workflow_assigned: 'blue',
   workflow_unassigned: 'default',
+  workflow_claimed: 'cyan',
+  workflow_claim_released: 'purple',
+  workflow_claim_expired: 'red',
   subtitle_submitted: 'orange',
   subtitle_returned: 'gold',
   subtitle_approved: 'green',
@@ -57,6 +69,9 @@ const eventTagColor: Record<AdminWorkflowActivityType, string> = {
 const eventTagLabel: Record<AdminWorkflowActivityType, string> = {
   workflow_assigned: '已分配',
   workflow_unassigned: '已取消',
+  workflow_claimed: '已领取',
+  workflow_claim_released: '已放弃',
+  workflow_claim_expired: '已超时释放',
   subtitle_submitted: '已提交',
   subtitle_returned: '已退回',
   subtitle_approved: '已通过',
