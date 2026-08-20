@@ -173,6 +173,31 @@ export const formatDurationLabel = (seconds: number) => {
   return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
 }
 
+// SRT 时间轴使用「时:分:秒,毫秒」格式（毫秒为逗号分隔的三位数字），
+// 与 subtitle 编辑器内部的「分:秒.毫秒」展示格式不同，仅供导出 SRT 给外部模型/播放器使用。
+export const formatSrtTimestamp = (seconds: number) => {
+  const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0
+  const totalMs = Math.round(safe * 1000)
+  const hours = Math.floor(totalMs / 3600000)
+  const minutes = Math.floor((totalMs % 3600000) / 60000)
+  const secs = Math.floor((totalMs % 60000) / 1000)
+  const ms = totalMs % 1000
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')},${String(ms).padStart(3, '0')}`
+}
+
+// 把字幕草稿导出为仅英文的标准 SRT 文本。
+// 跳过空文本行（无英文内容），序号按过滤后的行重新从 1 连续编号，
+// 时间轴直接沿用每行的 start/end，不做任何合并或重写。
+export const draftLinesToSrt = (lines: DraftLine[]): string =>
+  lines
+    .filter((line) => line.text.trim().length > 0)
+    .map((line, index) => {
+      const start = formatSrtTimestamp(line.start)
+      const end = formatSrtTimestamp(line.end)
+      return `${index + 1}\n${start} --> ${end}\n${line.text.trim()}`
+    })
+    .join('\n\n')
+
 const parseTimestamp = (value: string) => {
   const normalized = value.trim().replace(',', '.')
   const parts = normalized.split(':').map(Number)

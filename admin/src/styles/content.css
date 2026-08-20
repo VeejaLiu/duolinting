@@ -1658,40 +1658,66 @@
 .waveform-controls {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 8px;
 }
 
 .waveform-controls input {
   accent-color: #0f766e;
 }
 
-.zoom-control {
+/* 工具栏按钮统一尺寸：mini-command 与 icon-command 同高 30px，视觉整齐 */
+.waveform-controls .mini-command,
+.waveform-controls .icon-command {
+  font-size: 12px;
+  height: 30px;
+  min-height: 30px;
+}
+
+.waveform-controls .mini-command {
+  padding: 0 10px;
+}
+
+.waveform-controls .icon-command {
+  padding: 0;
+}
+
+/* 统一分组胶囊面板：浅灰底 + 边框 + 圆角 + 固定高度，三组外观一致 */
+.waveform-tool-group {
+  align-items: center;
   background: #f8fafc;
   border: 1px solid #dbe3ee;
   border-radius: 6px;
-  flex: 1 1 320px;
+  display: flex;
+  gap: 6px;
+  height: 38px;
+  padding: 0 8px;
+}
+
+.waveform-tool-label {
+  color: #374151;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.waveform-tool-group .icon-command {
+  flex: 0 0 auto;
+}
+
+/* 缩放组是唯一的弹性分组：窄屏时收缩滑杆而不是换行 */
+.zoom-control {
+  flex: 1 1 240px;
   justify-content: flex-start;
-  max-width: 430px;
-  min-width: min(100%, 280px);
-  padding: 5px 8px;
+  max-width: 380px;
+  min-width: 200px;
 }
 
 .zoom-control input {
-  flex: 1 1 150px;
-  max-width: 220px;
-  min-width: 110px;
+  flex: 1 1 auto;
+  min-width: 40px;
   width: auto;
-}
-
-.zoom-control .icon-command {
-  align-items: center;
-  display: inline-flex;
-  flex: 0 0 auto;
-  height: 26px;
-  justify-content: center;
-  width: 26px;
 }
 
 .zoom-control .icon-command:disabled {
@@ -1702,31 +1728,13 @@
 }
 
 .zoom-control strong {
-  min-width: 36px;
+  flex: 0 0 auto;
+  min-width: 34px;
   text-align: right;
 }
 
 .batch-timing-control {
-  align-items: center;
-  background: #f8fafc;
-  border: 1px solid #dbe3ee;
-  border-radius: 6px;
-  display: flex;
   flex: 0 0 auto;
-  gap: 6px;
-  padding: 5px 8px;
-}
-
-.batch-timing-control span {
-  color: #374151;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.batch-timing-control strong {
-  min-width: 52px;
-  text-align: center;
 }
 
 .batch-timing-input {
@@ -1748,6 +1756,10 @@
 .batch-timing-control small {
   color: #6b7280;
   font-size: 11px;
+}
+
+.waveform-actions {
+  flex: 0 0 auto;
 }
 
 /* AI 翻译失败的持久横幅：浅红警示底，文字可换行，右侧关闭按钮 */
@@ -1787,13 +1799,6 @@
 .translate-error-dismiss:hover {
   border-color: #1cb0f6;
   color: #1cb0f6;
-}
-
-.translate-control {
-  align-items: center;
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 .waveform-canvas-wrap {
@@ -2179,23 +2184,96 @@
 }
 
 .subtitle-import summary {
+  align-items: center;
   color: #374151;
   cursor: pointer;
+  display: flex;
   font-size: 13px;
   font-weight: 700;
+  gap: 8px;
+  list-style: none;
 }
 
-.subtitle-import .inline-field {
+/* 隐藏原生 disclosure 三角，改用自定义箭头，展开时旋转为向下 */
+.subtitle-import summary::-webkit-details-marker {
+  display: none;
+}
+
+.subtitle-import summary::before {
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid #94a3b8;
+  border-top: 4px solid transparent;
+  content: '';
+  flex-shrink: 0;
+  height: 0;
+  transition: transform 0.15s ease;
+  width: 0;
+}
+
+.subtitle-import[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.subtitle-import-title {
+  flex: 1;
+}
+
+.subtitle-import-formats {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.subtitle-import-body {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.subtitle-import-tools {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 8px 0;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.subtitle-import .inline-field > span {
-  font-size: 13px;
+.subtitle-bilingual-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.subtitle-import-footer {
+  align-items: center;
+  border-top: 1px solid #eef2f7;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  padding-top: 12px;
+}
+
+.subtitle-offset {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.subtitle-offset > span {
   color: #374151;
+  font-size: 12px;
+  font-weight: 700;
   min-width: 60px;
+}
+
+.subtitle-offset small {
+  color: #6b7280;
+  font-size: 12px;
 }
 
 .subtitle-import .offset-input {

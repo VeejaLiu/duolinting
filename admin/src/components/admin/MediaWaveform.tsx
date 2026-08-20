@@ -595,8 +595,8 @@ export function MediaWaveform({
         </strong>
       </div>
       <div className="waveform-controls">
-        <div className="zoom-control" role="group" aria-label="波形缩放">
-          <span id="waveform-zoom-label">缩放</span>
+        <div className="waveform-tool-group zoom-control" role="group" aria-label="波形缩放">
+          <span className="waveform-tool-label" id="waveform-zoom-label">缩放</span>
           <button
             aria-label="缩小波形"
             className="icon-command"
@@ -629,8 +629,8 @@ export function MediaWaveform({
           </button>
           <strong>{zoom.toFixed(1)}x</strong>
         </div>
-        <div className="batch-timing-control" role="group" aria-label="批量调整字幕时间">
-          <span>时间偏移</span>
+        <div className="waveform-tool-group batch-timing-control" role="group" aria-label="批量调整字幕时间">
+          <span className="waveform-tool-label">时间偏移</span>
           <button
             aria-label="减少 500ms"
             className="icon-command"
@@ -716,26 +716,26 @@ export function MediaWaveform({
             重置
           </button>
         </div>
-        <button
-          className="mini-command secondary"
-          disabled={!sourceUrl}
-          onClick={() => onAddLine()}
-          type="button"
-        >
-          <ListPlus size={14} aria-hidden="true" />
-          新增字幕
-        </button>
-        <button
-          className="mini-command secondary"
-          disabled={!onMergeLine || activeLineIndex < 0 || activeLineIndex >= draftLines.length - 1}
-          onClick={() => onMergeLine?.(activeLineIndex)}
-          title="将当前选中的字幕与下一句合并"
-          type="button"
-        >
-          <Merge size={14} aria-hidden="true" />
-          与下一句合并
-        </button>
-        <div className="translate-control" role="group" aria-label="AI 字幕翻译">
+        <div className="waveform-tool-group waveform-actions" role="group" aria-label="字幕操作">
+          <button
+            className="mini-command secondary"
+            disabled={!sourceUrl}
+            onClick={() => onAddLine()}
+            type="button"
+          >
+            <ListPlus size={14} aria-hidden="true" />
+            新增字幕
+          </button>
+          <button
+            className="mini-command secondary"
+            disabled={!onMergeLine || activeLineIndex < 0 || activeLineIndex >= draftLines.length - 1}
+            onClick={() => onMergeLine?.(activeLineIndex)}
+            title="将当前选中的字幕与下一句合并"
+            type="button"
+          >
+            <Merge size={14} aria-hidden="true" />
+            与下一句合并
+          </button>
           <button
             className="mini-command"
             disabled={!sourceUrl || isTranslating || !onTranslate}

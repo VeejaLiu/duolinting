@@ -39,7 +39,7 @@ import { formatDurationLabel } from '../../lib/mediaDraftTools'
 
 type ClipboardPanelState =
   | { mode: 'hidden' }
-  | { mode: 'copy'; content: string }
+  | { mode: 'copy'; content: string; label?: string }
   | { mode: 'paste'; content: string }
 
 /**
@@ -748,7 +748,9 @@ export function MediaCourseForm({
           <Dialog.Content className="dltjson-dialog-content">
             <div className="dltjson-dialog-header">
               <Dialog.Title className="dltjson-dialog-title">
-                {clipboardPanel.mode === 'copy' ? '复制 dltjson' : '粘贴 dltjson'}
+                {clipboardPanel.mode === 'copy'
+                  ? (clipboardPanel.label ?? '复制 dltjson')
+                  : '粘贴 dltjson'}
               </Dialog.Title>
               <Dialog.Close asChild>
                 <button className="mini-command secondary" type="button">
