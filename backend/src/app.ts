@@ -6,6 +6,7 @@ import { Logger } from './lib/logger';
 import { banner } from './lib/banner';
 import { loadMonitor } from './loaders/loadMonitor';
 import { loadWinston } from './loaders/winstonLoader';
+import { startWorkflowClaimSweeper } from './loaders/workflowClaimSweeper';
 import { env } from './env';
 import { preparePublicMediaDelivery } from './general/media/media-service';
 import { closeSequelize } from './models/db-config-mysql';
@@ -70,6 +71,10 @@ async function Main() {
     app.use('/api', index);
 
     loadMonitor(app);
+    // 低频清扫器：释放过期的自助领取任务。开发期可用环境变量覆盖周期，默认 10 分钟。
+    startWorkflowClaimSweeper(
+        Number(process.env.WORKFLOW_CLAIM_SWEEPER_INTERVAL_MS) || undefined,
+    );
     const log = new Logger(__filename);
 
     const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
