@@ -1407,12 +1407,82 @@
 /* 第一行：上传按钮独占 */
 .cover-upload-row {
   display: flex;
+  width: 100%;
 }
 
 .cover-upload-row .mini-command {
   flex: 1 1 auto;
   min-height: 32px;
   font-size: 12px;
+}
+
+.cover-frame-capture {
+  display: grid;
+  gap: 14px;
+}
+
+.cover-frame-capture > p {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.cover-frame-capture-video {
+  background: #111827;
+  border-radius: 8px;
+  display: block;
+  max-height: min(52vh, 440px);
+  max-width: 100%;
+  width: 100%;
+}
+
+.cover-frame-capture-timeline {
+  display: grid;
+  gap: 6px;
+}
+
+.cover-frame-capture-timeline span,
+.cover-frame-capture-preview span {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cover-frame-capture-timeline input {
+  accent-color: #1cb0f6;
+  width: 100%;
+}
+
+.cover-frame-capture-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.cover-frame-capture-preview {
+  align-items: start;
+  background: #f8fafc;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.cover-frame-capture-preview img {
+  border-radius: 6px;
+  max-height: 220px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.course-localization-ai-action small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .cover-upload-progress {

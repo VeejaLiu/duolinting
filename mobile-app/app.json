@@ -23,7 +23,7 @@
     ],
     "ios": {
       "bundleIdentifier": "com.duolinting.app",
-      "buildNumber": "8",
+      "buildNumber": "9",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -31,7 +31,7 @@
     },
     "android": {
       "package": "com.duolinting.app",
-      "versionCode": 6,
+      "versionCode": 7,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

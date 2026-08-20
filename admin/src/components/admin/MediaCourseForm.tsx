@@ -14,6 +14,7 @@ import {
   PanelLeftOpen,
   Save,
   Send,
+  Sparkles,
   Upload,
 } from 'lucide-react'
 import {
@@ -33,7 +34,7 @@ import type {
 } from '@duolinting/shared'
 import type { AdminNoticeTone } from './AdminFeedback'
 import { CoverImageField } from './CoverImageField'
-import type { FileUploadProgress } from '../../lib/apiClient'
+import { apiClient, type FileUploadProgress } from '../../lib/apiClient'
 import { formatDurationLabel } from '../../lib/mediaDraftTools'
 
 type ClipboardPanelState =
@@ -121,6 +122,13 @@ type MediaCourseFormProps = {
 /* ── 通用 Radix Select 封装 ── */
 type SelectOption = { value: string; label: string }
 
+const courseLocalizationLocales = ['en-US', 'th-TH', 'ja-JP'] as const
+const courseLocalizationLabels = {
+  'en-US': '英语',
+  'th-TH': '泰语',
+  'ja-JP': '日语',
+}
+
 function FieldSelect({
   label,
   value,
@@ -194,6 +202,7 @@ export function MediaCourseForm({
   onToggleSidebar,
 }: MediaCourseFormProps) {
   const [localizationLocale, setLocalizationLocale] = useState<ContentLocale>('en-US')
+  const [isGeneratingLocalizations, setIsGeneratingLocalizations] = useState(false)
   const localizedContent = courseForm.localizations?.[localizationLocale] ?? {}
   const updateLocalizedContent = (patch: { title?: string; summary?: string }) =>
     onCourseFormChange((current) => ({
@@ -206,6 +215,47 @@ export function MediaCourseForm({
         },
       },
     }))
+
+  const generateCourseLocalizations = async () => {
+    const sourceTitle = courseForm.title.trim()
+    const sourceSummary = courseForm.summary.trim()
+    if (!sourceTitle) {
+      onNotify('请先填写课程标题', 'error')
+      return
+    }
+
+    setIsGeneratingLocalizations(true)
+    try {
+      const nextLocalizations = { ...courseForm.localizations }
+      // 与目录多语言生成保持一致：按语言串行请求，标题和摘要在同一批次返回，
+      // 既降低免费模型并发压力，也保证两项内容按原下标对应写回。
+      for (const locale of courseLocalizationLocales) {
+        const sourceLines = sourceSummary ? [sourceTitle, sourceSummary] : [sourceTitle]
+        const result = await apiClient.translateLines(
+          sourceLines,
+          adminToken,
+          'zh-CN',
+          locale,
+          750,
+        )
+        if (result.failedIndexes.length > 0 || !result.translations[0]?.trim()) {
+          throw new Error(`${courseLocalizationLabels[locale]}翻译失败`)
+        }
+        nextLocalizations[locale] = {
+          ...nextLocalizations[locale],
+          title: result.translations[0].trim(),
+          // 默认摘要可留空；只有填写后才请求并覆盖该语言的摘要。
+          ...(sourceSummary ? { summary: (result.translations[1] ?? '').trim() } : {}),
+        }
+      }
+      onCourseFormChange((current) => ({ ...current, localizations: nextLocalizations }))
+      onNotify('已生成英语、泰语和日语的课程标题与摘要', 'success')
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : 'AI 多语言生成失败', 'error')
+    } finally {
+      setIsGeneratingLocalizations(false)
+    }
+  }
   const currentMediaLabel = mediaFile
     ? courseForm.mediaType === 'video' ? '新上传视频' : '新上传音频'
     : localMediaUrl
@@ -489,6 +539,19 @@ export function MediaCourseForm({
                 { value: 'ja-JP', label: '日本語' },
               ]}
             />
+            <div className="field course-localization-ai-action">
+              <span>AI 多语言</span>
+              <button
+                className="mini-command secondary"
+                disabled={isSaving || isGeneratingLocalizations || !courseForm.title.trim()}
+                onClick={() => void generateCourseLocalizations()}
+                type="button"
+              >
+                <Sparkles size={14} aria-hidden="true" />
+                {isGeneratingLocalizations ? '生成中…' : 'AI 填充全部语言'}
+              </button>
+              <small>以默认中文标题和摘要为翻译源</small>
+            </div>
             <label className="field">
               <span>本地化标题</span>
               <input
@@ -514,6 +577,8 @@ export function MediaCourseForm({
                 adminToken={adminToken}
                 label="课程封面"
                 value={courseForm.coverImageUrl ?? ''}
+                // 视频仅在弹窗内由浏览器解码；截帧图片仍走 CoverImageField 既有的前端压缩上传。
+                videoSourceUrl={courseForm.mediaType === 'video' ? localMediaUrl : undefined}
                 disabled={isSaving}
                 onChange={(url) =>
                   onCourseFormChange((current) => ({
