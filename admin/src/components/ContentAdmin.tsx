@@ -1012,6 +1012,7 @@ export function ContentAdmin({
             }))
           }}
           contributors={workflowContributors}
+          onNotify={onNotify}
           onUpdateWorkflowAssignee={async (exercise, workflowRole, adminUserId) => {
             try {
               await apiClient.updateExerciseWorkflowAssignee(exercise.id, workflowRole, adminUserId, adminToken)

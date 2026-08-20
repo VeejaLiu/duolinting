@@ -4,6 +4,8 @@ import { Alert, Badge, Button, Card, Dropdown, Empty, Form, Image, Input, Modal,
 import type { ColumnsType } from 'antd/es/table'
 import type { AdminMember, AdminReviewTask, AdminWorkflowNotifications, CatalogExerciseSummary, ExerciseCategory, MaterialCategory } from '@duolinting/shared'
 import { apiClient, resolveApiUrl } from '../../lib/apiClient'
+import type { AdminNoticeTone } from './AdminFeedback'
+import { BatchCourseImporter } from './BatchCourseImporter'
 
 type CourseManagerProps = {
   adminToken: string
@@ -31,6 +33,7 @@ type CourseManagerProps = {
     workflowRole: 'proofreader' | 'second_reviewer',
     adminUserId: number | undefined,
   ) => Promise<void>
+  onNotify: (message: string, tone?: AdminNoticeTone) => void
 }
 
 type CourseStatus = 'all' | 'draft' | 'proofread' | 'published' | 'archived'
@@ -154,7 +157,7 @@ function CourseWorkflow({
 export function CourseManager({
   adminToken, currentAdminId, categoryGroups, categories, isCatalogLoading, catalogLoadError, onRefreshCatalog, isSaving, onCreateCourse,
   onDeleteCourse, onEditCourse, onMoveCourse, onOpenRecorder, onRenameCourse, canManageCourses = true, onReviewSubtitleDraft,
-  contributors, onUpdateWorkflowAssignee, reviewTasks, workflowNotifications, onReadWorkflowNotifications,
+  contributors, onUpdateWorkflowAssignee, reviewTasks, workflowNotifications, onReadWorkflowNotifications, onNotify,
 }: CourseManagerProps) {
   // 筛选器不提供"全部"选项：用户必须选中一个具体系列（目录加载完成前
   // 用 0 表示尚未就绪，此时不发起课程请求）。
@@ -444,6 +447,17 @@ export function CourseManager({
         </Badge>
       </Popover>
       <Button disabled={isSaving || isLoading || isCatalogLoading} icon={<RefreshCw size={15} />} onClick={() => void onRefreshCatalog().catch(() => undefined)}>刷新</Button>
+      {canManageCourses && (
+        <BatchCourseImporter
+          adminToken={adminToken}
+          categoryGroups={categoryGroups}
+          categories={categories}
+          initialCategoryId={selectedCategoryId}
+          isSaving={isSaving}
+          onNotify={onNotify}
+          onRefreshCatalog={onRefreshCatalog}
+        />
+      )}
       {canManageCourses && <Tooltip title={createCourseDisabled ? createCourseDisabledReason : undefined}>
         <span>
           <Button disabled={createCourseDisabled} icon={<Plus size={15} />} onClick={() => onCreateCourse(createTargetCategoryId)} type="primary">新建课程</Button>

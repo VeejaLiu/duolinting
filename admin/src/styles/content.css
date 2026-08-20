@@ -2536,3 +2536,21 @@
 .task-sub-card .ant-card-head {
   min-height: 40px;
 }
+
+/* 课程管理页「批量上传」弹窗 */
+.batch-importer-toolbar {
+  margin-bottom: 12px;
+}
+
+.batch-importer-table {
+  min-width: 0;
+}
+
+.batch-importer-table .ant-table-cell {
+  padding-inline: 10px;
+  vertical-align: top;
+}
+
+.batch-importer-table .ant-tag {
+  margin-inline-end: 0;
+}
