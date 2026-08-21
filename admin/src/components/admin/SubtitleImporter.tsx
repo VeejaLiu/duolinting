@@ -1,4 +1,12 @@
-import { Minus, Plus, Sparkles, Upload } from 'lucide-react'
+import {
+  Clipboard,
+  ClipboardPaste,
+  Download,
+  Minus,
+  Plus,
+  Sparkles,
+  Upload,
+} from 'lucide-react'
 import { useRef } from 'react'
 import type {
   SubtitleDraftAnalysis,
@@ -19,6 +27,11 @@ type SubtitleImporterProps = {
   onCopySegmentPrompt: () => void
   // 当前是否有可复制的英文字幕内容；无内容时禁用复制按钮。
   copySegmentPromptDisabled: boolean
+  onDltjsonCopy: () => void
+  onDltjsonExport: () => void
+  onDltjsonImport: (file: File) => void
+  onDltjsonPaste: () => void
+  isModal?: boolean
 }
 
 export function SubtitleImporter({
@@ -33,21 +46,31 @@ export function SubtitleImporter({
   onTimeOffsetChange,
   onCopySegmentPrompt,
   copySegmentPromptDisabled,
+  onDltjsonCopy,
+  onDltjsonExport,
+  onDltjsonImport,
+  onDltjsonPaste,
+  isModal = false,
 }: SubtitleImporterProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const dltjsonFileInputRef = useRef<HTMLInputElement | null>(null)
 
   const adjustOffset = (delta: number) => {
     onTimeOffsetChange(timeOffset + delta)
   }
 
   return (
-    <details className="subtitle-import">
+    <details className="subtitle-import" open={isModal || undefined}>
       <summary>
-        <span className="subtitle-import-title">导入 SRT / VTT / ASS / LRC 草稿</span>
+        <span className="subtitle-import-title">字幕导入 / 导出</span>
         <span className="subtitle-import-formats">SRT · VTT · ASS · LRC · TXT</span>
       </summary>
 
       <div className="subtitle-import-body">
+        <div className="subtitle-import-intro">
+          <strong>导入字幕并生成逐句时间轴</strong>
+          <span>支持字幕文件、文本粘贴和 dltjson，导入后仍可在波形上继续校准。</span>
+        </div>
         <div className="subtitle-import-tools">
           <button
             className="command-button"
@@ -161,6 +184,63 @@ export function SubtitleImporter({
           >
             导入为逐句字幕
           </button>
+        </div>
+
+        <div className="subtitle-import-export">
+          <div className="subtitle-import-section-title">
+            <strong>dltjson</strong>
+            <span>保存和迁移完整字幕编辑数据</span>
+          </div>
+          <div className="dltjson-actions">
+            <button
+              className="mini-command secondary"
+              onClick={onDltjsonCopy}
+              title="复制 dltjson 到剪切板，不支持时会打开手动复制面板"
+              type="button"
+            >
+              <Clipboard size={14} aria-hidden="true" />
+              复制 dltjson
+            </button>
+            <button
+              className="mini-command secondary"
+              onClick={onDltjsonPaste}
+              title="打开 dltjson 粘贴输入框"
+              type="button"
+            >
+              <ClipboardPaste size={14} aria-hidden="true" />
+              粘贴 dltjson
+            </button>
+            <button
+              className="mini-command"
+              onClick={onDltjsonExport}
+              title="导出为 dltjson 文件"
+              type="button"
+            >
+              <Download size={14} aria-hidden="true" />
+              导出 dltjson
+            </button>
+            <button
+              className="mini-command secondary"
+              onClick={() => dltjsonFileInputRef.current?.click()}
+              type="button"
+            >
+              <Upload size={14} aria-hidden="true" />
+              导入 dltjson
+            </button>
+            <input
+              ref={dltjsonFileInputRef}
+              accept=".dltjson,.htjson,.json"
+              hidden
+              type="file"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) {
+                  onDltjsonImport(file)
+                  event.target.value = ''
+                }
+              }}
+            />
+          </div>
         </div>
       </div>
     </details>

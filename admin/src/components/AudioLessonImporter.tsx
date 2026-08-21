@@ -1,4 +1,3 @@
-import { Scissors } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type {
@@ -14,6 +13,7 @@ import type { AdminNoticeTone } from './admin/AdminFeedback'
 import { MediaCourseForm } from './admin/MediaCourseForm'
 import { MediaWaveform } from './admin/MediaWaveform'
 import { SubtitleImporter } from './admin/SubtitleImporter'
+import { SubtitleEditorInspector } from './admin/SubtitleEditorInspector'
 import {
   apiClient,
   resolveApiUrl,
@@ -289,8 +289,6 @@ export function AudioLessonImporter({
   const [draftLines, setDraftLines] = useState<DraftLine[]>([
     createEmptyDraftLine(),
   ])
-  // 左侧基础信息栏折叠状态：折叠后侧栏收成窄图标轨，主编辑区占满横向空间。
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const currentImporterSnapshot = useMemo(
     () => createImporterSnapshot(courseForm, draftLines, subtitleDraft),
     [courseForm, draftLines, subtitleDraft],
@@ -496,8 +494,9 @@ export function AudioLessonImporter({
     setMediaFile(null)
     setLocalMediaUrl(resolveApiUrl(exercise.audioUrl))
     setUploadedMediaUrl(exercise.audioUrl)
-    // 课程详情接口不返回媒体大小，载入已有课程时重置为空
-    setMediaSize(null)
+    // 课程详情接口会按媒体对象统计文件大小；编辑已有课程时保留该元数据，
+    // 让工作台可以完整展示当前媒体，而不是退化成“媒体已加载”的笼统提示。
+    setMediaSize(exercise.mediaSize ?? null)
     setSubtitleDraft('')
     setSubtitleAnalysis(emptySubtitleAnalysis)
     setSubtitleImportMode('single')
@@ -1193,30 +1192,22 @@ export function AudioLessonImporter({
 
   return (
     <section className="admin-section import-workbench">
-      <div className="panel-title">
-        <Scissors size={17} aria-hidden="true" />
-        <span>真实媒体制课工作台</span>
-      </div>
-
       <div
-        className={
-          isSidebarCollapsed ? 'import-layout sidebar-collapsed' : 'import-layout'
-        }
+        className="import-layout"
       >
         <MediaCourseForm
           adminToken={adminToken}
           categoriesByGroup={categoriesByGroup}
           courseForm={courseForm}
           isSaving={isSaving || isSubmittingSubtitleDraft}
-          isSidebarCollapsed={isSidebarCollapsed}
           isSubtitleContributor={adminRole === 'subtitle_contributor'}
-          onToggleSidebar={() => setIsSidebarCollapsed((current) => !current)}
           saveDisabledReason={saveDisabledReason}
           localMediaUrl={localMediaUrl}
           mediaSize={mediaSize}
           mediaFile={mediaFile}
           mediaUploadProgress={mediaUploadProgress}
           mediaRef={mediaRef}
+          previewLines={draftLines}
           onNotify={onStatusChange}
           statusBar={
             <div className="admin-footer media-workbench-status">
@@ -1247,6 +1238,14 @@ export function AudioLessonImporter({
               </span>
             </div>
           }
+          subtitleEditor={
+            <SubtitleEditorInspector
+              activeLineIndex={activeLineIndex}
+              draftLines={draftLines}
+              onTranslateSingle={handleTranslateSingleLine}
+              onUpdateLine={updateLine}
+            />
+          }
           subtitleImporter={
             <SubtitleImporter
               analysis={subtitleAnalysis}
@@ -1262,6 +1261,13 @@ export function AudioLessonImporter({
               onTimeOffsetChange={setSubtitleTimeOffset}
               onCopySegmentPrompt={() => void handleCopySegmentPrompt()}
               copySegmentPromptDisabled={!draftLines.some((line) => line.text.trim())}
+              onDltjsonCopy={handleDltjsonCopyToClipboard}
+              onDltjsonExport={handleDltjsonExport}
+              onDltjsonImport={(file) => {
+                void handleDltjsonImport(file)
+              }}
+              onDltjsonPaste={handleDltjsonPasteFromClipboard}
+              isModal
             />
           }
           waveform={
@@ -1270,6 +1276,7 @@ export function AudioLessonImporter({
               draftLines={draftLines}
               mediaRef={mediaRef}
               sourceUrl={localMediaUrl}
+              showInspector={false}
               onActiveLineChange={setActiveLineIndex}
               onAddLine={addLineAfterActive}
               isTranslating={isTranslating}
@@ -1297,12 +1304,6 @@ export function AudioLessonImporter({
           onCourseFormChange={setCourseForm}
           clipboardPanel={clipboardPanel}
           onClipboardPanelChange={setClipboardPanel}
-          onDltjsonCopy={handleDltjsonCopyToClipboard}
-          onDltjsonExport={handleDltjsonExport}
-          onDltjsonImport={(file) => {
-            void handleDltjsonImport(file)
-          }}
-          onDltjsonPaste={handleDltjsonPasteFromClipboard}
           onManualDltjsonImport={handleManualDltjsonImport}
           onFileChange={(file) => {
             void handleFileChange(file)
