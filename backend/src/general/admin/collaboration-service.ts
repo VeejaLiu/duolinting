@@ -1353,23 +1353,39 @@ export async function listExerciseSubtitleDrafts(
     return rows.map(toSubtitleDraft);
 }
 
-/** 学习端负责人可读取自己课程的最新工作稿，普通学习者永远不可见。 */
+/**
+ * 学习端负责人可读取自己课程的协作字幕，普通学习者永远不可见。
+ * 校对人看自己的 editing/submitted/returned 工作稿；二审人只能看提交时
+ * 指定给自己的 submitted 稿件，避免把尚未送审的个人修改提前暴露给二审人。
+ */
 export async function getPreviewSubtitleDraftForLearner(exerciseId: number, learnerUserId: number | undefined) {
     if (!learnerUserId) return undefined;
     const rows = await doRawQuery<SubtitleDraftRow>({
         query: `
-            select drafts.id, drafts.exercise_id, drafts.admin_user_id, admins.display_name,
+            select drafts.id, drafts.exercise_id, drafts.admin_user_id, contributors.display_name,
                    drafts.transcript_json, drafts.status, drafts.review_note,
                    drafts.submitted_at, drafts.updated_at
             from exercise_subtitle_drafts drafts
-            inner join admin_users admins on admins.id = drafts.admin_user_id
+            inner join admin_users contributors on contributors.id = drafts.admin_user_id
+            inner join admin_users preview_admins
+              on preview_admins.learner_user_id = :learnerUserId
             inner join exercise_workflow_assignees assignees
               on assignees.exercise_id = drafts.exercise_id
-             and assignees.admin_user_id = admins.id
+             and assignees.admin_user_id = preview_admins.id
              and assignees.workflow_role in ('proofreader', 'second_reviewer')
             where drafts.exercise_id = :exerciseId
-              and admins.learner_user_id = :learnerUserId
-              and drafts.status in ('editing', 'submitted', 'returned')
+              and (
+                (
+                  assignees.workflow_role = 'proofreader'
+                  and drafts.admin_user_id = preview_admins.id
+                  and drafts.status in ('editing', 'submitted', 'returned')
+                )
+                or (
+                  assignees.workflow_role = 'second_reviewer'
+                  and drafts.reviewer_admin_user_id = preview_admins.id
+                  and drafts.status = 'submitted'
+                )
+              )
             order by drafts.updated_at desc
             limit 1
         `,
