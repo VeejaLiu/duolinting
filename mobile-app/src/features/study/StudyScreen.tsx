@@ -1,5 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
+import { useCallback, useEffect, useState } from 'react'
 import { View, useWindowDimensions } from 'react-native'
 import {
   createLineProgress,
@@ -122,6 +122,16 @@ export function StudyScreen() {
     exercise,
     playbackRate: progress?.playbackRate ?? 1,
   })
+
+  // Android 返回键/返回手势会先让当前路由失焦，再卸载页面。提前暂停可让
+  // expo-video 在自动释放 native player 前完成停止，避免卸载期间的竞态异常。
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        pause()
+      }
+    }, [pause]),
+  )
 
   useEffect(() => {
     if (stage !== 'review') {
@@ -317,6 +327,8 @@ export function StudyScreen() {
           title={exercise.title}
           workflowCredits={exercise.workflowCredits}
           onBack={() => {
+            // 顶部返回按钮不经过系统返回事件，因此同样先暂停再切换路由。
+            pause()
             // 从生词页/复习卡等页面进入时历史栈里有上一页，直接返回；
             // 直接输入 URL 进入（无历史）时兜底回首页
             if (router.canGoBack()) {

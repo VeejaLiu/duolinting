@@ -1,25 +1,21 @@
-import * as Dialog from '@radix-ui/react-dialog'
 import * as Select from '@radix-ui/react-select'
-import { Progress } from 'antd'
+import { Button, Drawer, Progress } from 'antd'
 import {
   Check,
   ChevronDown,
-  Clipboard,
-  ClipboardPaste,
-  Download,
   FileAudio,
+  FileText,
   FileVideo,
   FolderTree,
-  PanelLeftClose,
-  PanelLeftOpen,
   Save,
   Send,
-  Upload,
+  Sparkles,
 } from 'lucide-react'
 import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
   type SyntheticEvent,
@@ -33,13 +29,15 @@ import type {
 } from '@duolinting/shared'
 import type { AdminNoticeTone } from './AdminFeedback'
 import { CoverImageField } from './CoverImageField'
-import type { FileUploadProgress } from '../../lib/apiClient'
-import { formatDurationLabel } from '../../lib/mediaDraftTools'
+import { apiClient, type FileUploadProgress } from '../../lib/apiClient'
+import { formatDurationLabel, type DraftLine } from '../../lib/mediaDraftTools'
 
 type ClipboardPanelState =
   | { mode: 'hidden' }
-  | { mode: 'copy'; content: string }
+  | { mode: 'copy'; content: string; label?: string }
   | { mode: 'paste'; content: string }
+
+type MediaEditorResizeMode = 'columns' | 'rows'
 
 /**
  * 格式化文件大小为人类可读的字符串
@@ -92,7 +90,6 @@ type MediaCourseFormProps = {
   }>
   courseForm: CreateExerciseRequest
   isSaving: boolean
-  isSidebarCollapsed: boolean
   isSubtitleContributor?: boolean
   saveDisabledReason?: string
   localMediaUrl: string
@@ -100,26 +97,30 @@ type MediaCourseFormProps = {
   mediaFile: File | null
   mediaUploadProgress: FileUploadProgress | null
   mediaRef: React.MutableRefObject<HTMLMediaElement | null>
+  previewLines?: DraftLine[]
   statusBar?: ReactNode
+  subtitleEditor?: ReactNode
   subtitleImporter?: ReactNode
   waveform?: ReactNode
   onCourseFormChange: React.Dispatch<React.SetStateAction<CreateExerciseRequest>>
   clipboardPanel: ClipboardPanelState
   onClipboardPanelChange: React.Dispatch<React.SetStateAction<ClipboardPanelState>>
-  onDltjsonCopy: () => void
-  onDltjsonExport: () => void
-  onDltjsonImport: (file: File) => void
-  onDltjsonPaste: () => void
   onManualDltjsonImport: () => void
   onNotify: (message: string, tone?: AdminNoticeTone) => void
   onFileChange: (file: File | null) => void
   onSaveLesson: () => void
   onSubmitSubtitleDraft?: () => void
-  onToggleSidebar: () => void
 }
 
 /* ── 通用 Radix Select 封装 ── */
 type SelectOption = { value: string; label: string }
+
+const courseLocalizationLocales = ['en-US', 'th-TH', 'ja-JP'] as const
+const courseLocalizationLabels = {
+  'en-US': '英语',
+  'th-TH': '泰语',
+  'ja-JP': '日语',
+}
 
 function FieldSelect({
   label,
@@ -168,7 +169,6 @@ export function MediaCourseForm({
   categoriesByGroup,
   courseForm,
   isSaving,
-  isSidebarCollapsed,
   isSubtitleContributor = false,
   saveDisabledReason,
   localMediaUrl,
@@ -176,24 +176,31 @@ export function MediaCourseForm({
   mediaFile,
   mediaUploadProgress,
   mediaRef,
+  previewLines = [],
   statusBar,
+  subtitleEditor,
   subtitleImporter,
   waveform,
   onCourseFormChange,
   clipboardPanel,
   onClipboardPanelChange,
-  onDltjsonCopy,
-  onDltjsonExport,
-  onDltjsonImport,
-  onDltjsonPaste,
   onManualDltjsonImport,
   onNotify,
   onFileChange,
   onSaveLesson,
   onSubmitSubtitleDraft,
-  onToggleSidebar,
 }: MediaCourseFormProps) {
   const [localizationLocale, setLocalizationLocale] = useState<ContentLocale>('en-US')
+  const [previewTime, setPreviewTime] = useState(0)
+  const [isCourseMetaOpen, setIsCourseMetaOpen] = useState(false)
+  const [isSubtitleImporterOpen, setIsSubtitleImporterOpen] = useState(false)
+  const [isGeneratingLocalizations, setIsGeneratingLocalizations] = useState(false)
+  const [videoColumnPercent, setVideoColumnPercent] = useState(66)
+  const [waveformHeight, setWaveformHeight] = useState(190)
+  const [activeResizeMode, setActiveResizeMode] = useState<MediaEditorResizeMode | null>(null)
+  const mediaEditorUpperRef = useRef<HTMLDivElement | null>(null)
+  const mediaEditorWorkspaceRef = useRef<HTMLDivElement | null>(null)
+  const resizeModeRef = useRef<MediaEditorResizeMode | null>(null)
   const localizedContent = courseForm.localizations?.[localizationLocale] ?? {}
   const updateLocalizedContent = (patch: { title?: string; summary?: string }) =>
     onCourseFormChange((current) => ({
@@ -206,13 +213,66 @@ export function MediaCourseForm({
         },
       },
     }))
-  const currentMediaLabel = mediaFile
-    ? courseForm.mediaType === 'video' ? '新上传视频' : '新上传音频'
-    : localMediaUrl
-      ? '当前媒体已加载，可重新选择替换'
-      : '选择一段真实音频或视频'
+
+  const generateCourseLocalizations = async () => {
+    const sourceTitle = courseForm.title.trim()
+    const sourceSummary = courseForm.summary.trim()
+    if (!sourceTitle) {
+      onNotify('请先填写课程标题', 'error')
+      return
+    }
+
+    setIsGeneratingLocalizations(true)
+    try {
+      const nextLocalizations = { ...courseForm.localizations }
+      // 与目录多语言生成保持一致：按语言串行请求，标题和摘要在同一批次返回，
+      // 既降低免费模型并发压力，也保证两项内容按原下标对应写回。
+      for (const locale of courseLocalizationLocales) {
+        const sourceLines = sourceSummary ? [sourceTitle, sourceSummary] : [sourceTitle]
+        const result = await apiClient.translateLines(
+          sourceLines,
+          adminToken,
+          'zh-CN',
+          locale,
+          750,
+        )
+        if (result.failedIndexes.length > 0 || !result.translations[0]?.trim()) {
+          throw new Error(`${courseLocalizationLabels[locale]}翻译失败`)
+        }
+        nextLocalizations[locale] = {
+          ...nextLocalizations[locale],
+          title: result.translations[0].trim(),
+          // 默认摘要可留空；只有填写后才请求并覆盖该语言的摘要。
+          ...(sourceSummary ? { summary: (result.translations[1] ?? '').trim() } : {}),
+        }
+      }
+      onCourseFormChange((current) => ({ ...current, localizations: nextLocalizations }))
+      onNotify('已生成英语、泰语和日语的课程标题与摘要', 'success')
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : 'AI 多语言生成失败', 'error')
+    } finally {
+      setIsGeneratingLocalizations(false)
+    }
+  }
+  const currentMediaName = mediaFile?.name ||
+    (courseForm.audioUrl ? courseForm.source.trim() || '已加载媒体' : '尚未选择媒体')
+  const currentMediaAddress = courseForm.audioUrl
+    ? courseForm.audioUrl
+    : mediaFile
+      ? '本地文件（上传完成后生成媒体地址）'
+      : '尚未生成媒体地址'
+  const currentMediaTypeLabel = courseForm.mediaType === 'video' ? '视频' : '音频'
+  const currentMediaStatusLabel = mediaUploadProgress
+    ? '正在上传'
+    : courseForm.audioUrl
+      ? mediaFile
+        ? '已上传，可重新选择替换'
+        : '已加载，可重新选择替换'
+      : mediaFile
+        ? '本地预览，等待上传'
+        : '等待选择'
   const currentMediaSizeLabel =
-    typeof mediaSize === 'number' && mediaSize > 0 ? formatFileSize(mediaSize) : ''
+    typeof mediaSize === 'number' && mediaSize > 0 ? formatFileSize(mediaSize) : '未知'
   const mediaUploadLabel = mediaUploadProgress
     ? mediaUploadProgress.percent === 100
       ? '文件已发送，正在等待服务器确认'
@@ -296,43 +356,168 @@ export function MediaCourseForm({
     [courseForm.mediaType, localMediaUrl],
   )
 
+  // 连续播放预览只展示当前时间范围内的字幕，帮助审核者快速发现字幕提前消失或吞掉句尾的问题。
+  // 逐句试听与波形上的开始/结束点编辑仍然是最终精确校准手段。
+  const previewLine = previewLines.find(
+    (line) =>
+      line.text.trim() &&
+      previewTime >= line.start &&
+      previewTime < line.end,
+  )
+
+  const mediaReplaceControl = (
+    <label className="file-drop media-replace-button">
+      {courseForm.mediaType === 'video' ? (
+        <FileVideo size={20} aria-hidden="true" />
+      ) : (
+        <FileAudio size={20} aria-hidden="true" />
+      )}
+      <span className="media-replace-text">
+        <span className="media-replace-name" title={currentMediaName}>
+          {currentMediaName}
+        </span>
+        <span className="media-file-address" title={currentMediaAddress}>
+          地址：{currentMediaAddress}
+        </span>
+        <span className="media-file-meta">
+          类型：{currentMediaTypeLabel} · 大小：{currentMediaSizeLabel}
+        </span>
+        <span className="media-file-status">状态：{currentMediaStatusLabel}</span>
+        {mediaUploadProgress && (
+          <span className="media-upload-progress" aria-live="polite">
+            <span>{mediaUploadLabel}</span>
+            {mediaUploadSizeLabel && <span>{mediaUploadSizeLabel}</span>}
+            <Progress
+              percent={mediaUploadProgress.percent ?? 0}
+              showInfo={false}
+              size="small"
+              status={mediaUploadProgress.percent === 100 ? 'active' : 'normal'}
+            />
+          </span>
+        )}
+      </span>
+      <input
+        accept="audio/*,video/*"
+        disabled={isSubtitleContributor || isSaving || Boolean(mediaUploadProgress)}
+        type="file"
+        onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
+      />
+    </label>
+  )
+
+  const beginMediaEditorResize = (
+    mode: MediaEditorResizeMode,
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) {
+      return
+    }
+    event.preventDefault()
+    resizeModeRef.current = mode
+    setActiveResizeMode(mode)
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const updateMediaEditorResize = (
+    mode: MediaEditorResizeMode,
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    if (resizeModeRef.current !== mode) {
+      return
+    }
+
+    if (mode === 'columns') {
+      const editorUpper = mediaEditorUpperRef.current
+      if (!editorUpper) {
+        return
+      }
+      const bounds = editorUpper.getBoundingClientRect()
+      if (bounds.width <= 0) {
+        return
+      }
+
+      const rawPercent = ((event.clientX - bounds.left) / bounds.width) * 100
+      // 右侧编辑区保留至少约 300px；宽屏时限制最大比例，避免视频区把字幕区挤得过窄。
+      const minimumPercent = Math.min(42, ((bounds.width - 360) / bounds.width) * 100)
+      const maximumPercent = Math.min(78, ((bounds.width - 308) / bounds.width) * 100)
+      const nextPercent = Math.min(
+        Math.max(rawPercent, Math.max(28, minimumPercent)),
+        Math.max(32, maximumPercent),
+      )
+      setVideoColumnPercent(Math.round(nextPercent))
+      return
+    }
+
+    const workspace = mediaEditorWorkspaceRef.current
+    if (!workspace) {
+      return
+    }
+    const bounds = workspace.getBoundingClientRect()
+    if (bounds.height <= 0) {
+      return
+    }
+
+    const rawHeight = bounds.bottom - event.clientY
+    const maximumHeight = Math.max(150, Math.min(360, bounds.height - 160))
+    setWaveformHeight(Math.round(Math.min(Math.max(rawHeight, 140), maximumHeight)))
+  }
+
+  const finishMediaEditorResize = (
+    mode: MediaEditorResizeMode,
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    if (resizeModeRef.current !== mode) {
+      return
+    }
+    resizeModeRef.current = null
+    setActiveResizeMode(null)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const handleMediaEditorResizeKeyDown = (
+    mode: MediaEditorResizeMode,
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ) => {
+    const step = event.shiftKey ? 5 : 2
+    if (mode === 'columns' && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+      event.preventDefault()
+      setVideoColumnPercent((current) =>
+        Math.min(78, Math.max(28, current + (event.key === 'ArrowRight' ? step : -step))),
+      )
+      return
+    }
+    if (mode === 'rows' && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+      event.preventDefault()
+      setWaveformHeight((current) =>
+        Math.min(360, Math.max(140, current + (event.key === 'ArrowUp' ? step * 4 : -step * 4))),
+      )
+    }
+  }
+
+  const mediaEditorWorkspaceStyle = {
+    '--waveform-row-size': `${waveformHeight}px`,
+  } as React.CSSProperties
+  const mediaEditorUpperStyle = {
+    // 用 fr 比例分配左右轨道，而不是把视频区写成百分比上限。
+    // 百分比和字幕区的最小宽度叠加后，在窄 CSS 视口中可能把右侧轨道压成一条窄缝；
+    // 两个 fr 值会在保留视频区/编辑区最小宽度的前提下，把剩余空间完整分配掉。
+    '--video-column-size': `${videoColumnPercent}fr`,
+    '--subtitle-column-size': `${100 - videoColumnPercent}fr`,
+  } as React.CSSProperties
+
   return (
     <>
-      <aside
-        className={
-          isSidebarCollapsed
-            ? 'import-meta-sidebar collapsed'
-            : 'import-meta-sidebar'
-        }
-        aria-label="课程元数据"
+      <Drawer
+        className="course-meta-drawer"
+        title="课程信息"
+        placement="left"
+        open={isCourseMetaOpen}
+        width={380}
+        onClose={() => setIsCourseMetaOpen(false)}
       >
-        {isSidebarCollapsed ? (
-          // 折叠态：只渲染一条窄图标轨，主编辑区占满剩余横向空间。
-          <button
-            className="sidebar-rail-toggle"
-            onClick={onToggleSidebar}
-            title="展开课程信息"
-            type="button"
-          >
-            <PanelLeftOpen size={16} aria-hidden="true" />
-          </button>
-        ) : (
         <section className="course-meta-panel">
-          <div className="course-meta-header">
-            <span className="course-meta-title">
-              <FolderTree size={16} aria-hidden="true" />
-              <strong>课程信息</strong>
-            </span>
-            <button
-              className="sidebar-collapse-toggle"
-              onClick={onToggleSidebar}
-              title="折叠课程信息，腾出横向空间"
-              type="button"
-            >
-              <PanelLeftClose size={16} aria-hidden="true" />
-            </button>
-          </div>
-
           <fieldset
             className="form-grid compact-form-grid"
             disabled={isSubtitleContributor}
@@ -410,6 +595,11 @@ export function MediaCourseForm({
                 }
               />
             </label>
+
+            <div className="field wide media-meta-field">
+              <span>媒体文件</span>
+              {mediaReplaceControl}
+            </div>
 
             <FieldSelect
               label="状态"
@@ -489,6 +679,19 @@ export function MediaCourseForm({
                 { value: 'ja-JP', label: '日本語' },
               ]}
             />
+            <div className="field course-localization-ai-action">
+              <span>AI 多语言</span>
+              <button
+                className="mini-command secondary"
+                disabled={isSaving || isGeneratingLocalizations || !courseForm.title.trim()}
+                onClick={() => void generateCourseLocalizations()}
+                type="button"
+              >
+                <Sparkles size={14} aria-hidden="true" />
+                {isGeneratingLocalizations ? '生成中…' : 'AI 填充全部语言'}
+              </button>
+              <small>以默认中文标题和摘要为翻译源</small>
+            </div>
             <label className="field">
               <span>本地化标题</span>
               <input
@@ -514,6 +717,8 @@ export function MediaCourseForm({
                 adminToken={adminToken}
                 label="课程封面"
                 value={courseForm.coverImageUrl ?? ''}
+                // 视频仅在弹窗内由浏览器解码；截帧图片仍走 CoverImageField 既有的前端压缩上传。
+                videoSourceUrl={courseForm.mediaType === 'video' ? localMediaUrl : undefined}
                 disabled={isSaving}
                 onChange={(url) =>
                   onCourseFormChange((current) => ({
@@ -526,171 +731,175 @@ export function MediaCourseForm({
             </label>
           </fieldset>
         </section>
-        )}
-      </aside>
+      </Drawer>
 
       <div className="import-main">
-        {/* 顶部工具栏：课程标题 + 保存按钮，侧栏折叠后也始终可见 */}
+        {/* 顶部工具栏：课程标题、基础信息入口和保存按钮 */}
         <div className="import-main-toolbar">
-          <strong className="import-main-title">
-            {courseForm.title.trim() || '未填写标题'}
-          </strong>
-          <button
-            className="command-button meta-save-command"
-            disabled={isSaving || Boolean(saveDisabledReason)}
-            onClick={onSaveLesson}
-            title={saveDisabledReason}
-            type="button"
-          >
-            <Save size={16} aria-hidden="true" />
-            {isSaving ? '保存中' : isSubtitleContributor ? '保存校对草稿' : '保存'}
-          </button>
-          {isSubtitleContributor && onSubmitSubtitleDraft && (
+          <div className="import-main-title-group">
+            <strong className="import-main-title">
+              {courseForm.title.trim() || '未填写标题'}
+            </strong>
+            <Button
+              className="course-meta-trigger"
+              icon={<FolderTree size={15} aria-hidden="true" />}
+              size="small"
+              title="编辑课程基础信息"
+              type="text"
+              onClick={() => setIsCourseMetaOpen(true)}
+            >
+              基础信息
+            </Button>
+          </div>
+          <div className="import-main-toolbar-actions">
+            <button
+              className="command-button secondary subtitle-import-trigger"
+              onClick={() => setIsSubtitleImporterOpen(true)}
+              type="button"
+            >
+              <FileText size={16} aria-hidden="true" />
+              字幕导入 / 导出
+            </button>
             <button
               className="command-button meta-save-command"
               disabled={isSaving || Boolean(saveDisabledReason)}
-              onClick={onSubmitSubtitleDraft}
+              onClick={onSaveLesson}
               title={saveDisabledReason}
               type="button"
             >
-              <Send size={16} aria-hidden="true" />
-              提交校对
+              <Save size={16} aria-hidden="true" />
+              {isSaving ? '保存中' : isSubtitleContributor ? '保存校对草稿' : '保存'}
             </button>
-          )}
-        </div>
-
-        <div className="media-preview-row">
-          <label className="file-drop media-replace-button">
-            {courseForm.mediaType === 'video' ? (
-              <FileVideo size={24} aria-hidden="true" />
-            ) : (
-              <FileAudio size={24} aria-hidden="true" />
+            {isSubtitleContributor && onSubmitSubtitleDraft && (
+              <button
+                className="command-button meta-save-command"
+                disabled={isSaving || Boolean(saveDisabledReason)}
+                onClick={onSubmitSubtitleDraft}
+                title={saveDisabledReason}
+                type="button"
+              >
+                <Send size={16} aria-hidden="true" />
+                提交校对
+              </button>
             )}
-            <span className="media-replace-text">
-              <span className="media-replace-name">{currentMediaLabel}</span>
-              {currentMediaSizeLabel && (
-                <span className="media-file-size">{currentMediaSizeLabel}</span>
-              )}
-              {mediaUploadProgress && (
-                <span className="media-upload-progress" aria-live="polite">
-                  <span>{mediaUploadLabel}</span>
-                  {mediaUploadSizeLabel && <span>{mediaUploadSizeLabel}</span>}
-                  <Progress
-                    percent={mediaUploadProgress.percent ?? 0}
-                    showInfo={false}
-                    size="small"
-                    status={mediaUploadProgress.percent === 100 ? 'active' : 'normal'}
-                  />
-                </span>
-              )}
-            </span>
-            <input
-              accept="audio/*,video/*"
-              disabled={isSubtitleContributor || isSaving || Boolean(mediaUploadProgress)}
-              type="file"
-              onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
-            />
-          </label>
-
-          {localMediaUrl &&
-            (courseForm.mediaType === 'video' ? (
-              <video
-                ref={setMediaElement}
-                className="media-player video-player"
-                controls
-                playsInline
-                src={localMediaUrl}
-                onError={handleMediaError}
-                onLoadedMetadata={(event) => updateDuration(event.currentTarget.duration)}
-              />
-            ) : (
-              <audio
-                ref={setMediaElement}
-                className="media-player audio-player"
-                controls
-                src={localMediaUrl}
-                onError={handleMediaError}
-                onLoadedMetadata={(event) => updateDuration(event.currentTarget.duration)}
-              />
-            ))}
+          </div>
         </div>
 
-        <div className="media-sync-stack">
-          {waveform}
+        <Drawer
+          className="subtitle-import-drawer"
+          title="字幕导入 / 导出"
+          placement="right"
+          open={isSubtitleImporterOpen}
+          width={560}
+          onClose={() => setIsSubtitleImporterOpen(false)}
+        >
           {subtitleImporter}
-        </div>
+        </Drawer>
 
-        <div className="workbench-bottom-actions">
-          <div className="dltjson-actions">
-            <button
-              className="mini-command secondary"
-              onClick={onDltjsonCopy}
-              type="button"
-              title="复制 dltjson 到剪切板，不支持时会打开手动复制面板"
-            >
-              <Clipboard size={14} aria-hidden="true" />
-              复制 dltjson
-            </button>
-            <button
-              className="mini-command secondary"
-              onClick={onDltjsonPaste}
-              type="button"
-              title="打开 dltjson 粘贴输入框"
-            >
-              <ClipboardPaste size={14} aria-hidden="true" />
-              粘贴 dltjson
-            </button>
-            <button
-              className="mini-command"
-              onClick={onDltjsonExport}
-              type="button"
-              title="导出为 dltjson 文件"
-            >
-              <Download size={14} aria-hidden="true" />
-              导出 dltjson
-            </button>
-            <label className="mini-command file-label">
-              <Upload size={14} aria-hidden="true" />
-              导入 dltjson
-              <input
-                accept=".dltjson,.htjson,.json"
-                type="file"
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  if (file) {
-                    onDltjsonImport(file)
-                    event.target.value = ''
-                  }
-                }}
-              />
-            </label>
+        <div
+          ref={mediaEditorWorkspaceRef}
+          className={activeResizeMode ? 'media-editor-workspace is-resizing' : 'media-editor-workspace'}
+          style={mediaEditorWorkspaceStyle}
+        >
+          <div
+            ref={mediaEditorUpperRef}
+            className="media-editor-upper"
+            style={mediaEditorUpperStyle}
+          >
+            <div className="media-editor-video-column">
+              {localMediaUrl &&
+                (courseForm.mediaType === 'video' ? (
+                  <div className="video-preview-stage">
+                    <video
+                      ref={setMediaElement}
+                      className="media-player video-player"
+                      controls
+                      playsInline
+                      src={localMediaUrl}
+                      onError={handleMediaError}
+                      onTimeUpdate={(event) => setPreviewTime(event.currentTarget.currentTime)}
+                      onLoadedMetadata={(event) => {
+                        setPreviewTime(event.currentTarget.currentTime)
+                        updateDuration(event.currentTarget.duration)
+                      }}
+                    />
+                    {previewLine && (
+                      <div className="video-subtitle-preview" aria-live="polite">
+                        <strong>{previewLine.text}</strong>
+                        {previewLine.translations['zh-CN'] && (
+                          <span>{previewLine.translations['zh-CN']}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <audio
+                    ref={setMediaElement}
+                    className="media-player audio-player"
+                    controls
+                    src={localMediaUrl}
+                    onError={handleMediaError}
+                    onTimeUpdate={(event) => setPreviewTime(event.currentTarget.currentTime)}
+                    onLoadedMetadata={(event) => updateDuration(event.currentTarget.duration)}
+                  />
+                ))}
+            </div>
+            <div
+              aria-label="调整视频区与字幕编辑区宽度"
+              aria-orientation="vertical"
+              aria-valuemax={78}
+              aria-valuemin={28}
+              aria-valuenow={videoColumnPercent}
+              className={activeResizeMode === 'columns'
+                ? 'media-editor-resizer media-editor-resizer-vertical active'
+                : 'media-editor-resizer media-editor-resizer-vertical'}
+              role="separator"
+              tabIndex={0}
+              onKeyDown={(event) => handleMediaEditorResizeKeyDown('columns', event)}
+              onPointerDown={(event) => beginMediaEditorResize('columns', event)}
+              onPointerMove={(event) => updateMediaEditorResize('columns', event)}
+              onPointerUp={(event) => finishMediaEditorResize('columns', event)}
+              onPointerCancel={(event) => finishMediaEditorResize('columns', event)}
+            />
+            {subtitleEditor}
+          </div>
+          <div
+            aria-label="调整上方工作区与波形区高度"
+            aria-orientation="horizontal"
+            aria-valuemax={360}
+            aria-valuemin={140}
+            aria-valuenow={waveformHeight}
+            className={activeResizeMode === 'rows'
+              ? 'media-editor-resizer media-editor-resizer-horizontal active'
+              : 'media-editor-resizer media-editor-resizer-horizontal'}
+            role="separator"
+            tabIndex={0}
+            onKeyDown={(event) => handleMediaEditorResizeKeyDown('rows', event)}
+            onPointerDown={(event) => beginMediaEditorResize('rows', event)}
+            onPointerMove={(event) => updateMediaEditorResize('rows', event)}
+            onPointerUp={(event) => finishMediaEditorResize('rows', event)}
+            onPointerCancel={(event) => finishMediaEditorResize('rows', event)}
+          />
+          <div className="media-editor-timeline">
+            {waveform}
           </div>
         </div>
 
         {statusBar}
       </div>
 
-      <Dialog.Root
+      <Drawer
+        className="dltjson-drawer"
+        title={
+          clipboardPanel.mode === 'copy'
+            ? (clipboardPanel.label ?? '复制 dltjson')
+            : '粘贴 dltjson'
+        }
+        placement="right"
         open={isClipboardDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            onClipboardPanelChange({ mode: 'hidden' })
-          }
-        }}
+        width={520}
+        onClose={() => onClipboardPanelChange({ mode: 'hidden' })}
       >
-        <Dialog.Portal>
-          <Dialog.Overlay className="dltjson-dialog-overlay" />
-          <Dialog.Content className="dltjson-dialog-content">
-            <div className="dltjson-dialog-header">
-              <Dialog.Title className="dltjson-dialog-title">
-                {clipboardPanel.mode === 'copy' ? '复制 dltjson' : '粘贴 dltjson'}
-              </Dialog.Title>
-              <Dialog.Close asChild>
-                <button className="mini-command secondary" type="button">
-                  关闭
-                </button>
-              </Dialog.Close>
-            </div>
 
             <textarea
               className="dltjson-manual-textarea"
@@ -719,18 +928,16 @@ export function MediaCourseForm({
               }
             />
 
-            <div className="dltjson-dialog-actions">
-              {clipboardPanel.mode === 'paste' ? (
-                <button className="mini-command" onClick={onManualDltjsonImport} type="button">
-                  导入粘贴内容
-                </button>
-              ) : (
-                <span className="dltjson-dialog-hint">点击文本框可全选后手动复制</span>
-              )}
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+        <div className="dltjson-dialog-actions">
+          {clipboardPanel.mode === 'paste' ? (
+            <button className="mini-command" onClick={onManualDltjsonImport} type="button">
+              导入粘贴内容
+            </button>
+          ) : (
+            <span className="dltjson-dialog-hint">点击文本框可全选后手动复制</span>
+          )}
+        </div>
+      </Drawer>
     </>
   )
 }

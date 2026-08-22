@@ -1,5 +1,5 @@
-import { Clipboard, ImagePlus, LoaderCircle, Upload } from 'lucide-react'
-import { Progress } from 'antd'
+import { Camera, Clipboard, ImagePlus, LoaderCircle, Upload } from 'lucide-react'
+import { Modal, Progress } from 'antd'
 import { useMemo, useRef, useState, type ClipboardEvent } from 'react'
 import type { AdminNoticeTone } from './AdminFeedback'
 import {
@@ -12,6 +12,8 @@ type CoverImageFieldProps = {
   adminToken: string
   label: string
   value: string
+  /** 已加载视频仅在浏览器中解码，用于截取当前画面；不经过任何新增后端处理。 */
+  videoSourceUrl?: string
   disabled?: boolean
   largePreview?: boolean
   onChange: (url: string) => void
@@ -105,6 +107,7 @@ export function CoverImageField({
   adminToken,
   label,
   value,
+  videoSourceUrl,
   disabled,
   largePreview,
   onChange,
@@ -115,7 +118,13 @@ export function CoverImageField({
   const [isImporting, setIsImporting] = useState(false)
   const [uploadProgress, setUploadProgress] =
     useState<FileUploadProgress | null>(null)
+  const [isFrameCaptureOpen, setIsFrameCaptureOpen] = useState(false)
+  const [captureDuration, setCaptureDuration] = useState(0)
+  const [captureTime, setCaptureTime] = useState(0)
+  const [capturedFrame, setCapturedFrame] = useState<File | null>(null)
+  const [capturedFrameUrl, setCapturedFrameUrl] = useState('')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const captureVideoRef = useRef<HTMLVideoElement | null>(null)
 
   const previewClassName = useMemo(
     () => `cover-thumb${largePreview ? ' large' : ''}`,
@@ -124,11 +133,82 @@ export function CoverImageField({
 
   const isBusy = isPreparing || isUploading || isImporting
 
-  const uploadFile = async (file: File | null, successMessage: string) => {
+  const discardCapturedFrame = () => {
+    if (capturedFrameUrl) {
+      URL.revokeObjectURL(capturedFrameUrl)
+    }
+    setCapturedFrame(null)
+    setCapturedFrameUrl('')
+  }
+
+  const closeFrameCapture = () => {
+    setIsFrameCaptureOpen(false)
+    setCaptureDuration(0)
+    setCaptureTime(0)
+    discardCapturedFrame()
+  }
+
+  const openFrameCapture = () => {
+    if (!videoSourceUrl) return
+    discardCapturedFrame()
+    setCaptureDuration(0)
+    setCaptureTime(0)
+    setIsFrameCaptureOpen(true)
+  }
+
+  const seekCaptureVideo = (nextTime: number) => {
+    const video = captureVideoRef.current
+    if (!video || !Number.isFinite(nextTime)) return
+    // 不直接依赖 input 的精度；浏览器会在 seeked 后呈现最接近的可解码视频帧。
+    video.currentTime = Math.min(Math.max(nextTime, 0), Math.max(video.duration || 0, 0))
+    setCaptureTime(nextTime)
+  }
+
+  const captureCurrentVideoFrame = async () => {
+    const video = captureVideoRef.current
+    if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      onNotify('视频画面尚未准备好，请稍候重试', 'error')
+      return
+    }
+    if (!video.videoWidth || !video.videoHeight) {
+      onNotify('无法读取视频画面尺寸', 'error')
+      return
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const context = canvas.getContext('2d')
+    if (!context) {
+      onNotify('当前浏览器无法采集视频画面', 'error')
+      return
+    }
+
+    try {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+      if (!blob) throw new Error('视频帧转换为图片失败')
+      const frame = new File([blob], `video-frame-${Math.round(video.currentTime * 1000)}ms.png`, { type: 'image/png' })
+      if (capturedFrameUrl) URL.revokeObjectURL(capturedFrameUrl)
+      setCapturedFrame(frame)
+      setCapturedFrameUrl(URL.createObjectURL(frame))
+    } catch (error) {
+      // 跨域视频若未允许 Canvas 读取，浏览器会在导出时阻止；给出可操作的说明而非静默失败。
+      onNotify(error instanceof Error ? `采集视频帧失败：${error.message}` : '采集视频帧失败', 'error')
+    }
+  }
+
+  const uploadCapturedFrame = async () => {
+    if (!capturedFrame) return
+    const uploaded = await uploadFile(capturedFrame, '已采集视频帧并上传为封面')
+    if (uploaded) closeFrameCapture()
+  }
+
+  const uploadFile = async (file: File | null, successMessage: string): Promise<boolean> => {
     const imageFile = file ? toImageFile(file) : null
     if (!imageFile) {
       onNotify('请选择图片文件', 'error')
-      return
+      return false
     }
     setIsPreparing(true)
     try {
@@ -148,8 +228,10 @@ export function CoverImageField({
       )
       onChange(uploaded.publicUrl)
       onNotify(successMessage, 'success')
+      return true
     } catch (error) {
       onNotify(error instanceof Error ? error.message : '封面上传失败', 'error')
+      return false
     } finally {
       setIsPreparing(false)
       setIsUploading(false)
@@ -257,7 +339,7 @@ export function CoverImageField({
         </button>
       </div>
 
-      {/* 第二行：上传图片按钮独占 */}
+      {/* 两个本地封面操作各占一整行，窄侧栏中也不会拆开中文按钮文字。 */}
       <div className="cover-upload-row">
         <button
           className="mini-command secondary"
@@ -274,6 +356,19 @@ export function CoverImageField({
           上传图片
         </button>
       </div>
+      {videoSourceUrl && (
+        <div className="cover-upload-row">
+          <button
+            className="mini-command secondary"
+            disabled={disabled || isBusy}
+            onClick={openFrameCapture}
+            type="button"
+          >
+            <Camera size={14} aria-hidden="true" />
+            采集视频帧
+          </button>
+        </div>
+      )}
 
       {(isImporting || isPreparing || uploadProgress) && (
         <div className="cover-upload-progress" aria-live="polite">
@@ -330,6 +425,66 @@ export function CoverImageField({
           event.currentTarget.value = ''
         }}
       />
+
+      <Modal
+        afterClose={discardCapturedFrame}
+        className="cover-frame-capture-modal"
+        destroyOnHidden
+        footer={null}
+        onCancel={closeFrameCapture}
+        open={isFrameCaptureOpen}
+        title="从视频采集封面"
+        width={760}
+      >
+        <div className="cover-frame-capture">
+          <p>仅在当前浏览器读取视频画面。确认后会沿用现有的前端压缩与上传流程。</p>
+          <video
+            ref={captureVideoRef}
+            className="cover-frame-capture-video"
+            controls
+            crossOrigin="anonymous"
+            muted
+            playsInline
+            preload="metadata"
+            src={resolveApiUrl(videoSourceUrl ?? '')}
+            onLoadedMetadata={(event) => {
+              const duration = event.currentTarget.duration
+              if (Number.isFinite(duration) && duration > 0) {
+                setCaptureDuration(duration)
+                seekCaptureVideo(0)
+              }
+            }}
+            onSeeked={(event) => setCaptureTime(event.currentTarget.currentTime)}
+          />
+          <label className="cover-frame-capture-timeline">
+            <span>定位画面：{captureTime.toFixed(1)} 秒</span>
+            <input
+              disabled={captureDuration <= 0}
+              max={captureDuration}
+              min={0}
+              onChange={(event) => seekCaptureVideo(Number(event.target.value))}
+              step={0.1}
+              type="range"
+              value={Math.min(captureTime, captureDuration)}
+            />
+          </label>
+          <div className="cover-frame-capture-actions">
+            <button className="mini-command secondary" onClick={() => void captureCurrentVideoFrame()} type="button">
+              <Camera size={14} aria-hidden="true" />
+              采集当前帧
+            </button>
+            <button className="mini-command" disabled={!capturedFrame || isBusy} onClick={() => void uploadCapturedFrame()} type="button">
+              使用此帧作为封面
+            </button>
+          </div>
+          {capturedFrameUrl && (
+            <div className="cover-frame-capture-preview">
+              <span>待上传封面（会在浏览器内压缩）</span>
+              <img alt="采集的视频封面预览" src={capturedFrameUrl} />
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }

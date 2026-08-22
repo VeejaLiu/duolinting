@@ -6,5 +6,6 @@ type StudyHeroProps = {
 }
 
 export function StudyHero(_props: StudyHeroProps) {
+  void _props
   return null
 }

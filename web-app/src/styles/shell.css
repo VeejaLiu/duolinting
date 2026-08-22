@@ -370,21 +370,34 @@
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px 8px;
+}
+
+.study-chapter-banner-credits-label {
+  color: rgba(255, 255, 255, 0.78);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  padding: 2px 0;
+  text-shadow: 0 1px 0 rgba(15, 40, 70, 0.14);
+  white-space: nowrap;
 }
 
 .study-chapter-banner-credit {
   align-items: center;
-  background: rgba(7, 60, 95, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(7, 60, 95, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.42);
   border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 1px 2px rgba(15, 40, 70, 0.08);
   color: #ffffff;
   display: inline-flex;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1.25;
-  min-height: 22px;
-  padding: 2px 7px;
+  min-height: 26px;
+  padding: 4px 10px;
   text-shadow: 0 1px 0 rgba(15, 40, 70, 0.16);
 }
 

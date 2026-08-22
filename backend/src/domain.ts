@@ -115,6 +115,12 @@ export type CourseWorkflowSummary = {
     proofreaderDisplayName?: string;
     /** 已通过流程后记录的实际二审署名。 */
     secondReviewerDisplayName?: string;
+    /** 校对负责人是管理员指派还是自助领取；仅影响超时是否自动释放。 */
+    proofreaderAssignmentSource?: CourseWorkflowAssignmentSource;
+    /** 校对任务的滑动期限；未设置表示任务已停止计时（如已提交二审）。 */
+    proofreaderClaimExpiresAt?: string;
+    /** 该课程是否被超级管理员禁止自助领取。 */
+    claimBlocked?: boolean;
     drafts?: CourseSubtitleDraftSummary[];
 };
 
@@ -175,6 +181,9 @@ export type AdminSubtitleWorkflowTask = {
     submittedAt?: string;
     updatedAt?: string;
     reviewNote?: string;
+    /** 任务来源与滑动期限，供任务中心展示倒计时。 */
+    assignmentSource?: CourseWorkflowAssignmentSource;
+    claimExpiresAt?: string;
 };
 export type AdminSubtitleWorkflowTaskInbox = {
     items: AdminSubtitleWorkflowTask[];
@@ -182,7 +191,78 @@ export type AdminSubtitleWorkflowTaskInbox = {
 };
 
 /** 后台工作流通知由服务端保存，重新登录后仍可查阅。 */
-export type AdminWorkflowNotificationType = 'subtitle_submitted' | 'subtitle_returned' | 'subtitle_approved';
+export type AdminWorkflowNotificationType = 'subtitle_submitted' | 'subtitle_returned' | 'subtitle_approved' | 'task_claim_expiring' | 'task_claim_expired';
+
+/** 任务来源：管理员指派不会自动释放，只有自助领取会在超时后回到任务池。 */
+export type CourseWorkflowAssignmentSource = 'admin_assigned' | 'self_claimed';
+
+/** 任务广场的可领取课程，只包含领取所需的最小信息。 */
+export type ClaimableWorkflowTask = {
+    exerciseId: number;
+    exerciseTitle: string;
+    categoryName: string;
+    difficulty: Difficulty;
+    mediaType: LessonMediaType;
+    lineCount: number;
+    /** 之前被领取后又超时释放的次数，用于提示课程可能已有他人做过部分工作。 */
+    claimReleaseCount: number;
+};
+
+export type ClaimableWorkflowTaskPage = {
+    items: ClaimableWorkflowTask[];
+    page: number;
+    pageSize: number;
+    total: number;
+    policy: AdminTaskClaimPolicy;
+};
+
+export type AdminTaskClaimPolicy = {
+    /** 领取后最多持有该课程的小时数；以最近一次保存草稿为起点滑动续期。 */
+    claimWindowHours: number;
+    /** 每位贡献者同时持有的课程上限。 */
+    maxConcurrentClaims: number;
+    /** 当前成员正在进行中的课程数，含管理员指派与自助领取。 */
+    myActiveClaimCount: number;
+};
+
+/** 超级管理员的任务池概览，用于判断谁闲着、谁卡住、池子是否需要补课。 */
+export type AdminWorkflowOverdueTask = {
+    exerciseId: number;
+    exerciseTitle: string;
+    contributorDisplayName: string;
+    source: CourseWorkflowAssignmentSource;
+    stage: 'proofreading' | 'returned';
+    claimExpiresAt: string;
+    overdueHours: number;
+};
+
+export type AdminWorkflowContributorStat = {
+    adminUserId: number;
+    displayName: string;
+    activeClaimCount: number;
+    awaitingReviewCount: number;
+    overdueCount: number;
+    completedCount: number;
+    isIdle: boolean;
+};
+
+export type AdminWorkflowOverview = {
+    generatedAt: string;
+    claimableCount: number;
+    /** 课程草稿但媒体尚未就绪，无法进入任务池。 */
+    unreadyDraftCount: number;
+    /** 已被管理员标记为不开放领取的草稿课程数。 */
+    claimBlockedCount: number;
+    awaitingReviewCount: number;
+    overdueTasks: AdminWorkflowOverdueTask[];
+    contributors: AdminWorkflowContributorStat[];
+    idleContributorCount: number;
+    policy: AdminTaskClaimPolicy;
+};
+
+export type UpdateExerciseClaimAvailabilityRequest = {
+    claimBlocked: boolean;
+};
 
 export type AdminWorkflowNotification = {
     id: number;
@@ -204,6 +284,9 @@ export type AdminWorkflowNotifications = {
 export type AdminWorkflowActivityType =
     | 'workflow_assigned'
     | 'workflow_unassigned'
+    | 'workflow_claimed'
+    | 'workflow_claim_released'
+    | 'workflow_claim_expired'
     | 'subtitle_submitted'
     | 'subtitle_returned'
     | 'subtitle_approved';

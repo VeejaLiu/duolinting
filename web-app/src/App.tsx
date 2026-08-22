@@ -1,5 +1,5 @@
 import { BookOpenText } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import './App.css'
 import waveformImg from './assets/study-waveform.png'
@@ -103,7 +103,10 @@ function LearnerAppShell() {
   }, [catalog.categories, parsedRouteSeriesId])
 
   // 懒加载当前系列下的课程列表
-  const seriesExercises = exercisesByCategory[selectedSeriesId] ?? []
+  const seriesExercises = useMemo(
+    () => exercisesByCategory[selectedSeriesId] ?? [],
+    [exercisesByCategory, selectedSeriesId],
+  )
   const chapterProgressByExercise = useMemo(
     () =>
       Object.fromEntries(
@@ -160,7 +163,6 @@ function LearnerAppShell() {
     selectedLineIndex,
     selectLine,
     updateActiveProgress,
-    updateLineProgress: _updateLineProgress,
   } = useStudyProgress({
     activeExercise,
     store,
@@ -180,7 +182,7 @@ function LearnerAppShell() {
     playbackRate: progress?.playbackRate ?? 1,
   })
 
-  const syncRoute = (
+  const syncRoute = useCallback((
     nextSeriesId: number,
     nextExerciseId: number,
     nextStage: StudyStage = studyStage,
@@ -198,7 +200,7 @@ function LearnerAppShell() {
       `/courses/${encodeURIComponent(nextSeriesId)}/chapters/${encodeURIComponent(nextExerciseId)}${nextSearch ? `?${nextSearch}` : ''}`,
       { replace: options?.replace ?? false },
     )
-  }
+  }, [navigate, searchParams, studyStage])
 
   useEffect(() => {
     const stageParam = searchParams.get('stage')
@@ -226,7 +228,7 @@ function LearnerAppShell() {
     }
 
     setStudyStage((current) => (current === 'extensive' ? current : 'extensive'))
-  }, [authLoading, searchParams, authUser])
+  }, [authLoading, searchParams, authUser, setSearchParams])
 
   // 当选中系列改变时，懒加载该系列下的课程列表
   useEffect(() => {
@@ -288,6 +290,7 @@ function LearnerAppShell() {
     parsedRouteExerciseId,
     parsedRouteSeriesId,
     searchParams,
+    syncRoute,
   ])
 
   useEffect(() => {
@@ -459,7 +462,7 @@ function LearnerAppShell() {
     }
 
     selectLine(difficultLines[0].id)
-  }, [difficultLines, selectedLine, studyStage])
+  }, [difficultLines, selectLine, selectedLine, studyStage])
 
   const goToStage = (stage: StudyStage) => {
     if (!authUser) {

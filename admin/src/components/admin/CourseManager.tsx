@@ -1,16 +1,17 @@
-import { ArrowDown, ArrowUp, Bell, BookOpen, ClipboardCheck, Ellipsis, FilePenLine, Pencil, PlaySquare, Plus, RefreshCw, Search, Trash2, Undo2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bell, BookOpen, Ellipsis, FilePenLine, Pencil, PlaySquare, Plus, RefreshCw, Search, Trash2, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Badge, Button, Card, Dropdown, Empty, Form, Image, Input, Modal, Popover, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import type { AdminMember, AdminReviewTask, AdminSubtitleWorkflowTaskInbox, AdminWorkflowNotifications, CatalogExerciseSummary, ExerciseCategory, MaterialCategory } from '@duolinting/shared'
+import type { AdminMember, AdminReviewTask, AdminWorkflowNotifications, CatalogExerciseSummary, ExerciseCategory, MaterialCategory } from '@duolinting/shared'
 import { apiClient, resolveApiUrl } from '../../lib/apiClient'
+import type { AdminNoticeTone } from './AdminFeedback'
+import { BatchCourseImporter } from './BatchCourseImporter'
 
 type CourseManagerProps = {
   adminToken: string
   currentAdminId: number
   categoryGroups: MaterialCategory[]
   categories: ExerciseCategory[]
-  exercises: CatalogExerciseSummary[]
   isCatalogLoading: boolean
   catalogLoadError: string
   onRefreshCatalog: () => Promise<void>
@@ -24,7 +25,6 @@ type CourseManagerProps = {
   canManageCourses?: boolean
   onReviewSubtitleDraft?: (exerciseId: number) => void
   reviewTasks: AdminReviewTask[]
-  workflowInbox: AdminSubtitleWorkflowTaskInbox
   workflowNotifications: AdminWorkflowNotifications
   onReadWorkflowNotifications: () => Promise<void>
   contributors: AdminMember[]
@@ -33,6 +33,7 @@ type CourseManagerProps = {
     workflowRole: 'proofreader' | 'second_reviewer',
     adminUserId: number | undefined,
   ) => Promise<void>
+  onNotify: (message: string, tone?: AdminNoticeTone) => void
 }
 
 type CourseStatus = 'all' | 'draft' | 'proofread' | 'published' | 'archived'
@@ -60,7 +61,9 @@ const formatSubmittedAt = (value?: string) => value
 const workflowNotificationCopy = (notification: AdminWorkflowNotifications['items'][number]) => {
   if (notification.type === 'subtitle_submitted') return `${notification.actorDisplayName} 提交了校对稿`
   if (notification.type === 'subtitle_returned') return `${notification.actorDisplayName} 退回了稿件`
-  return `${notification.actorDisplayName} 审核通过并发布了稿件`
+  if (notification.type === 'subtitle_approved') return `${notification.actorDisplayName} 审核通过并发布了稿件`
+  if (notification.type === 'task_claim_expiring') return `${notification.exerciseTitle} 的领取任务即将到期，请尽快保存或提交`
+  return `${notification.exerciseTitle} 的领取任务已超时，已释放回任务池`
 }
 
 function CourseWorkflow({
@@ -152,9 +155,9 @@ function CourseWorkflow({
 }
 
 export function CourseManager({
-  adminToken, currentAdminId, categoryGroups, categories, exercises, isCatalogLoading, catalogLoadError, onRefreshCatalog, isSaving, onCreateCourse,
+  adminToken, currentAdminId, categoryGroups, categories, isCatalogLoading, catalogLoadError, onRefreshCatalog, isSaving, onCreateCourse,
   onDeleteCourse, onEditCourse, onMoveCourse, onOpenRecorder, onRenameCourse, canManageCourses = true, onReviewSubtitleDraft,
-  contributors, onUpdateWorkflowAssignee, reviewTasks, workflowInbox, workflowNotifications, onReadWorkflowNotifications,
+  contributors, onUpdateWorkflowAssignee, reviewTasks, workflowNotifications, onReadWorkflowNotifications, onNotify,
 }: CourseManagerProps) {
   // 筛选器不提供"全部"选项：用户必须选中一个具体系列（目录加载完成前
   // 用 0 表示尚未就绪，此时不发起课程请求）。
@@ -444,6 +447,17 @@ export function CourseManager({
         </Badge>
       </Popover>
       <Button disabled={isSaving || isLoading || isCatalogLoading} icon={<RefreshCw size={15} />} onClick={() => void onRefreshCatalog().catch(() => undefined)}>刷新</Button>
+      {canManageCourses && (
+        <BatchCourseImporter
+          adminToken={adminToken}
+          categoryGroups={categoryGroups}
+          categories={categories}
+          initialCategoryId={selectedCategoryId}
+          isSaving={isSaving}
+          onNotify={onNotify}
+          onRefreshCatalog={onRefreshCatalog}
+        />
+      )}
       {canManageCourses && <Tooltip title={createCourseDisabled ? createCourseDisabledReason : undefined}>
         <span>
           <Button disabled={createCourseDisabled} icon={<Plus size={15} />} onClick={() => onCreateCourse(createTargetCategoryId)} type="primary">新建课程</Button>
@@ -452,78 +466,6 @@ export function CourseManager({
     </Space>}
     title={<Space><BookOpen size={18} /><span>课程管理</span></Space>}
   >
-    {reviewTasks.length > 0 && <Alert
-      className="review-task-inbox"
-      description={<div className="review-task-list">
-        {reviewTasks.map((task) => <div className="review-task-item" key={task.draftId}>
-          <div>
-            <Typography.Text strong>{task.exerciseTitle}</Typography.Text>
-            <Typography.Text type="secondary">{task.contributorDisplayName} 提交 · {formatSubmittedAt(task.submittedAt)}</Typography.Text>
-          </div>
-          <Button onClick={() => onReviewSubtitleDraft?.(task.exerciseId)} size="small" type="primary">开始审核</Button>
-        </div>)}
-      </div>}
-      icon={<ClipboardCheck size={18} />}
-      message={`我的待审核 · ${reviewTasks.length} 份`}
-      showIcon
-      type="warning"
-    />}
-    <Card className="subtitle-task-center" size="small" title={<Space><ClipboardCheck size={16} /><span>我的字幕任务</span></Space>}>
-      <Typography.Text className="subtitle-task-section-label" strong>当前任务</Typography.Text>
-      <Space className="subtitle-task-counts" wrap>
-        <Tag color="blue">待校对 {workflowInbox.counts.proofreading}</Tag>
-        <Tag color="orange">待审核 {workflowInbox.counts.awaitingReview}</Tag>
-        <Tag color="gold">待修改 {workflowInbox.counts.returned}</Tag>
-      </Space>
-      {workflowInbox.items.filter((task) => task.stage !== 'completed').length === 0 ? (
-        <Typography.Text type="secondary">当前没有待处理字幕任务。</Typography.Text>
-      ) : (
-        <div className="subtitle-task-center-list">
-          {workflowInbox.items.filter((task) => task.stage !== 'completed').slice(0, 8).map((task) => (
-            <div className="subtitle-task-center-item" key={`${task.exerciseId}-${task.draftId}-${task.role}-${task.stage}`}>
-              <Space direction="vertical" size={1}>
-                <Typography.Text strong>{task.exerciseTitle}</Typography.Text>
-                <Typography.Text type="secondary">
-                  {task.role === 'second_reviewer' ? '审核' : '校对'} · {task.contributorDisplayName} · {task.stage === 'awaiting_review' ? '等待审核' : task.stage === 'returned' ? `退回修改${task.reviewNote ? `：${task.reviewNote}` : ''}` : task.stage === 'completed' ? '已完成' : '校对中'}
-                </Typography.Text>
-              </Space>
-              {task.stage === 'awaiting_review' && reviewTasks.some((item) => item.draftId === task.draftId) && (
-                <Button onClick={() => onReviewSubtitleDraft?.(task.exerciseId)} size="small" type="primary">开始审核</Button>
-              )}
-              {(task.stage === 'proofreading' || task.stage === 'returned') && (
-                <Button
-                  onClick={() => {
-                    const exercise = exercises.find((item) => item.id === task.exerciseId)
-                    if (exercise) onEditCourse(exercise)
-                  }}
-                  size="small"
-                  type="primary"
-                >{task.stage === 'returned' ? '继续修改' : '开始校对'}</Button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-      <Typography.Text className="subtitle-task-section-label" strong>历史贡献</Typography.Text>
-      <Space className="subtitle-task-counts" wrap>
-        <Tag color="green">已完成校对 {workflowInbox.counts.completedProofreading}</Tag>
-        <Tag color="cyan">已完成二审 {workflowInbox.counts.completedSecondReview}</Tag>
-      </Space>
-      {workflowInbox.items.filter((task) => task.stage === 'completed').length > 0 && (
-        <div className="subtitle-task-center-list subtitle-task-history-list">
-          {workflowInbox.items.filter((task) => task.stage === 'completed').slice(0, 8).map((task) => (
-            <div className="subtitle-task-center-item" key={`${task.exerciseId}-${task.draftId}-${task.role}-history`}>
-              <Space direction="vertical" size={1}>
-                <Typography.Text strong>{task.exerciseTitle}</Typography.Text>
-                <Typography.Text type="secondary">
-                  {task.role === 'second_reviewer' ? '已完成二次审核' : '已完成字幕校对'}{task.updatedAt ? ` · ${formatSubmittedAt(task.updatedAt)}` : ''}
-                </Typography.Text>
-              </Space>
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
     {createCourseDisabled && (
       <Alert
         description={createCourseDisabledReason}

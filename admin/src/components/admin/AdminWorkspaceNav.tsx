@@ -1,15 +1,20 @@
 import { Menu } from 'antd'
 import type { MenuProps } from 'antd'
-import { BookOpen, Clapperboard, KeyRound, Layers3, ListChecks, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, UserRound, Users, UsersRound, type LucideIcon } from 'lucide-react'
+import { BookOpen, Clapperboard, Inbox, KeyRound, Layers3, ListChecks, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, UserRound, Users, UsersRound, type LucideIcon } from 'lucide-react'
 import type { AdminUser } from '@duolinting/shared'
 
-export type AdminSection = 'importer' | 'directory' | 'courses' | 'recorder' | 'feedback' | 'users' | 'collaboration' | 'activity' | 'api-keys' | 'account-settings'
+export type AdminSection = 'importer' | 'directory' | 'courses' | 'recorder' | 'feedback' | 'users' | 'collaboration' | 'activity' | 'pool' | 'api-keys' | 'account-settings'
 
 const adminSections: Array<{
   id: AdminSection
   label: string
   Icon: LucideIcon
 }> = [
+  {
+    id: 'pool',
+    label: '任务广场',
+    Icon: Inbox,
+  },
   {
     id: 'directory',
     label: '目录结构',
@@ -65,7 +70,7 @@ export function AdminWorkspaceNav({
   const visibleSections = adminSections.filter((section) =>
     adminUser.role === 'super_admin'
       ? section.id !== 'account-settings'
-      : section.id === 'courses' || section.id === 'activity' || section.id === 'account-settings',
+      : section.id === 'courses' || section.id === 'pool' || section.id === 'activity' || section.id === 'account-settings',
   )
   if (adminUser.role === 'super_admin') {
     visibleSections.push({ id: 'collaboration', label: '人员管理', Icon: UsersRound })

@@ -1,4 +1,3 @@
-import { Scissors } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type {
@@ -13,7 +12,9 @@ import type {
 import type { AdminNoticeTone } from './admin/AdminFeedback'
 import { MediaCourseForm } from './admin/MediaCourseForm'
 import { MediaWaveform } from './admin/MediaWaveform'
+import { MediaWaveformErrorBoundary } from './admin/MediaWaveformErrorBoundary'
 import { SubtitleImporter } from './admin/SubtitleImporter'
+import { SubtitleEditorInspector } from './admin/SubtitleEditorInspector'
 import {
   apiClient,
   resolveApiUrl,
@@ -24,6 +25,7 @@ import { useMediaPlayback } from '../hooks/useMediaPlayback'
 import {
   analyzeSubtitleDraft,
   createEmptyDraftLine,
+  draftLinesToSrt,
   mergeDraftLines,
   parseSubtitleDraft,
   TRANSLATION_LOCALE_LABELS,
@@ -61,7 +63,7 @@ type AudioLessonImporterProps = {
 
 type ClipboardPanelState =
   | { mode: 'hidden' }
-  | { mode: 'copy'; content: string }
+  | { mode: 'copy'; content: string; label?: string }
   | { mode: 'paste'; content: string }
 
 const roundToMilliseconds = (seconds: number) =>
@@ -69,6 +71,12 @@ const roundToMilliseconds = (seconds: number) =>
 
 // 后端媒体上传上限 120MB，前端选择文件时预检，超限直接拒绝
 const MAX_MEDIA_FILE_SIZE = 120 * 1024 * 1024
+const EMPTY_SUBTITLE_ANALYSIS: SubtitleDraftAnalysis = {
+  blockCount: 0,
+  bilingualBlockCount: 0,
+  isLikelyBilingual: false,
+  suggestedMode: 'single',
+}
 // 与后端翻译接口上限保持一致；智谱免费档并发很低，顺序提交比并发排队更稳定。
 // 批次保持较小（6 行）：大批次更容易触发模型合并/漏行，小批失败重试代价也低。
 const TRANSLATE_REQUEST_BATCH_SIZE = 6
@@ -126,6 +134,43 @@ const exportToDltjson = (
   }
   return JSON.stringify(dltjson, null, 2)
 }
+
+// 专家分段提示词：把「提示词 + 当前英文字幕(SRT)」复制到 ChatGPT 等外部模型，
+// 让模型做语义分段优化后返回 SRT，再通过字幕导入功能导回系统。
+// 基于 1Ntb 提供的「英语学习视频字幕语义与时间轴优化专家」提示词改编：
+// 外部模型拿不到视频/音频，故把「先分析视频音频」改为「按时间戳推算停顿与语速」；
+// 输出统一约束为 SRT（原始规则 13–15 针对 HTJSON 结构，此处不适用）。
+const SEGMENT_EXPERT_PROMPT = `你是一个英语学习视频字幕语义与时间轴优化专家。
+输入是一个 SRT 字幕文件（见文末），包含英文文本与每句的 start/end 时间戳。你无法直接访问视频或音频，请根据文本与时间戳推算语音节奏：句间停顿 = 下一句 start − 上一句 end，语速 = 文本长度 ÷ (end − start)。
+你的目标不是把字幕切得越碎越好，而是生成适合英语学习视频阅读的"语义文本块"。
+请严格遵循以下优先级：语义完整性 > 语音节奏 > 教学结构 > 时间戳绝对不重叠 > 字幕长度。
+
+规则：
+1. 先根据时间戳推算停顿与语速，再修改字幕；不要只按原字幕机械切分。
+2. 短句如果属于同一个自然表达/教学单元，应合并。
+3. 中间存在明显长停顿时，即使两边很短也应拆分。参考阈值：≥0.8 秒强烈倾向拆分，≥1 秒通常拆分。
+4. 很短的碎片（尤其 <0.8 秒）如果没有明显停顿，不要让它单独成为字幕块，应并入邻近语义单元。
+5. 绝不能把姓名、单词、固定短语、phrasal verb、介词结构等从中间切开。例如 "German Rolf Buchholz" 必须保持完整。
+6. 破折号/连字符不一定代表断句，口语中的停顿、犹豫、修正不能机械拆开。
+7. 长句只有在自然语义边界上才拆分；字符数只作辅助判断，约 100–120 字符开始检查，超过 120–140 字符应认真判断是否需要拆分。
+8. 英语快速语流存在连读、弱读、吞音时，不要把词从中间切开；把完整单词归入相邻块，边界落在单词边界。各字幕块时间轴应连续且不重叠（下一块 start ≥ 上一块 end）。
+9. 识别教学阶段：讲解、示例、发音练习、跟读、倒数准备、正式朗读等，不要把不同教学动作随意合成一个巨大文本块。
+10. 重复朗读/练习不是错误，不要去重。
+11. 每个文本块的 start/end 应尽量贴合实际发音，避免把明显长静音包含进去，也不要过度截短弱音。
+12. 全片复核，不要只修用户指出的一处。检查：孤立碎片、残句、姓名断裂、长停顿、时间整体偏移、字幕覆盖静音、连续语流边界、重复朗读的时间偏移。
+
+最终判断标准：
+每个文本块都应该是一个用户在英语学习视频中"自然可以一起读、一起理解"的单位，并且时间轴与视频中的实际说话基本同步。
+
+输出要求：
+- 直接输出完整的标准 SRT 字幕，不要输出任何解释、前言、后缀或 Markdown 代码块。
+- 每个字幕块严格按「序号 / 时间轴 / 英文文本」排列，时间轴格式为 HH:MM:SS,mmm。
+- 不要改动英文原文文字：合并时只用单个空格连接，不得重写、增删、改标点、改大小写。
+- 如果全片复核没有发现实际问题，按原字幕原样输出即可。`
+
+// 拼接「提示词 + 当前英文字幕(SRT)」的完整可复制文本。
+const buildSegmentPromptPayload = (draftLines: DraftLine[]): string =>
+  `${SEGMENT_EXPERT_PROMPT}\n\n以下是当前字幕（SRT 格式，仅英文）：\n\n${draftLinesToSrt(draftLines)}`
 
 type DltjsonV2 = {
   version: '2.0'
@@ -203,12 +248,6 @@ export function AudioLessonImporter({
 }: AudioLessonImporterProps) {
   const canWriteClipboard =
     typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function'
-  const emptySubtitleAnalysis: SubtitleDraftAnalysis = {
-    blockCount: 0,
-    bilingualBlockCount: 0,
-    isLikelyBilingual: false,
-    suggestedMode: 'single',
-  }
   const navigate = useNavigate()
   const mediaRef = useRef<HTMLMediaElement | null>(null)
   const [mediaFile, setMediaFile] = useState<File | null>(null)
@@ -218,7 +257,7 @@ export function AudioLessonImporter({
   const [activeLineIndex, setActiveLineIndex] = useState(0)
   const [subtitleDraft, setSubtitleDraft] = useState('')
   const [subtitleAnalysis, setSubtitleAnalysis] =
-    useState<SubtitleDraftAnalysis>(emptySubtitleAnalysis)
+    useState<SubtitleDraftAnalysis>(EMPTY_SUBTITLE_ANALYSIS)
   const [subtitleImportMode, setSubtitleImportMode] =
     useState<SubtitleImportMode>('single')
   const [subtitleTimeOffset, setSubtitleTimeOffset] = useState(0)
@@ -251,8 +290,6 @@ export function AudioLessonImporter({
   const [draftLines, setDraftLines] = useState<DraftLine[]>([
     createEmptyDraftLine(),
   ])
-  // 左侧基础信息栏折叠状态：折叠后侧栏收成窄图标轨，主编辑区占满横向空间。
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const currentImporterSnapshot = useMemo(
     () => createImporterSnapshot(courseForm, draftLines, subtitleDraft),
     [courseForm, draftLines, subtitleDraft],
@@ -390,7 +427,7 @@ export function AudioLessonImporter({
       setUploadedMediaUrl('')
       setMediaSize(null)
       setSubtitleDraft('')
-      setSubtitleAnalysis(emptySubtitleAnalysis)
+      setSubtitleAnalysis(EMPTY_SUBTITLE_ANALYSIS)
       setSubtitleImportMode('single')
       setActiveLineIndex(0)
       setDraftLines(nextDraftLines)
@@ -458,10 +495,11 @@ export function AudioLessonImporter({
     setMediaFile(null)
     setLocalMediaUrl(resolveApiUrl(exercise.audioUrl))
     setUploadedMediaUrl(exercise.audioUrl)
-    // 课程详情接口不返回媒体大小，载入已有课程时重置为空
-    setMediaSize(null)
+    // 课程详情接口会按媒体对象统计文件大小；编辑已有课程时保留该元数据，
+    // 让工作台可以完整展示当前媒体，而不是退化成“媒体已加载”的笼统提示。
+    setMediaSize(exercise.mediaSize ?? null)
     setSubtitleDraft('')
-    setSubtitleAnalysis(emptySubtitleAnalysis)
+    setSubtitleAnalysis(EMPTY_SUBTITLE_ANALYSIS)
     setSubtitleImportMode('single')
     setActiveLineIndex(0)
     setDraftLines(nextDraftLines)
@@ -646,7 +684,7 @@ export function AudioLessonImporter({
     await onRefreshCatalog()
   }
 
-  const uploadMediaFile = async (file: File) => {
+  const uploadMediaFile = useCallback(async (file: File) => {
     onStatusChange('正在上传媒体...', 'info')
     localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, adminToken)
     // 先用文件大小建立 0% 状态，即使浏览器尚未触发第一条进度事件，界面也能立即反馈。
@@ -663,7 +701,7 @@ export function AudioLessonImporter({
     }))
     onStatusChange(`媒体已上传：${result.objectName}`, 'success')
     return result
-  }
+  }, [adminToken, onStatusChange])
 
   const handleFileChange = async (file: File | null) => {
     // 选择文件时预检大小：超过后端 120MB 上限直接拒绝，避免上传到最后才失败
@@ -895,7 +933,7 @@ export function AudioLessonImporter({
             : 'single',
       )
     } catch {
-      setSubtitleAnalysis(emptySubtitleAnalysis)
+      setSubtitleAnalysis(EMPTY_SUBTITLE_ANALYSIS)
       setSubtitleImportMode('single')
     }
   }
@@ -958,6 +996,35 @@ export function AudioLessonImporter({
       onStatusChange('dltjson 已复制到剪切板', 'success')
     } catch (error) {
       onStatusChange(error instanceof Error ? error.message : '复制 dltjson 失败', 'error')
+    }
+  }
+
+  // 一键复制「专家分段提示词 + 当前英文字幕(SRT)」到剪切板，
+  // 供粘贴到 ChatGPT 等外部模型做语义分段优化。不支持直接写入剪切板时，
+  // 复用剪贴板面板（带自定义标题）让用户手动复制。
+  const handleCopySegmentPrompt = async () => {
+    const hasEnglishText = draftLines.some((line) => line.text.trim())
+    if (!hasEnglishText) {
+      onStatusChange('当前没有可复制的英文字幕', 'error')
+      return
+    }
+
+    const payload = buildSegmentPromptPayload(draftLines)
+    if (!canWriteClipboard) {
+      setClipboardPanel({
+        mode: 'copy',
+        label: '复制分段提示词',
+        content: payload,
+      })
+      onStatusChange('当前环境不支持直接写入剪切板，请在面板中手动复制', 'info')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(payload)
+      onStatusChange('分段提示词 + 英文字幕已复制到剪切板，可粘贴到 ChatGPT 等模型', 'success')
+    } catch (error) {
+      onStatusChange(error instanceof Error ? error.message : '复制分段提示词失败', 'error')
     }
   }
 
@@ -1079,12 +1146,13 @@ export function AudioLessonImporter({
     courseForm,
     draftLines,
     exercises,
-    loadedExercise,
     mediaFile,
+    navigate,
     onRefreshCatalog,
     onStatusChange,
     saveDisabledReason,
     subtitleDraft,
+    uploadMediaFile,
     uploadedMediaUrl,
   ])
 
@@ -1126,30 +1194,22 @@ export function AudioLessonImporter({
 
   return (
     <section className="admin-section import-workbench">
-      <div className="panel-title">
-        <Scissors size={17} aria-hidden="true" />
-        <span>真实媒体制课工作台</span>
-      </div>
-
       <div
-        className={
-          isSidebarCollapsed ? 'import-layout sidebar-collapsed' : 'import-layout'
-        }
+        className="import-layout"
       >
         <MediaCourseForm
           adminToken={adminToken}
           categoriesByGroup={categoriesByGroup}
           courseForm={courseForm}
           isSaving={isSaving || isSubmittingSubtitleDraft}
-          isSidebarCollapsed={isSidebarCollapsed}
           isSubtitleContributor={adminRole === 'subtitle_contributor'}
-          onToggleSidebar={() => setIsSidebarCollapsed((current) => !current)}
           saveDisabledReason={saveDisabledReason}
           localMediaUrl={localMediaUrl}
           mediaSize={mediaSize}
           mediaFile={mediaFile}
           mediaUploadProgress={mediaUploadProgress}
           mediaRef={mediaRef}
+          previewLines={draftLines}
           onNotify={onStatusChange}
           statusBar={
             <div className="admin-footer media-workbench-status">
@@ -1180,6 +1240,14 @@ export function AudioLessonImporter({
               </span>
             </div>
           }
+          subtitleEditor={
+            <SubtitleEditorInspector
+              activeLineIndex={activeLineIndex}
+              draftLines={draftLines}
+              onTranslateSingle={handleTranslateSingleLine}
+              onUpdateLine={updateLine}
+            />
+          }
           subtitleImporter={
             <SubtitleImporter
               analysis={subtitleAnalysis}
@@ -1193,47 +1261,53 @@ export function AudioLessonImporter({
               onImportSubtitle={importSubtitleDraft}
               onSubtitleDraftChange={handleSubtitleDraftChange}
               onTimeOffsetChange={setSubtitleTimeOffset}
+              onCopySegmentPrompt={() => void handleCopySegmentPrompt()}
+              copySegmentPromptDisabled={!draftLines.some((line) => line.text.trim())}
+              onDltjsonCopy={handleDltjsonCopyToClipboard}
+              onDltjsonExport={handleDltjsonExport}
+              onDltjsonImport={(file) => {
+                void handleDltjsonImport(file)
+              }}
+              onDltjsonPaste={handleDltjsonPasteFromClipboard}
+              isModal
             />
           }
           waveform={
-            <MediaWaveform
-              activeLineIndex={activeLineIndex}
-              draftLines={draftLines}
-              mediaRef={mediaRef}
-              sourceUrl={localMediaUrl}
-              onActiveLineChange={setActiveLineIndex}
-              onAddLine={addLineAfterActive}
-              isTranslating={isTranslating}
-              onBatchAdjustTiming={(deltaMs) => {
-                const deltaSeconds = deltaMs / 1000
-                setDraftLines((lines) =>
-                  lines.map((line) => ({
-                    ...line,
-                    start: Math.max(0, line.start + deltaSeconds),
-                    end: Math.max(0, line.end + deltaSeconds),
-                  })),
-                )
-              }}
-              onPlayLine={playLine}
-              onRemoveLine={removeLine}
-              onMergeLine={mergeLineWithNext}
-              onSetPointFromPlayer={setPointFromPlayer}
-              onTranslate={handleTranslateLines}
-              onTranslateSingle={handleTranslateSingleLine}
-              translateError={translateError}
-              onDismissTranslateError={() => setTranslateError(null)}
-              onUpdateLine={updateLine}
-            />
+            <MediaWaveformErrorBoundary>
+              <MediaWaveform
+                activeLineIndex={activeLineIndex}
+                draftLines={draftLines}
+                mediaRef={mediaRef}
+                sourceUrl={localMediaUrl}
+                showInspector={false}
+                onActiveLineChange={setActiveLineIndex}
+                onAddLine={addLineAfterActive}
+                isTranslating={isTranslating}
+                onBatchAdjustTiming={(deltaMs) => {
+                  const deltaSeconds = deltaMs / 1000
+                  setDraftLines((lines) =>
+                    lines.map((line) => ({
+                      ...line,
+                      start: Math.max(0, line.start + deltaSeconds),
+                      end: Math.max(0, line.end + deltaSeconds),
+                    })),
+                  )
+                }}
+                onPlayLine={playLine}
+                onRemoveLine={removeLine}
+                onMergeLine={mergeLineWithNext}
+                onSetPointFromPlayer={setPointFromPlayer}
+                onTranslate={handleTranslateLines}
+                onTranslateSingle={handleTranslateSingleLine}
+                translateError={translateError}
+                onDismissTranslateError={() => setTranslateError(null)}
+                onUpdateLine={updateLine}
+              />
+            </MediaWaveformErrorBoundary>
           }
           onCourseFormChange={setCourseForm}
           clipboardPanel={clipboardPanel}
           onClipboardPanelChange={setClipboardPanel}
-          onDltjsonCopy={handleDltjsonCopyToClipboard}
-          onDltjsonExport={handleDltjsonExport}
-          onDltjsonImport={(file) => {
-            void handleDltjsonImport(file)
-          }}
-          onDltjsonPaste={handleDltjsonPasteFromClipboard}
           onManualDltjsonImport={handleManualDltjsonImport}
           onFileChange={(file) => {
             void handleFileChange(file)

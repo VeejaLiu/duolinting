@@ -9,10 +9,13 @@ import {
     canReviewSubtitleDraft,
     canSubmitSubtitleDraft,
     approveSubtitleDraft,
+    claimWorkflowTask,
     createAdminMember,
     forceAdminMemberPasswordChange,
     getAssignedExerciseIds,
+    getWorkflowOverview,
     isSuperAdmin,
+    listClaimableWorkflowTasks,
     listWorkflowActivity,
     listAdminMembers,
     listMySubtitleReviewTasks,
@@ -20,7 +23,9 @@ import {
     listMyWorkflowNotifications,
     listPreviewVolunteers,
     listLearnerUsers,
+    releaseWorkflowTask,
     updateContributorLearnerBinding,
+    updateExerciseClaimAvailability,
     bindOwnContributorLearner,
     markMyWorkflowNotificationsRead,
     returnSubtitleDraft,
@@ -313,6 +318,56 @@ router.get('/subtitle-review-tasks', async (req: any, res) => {
 
 router.get('/subtitle-workflow-inbox', async (req: any, res) => {
     res.status(200).send(await listMySubtitleWorkflowInbox(req.admin.id));
+});
+
+/** 任务广场：当前可自助领取的课程。贡献者与超级管理员均可查看。 */
+router.get('/workflow/claimable-tasks', async (req: any, res) => {
+    const page = Math.max(1, Number.parseInt(String(req.query.page ?? '1'), 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number.parseInt(String(req.query.pageSize ?? '20'), 10) || 20));
+    res.status(200).send(await listClaimableWorkflowTasks({
+        adminId: req.admin.id,
+        page,
+        pageSize,
+    }));
+});
+
+/** 贡献者领取一门课程；唯一键冲突会判定为“刚被别人领走”。 */
+router.post('/exercises/:exerciseId/workflow-claim', async (req: any, res) => {
+    const exerciseId = toId(req.params.exerciseId);
+    if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+        return res.status(400).send({ success: false, message: 'Invalid exercise id' });
+    }
+    try {
+        await claimWorkflowTask(exerciseId, req.admin.id);
+        res.status(200).send({ ok: true });
+    } catch (error) {
+        res.status(409).send({
+            success: false,
+            message: error instanceof Error ? error.message : '领取任务失败',
+        });
+    }
+});
+
+/** 贡献者主动放弃自助领取的课程，让任务回到池子。 */
+router.post('/exercises/:exerciseId/workflow-release', async (req: any, res) => {
+    const exerciseId = toId(req.params.exerciseId);
+    if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+        return res.status(400).send({ success: false, message: 'Invalid exercise id' });
+    }
+    try {
+        await releaseWorkflowTask(exerciseId, req.admin.id);
+        res.status(200).send({ ok: true });
+    } catch (error) {
+        res.status(409).send({
+            success: false,
+            message: error instanceof Error ? error.message : '放弃任务失败',
+        });
+    }
+});
+
+/** 超级管理员的任务池概览：谁闲着、谁超期、池子是否需要补课。 */
+router.get('/workflow/overview', requireSuperAdmin, async (req: any, res) => {
+    res.status(200).send(await getWorkflowOverview());
 });
 
 router.get('/exercises', async (req: any, res) => {
@@ -732,6 +787,28 @@ router.put(
             actorAdminUserId: req.admin.id,
         });
         res.status(200).send({ ok: true, adminUserId: assignedAdminUserId });
+    },
+);
+
+router.put(
+    '/exercises/:exerciseId/claim-availability',
+    requireSuperAdmin,
+    body('claimBlocked').isBoolean().toBoolean(),
+    validateErrorCheck,
+    async (req: any, res) => {
+        const exerciseId = toId(req.params.exerciseId);
+        if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+            return res.status(400).send({ success: false, message: 'Invalid exercise id' });
+        }
+        try {
+            const result = await updateExerciseClaimAvailability(exerciseId, req.body.claimBlocked);
+            res.status(200).send({ ok: true, ...result });
+        } catch (error) {
+            res.status(404).send({
+                success: false,
+                message: error instanceof Error ? error.message : '课程不存在',
+            });
+        }
     },
 );
 

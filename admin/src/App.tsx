@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { LockKeyhole } from 'lucide-react'
-import { message } from 'antd'
+import { App as AntdApp } from 'antd'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import type {
   AdminUser,
@@ -34,6 +34,7 @@ const loadStoredAdminUser = () => {
 }
 
 function App() {
+  const { message: appMessage } = AntdApp.useApp()
   const [categoryGroups, setCategoryGroups] = useState<MaterialCategory[]>([])
   const [categories, setCategories] = useState<ExerciseCategory[]>([])
   const [exercises, setExercises] = useState<CatalogExerciseSummary[]>([])
@@ -84,8 +85,8 @@ function App() {
 
   const showNotice = useCallback((content: string, tone: AdminNoticeTone = 'info') => {
     const duration = tone === 'error' ? 5.2 : 3.2
-    message[tone]({ content, duration })
-  }, [])
+    appMessage[tone]({ content, duration })
+  }, [appMessage])
 
   const requestConfirm = (options: {
     title: string
@@ -135,7 +136,7 @@ function App() {
     }
     setCategoryGroups(catalog.categoryGroups)
     setCategories(catalog.categories)
-  }, [adminToken, showNotice])
+  }, [adminToken])
 
   const loadExercises = useCallback(async () => {
     const nextExercises = await apiClient.getAdminExercises(adminToken)
@@ -164,7 +165,7 @@ function App() {
       }
 
     })()
-  }, [adminToken])
+  }, [adminToken, showNotice])
 
   const login = async () => {
     setIsLoggingIn(true)

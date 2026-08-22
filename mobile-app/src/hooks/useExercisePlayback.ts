@@ -27,6 +27,12 @@ type ActivePlaybackRange = {
   onEnded?: () => void
 }
 
+type VideoPlaybackState = {
+  currentTime: number
+  duration: number
+  playing: boolean
+}
+
 const LINE_END_EPSILON_SECONDS = 0.04
 const SEEK_TARGET_TOLERANCE_SECONDS = 0.25
 // iOS seek 落地的等待时长：过短 seek 可能未完成，过长会拖慢逐句播放的响应
@@ -59,14 +65,24 @@ const settleWebPlay = (result: void | Promise<void>) => {
 }
 
 // expo-audio / expo-video 的 useXxxPlayer 在组件卸载时会自行释放原生 shared
-// object。卸载清理里的 pause() 若晚于释放执行，会同步抛出
-// NativeSharedObjectNotFoundException（包装在 FunctionCallException 里）——
-// 原生对象已释放即已停止，无需 pause，直接忽略；其余异常照常抛出。
+// object。卸载清理里的 pause() 若晚于释放执行，会同步抛出平台相关的
+// released-shared-object 异常。页面失焦时会提前暂停；如果 Android 的返回动画
+// 仍让两件事发生在同一帧，这个 best-effort pause 也不能再把异常抛到错误边界。
+const isReleasedNativeObjectError = (error: unknown) => {
+  const message = String(error)
+  return (
+    message.includes('NativeSharedObjectNotFoundException') ||
+    message.includes('Unable to find the native shared object') ||
+    message.includes('Cannot use shared object that was already released') ||
+    message.includes('ERR_USING_RELEASED_SHARED_OBJECT')
+  )
+}
+
 const tryPauseNativePlayer = (player: { pause: () => void }) => {
   try {
     player.pause()
   } catch (error) {
-    if (String(error).includes('NativeSharedObjectNotFoundException')) {
+    if (isReleasedNativeObjectError(error)) {
       return
     }
     throw error
@@ -100,7 +116,7 @@ export function useExercisePlayback({
   const rangeStopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [activeLineId, setActiveLineId] = useState<string | null>(null)
   const [isPreparingPlayback, setIsPreparingPlayback] = useState(false)
-  const [videoPlaybackState, setVideoPlaybackState] = useState({
+  const [videoPlaybackState, setVideoPlaybackState] = useState<VideoPlaybackState>({
     currentTime: 0,
     duration: 0,
     playing: false,
@@ -117,14 +133,27 @@ export function useExercisePlayback({
   const videoPlayer = useVideoPlayer(videoSource, (player) => {
     player.timeUpdateEventInterval = 0.25
   })
-  const audioPlayerRef = useRef(audioPlayer)
-  const videoPlayerRef = useRef(videoPlayer)
 
-  useEffect(() => {
-    audioPlayerRef.current = audioPlayer
-    videoPlayerRef.current = videoPlayer
-  }, [audioPlayer, videoPlayer])
-
+  // Native getters can also be called by a queued event after expo-video has
+  // released its shared object. Treat that event as stale instead of allowing
+  // the platform exception to reach the runtime error boundary.
+  const readVideoSnapshot = useCallback(
+    (fallback: VideoPlaybackState) => {
+      try {
+        return {
+          currentTime: videoPlayer.currentTime ?? fallback.currentTime,
+          duration: videoPlayer.duration ?? fallback.duration,
+          playing: Boolean(videoPlayer.playing),
+        }
+      } catch (error) {
+        if (isReleasedNativeObjectError(error)) {
+          return null
+        }
+        throw error
+      }
+    },
+    [videoPlayer],
+  )
   useEffect(() => {
     // expo-audio on iOS exposes playbackRate as a getter. Its dedicated method
     // also retains the selected rate while playback is paused.
@@ -146,12 +175,10 @@ export function useExercisePlayback({
   }, [audioPlayer])
 
   const safePauseVideo = useCallback(() => {
-    setVideoPlaybackState((current) => ({
-      ...current,
-      currentTime: videoPlayer.currentTime ?? current.currentTime,
-      duration: videoPlayer.duration ?? current.duration,
-      playing: false,
-    }))
+    setVideoPlaybackState((current) => {
+      const snapshot = readVideoSnapshot(current)
+      return snapshot ? { ...current, ...snapshot, playing: false } : current
+    })
 
     if (Platform.OS === 'web') {
       const videos = getWebVideoElements()
@@ -163,7 +190,7 @@ export function useExercisePlayback({
     }
 
     tryPauseNativePlayer(videoPlayer)
-  }, [getWebVideoElements, videoPlayer])
+  }, [getWebVideoElements, readVideoSnapshot, videoPlayer])
 
   const safePlayAudio = useCallback(() => {
     if (Platform.OS === 'web') {
@@ -179,12 +206,10 @@ export function useExercisePlayback({
   }, [audioPlayer, getWebAudioElement])
 
   const safePlayVideo = useCallback(() => {
-    setVideoPlaybackState((current) => ({
-      ...current,
-      currentTime: videoPlayer.currentTime ?? current.currentTime,
-      duration: videoPlayer.duration ?? current.duration,
-      playing: true,
-    }))
+    setVideoPlaybackState((current) => {
+      const snapshot = readVideoSnapshot(current)
+      return snapshot ? { ...current, ...snapshot, playing: true } : current
+    })
 
     if (Platform.OS === 'web') {
       const videos = getWebVideoElements()
@@ -200,7 +225,7 @@ export function useExercisePlayback({
     }
 
     videoPlayer.play()
-  }, [getWebVideoElements, videoPlayer])
+  }, [getWebVideoElements, readVideoSnapshot, videoPlayer])
 
   const startPreparingPlayback = useCallback((token: number) => {
     preparingPlaybackTokenRef.current = token
@@ -255,18 +280,6 @@ export function useExercisePlayback({
       setActiveLineId(null)
       preparingPlaybackTokenRef.current = null
       setIsPreparingPlayback(false)
-      tryPauseNativePlayer(audioPlayerRef.current)
-      if (Platform.OS === 'web') {
-        const videos = Array.from(
-          (videoPlayerRef.current as WebVideoPlayer)._mountedVideos ?? [],
-        )
-        prepareWebVideosForManualPlayback(videos)
-        for (const video of videos) {
-          video.pause()
-        }
-      } else {
-        tryPauseNativePlayer(videoPlayerRef.current)
-      }
       return
     }
 
@@ -277,22 +290,11 @@ export function useExercisePlayback({
     setActiveLineId(null)
     preparingPlaybackTokenRef.current = null
     setIsPreparingPlayback(false)
-    tryPauseNativePlayer(audioPlayerRef.current)
-    if (Platform.OS === 'web') {
-      const videos = Array.from(
-        (videoPlayerRef.current as WebVideoPlayer)._mountedVideos ?? [],
-      )
-      prepareWebVideosForManualPlayback(videos)
-      for (const video of videos) {
-        video.pause()
-      }
-    } else {
-      tryPauseNativePlayer(videoPlayerRef.current)
-    }
     // 注意：不需要在这里 replace 媒体源。useAudioPlayer/useVideoPlayer 在 source
     // 变化时会销毁并重建播放器实例（新实例自带新源）；此前这里再调一次
     // replace/replaceAsync 会导致同一源加载两次——播放中第二次加载完成会打断
-    // 播放，表现为"播一下就停"。这里只负责重置播放状态和暂停旧实例。
+    // 播放，表现为"播一下就停"。这里只负责重置区间状态；旧播放器由
+    // useXxxPlayer 的生命周期自动释放。
   }, [
     audioPlayer,
     clearRangeStopTimeout,
@@ -426,16 +428,25 @@ export function useExercisePlayback({
       }
 
       // 暂停状态下不排定时器：否则暂停在句中也会在到点时被误判为播完
-      const isPlaying =
-        mediaType === 'video'
-          ? Platform.OS === 'web'
-            // Web 端直接调用 <video>.play()，并清除了 expo-video 的 play/pause
-            // 事件代理；此时 player.playing 不会更新，必须以真实元素状态为准。
-            ? Boolean(
-                getWebVideoElements().find((video) => !video.paused && !video.ended),
-              )
-            : Boolean(videoPlayer.playing)
-          : Boolean(audioPlayer.playing)
+      let isPlaying = false
+      try {
+        isPlaying =
+          mediaType === 'video'
+            ? Platform.OS === 'web'
+              // Web 端直接调用 <video>.play()，并清除了 expo-video 的 play/pause
+              // 事件代理；此时 player.playing 不会更新，必须以真实元素状态为准。
+              ? Boolean(
+                  getWebVideoElements().find((video) => !video.paused && !video.ended),
+                )
+              : Boolean(videoPlayer.playing)
+            : Boolean(audioPlayer.playing)
+      } catch (error) {
+        if (isReleasedNativeObjectError(error)) {
+          clearRangeStopTimeout()
+          return
+        }
+        throw error
+      }
       if (!isPlaying) {
         clearRangeStopTimeout()
         return
@@ -455,9 +466,15 @@ export function useExercisePlayback({
           if (playbackTokenRef.current !== token || activeRangeRef.current !== activeRange) {
             return
           }
-          const freshTime =
-            mediaType === 'video' ? videoPlayer.currentTime : audioPlayer.currentTime
-          completeActiveRange(freshTime, mediaType)
+          try {
+            const freshTime =
+              mediaType === 'video' ? videoPlayer.currentTime : audioPlayer.currentTime
+            completeActiveRange(freshTime, mediaType)
+          } catch (error) {
+            if (!isReleasedNativeObjectError(error)) {
+              throw error
+            }
+          }
         },
         Math.max((remainingSeconds / (playbackRate > 0 ? playbackRate : 1)) * 1000 - RANGE_STOP_TIMER_EARLY_MS, 0),
       )
@@ -479,22 +496,29 @@ export function useExercisePlayback({
         prepareWebVideosForManualPlayback(webVideos)
       }
       const primaryWebVideo = webVideos[0]
-      setVideoPlaybackState((current) => ({
-        ...current,
-        currentTime,
-        duration: videoPlayer.duration ?? current.duration,
-        playing:
-          Platform.OS === 'web'
-            ? Boolean(primaryWebVideo && !primaryWebVideo.paused && !primaryWebVideo.ended)
-            : Boolean(videoPlayer.playing),
-      }))
+      setVideoPlaybackState((current) => {
+        const snapshot =
+          Platform.OS === 'web' ? null : readVideoSnapshot(current)
+        if (Platform.OS !== 'web' && !snapshot) {
+          return current
+        }
+        return {
+          ...current,
+          currentTime,
+          duration: snapshot?.duration ?? current.duration,
+          playing:
+            Platform.OS === 'web'
+              ? Boolean(primaryWebVideo && !primaryWebVideo.paused && !primaryWebVideo.ended)
+              : Boolean(snapshot?.playing),
+        }
+      })
       completeActiveRange(currentTime, 'video')
     })
 
     return () => {
       subscription.remove()
     }
-  }, [completeActiveRange, getWebVideoElements, videoPlayer])
+  }, [completeActiveRange, getWebVideoElements, readVideoSnapshot, videoPlayer])
 
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -502,33 +526,29 @@ export function useExercisePlayback({
     }
 
     const subscription = videoPlayer.addListener('playingChange', ({ isPlaying }) => {
-      setVideoPlaybackState((current) => ({
-        ...current,
-        currentTime: videoPlayer.currentTime ?? current.currentTime,
-        duration: videoPlayer.duration ?? current.duration,
-        playing: isPlaying,
-      }))
+      setVideoPlaybackState((current) => {
+        const snapshot = readVideoSnapshot(current)
+        return snapshot ? { ...current, ...snapshot, playing: isPlaying } : current
+      })
     })
 
     return () => {
       subscription.remove()
     }
-  }, [videoPlayer])
+  }, [readVideoSnapshot, videoPlayer])
 
   useEffect(() => {
     const subscription = videoPlayer.addListener('sourceLoad', ({ duration }) => {
-      setVideoPlaybackState((current) => ({
-        ...current,
-        currentTime: videoPlayer.currentTime ?? current.currentTime,
-        duration,
-        playing: Boolean(videoPlayer.playing),
-      }))
+      setVideoPlaybackState((current) => {
+        const snapshot = readVideoSnapshot(current)
+        return snapshot ? { ...current, ...snapshot, duration } : current
+      })
     })
 
     return () => {
       subscription.remove()
     }
-  }, [videoPlayer])
+  }, [readVideoSnapshot, videoPlayer])
 
   useEffect(() => {
     completeActiveRange(audioStatus.currentTime, 'audio')
@@ -656,21 +676,10 @@ export function useExercisePlayback({
       activeRangeRef.current = null
       pendingRangeRef.current = null
       clearRangeStopTimeout()
-      setActiveLineId(null)
       preparingPlaybackTokenRef.current = null
 
-      tryPauseNativePlayer(audioPlayerRef.current)
-      if (Platform.OS === 'web') {
-        const videos = Array.from(
-          (videoPlayerRef.current as WebVideoPlayer)._mountedVideos ?? [],
-        )
-        prepareWebVideosForManualPlayback(videos)
-        for (const video of videos) {
-          video.pause()
-        }
-      } else {
-        tryPauseNativePlayer(videoPlayerRef.current)
-      }
+      // useAudioPlayer/useVideoPlayer 会在组件卸载时负责释放播放器。这里仅
+      // 失效所有异步播放任务，不再访问可能已经被 hook 释放的 native object。
     },
     [clearRangeStopTimeout],
   )

@@ -14,6 +14,8 @@ import type {
   AdminWorkflowActivityPage,
   AdminWorkflowActivityType,
   AdminWorkflowNotifications,
+  AdminWorkflowOverview,
+  ClaimableWorkflowTaskPage,
   ChangeAdminPasswordRequest,
   CreateAdminMemberRequest,
   CreateOpenContentApiKeyRequest,
@@ -354,6 +356,40 @@ export const apiClient = {
     fetchJson<AdminWorkflowNotifications>(
       '/api/v1/admin/workflow-notifications',
       { method: 'GET' },
+      { adminToken },
+    ),
+  getClaimableWorkflowTasks: (adminToken: string, page = 1, pageSize = 20) =>
+    fetchJson<ClaimableWorkflowTaskPage>(
+      `/api/v1/admin/workflow/claimable-tasks?page=${page}&pageSize=${pageSize}`,
+      { method: 'GET' },
+      { adminToken },
+    ),
+  claimWorkflowTask: (exerciseId: number, adminToken: string) =>
+    fetchJson<AdminContentResponse>(
+      `/api/v1/admin/exercises/${exerciseId}/workflow-claim`,
+      { method: 'POST' },
+      { adminToken },
+    ),
+  releaseWorkflowTask: (exerciseId: number, adminToken: string) =>
+    fetchJson<AdminContentResponse>(
+      `/api/v1/admin/exercises/${exerciseId}/workflow-release`,
+      { method: 'POST' },
+      { adminToken },
+    ),
+  getWorkflowOverview: (adminToken: string) =>
+    fetchJson<AdminWorkflowOverview>(
+      '/api/v1/admin/workflow/overview',
+      { method: 'GET' },
+      { adminToken },
+    ),
+  updateExerciseClaimAvailability: (
+    exerciseId: number,
+    claimBlocked: boolean,
+    adminToken: string,
+  ) =>
+    fetchJson<AdminContentResponse & { exerciseId: number; claimBlocked: boolean }>(
+      `/api/v1/admin/exercises/${exerciseId}/claim-availability`,
+      { method: 'PUT', body: JSON.stringify({ claimBlocked }) },
       { adminToken },
     ),
   getWorkflowActivity: (

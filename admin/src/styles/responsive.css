@@ -1,16 +1,43 @@
 @media (max-width: 1120px) {
   .course-grid,
-  .import-layout,
   .menu-admin-layout {
     grid-template-columns: 1fr;
+  }
+
+  .waveform-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .subtitle-editor-inspector {
+    max-height: none;
+  }
+
+  .waveform-editor-inspector {
+    border-left: 0;
+    border-top: 1px solid #e2e8f0;
+    max-height: none;
+    padding-left: 0;
+    padding-top: 12px;
+  }
+
+  /* 窄屏仍保持“视频 + 字幕编辑”左右并列；宽度不足时只滚动工作区，
+     不把字幕编辑器改排到视频下方，避免切换布局后失去同时对照能力。 */
+  .media-editor-workspace {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .media-editor-upper {
+    grid-template-columns:
+      minmax(360px, var(--video-column-size, 2fr))
+      8px
+      minmax(300px, var(--subtitle-column-size, 1fr));
+    min-width: 668px;
+    width: 100%;
   }
 }
 
 @media (max-width: 720px) {
-  .import-meta-sidebar {
-    position: static;
-  }
-
   .admin-workspace-content { padding: 14px; }
 
   .open-content-api-documentation {
@@ -30,6 +57,11 @@
     grid-template-columns: 1fr;
   }
 
+  .video-preview-stage,
+  .video-player {
+    min-height: 220px;
+  }
+
   .workflow-activity-toolbar {
     align-items: stretch;
     flex-direction: column;
@@ -37,5 +69,478 @@
 
   .workflow-activity-filter {
     min-width: min(100%, 220px);
+  }
+}
+
+/*
+ * 制课工作台是一个固定的编辑工作区，不参与普通管理页面的窄屏换行。
+ * Mac 的缩放分辨率可能让一个物理上很宽的窗口落入 max-width 断点，因此这组规则
+ * 必须覆盖所有非桌面断点：上下结构始终保持，宽度不足时只让工作区横向滚动。
+ */
+@media (max-width: 1120px) {
+  .admin-workspace-layout:has(.import-workbench) {
+    align-items: stretch;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .admin-workspace-layout:has(.import-workbench) > .ant-layout-sider,
+  .admin-workspace-layout:has(.import-workbench) > .ant-layout-sider .ant-layout-sider-children {
+    height: 100%;
+  }
+
+  .admin-workspace-content.ant-layout-content:has(.import-workbench) {
+    box-sizing: border-box;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .import-workbench {
+    box-sizing: border-box;
+    border-radius: 0;
+    border-width: 0;
+    gap: 0;
+    height: 100%;
+    margin: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .import-layout {
+    align-items: stretch;
+    gap: 0;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .import-main {
+    gap: 0;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .import-main-toolbar {
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    min-height: 46px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 12px;
+  }
+
+  .import-main-title-group,
+  .import-main-toolbar-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  .media-editor-workspace {
+    gap: 0;
+    grid-template-rows: minmax(0, 1fr) 8px var(--waveform-row-size, clamp(180px, 22vh, 210px));
+    height: 100%;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .media-editor-upper {
+    gap: 0;
+    grid-template-columns:
+      minmax(360px, var(--video-column-size, 2fr))
+      8px
+      minmax(300px, var(--subtitle-column-size, 1fr));
+    height: 100%;
+    min-height: 0;
+    min-width: 668px;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .media-editor-video-column,
+  .media-editor-timeline {
+    gap: 0;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .media-editor-resizer-vertical,
+  .media-editor-resizer-horizontal {
+    display: flex;
+  }
+
+  .media-editor-video-column {
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    min-width: 360px;
+  }
+
+  .subtitle-editor-inspector {
+    box-sizing: border-box;
+    height: 100%;
+    max-height: none;
+    min-width: 0;
+    overflow: auto;
+    padding: 12px;
+    width: 100%;
+  }
+
+  .video-preview-stage {
+    align-items: center;
+    align-self: stretch;
+    aspect-ratio: auto;
+    box-sizing: border-box;
+    display: flex;
+    flex: 1 1 auto;
+    height: auto;
+    max-height: none;
+    max-width: none;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .video-preview-stage > .video-player {
+    height: 100%;
+    max-height: 100%;
+    max-width: 100%;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .waveform-panel {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    padding: 10px 0;
+  }
+
+  .waveform-canvas-wrap {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+  }
+
+  .wavesurfer-view {
+    min-height: 0;
+  }
+}
+
+/* 制课工作台使用桌面端完整视口，避免普通页面的留白规则挤压编辑区域。 */
+@media (min-width: 1121px) {
+  /* 制课页没有独立的顶部栏，工作区本身应从视口顶部铺满到视口底部。 */
+  .admin-workspace-layout:has(.import-workbench) {
+    align-items: stretch;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .admin-workspace-layout:has(.import-workbench) > .ant-layout-sider,
+  .admin-workspace-layout:has(.import-workbench) > .ant-layout-sider .ant-layout-sider-children {
+    height: 100%;
+  }
+
+  .admin-workspace-content.ant-layout-content:has(.import-workbench) {
+    box-sizing: border-box;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .import-workbench {
+    box-sizing: border-box;
+    border-radius: 0;
+    border-width: 0;
+    gap: 0;
+    height: 100%;
+    margin: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .import-layout {
+    align-items: stretch;
+    gap: 0;
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .import-main {
+    gap: 0;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .import-main {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .import-main-toolbar {
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    min-height: 46px;
+    padding: 8px 12px;
+  }
+
+  .media-editor-workspace {
+    gap: 0;
+    grid-template-rows: minmax(0, 1fr) 8px var(--waveform-row-size, clamp(180px, 22vh, 210px));
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .media-editor-upper {
+    gap: 0;
+    grid-template-columns:
+      minmax(360px, var(--video-column-size, 2fr))
+      8px
+      minmax(300px, var(--subtitle-column-size, 1fr));
+    min-height: 0;
+    min-width: 668px;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .media-editor-video-column,
+  .media-editor-timeline {
+    gap: 0;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .media-editor-resizer-vertical,
+  .media-editor-resizer-horizontal {
+    display: flex;
+  }
+
+  /* 视频预览占满上方左侧工作区，画面本身仍按原比例适配。 */
+  .media-editor-video-column {
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .subtitle-editor-inspector,
+  .waveform-panel {
+    border-radius: 0;
+  }
+
+  .video-preview-stage {
+    align-items: center;
+    align-self: stretch;
+    aspect-ratio: auto;
+    box-sizing: border-box;
+    display: flex;
+    flex: 1 1 auto;
+    height: auto;
+    justify-content: center;
+    max-height: none;
+    max-width: none;
+    width: 100%;
+  }
+
+  .video-preview-stage > .video-player {
+    height: 100%;
+    max-height: 100%;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .subtitle-editor-inspector {
+    box-sizing: border-box;
+    height: 100%;
+    max-height: none;
+    padding: 12px;
+  }
+
+  .waveform-panel {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    padding: 10px 0;
+  }
+
+  .workbench-bottom-actions,
+  .media-workbench-status {
+    padding: 6px 12px;
+  }
+
+  .waveform-canvas-wrap {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+  }
+
+  .wavesurfer-view {
+    min-height: 0;
+  }
+
+  .waveform-editor-main {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .waveform-subtitle-list {
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+
+  .waveform-subtitle-list summary {
+    padding-bottom: 7px;
+    padding-top: 7px;
+  }
+
+  .waveform-subtitle-list .subtitle-list-table {
+    max-height: 96px;
+  }
+
+}
+
+/* 小尺寸桌面（例如 Mac 的缩放分辨率）使用紧凑密度，避免大屏字号和控件尺寸硬挤在一起。 */
+@media (min-width: 1121px) and (max-width: 1440px) {
+  .import-workbench {
+    --workbench-font-size: clamp(11px, 0.9vw, 14px);
+    font-size: var(--workbench-font-size);
+  }
+
+  .import-main-toolbar {
+    gap: clamp(6px, 0.75vw, 12px);
+    min-height: clamp(40px, 3.2vw, 46px);
+    padding: clamp(6px, 0.55vw, 8px) clamp(8px, 0.85vw, 12px);
+  }
+
+  .import-main-toolbar-actions {
+    gap: clamp(4px, 0.55vw, 8px);
+  }
+
+  .import-main-title,
+  .waveform-inspector-heading,
+  .subtitle-detail-head strong {
+    font-size: clamp(12px, 0.9vw, 14px);
+  }
+
+  .import-workbench .command-button,
+  .import-workbench .mini-command {
+    font-size: clamp(11px, 0.82vw, 13px);
+    min-height: clamp(32px, 2.65vw, 38px);
+    padding-inline: clamp(8px, 0.85vw, 14px);
+  }
+
+  .media-editor-upper {
+    grid-template-columns:
+      minmax(360px, var(--video-column-size, 2fr))
+      8px
+      minmax(300px, var(--subtitle-column-size, 1fr));
+  }
+
+  .media-editor-workspace {
+    grid-template-rows: minmax(0, 1fr) 8px var(--waveform-row-size, clamp(160px, 22vh, 190px));
+  }
+
+  .subtitle-editor-inspector,
+  .waveform-panel {
+    padding: clamp(6px, 0.55vw, 8px);
+  }
+
+  .waveform-panel {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .subtitle-editor-inspector {
+    gap: clamp(5px, 0.5vw, 8px);
+  }
+
+  .subtitle-editor-inspector .field input,
+  .subtitle-editor-inspector .field select,
+  .subtitle-editor-inspector .field textarea {
+    font-size: clamp(12px, 0.78vw, 13px);
+    min-height: clamp(30px, 2.35vw, 34px);
+    padding: 6px 8px;
+  }
+
+  .translation-locale-row {
+    gap: 6px;
+    grid-template-columns: clamp(44px, 3.8vw, 50px) minmax(0, 1fr);
+  }
+
+  .time-ms-field input {
+    font-size: clamp(11px, 0.75vw, 12px);
+    width: clamp(50px, 4.5vw, 58px);
+  }
+
+  .subtitle-time-input.ant-input-number {
+    width: clamp(72px, 6.5vw, 82px);
+  }
+
+  .waveform-controls {
+    flex-basis: clamp(34px, 2.65vw, 38px);
+    gap: 2px;
+    height: clamp(34px, 2.65vw, 38px);
+    min-height: clamp(34px, 2.65vw, 38px);
+    padding: 3px 4px;
+  }
+
+  .waveform-tool-group {
+    gap: 2px;
+    height: clamp(26px, 2.1vw, 30px);
+    min-height: clamp(26px, 2.1vw, 30px);
+  }
+
+  .waveform-tool-group + .waveform-tool-group {
+    margin-left: 1px;
+    padding-left: clamp(5px, 0.55vw, 8px);
+  }
+
+  .waveform-icon-button.ant-btn {
+    flex-basis: clamp(26px, 2.1vw, 30px);
+    height: clamp(26px, 2.1vw, 30px);
+    width: clamp(26px, 2.1vw, 30px);
+  }
+
+  .zoom-control {
+    flex-basis: 200px;
+    max-width: 300px;
+    min-width: 150px;
+  }
+
+  .waveform-time-readout {
+    font-size: clamp(10px, 0.75vw, 12px);
+    padding-left: 5px;
   }
 }

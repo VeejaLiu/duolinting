@@ -46,10 +46,10 @@ const copy: Record<Locale, GuideCopy> = {
     docs: {
       label: "贡献文档",
       breadcrumb: "内容贡献",
-      updated: "最后更新：2026-08-19",
+      updated: "最后更新：2026-08-21",
       sidebar: { gettingStarted: "开始贡献", workspace: "后台工作台", publishing: "发布与维护", overview: "概述", prepare: "开始前确认", path: "协作路径", collaboration: "加入字幕协作", directory: "目录结构", course: "课程管理", workbench: "制课工作台", subtitles: "导入字幕", waveform: "波形与翻译", publish: "提交与发布", checklist: "发布前检查", maintenance: "发布后维护", rules: "内容与授权规则", code: "代码贡献" },
       toc: { overview: "概述", start: "开始贡献内容", collaboration: "加入字幕协作", workspace: "后台工作台", checklist: "发布前检查", maintenance: "发布后维护", rules: "内容与授权规则", code: "代码贡献" },
-      overview: { title: "用真实媒体，贡献真正能练的听力课。", body: "DuolinTing 将真实世界的音视频组织成泛听、逐句精听与难点复习。现在，获得课程权限的字幕贡献者可以直接在后台完成校对或二审；你的名字也会显示在课程中。", callout: "内容工作台由维护者配置账号与课程权限；目前没有公开投稿表单或自助开通入口。" },
+      overview: { title: "用真实媒体，贡献真正能练的听力课。", body: "DuolinTing 将真实世界的音视频组织成泛听、逐句精听与难点复习。获得账号的字幕贡献者可以在「任务广场」自助领取课程任务，或由管理员直接指派；完成校对或二审后，你的名字会显示在课程中。", callout: "账号仍由维护者配置开通；课程任务可以在后台自助领取。目前没有公开投稿表单。" },
       media: { title: "课程制作的核心，是逐句准确。", body: "媒体、字幕时间轴、译文和可接受答案会共同决定学习者的体验。请把每一句当作一段独立的练习：听得到、对得上、看得懂，也有合理的答案边界。", caption: "制课工作台：上传媒体、逐句校准波形与字幕，然后保存或发布。" },
       next: { previous: "上一节", next: "下一节", start: "开始前确认", workspace: "后台工作台" },
     },
@@ -59,7 +59,7 @@ const copy: Record<Locale, GuideCopy> = {
       lead: "这份指南带你从素材准备走到发布与维护：上传音视频、导入字幕、在波形上校准每一句，再把课程交给学习者。",
       primary: "查看制作路径",
       secondary: "前往 GitHub",
-      facts: ["仅上传有权使用的内容", "课程由超级管理员按任务分配", "校对与二审贡献会在课程页面署名"],
+      facts: ["仅上传有权使用的内容", "课程任务可自助领取，也可由管理员指派", "校对与二审贡献会在课程页面署名"],
       screenshot: "DuolinTing 制课工作台的媒体、波形与字幕编辑界面",
     },
     before: {
@@ -68,7 +68,7 @@ const copy: Record<Locale, GuideCopy> = {
       lead: "我们希望贡献者把精力花在真正可发布、可复习的课程上。先完成以下确认，再进入工作台。",
       items: [
         { mark: "01", title: "你拥有内容使用权", body: "音频、视频、字幕、封面和译文都必须由你创作、已获授权，或采用允许此用途的明确开放许可。保留来源、许可和必要的署名信息。" },
-        { mark: "02", title: "你已获得协作权限", body: "内容工作台目前只向由维护者配置的字幕贡献者账号开放。请提供一个常用邮箱和希望展示的名字；维护者会私聊发送一次性的登录信息，并将指定课程分配给你。" },
+        { mark: "02", title: "你已获得协作权限", body: "内容工作台目前只向由维护者配置的字幕贡献者账号开放。请提供一个常用邮箱和希望展示的名字；维护者会私聊发送一次性的登录信息。登录后可在「任务广场」自助领取课程任务。" },
         { mark: "03", title: "你愿意为质量负责", body: "AI 可以协助翻译，但不能替代核对。发布前请亲自听完媒体、检查每一条时间轴和所有面向学习者的文本。" },
       ],
     },
@@ -79,22 +79,22 @@ const copy: Record<Locale, GuideCopy> = {
       steps: [
         { title: "准备素材", body: "整理已获权利的媒体、原始字幕、来源说明与封面素材。" },
         { title: "开通字幕贡献者账号", body: "向维护者提供邮箱和用于课程署名的显示名称；登录信息会通过私聊一次性发送。" },
-        { title: "领取已分配课程", body: "超级管理员会把指定课程的校对或二审工作分配给你；贡献者只可编辑已获授权的课程。" },
-        { title: "校对字幕", body: "在工作台逐句校准文本、时间轴、译文与可接受答案，完成后提交二审。" },
-        { title: "二次审核", body: "二审人核对已提交字幕，选择通过或退回；退回后校对人才能修改并重新提交。" },
-        { title: "由管理员发布", body: "通过二审后由超级管理员控制发布。草稿与已校对内容仅向获志愿者预览权限的学习端成员开放。" },
+        { title: "领取课程任务", body: "登录后在「任务广场」领取可领取的课程，任务会锁定给你；也可以由管理员直接指派。每人同时最多持有 3 门课程。" },
+        { title: "校对字幕", body: "在工作台逐句校准文本、时间轴、译文与可接受答案；每次保存都会顺延任务期限，完成后提交二审。" },
+        { title: "二次审核", body: "提交后字幕锁定进入审核；当前简化流程由同一位贡献者完成校对与二审。退回后校对人才能修改并重新提交。" },
+        { title: "由管理员发布", body: "通过二审后由超级管理员控制发布。绑定学习端账号的贡献者可预览自己负责课程的草稿与已校对版本。" },
       ],
     },
     collaboration: {
       eyebrow: "字幕协作流程",
-      title: "现在，字幕贡献可以直接在 Admin 工作台完成。",
-      lead: "课程权限与任务分发已集成到 Admin 工作台。获得账号并被分配课程后，字幕贡献者可直接完成校对或二次审核，所有进度都在系统内追踪。",
+      title: "现在，字幕贡献可以在 Admin 工作台和「任务广场」完成。",
+      lead: "课程权限与任务分发已集成到 Admin 工作台。获得账号后，字幕贡献者可在「任务广场」自助领取课程，或由管理员指派；所有进度都在系统内追踪。",
       note: "当前未接入邮箱验证码。账号由维护者人工开通；请提供常用邮箱和显示名称，显示名称会用于课程公开署名。",
       steps: [
         { title: "提供邮箱与显示名称", body: "通过邮件或其他约定渠道，把常用邮箱和希望展示在产品中的名字发给维护者。" },
         { title: "收到一次性登录信息", body: "超级管理员创建字幕贡献者账号后，临时密码只显示一次，并会通过私聊安全发送；首次登录必须立即修改密码。" },
-        { title: "获得指定课程权限", body: "维护者会为课程指定校对人和二审人。两项职责通常由不同的人承担，也可以由同一位贡献者完成。" },
-        { title: "在工作台完成任务", body: "校对人修改后提交二审，提交即锁定，不能重复提交；二审人通过或退回。通过后的课程由超级管理员发布。" },
+        { title: "领取或接受指派课程", body: "课程任务可在「任务广场」自助领取，领取后锁定给你；也可以由管理员直接指派。当前采用简化模式，同一位贡献者同时承担校对与二审。" },
+        { title: "在工作台完成任务", body: "校对人修改后提交二审，提交即锁定；每次保存草稿会自动顺延 48 小时任务期限，超时未保存自动释放回任务广场。通过后的课程由超级管理员发布。" },
       ],
       images: [
         { src: "/contributor-account-provisioning.png", alt: "Admin 中添加字幕贡献者账号的表单", title: "账号由超级管理员开通", body: "使用邮箱登录，并填写会出现在课程中的显示名称。" },
@@ -105,28 +105,28 @@ const copy: Record<Locale, GuideCopy> = {
     workflow: {
       eyebrow: "字幕工作流",
       title: "四步完成一次协作。",
-      lead: "超级管理员管理课程与发布；字幕贡献者专注于校对和二审。",
+      lead: "超级管理员管理课程与发布；字幕贡献者自助领取任务，并专注于校对和二审。",
       steps: [
-        { title: "草稿", body: "管理员创建课程并分配校对人与二审人。" },
-        { title: "校对", body: "校对人直接在 Admin 工作台修改字幕。" },
-        { title: "二次审核", body: "提交后字幕锁定，流转给指定审核人通过或退回。" },
-        { title: "发布", body: "管理员确认后发布；草稿与已校对内容仅供志愿者预览。" },
+        { title: "草稿", body: "管理员创建课程；课程进入「任务广场」供贡献者领取，或由管理员直接指派。" },
+        { title: "校对", body: "校对人直接在 Admin 工作台修改字幕；保存草稿自动顺延任务期限。" },
+        { title: "二次审核", body: "提交后字幕锁定；当前简化流程由同一人完成校对与二审，通过或退回。" },
+        { title: "发布", body: "管理员确认后发布；绑定学习端账号的贡献者可预览自己负责的草稿与已校对课程。" },
       ],
     },
     workspace: {
       eyebrow: "后台工作台，逐步操作",
       title: "用真实的制课流程，把一段媒体组织成练习。",
       lead: "管理员后台不是公开投稿工具，而是受控的内容生产工作台。以下名称与操作对应现有工作区。",
-      note: "提示：状态沿着“草稿 → 已校对 → 二次审核 / 发布”流转。草稿和已校对课程可供获志愿者预览权限的学习端成员查看；已发布课程对所有学习者可见。",
+      note: "提示：状态沿着“草稿 → 已校对 → 二次审核 / 发布”流转。绑定学习端账号的贡献者可预览自己负责课程的草稿与已校对版本；已发布课程对所有学习者可见。",
       sections: [
         {
-          id: "directory", number: "01", title: "目录结构：由超级管理员维护课程位置", intro: "超级管理员在“目录结构”建立学习者看得到的内容层级。字幕贡献者不需要处理目录，只需进入自己已分配的课程。",
+          id: "directory", number: "01", title: "目录结构：由超级管理员维护课程位置", intro: "超级管理员在“目录结构”建立学习者看得到的内容层级。字幕贡献者不需要处理目录，只需进入自己领取或被指派的课程。",
           actions: ["新建内容分类，填写名称、说明、颜色和可选封面。", "在分类下新建学习系列，明确课程面向的主题、难度或学习路径。", "补齐英语、泰语、日语本地化。可使用 AI 辅助填充，但发布前必须人工检查词义与表达。"],
           aside: { title: "先目录，后课程", body: "课程管理需要已有学习系列。若还没有分类或学习系列，先回到“目录结构”创建。" },
         },
         {
-          id: "course", number: "02", title: "课程管理：查看任务并分配负责人", intro: "超级管理员在这里创建课程、管理发布状态，并为每门课程指定校对人与二审人。字幕贡献者只会看到获授权或分配到自己名下的课程。",
-          actions: ["为课程分别选择校对负责人和二审负责人；两项角色可以由不同人或同一人担任。", "创建、发布、归档课程由超级管理员控制；贡献者专注于字幕校对和二审。", "课程会清楚显示当前状态、负责人和审核人，方便协作跟进。"],
+          id: "course", number: "02", title: "课程管理与任务广场：查看任务、领取或分配负责人", intro: "超级管理员在这里创建课程、管理发布状态，并可为每门课程指定负责人；字幕贡献者在「任务广场」自助领取任务。贡献者只会看到获授权、领取或指派到自己名下的课程。",
+          actions: ["课程可由贡献者在「任务广场」自助领取，也可由管理员指派；当前简化模式下，同一人同时承担校对与二审。", "创建、发布、归档课程由超级管理员控制；贡献者专注于字幕校对和二审。", "课程与任务广场会清楚显示当前状态、负责人、剩余期限和超期情况，方便协作跟进。"],
         },
         {
           id: "workbench", number: "03", title: "制课工作台：上传媒体，完成逐句练习", intro: "进入“制课工作台”，把课程信息、媒体和字幕放在同一个编辑流程里。保存前至少需要选择媒体、学习系列并填写课程标题。",
@@ -143,8 +143,8 @@ const copy: Record<Locale, GuideCopy> = {
           aside: { title: "时间轴的标准", body: "每个片段应紧贴实际说话范围：不要切掉首尾音，也不要把两句不应合并的内容放在同一条里。" },
         },
         {
-          id: "publish", number: "06", title: "提交二审与发布：由任务状态推动课程", intro: "校对人保存修改后提交二审。提交后的字幕稿会锁定并流转给提交时指定的二审人；只有超级管理员能控制课程发布。",
-          actions: ["校对完成后提交二审；同一稿件不能重复提交或在提交后继续编辑。", "二审人可通过或退回并附上意见；只有退回后，校对人才能修改并再次提交。", "二审完成后，超级管理员确认内容和状态，再将课程发布给全体学习者。"],
+          id: "publish", number: "06", title: "提交二审与发布：由任务状态推动课程", intro: "校对人保存修改后提交二审。提交后的字幕稿会锁定；只有超级管理员能控制课程发布。",
+          actions: ["校对完成后提交二审；同一稿件不能重复提交或在提交后继续编辑。", "二审可通过或退回并附上意见；只有退回后，校对人才能修改并再次提交。", "二审完成后，超级管理员确认内容和状态，再将课程发布给全体学习者。"],
         },
       ],
     },
@@ -170,7 +170,7 @@ const copy: Record<Locale, GuideCopy> = {
       eyebrow: "内容与授权规则",
       title: "我们尊重创作者，也保护学习者。",
       lead: "请在每一次导入和发布前遵守这些原则。",
-      items: ["只上传自己创作、已获许可或明确开放许可允许使用的内容；不确定时，不上传、不发布。", "不得复制、上传或重新分发未经授权的音频、视频、字幕、封面或翻译。", "不得抓取或复制 YouZack 整理的配套字幕。DuolinTing 是受其听力学习理念启发的独立开源项目。", "内容协作账号由维护者配置；请不要将管理员权限或上传入口误解为公开的自助投稿服务。"],
+      items: ["只上传自己创作、已获许可或明确开放许可允许使用的内容；不确定时，不上传、不发布。", "不得复制、上传或重新分发未经授权的音频、视频、字幕、封面或翻译。", "不得抓取或复制 YouZack 整理的配套字幕。DuolinTing 是受其听力学习理念启发的独立开源项目。", "内容协作账号由维护者配置；课程任务可在后台自助领取，但账号开通与内容发布仍由维护者控制。"],
     },
     code: {
       eyebrow: "代码与部署贡献",
@@ -188,10 +188,10 @@ const copy: Record<Locale, GuideCopy> = {
     docs: {
       label: "Contribution docs",
       breadcrumb: "Content contributions",
-      updated: "Last updated: August 19, 2026",
+      updated: "Last updated: August 21, 2026",
       sidebar: { gettingStarted: "Getting started", workspace: "Admin workspace", publishing: "Publish and maintain", overview: "Overview", prepare: "Before you begin", path: "Collaboration path", collaboration: "Join subtitle collaboration", directory: "Catalogue structure", course: "Course management", workbench: "Creation workspace", subtitles: "Import subtitles", waveform: "Waveform and translation", publish: "Submit and publish", checklist: "Publish checks", maintenance: "Maintain lessons", rules: "Content and rights", code: "Code contributions" },
       toc: { overview: "Overview", start: "Start contributing", collaboration: "Join subtitle collaboration", workspace: "Admin workspace", checklist: "Publish checks", maintenance: "Maintain lessons", rules: "Content and rights", code: "Code contributions" },
-      overview: { title: "Use real media to contribute listening lessons people can truly practice.", body: "DuolinTing organizes real-world audio and video into warm-up listening, line-by-line practice, and difficult-line review. Subtitle contributors with course access can now proofread or review directly in Admin—and receive public course credit for that work.", callout: "Maintainers configure content accounts and course permissions. There is currently no public submission form or self-service account creation." },
+      overview: { title: "Use real media to contribute listening lessons people can truly practice.", body: "DuolinTing organizes real-world audio and video into warm-up listening, line-by-line practice, and difficult-line review. Subtitle contributors with an account can claim course tasks in the Task Plaza or receive them from an administrator, then proofread or review directly in Admin—and receive public course credit for that work.", callout: "Maintainers still provision accounts; course tasks can be claimed in Admin. There is currently no public submission form." },
       media: { title: "Accurate lines are the heart of lesson production.", body: "Media, subtitle timing, translations, and accepted answers work together to shape a learner’s experience. Treat every line as a practice unit: hearable, precisely aligned, understandable, and bounded by reasonable answers.", caption: "Creation workspace: upload media, align waveform and subtitles line by line, then save or publish." },
       next: { previous: "Previous", next: "Next", start: "Before you begin", workspace: "Admin workspace" },
     },
@@ -201,7 +201,7 @@ const copy: Record<Locale, GuideCopy> = {
       lead: "This guide takes you from source preparation through publishing and maintenance: upload media, import subtitles, align every line on the waveform, then share the lesson with learners.",
       primary: "See the creation path",
       secondary: "Visit GitHub",
-      facts: ["Upload only content you have the right to use", "Course work is assigned by a super administrator", "Proofread and review work receives public course credit"],
+      facts: ["Upload only content you have the right to use", "Course tasks can be self-claimed or assigned by an administrator", "Proofread and review work receives public course credit"],
       screenshot: "DuolinTing creation workspace showing media, waveform, and subtitles",
     },
     before: {
@@ -210,7 +210,7 @@ const copy: Record<Locale, GuideCopy> = {
       lead: "We want contributors to spend their energy on lessons that can genuinely be published and practiced. Confirm these points before opening the workspace.",
       items: [
         { mark: "01", title: "You have the rights to the material", body: "Audio, video, subtitles, cover art, and translations must be yours, licensed to you, or covered by a clear open licence that permits this use. Keep source, licence, and attribution details." },
-        { mark: "02", title: "You have collaboration access", body: "The content workspace is available to subtitle-contributor accounts configured by maintainers. Send a preferred email and the name you want shown on courses; a maintainer will privately send your one-time login details and assign a course." },
+        { mark: "02", title: "You have collaboration access", body: "The content workspace is available to subtitle-contributor accounts configured by maintainers. Send a preferred email and the name you want shown on courses; a maintainer will privately send your one-time login details. After signing in, claim a course task in the Task Plaza." },
         { mark: "03", title: "You will own the quality check", body: "AI can help with translation, but it cannot replace review. Before publishing, listen through the media and check every timeline entry and learner-facing text yourself." },
       ],
     },
@@ -221,22 +221,22 @@ const copy: Record<Locale, GuideCopy> = {
       steps: [
         { title: "Prepare source material", body: "Gather rights-cleared media, source subtitles, attribution details, and cover assets." },
         { title: "Get a subtitle-contributor account", body: "Send a maintainer your email and the display name you want credited on courses; login details are privately shared once." },
-        { title: "Open your assigned course", body: "A super administrator assigns you as proofreader or second reviewer. Contributors can edit only courses they are allowed to access." },
-        { title: "Proofread subtitles", body: "Use the workspace to align text, timing, translations, and accepted answers, then submit the work for second review." },
-        { title: "Complete second review", body: "The reviewer approves or returns the submitted draft. A returned draft can be edited and resubmitted by the proofreader." },
-        { title: "An administrator publishes", body: "After review, a super administrator controls release. Draft and proofread content is available only to learner accounts granted volunteer-preview access." },
+        { title: "Claim a course task", body: "After signing in, claim an available course in the Task Plaza—it locks to you—or receive a direct assignment. You can hold up to 3 courses at once." },
+        { title: "Proofread subtitles", body: "Use the workspace to align text, timing, translations, and accepted answers; each save extends your deadline, then submit for second review." },
+        { title: "Complete second review", body: "Submission locks the draft for review; in the current simplified flow, one contributor handles both proofreading and second review. Returned drafts can be edited and resubmitted." },
+        { title: "An administrator publishes", body: "After review, a super administrator controls release. Contributors with a bound learner account can preview their own draft and proofread courses." },
       ],
     },
     collaboration: {
       eyebrow: "Subtitle collaboration",
-      title: "Subtitle collaboration now happens directly in the Admin workspace.",
-      lead: "Course permissions and task assignment are built into the Admin workspace. Once contributors have an account and an assigned course, they can proofread or complete second review directly in the system, where progress is tracked.",
+      title: "Subtitle collaboration now happens in the Admin workspace and the Task Plaza.",
+      lead: "Course permissions and task assignment are built into the Admin workspace. Once contributors have an account, they can claim courses in the Task Plaza or receive assignments, then proofread or complete second review directly in the system, where progress is tracked.",
       note: "Email verification is not currently integrated. Accounts are provisioned manually by maintainers; provide a preferred email and display name for public course credit.",
       steps: [
         { title: "Share an email and display name", body: "Use email or another agreed channel to send a maintainer your preferred email and the name you want shown in the product." },
         { title: "Receive one-time login details", body: "A super administrator creates your subtitle-contributor account. The temporary password is shown once and sent privately; you must change it on first login." },
-        { title: "Receive course access", body: "A maintainer assigns proofreader and second-reviewer roles per course. These are usually separate people, but may be the same contributor." },
-        { title: "Finish work in the workspace", body: "Proofreaders submit to second review; submission locks the draft and cannot be repeated. Reviewers approve or return it. A super administrator publishes approved content." },
+        { title: "Claim or receive a course", body: "Course tasks can be self-claimed in the Task Plaza—locking them to you—or assigned directly by an administrator. In the current simplified flow, one contributor handles both proofreading and second review." },
+        { title: "Finish work in the workspace", body: "Proofreaders submit to second review; submission locks the draft. Each save extends the 48-hour deadline, and un-saved work is released back to the Task Plaza. A super administrator publishes approved content." },
       ],
       images: [
         { src: "/contributor-account-provisioning.png", alt: "Admin form for adding a subtitle contributor", title: "Accounts are provisioned by a super administrator", body: "Contributors sign in by email and choose the display name shown on courses." },
@@ -247,31 +247,31 @@ const copy: Record<Locale, GuideCopy> = {
     workflow: {
       eyebrow: "Subtitle workflow",
       title: "Four steps for every collaboration.",
-      lead: "Super administrators manage courses and release; subtitle contributors focus on proofreading and second review.",
+      lead: "Super administrators manage courses and release; subtitle contributors self-claim tasks and focus on proofreading and second review.",
       steps: [
-        { title: "Draft", body: "An administrator creates the lesson and assigns the proofreader and reviewer." },
-        { title: "Proofread", body: "The proofreader edits subtitles directly in the Admin workspace." },
-        { title: "Second review", body: "Submission locks the draft and sends it to the assigned reviewer to approve or return." },
-        { title: "Publish", body: "An administrator releases approved work; draft and proofread content is for volunteer preview only." },
+        { title: "Draft", body: "An administrator creates the lesson; it enters the Task Plaza for contributors to claim, or is assigned directly." },
+        { title: "Proofread", body: "The proofreader edits subtitles directly in the Admin workspace; saving extends the task deadline." },
+        { title: "Second review", body: "Submission locks the draft; in the current simplified flow, one contributor approves or returns it." },
+        { title: "Publish", body: "An administrator releases approved work; contributors with a bound learner account can preview their own drafts." },
       ],
     },
     workspace: {
       eyebrow: "The admin workspace, step by step",
       title: "Turn a piece of real media into practice through the production workflow.",
       lead: "The admin area is a controlled content-production workspace, not a public upload form. These labels and actions match the current workspace.",
-      note: "Note: course state flows through Draft → Proofread → Second review / Published. Draft and proofread lessons can be viewed by learner accounts granted volunteer-preview access; published lessons are available to everyone.",
+      note: "Note: course state flows through Draft → Proofread → Second review / Published. Contributors with a bound learner account can preview their own draft and proofread lessons; published lessons are available to everyone.",
       sections: [
-        { id: "directory", number: "01", title: "Catalogue structure: super administrators maintain lesson placement", intro: "Super administrators use Catalogue structure to create the hierarchy learners see. Subtitle contributors do not need to manage it: they open the courses assigned to them.", actions: ["Create a content category with its name, description, colour, and optional cover.", "Create a learning series inside that category and define the topic, level, or learning path it represents.", "Complete English, Thai, and Japanese localization. AI can help fill fields, but a person must check wording and meaning before publishing."], aside: { title: "Catalogue before lessons", body: "Course management needs an existing learning series. If no category or series exists, create it in Catalogue structure first." } },
-        { id: "course", number: "02", title: "Course management: find work and assign owners", intro: "Super administrators create lessons, manage release status, and select a proofreader and second reviewer for every course. Subtitle contributors see only courses that they are assigned or authorized to access.", actions: ["Choose a proofreader and a second reviewer separately; they may be different people or the same contributor.", "Course creation, publishing, and archiving are controlled by super administrators; contributors focus on proofreading and reviewing subtitles.", "Course rows make the current state, proofreader, and reviewer clear for the whole collaboration." ] },
+        { id: "directory", number: "01", title: "Catalogue structure: super administrators maintain lesson placement", intro: "Super administrators use Catalogue structure to create the hierarchy learners see. Subtitle contributors do not need to manage it: they open the courses they have claimed or been assigned.", actions: ["Create a content category with its name, description, colour, and optional cover.", "Create a learning series inside that category and define the topic, level, or learning path it represents.", "Complete English, Thai, and Japanese localization. AI can help fill fields, but a person must check wording and meaning before publishing."], aside: { title: "Catalogue before lessons", body: "Course management needs an existing learning series. If no category or series exists, create it in Catalogue structure first." } },
+        { id: "course", number: "02", title: "Course management and Task Plaza: find, claim, or assign work", intro: "Super administrators create lessons, manage release status, and may assign owners; subtitle contributors self-claim tasks in the Task Plaza. Contributors see only courses they have claimed, are assigned, or are authorized to access.", actions: ["Courses can be self-claimed in the Task Plaza or assigned by an administrator; in the current simplified flow, one contributor handles both proofreading and second review.", "Course creation, publishing, and archiving are controlled by super administrators; contributors focus on proofreading and reviewing subtitles.", "Course rows and the Task Plaza make current state, owner, remaining deadline, and overdue status clear for the whole collaboration." ] },
         { id: "workbench", number: "03", title: "Creation workspace: upload the media and build practice", intro: "The Creation workspace puts course details, media, and subtitles into one editing flow. Before saving, a media item, learning series, and lesson title are required.", actions: ["Upload audio or video. The workspace accepts audio/video files and currently checks a 120 MB maximum before upload; compress or split larger files.", "Complete series, title, difficulty, status, source, summary, and localized title/summary fields. The course cover is optional.", "After uploading or replacing media, listen through it and make sure the file, duration, and lesson all match."], aside: { title: "Start as a draft", body: "Choose Draft while media, subtitles, and translations are still being edited. Switch to Published only after you have reviewed everything." } },
         { id: "subtitles", number: "04", title: "Import subtitles: turn source material into editable lines", intro: "The workspace imports subtitle files or pasted subtitle text. Imported entries are drafts; they still need a line-by-line check against the media.", actions: ["Import .srt, .vtt, .ass, .lrc, or .txt files, or paste subtitle text directly.", "Bilingual subtitles can be recognized as two-line structures; choose whether Chinese appears on the first or second line.", "For a whole-track adjustment, use the global time offset in milliseconds, then sample the beginning, middle, and end." ] },
         { id: "waveform", number: "05", title: "Waveform and translation: make every line genuinely practiceable", intro: "Work line by line on the waveform and timeline. Learners’ looping, dictation, and review all depend on accurate timing and text.", actions: ["Drag or zoom the waveform to adjust each segment’s start and end, or use Set start / Set end for precise points.", "Add a line, merge with the next line, delete a wrong segment, or apply a batch timing offset when needed.", "Complete source text, translations, and accepted answers for every line. AI can fill or retranslate Chinese, Thai, and Japanese, but every line needs human listening and review."], aside: { title: "Timing standard", body: "Each segment should closely match the spoken range: do not cut off word beginnings or endings, and do not combine two lines that should be practiced separately." } },
-        { id: "publish", number: "06", title: "Submit for review and publish: let task state move the course", intro: "After proofreading, submit the work for second review. Submitted subtitles lock and go to the reviewer chosen at submission time; only a super administrator controls publishing.", actions: ["Submit for second review when proofreading is complete; the same draft cannot be submitted again or edited after submission.", "A second reviewer can approve or return the work with a note; only returned work can be edited and resubmitted by the proofreader.", "After second review, a super administrator verifies the content and state, then publishes the lesson for all learners." ] },
+        { id: "publish", number: "06", title: "Submit for review and publish: let task state move the course", intro: "After proofreading, submit the work for second review. Submitted subtitles lock; only a super administrator controls publishing.", actions: ["Submit for second review when proofreading is complete; the same draft cannot be submitted again or edited after submission.", "Review can approve or return the work with a note; only returned work can be edited and resubmitted by the proofreader.", "After second review, a super administrator verifies the content and state, then publishes the lesson for all learners." ] },
       ],
     },
     checklist: { eyebrow: "Publish checks", title: "Before selecting Published, check every item.", lead: "Each item directly affects whether a learner can warm up, practice line by line, and review difficult parts without friction.", items: ["I have the rights needed for the media, subtitles, cover, translations, and other assets, and I retained source and attribution requirements.", "The media plays through; its content matches the lesson title, source, and learning series.", "Every subtitle is accurate and aligned with spoken audio; I sampled the beginning, middle, and end.", "Chinese, Thai, and Japanese translations plus localized titles/summaries were reviewed by a person; no AI output was published unchecked.", "Accepted answers cover reasonable responses without incorrectly treating wrong answers as correct.", "Proofreading was submitted for second review, review feedback was addressed, and a super administrator confirmed the course state and release audience."], button: "Back to workspace steps" },
     maintenance: { eyebrow: "Care for lessons after release", title: "Bring feedback back into the content, so the next practice is better.", lead: "Publication is not the last step. The admin area provides ways to maintain lessons, record a course walk-through, and review product-level signals.", cards: [{ mark: "↻", title: "Course management", body: "Filter, order, edit, or archive lessons, and use media/subtitle completeness to guide further improvements." }, { mark: "✓", title: "Feedback center", body: "Handle learner feedback about accepted answers, mark it processed or ignored, then revise the relevant line where needed." }, { mark: "▶", title: "Video recording", body: "Record a line-by-line walkthrough of a prepared lesson for demonstrations or internal review." }, { mark: "◔", title: "Growth analysis", body: "Review registrations, DAU/WAU/MAU, and client distribution to understand the overall product and content rhythm." }] },
-    rules: { eyebrow: "Content and rights", title: "We respect creators and protect learners.", lead: "Follow these principles before every import and release.", items: ["Upload only material you created, have permission to use, or that is explicitly open-licensed for this use. If you are unsure, do not upload or publish it.", "Do not copy, upload, or redistribute audio, video, subtitles, cover art, or translations without authorization.", "Do not scrape or copy companion subtitles curated by YouZack. DuolinTing is an independent open-source project inspired by its listening-practice approach.", "Content accounts are configured by maintainers; do not interpret administrator access or uploads as a public, self-service submission service."] },
+    rules: { eyebrow: "Content and rights", title: "We respect creators and protect learners.", lead: "Follow these principles before every import and release.", items: ["Upload only material you created, have permission to use, or that is explicitly open-licensed for this use. If you are unsure, do not upload or publish it.", "Do not copy, upload, or redistribute audio, video, subtitles, cover art, or translations without authorization.", "Do not scrape or copy companion subtitles curated by YouZack. DuolinTing is an independent open-source project inspired by its listening-practice approach.", "Content accounts are configured by maintainers; course tasks can be self-claimed in Admin, but account provisioning and release remain maintainer-controlled."] },
     code: { eyebrow: "Code and deployment contributions", title: "Want to make DuolinTing itself better?", body: "The source code is open under Apache-2.0. Product improvements, documentation, deployment, and engineering collaboration can start from the GitHub repository; content collaboration still needs an admin account configured by a maintainer.", action: "View the GitHub repository", note: "Open-source code contribution and controlled content publishing are two clear, complementary collaboration paths." },
     footer: { home: "Home", download: "Download", guide: "Contribution guide", privacy: "Privacy", terms: "Terms", source: "GitHub", statement: "DuolinTing is an independent open-source project inspired by YouZack’s approach to listening practice. It is not an official YouZack product and is not endorsed by YouZack." },
   },
@@ -305,7 +305,7 @@ export function ContributeGuide({ initialLocale = "zh" }: { initialLocale?: Loca
         image: officialSiteHref("/admin-course-workbench.png"),
         author: { "@type": "Organization", name: "DuolinTing" },
         publisher: { "@type": "Organization", name: "DuolinTing", logo: { "@type": "ImageObject", url: officialSiteHref("/duolinting-logo-ear.png") } },
-        dateModified: "2026-08-16",
+        dateModified: "2026-08-21",
       }} />
       <header className="docs-header">
         <div className="docs-header-inner">
@@ -341,7 +341,7 @@ export function ContributeGuide({ initialLocale = "zh" }: { initialLocale?: Loca
         </aside>
 
         <article className="docs-article">
-          <div className="docs-breadcrumb"><Link href={initialLocale === "en" ? "/en" : "/"}>DuolinTing</Link><span>/</span><span>{docs.breadcrumb}</span><time dateTime="2026-08-19">{docs.updated}</time></div>
+          <div className="docs-breadcrumb"><Link href={initialLocale === "en" ? "/en" : "/"}>DuolinTing</Link><span>/</span><span>{docs.breadcrumb}</span><time dateTime="2026-08-21">{docs.updated}</time></div>
           <section id="overview" className="docs-intro">
             <p className="docs-kicker">{t.hero.eyebrow}</p>
             <h1>{docs.overview.title}</h1>

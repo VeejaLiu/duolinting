@@ -11,7 +11,11 @@ import type {
     AdminSubtitleWorkflowTaskInbox,
     AdminWorkflowNotifications,
     AdminWorkflowNotificationType,
+    AdminTaskClaimPolicy,
+    AdminWorkflowOverview,
+    ClaimableWorkflowTaskPage,
     CourseContributionRole,
+    CourseWorkflowAssignmentSource,
     CourseWorkflowCredits,
     CreateTranscriptLineRequest,
     SubtitleDraft,
@@ -19,7 +23,7 @@ import type {
     TranscriptLine,
 } from '../../domain';
 import type { Transaction } from 'sequelize';
-import { doRawQuery } from '../../models';
+import { doRawQuery, doRawUpdate } from '../../models';
 import { sequelize } from '../../models/db-config-mysql';
 import { AdminUserModel } from '../../models/schema/AdminUserDB';
 import { UserModel } from '../../models/schema/UserDB';
@@ -35,6 +39,15 @@ export const normalizeAdminRole = (role: unknown): AdminRole =>
 
 export const isSuperAdmin = (admin: AdminActor | undefined | null) =>
     admin?.role === 'super_admin';
+
+/**
+ * 任务领取策略常量。领取期限是滑动窗口：每次保存校对草稿都会把期限顺延到
+ * “当前时刻 + CLAIM_WINDOW_HOURS”；这样真正在工作的人不会被自动释放，
+ * 只有长期不保存的失联任务才会回到任务池。到期前 12 小时发一次提醒。
+ */
+export const CLAIM_WINDOW_HOURS = 48;
+export const CLAIM_EXPIRING_NOTICE_HOURS = 12;
+export const MAX_CONCURRENT_CLAIMS = 3;
 
 type ContributorRow = {
     id: number | string;
@@ -197,6 +210,512 @@ const normalizeAssignedExerciseIds = (ids: unknown) =>
             .filter((value) => Number.isInteger(value) && value > 0),
     )];
 
+/**
+ * 领取期限的 SQL 表达式：领取时刻之后的 CLAIM_WINDOW_HOURS 小时。
+ * 用参数化小时数构造，避免把业务时长硬编码进 SQL 字符串。
+ */
+const claimExpiryExpression = () => `date_add(utc_timestamp(), interval ${Number(CLAIM_WINDOW_HOURS)} hour)`;
+
+/** 任务池与领取策略；贡献者和超级管理员共用同一份口径。 */
+export function getTaskClaimPolicy(): AdminTaskClaimPolicy {
+    return {
+        claimWindowHours: CLAIM_WINDOW_HOURS,
+        maxConcurrentClaims: MAX_CONCURRENT_CLAIMS,
+        myActiveClaimCount: 0,
+    };
+}
+
+/** 当前成员仍在进行中的课程数，含管理员指派与自助领取，用于并发上限校验。 */
+async function countActiveProofreadingClaims(adminId: number): Promise<number> {
+    const rows = await doRawQuery<{ total: number | string }>({
+        query: `select count(*) as total
+                from exercise_workflow_assignees assignees
+                inner join exercises on exercises.id = assignees.exercise_id
+                where assignees.workflow_role = 'proofreader'
+                  and assignees.admin_user_id = :adminId
+                  and exercises.status in ('draft', 'proofread')
+                  and (
+                    assignees.claim_expires_at is null
+                    or assignees.claim_expires_at > utc_timestamp()
+                  )`,
+        params: { adminId },
+    });
+    return Number(rows[0]?.total ?? 0);
+}
+
+/**
+ * 自助领取是竞争操作：靠 exercise_workflow_assignees 的
+ * (exercise_id, workflow_role) 唯一键判定“刚被别人领走”，
+ * 不能复用改派时的“先删后插”，否则会互相覆盖。
+ */
+export async function claimWorkflowTask(exerciseId: number, adminId: number) {
+    const contributor = await AdminUserModel.findOne({
+        attributes: ['id', 'role'],
+        where: { id: adminId, role: 'subtitle_contributor' },
+        raw: true,
+    });
+    if (!contributor) throw new Error('只有字幕贡献者可以领取任务');
+
+    await sequelize.transaction(async (transaction) => {
+        const activeCount = Number((await sequelize.query<{ total: number | string }>(
+            `select count(*) as total
+             from exercise_workflow_assignees assignees
+             inner join exercises on exercises.id = assignees.exercise_id
+             where assignees.workflow_role = 'proofreader'
+               and assignees.admin_user_id = :adminId
+               and exercises.status in ('draft', 'proofread')
+               and (assignees.claim_expires_at is null or assignees.claim_expires_at > utc_timestamp())`,
+            { replacements: { adminId }, type: QueryTypes.SELECT, transaction },
+        ))[0]?.total ?? 0);
+        if (activeCount >= MAX_CONCURRENT_CLAIMS) {
+            throw new Error(`你同时最多只能持有 ${MAX_CONCURRENT_CLAIMS} 门课程，请先完成或放弃现有任务`);
+        }
+
+        const [exercise] = await sequelize.query<{ status: string; audio_url: string }>(
+            `select status, audio_url from exercises where id = :exerciseId limit 1`,
+            { replacements: { exerciseId }, type: QueryTypes.SELECT, transaction },
+        );
+        if (!exercise || exercise.status !== 'draft') {
+            throw new Error('该课程当前不在可领取的任务池中');
+        }
+        if (!String(exercise.audio_url ?? '').trim()) {
+            throw new Error('该课程媒体尚未就绪，暂不能领取');
+        }
+
+        // 唯一键冲突会抛错，表示该课程刚被别人领取，避免重复工作。
+        await sequelize.query(
+            `insert into exercise_workflow_assignees
+               (exercise_id, workflow_role, assignment_source, admin_user_id, claimed_at, claim_expires_at, expiring_notified_at)
+             values
+               (:exerciseId, 'proofreader', 'self_claimed', :adminId, utc_timestamp(), ${claimExpiryExpression()}, null),
+               (:exerciseId, 'second_reviewer', 'self_claimed', :adminId, utc_timestamp(), ${claimExpiryExpression()}, null)`,
+            { replacements: { exerciseId, adminId }, transaction },
+        );
+        await sequelize.query(
+            `insert into exercise_contributor_assignments (exercise_id, admin_user_id)
+             values (:exerciseId, :adminId)
+             on duplicate key update admin_user_id = values(admin_user_id)`,
+            { replacements: { exerciseId, adminId }, transaction },
+        );
+        await recordWorkflowActivity({
+            eventType: 'workflow_claimed',
+            actorAdminUserId: adminId,
+            targetAdminUserId: adminId,
+            exerciseId,
+            workflowRole: 'proofreader',
+        }, transaction);
+    });
+}
+
+/** 贡献者主动放弃自己领取的任务；已提交二审的课程不可放弃。 */
+export async function releaseWorkflowTask(exerciseId: number, adminId: number) {
+    await sequelize.transaction(async (transaction) => {
+        const [assignee] = await sequelize.query<{ assignment_source: CourseWorkflowAssignmentSource }>(
+            `select assignment_source from exercise_workflow_assignees
+             where exercise_id = :exerciseId and workflow_role = 'proofreader' and admin_user_id = :adminId limit 1`,
+            { replacements: { exerciseId, adminId }, type: QueryTypes.SELECT, transaction },
+        );
+        if (!assignee) throw new Error('你当前没有持有这门课程');
+        if (assignee.assignment_source !== 'self_claimed') {
+            throw new Error('管理员指派的任务不能自助放弃');
+        }
+        const [draft] = await sequelize.query<{ status: SubtitleDraftStatus }>(
+            `select status from exercise_subtitle_drafts
+             where exercise_id = :exerciseId and admin_user_id = :adminId limit 1`,
+            { replacements: { exerciseId, adminId }, type: QueryTypes.SELECT, transaction },
+        );
+        if (draft?.status === 'submitted') {
+            throw new Error('该课程已提交二审，不能放弃，请等待审核结果');
+        }
+        await sequelize.query(
+            `delete from exercise_workflow_assignees
+             where exercise_id = :exerciseId and admin_user_id = :adminId
+               and workflow_role in ('proofreader', 'second_reviewer')
+               and assignment_source = 'self_claimed'`,
+            { replacements: { exerciseId, adminId }, transaction },
+        );
+        await sequelize.query(
+            `delete from exercise_contributor_assignments
+             where exercise_id = :exerciseId and admin_user_id = :adminId`,
+            { replacements: { exerciseId, adminId }, transaction },
+        );
+        await recordWorkflowActivity({
+            eventType: 'workflow_claim_released',
+            actorAdminUserId: adminId,
+            targetAdminUserId: adminId,
+            exerciseId,
+            workflowRole: 'proofreader',
+        }, transaction);
+    });
+}
+
+/** 保存校对草稿时顺延滑动期限：真正在干活的人不会被自动释放。 */
+export async function renewClaimWindow(exerciseId: number, adminId: number) {
+    await sequelize.query(
+        `update exercise_workflow_assignees
+         set claim_expires_at = ${claimExpiryExpression()},
+             expiring_notified_at = null
+         where exercise_id = :exerciseId and workflow_role = 'proofreader' and admin_user_id = :adminId`,
+        { replacements: { exerciseId, adminId } },
+    );
+}
+
+/** 提交或审核通过后停止计时；任务不再回到池子里。 */
+async function clearClaimDeadline(exerciseId: number, adminId: number, transaction: Transaction) {
+    await sequelize.query(
+        `update exercise_workflow_assignees
+         set claim_expires_at = null, expiring_notified_at = null
+         where exercise_id = :exerciseId and workflow_role = 'proofreader' and admin_user_id = :adminId`,
+        { replacements: { exerciseId, adminId }, transaction },
+    );
+}
+
+type ExpiredClaimRow = {
+    exercise_id: number | string;
+    admin_user_id: number | string;
+    draft_status: SubtitleDraftStatus | null;
+};
+
+/**
+ * 清扫器主逻辑：释放所有已过期的自助领取任务。返回被释放的任务供记录通知与动态。
+ * 惰性过期判定在查询/领取侧同时生效，因此即使清扫器短暂停摆也不会把过期锁当真。
+ */
+export async function expireOverdueSelfClaims(): Promise<ExpiredClaimRow[]> {
+    const rows = await sequelize.query<ExpiredClaimRow>(
+        `select assignees.exercise_id, assignees.admin_user_id,
+                coalesce(drafts.status, 'editing') as draft_status
+         from exercise_workflow_assignees assignees
+         left join exercise_subtitle_drafts drafts
+           on drafts.exercise_id = assignees.exercise_id
+          and drafts.admin_user_id = assignees.admin_user_id
+         where assignees.workflow_role = 'proofreader'
+           and assignees.assignment_source = 'self_claimed'
+           and assignees.claim_expires_at is not null
+           and assignees.claim_expires_at <= utc_timestamp()
+           and coalesce(drafts.status, 'editing') <> 'submitted'`,
+        { type: QueryTypes.SELECT },
+    );
+    for (const row of rows) {
+        const exerciseId = Number(row.exercise_id);
+        const adminId = Number(row.admin_user_id);
+        await sequelize.transaction(async (transaction) => {
+            const [, metadata] = await sequelize.query(
+                `delete from exercise_workflow_assignees
+                 where exercise_id = :exerciseId and admin_user_id = :adminId
+                   and workflow_role in ('proofreader', 'second_reviewer')
+                   and assignment_source = 'self_claimed'`,
+                { replacements: { exerciseId, adminId }, transaction },
+            );
+            if ((metadata as { affectedRows?: number }).affectedRows === 0) return;
+            await sequelize.query(
+                `delete from exercise_contributor_assignments
+                 where exercise_id = :exerciseId and admin_user_id = :adminId`,
+                { replacements: { exerciseId, adminId }, transaction },
+            );
+            await sequelize.query(
+                `insert into admin_workflow_notifications
+                   (recipient_admin_user_id, actor_admin_user_id, exercise_id, subtitle_draft_id, notification_type)
+                 values (:adminId, null, :exerciseId, null, 'task_claim_expired')`,
+                { replacements: { exerciseId, adminId }, transaction },
+            );
+            await recordWorkflowActivity({
+                eventType: 'workflow_claim_expired',
+                actorAdminUserId: null,
+                targetAdminUserId: adminId,
+                exerciseId,
+                workflowRole: 'proofreader',
+            }, transaction);
+        });
+    }
+    return rows;
+}
+
+/** 给即将到期（12 小时内）的自助领取任务发一次提醒，避免静默丢失工作。 */
+export async function notifyExpiringSelfClaims(now: Date) {
+    const threshold = new Date(now.getTime() + CLAIM_EXPIRING_NOTICE_HOURS * 60 * 60 * 1000);
+    const rows = await doRawQuery<{ exercise_id: number | string; admin_user_id: number | string }>({
+        query: `select assignees.exercise_id, assignees.admin_user_id
+                from exercise_workflow_assignees assignees
+                inner join exercise_subtitle_drafts drafts
+                  on drafts.exercise_id = assignees.exercise_id
+                 and drafts.admin_user_id = assignees.admin_user_id
+                where assignees.workflow_role = 'proofreader'
+                  and assignees.assignment_source = 'self_claimed'
+                  and assignees.claim_expires_at is not null
+                  and assignees.claim_expires_at > utc_timestamp()
+                  and assignees.claim_expires_at <= :threshold
+                  and assignees.expiring_notified_at is null
+                  and drafts.status in ('editing', 'returned')`,
+        params: { threshold },
+    });
+    for (const row of rows) {
+        const exerciseId = Number(row.exercise_id);
+        const adminId = Number(row.admin_user_id);
+        await sequelize.query(
+            `update exercise_workflow_assignees
+             set expiring_notified_at = utc_timestamp()
+             where exercise_id = :exerciseId and workflow_role = 'proofreader' and admin_user_id = :adminId`,
+            { replacements: { exerciseId, adminId } },
+        );
+        await sequelize.query(
+            `insert into admin_workflow_notifications
+               (recipient_admin_user_id, actor_admin_user_id, exercise_id, subtitle_draft_id, notification_type)
+             values (:adminId, null, :exerciseId, null, 'task_claim_expiring')`,
+            { replacements: { exerciseId, adminId } },
+        );
+    }
+}
+
+/**
+ * 任务池的可领取课程：草稿状态、媒体就绪、未被禁止领取、且当前没有有效校对负责人。
+ * 已过期的自助领取锁视同无主，由“not exists”条件惰性过滤。
+ */
+export async function listClaimableWorkflowTasks({
+    adminId,
+    page = 1,
+    pageSize = 20,
+}: {
+    adminId: number;
+    page?: number;
+    pageSize?: number;
+}): Promise<ClaimableWorkflowTaskPage> {
+    const resolvedPage = Number.isInteger(page) && page > 0 ? page : 1;
+    const resolvedPageSize = Number.isInteger(pageSize) ? Math.min(Math.max(pageSize, 1), 100) : 20;
+    const offset = (resolvedPage - 1) * resolvedPageSize;
+    const [countRows, rows] = await Promise.all([
+        doRawQuery<{ total: number | string }>({
+            query: `select count(*) as total
+                    from exercises e
+                    inner join categories c on c.id = e.category_id
+                    where e.status = 'draft'
+                      and e.claim_blocked = false
+                      and trim(e.audio_url) <> ''
+                      and not exists (
+                        select 1 from exercise_workflow_assignees assignees
+                        where assignees.exercise_id = e.id
+                          and assignees.workflow_role = 'proofreader'
+                          and (
+                            assignees.claim_expires_at is null
+                            or assignees.claim_expires_at > utc_timestamp()
+                          )
+                      )`,
+        }),
+        doRawQuery<{
+            exercise_id: number | string;
+            exercise_title: string;
+            category_name: string;
+            difficulty: string;
+            media_type: string;
+            line_count: number | string;
+            claim_release_count: number | string;
+        }>({
+            query: `select e.id as exercise_id, e.title as exercise_title, c.name as category_name,
+                           e.difficulty, e.media_type,
+                           json_length(coalesce(e.transcript_json, json_array())) as line_count,
+                           (
+                             select count(*) from admin_workflow_activity_events events
+                             where events.exercise_id = e.id
+                               and events.event_type in ('workflow_claim_released', 'workflow_claim_expired')
+                           ) as claim_release_count
+                    from exercises e
+                    inner join categories c on c.id = e.category_id
+                    where e.status = 'draft'
+                      and e.claim_blocked = false
+                      and trim(e.audio_url) <> ''
+                      and not exists (
+                        select 1 from exercise_workflow_assignees assignees
+                        where assignees.exercise_id = e.id
+                          and assignees.workflow_role = 'proofreader'
+                          and (
+                            assignees.claim_expires_at is null
+                            or assignees.claim_expires_at > utc_timestamp()
+                          )
+                      )
+                    order by e.sort_order asc, e.created_at desc, e.title asc
+                    limit :limit offset :offset`,
+            params: { limit: resolvedPageSize, offset },
+        }),
+    ]);
+    return {
+        items: rows.map((row) => ({
+            exerciseId: Number(row.exercise_id),
+            exerciseTitle: row.exercise_title,
+            categoryName: row.category_name,
+            difficulty: row.difficulty as ClaimableWorkflowTaskPage['items'][number]['difficulty'],
+            mediaType: row.media_type === 'video' ? 'video' : 'audio',
+            lineCount: Number(row.line_count ?? 0),
+            claimReleaseCount: Number(row.claim_release_count ?? 0),
+        })),
+        page: resolvedPage,
+        pageSize: resolvedPageSize,
+        total: Number(countRows[0]?.total ?? 0),
+        policy: {
+            claimWindowHours: CLAIM_WINDOW_HOURS,
+            maxConcurrentClaims: MAX_CONCURRENT_CLAIMS,
+            myActiveClaimCount: await countActiveProofreadingClaims(adminId),
+        },
+    };
+}
+
+/** 超级管理员可对单门课程关闭/开启自助领取，不影响已分配课程的编辑权。 */
+export async function updateExerciseClaimAvailability(exerciseId: number, claimBlocked: boolean) {
+    const rows = await doRawQuery<{ id: number | string }>({
+        query: 'select id from exercises where id = :exerciseId limit 1',
+        params: { exerciseId },
+    });
+    if (!rows[0]) throw new Error('课程不存在');
+    await doRawUpdate(
+        'update exercises set claim_blocked = :claimBlocked where id = :exerciseId',
+        { exerciseId, claimBlocked: claimBlocked ? 1 : 0 },
+    );
+    return { exerciseId, claimBlocked };
+}
+
+/**
+ * 超级管理员的任务池概览：谁闲着、谁卡住、池子是否需要补课。
+ * “超期未提交”包含管理员指派（只标记不释放）和自助领取（会被清扫器释放）两类。
+ */
+export async function getWorkflowOverview(): Promise<AdminWorkflowOverview> {
+    const now = new Date();
+    const hoursBetween = (iso: string) => {
+        const at = new Date(iso).getTime();
+        return Math.max(0, Math.floor((now.getTime() - at) / (60 * 60 * 1000)));
+    };
+
+    const [claimable, unready, blocked, awaiting, overdueRows, statRows] = await Promise.all([
+        doRawQuery<{ total: number | string }>({
+            query: `select count(*) as total
+                    from exercises e
+                    where e.status = 'draft' and e.claim_blocked = false and trim(e.audio_url) <> ''
+                      and not exists (
+                        select 1 from exercise_workflow_assignees assignees
+                        where assignees.exercise_id = e.id and assignees.workflow_role = 'proofreader'
+                          and (assignees.claim_expires_at is null or assignees.claim_expires_at > utc_timestamp())
+                      )`,
+        }),
+        doRawQuery<{ total: number | string }>({
+            query: `select count(*) as total from exercises
+                    where status = 'draft' and (audio_url is null or trim(audio_url) = '')`,
+        }),
+        doRawQuery<{ total: number | string }>({
+            query: `select count(*) as total from exercises where status = 'draft' and claim_blocked = true`,
+        }),
+        doRawQuery<{ total: number | string }>({
+            query: `select count(*) as total from exercise_subtitle_drafts where status = 'submitted'`,
+        }),
+        doRawQuery<{
+            exercise_id: number | string;
+            exercise_title: string;
+            contributor_display_name: string;
+            assignment_source: CourseWorkflowAssignmentSource;
+            draft_status: SubtitleDraftStatus | null;
+            claim_expires_at: Date | string;
+        }>({
+            query: `select assignees.exercise_id, exercises.title as exercise_title,
+                           admins.display_name as contributor_display_name,
+                           assignees.assignment_source,
+                           coalesce(drafts.status, 'editing') as draft_status,
+                           assignees.claim_expires_at
+                    from exercise_workflow_assignees assignees
+                    inner join exercises on exercises.id = assignees.exercise_id
+                    inner join admin_users admins on admins.id = assignees.admin_user_id
+                    left join exercise_subtitle_drafts drafts
+                      on drafts.exercise_id = assignees.exercise_id
+                     and drafts.admin_user_id = assignees.admin_user_id
+                    where assignees.workflow_role = 'proofreader'
+                      and assignees.claim_expires_at is not null
+                      and assignees.claim_expires_at <= utc_timestamp()
+                      and coalesce(drafts.status, 'editing') <> 'submitted'
+                    order by assignees.claim_expires_at asc
+                    limit 100`,
+        }),
+        doRawQuery<{
+            admin_user_id: number | string;
+            display_name: string;
+            active_claim_count: number | string;
+            awaiting_review_count: number | string;
+            overdue_count: number | string;
+            completed_count: number | string;
+        }>({
+            query: `select admins.id as admin_user_id, admins.display_name,
+                           (
+                             select count(*) from exercise_workflow_assignees assignees
+                             inner join exercises on exercises.id = assignees.exercise_id
+                             where assignees.admin_user_id = admins.id
+                               and assignees.workflow_role = 'proofreader'
+                               and exercises.status in ('draft', 'proofread')
+                               and (assignees.claim_expires_at is null or assignees.claim_expires_at > utc_timestamp())
+                           ) as active_claim_count,
+                           (
+                             select count(*) from exercise_subtitle_drafts drafts
+                             where drafts.reviewer_admin_user_id = admins.id and drafts.status = 'submitted'
+                           ) as awaiting_review_count,
+                           (
+                             select count(*) from exercise_workflow_assignees assignees
+                             left join exercise_subtitle_drafts drafts
+                               on drafts.exercise_id = assignees.exercise_id
+                              and drafts.admin_user_id = assignees.admin_user_id
+                             where assignees.admin_user_id = admins.id
+                               and assignees.workflow_role = 'proofreader'
+                               and assignees.claim_expires_at is not null
+                               and assignees.claim_expires_at <= utc_timestamp()
+                               and coalesce(drafts.status, 'editing') <> 'submitted'
+                           ) as overdue_count,
+                           (
+                             select count(*) from exercise_subtitle_drafts drafts
+                             where drafts.admin_user_id = admins.id and drafts.status = 'approved'
+                           ) as completed_count
+                    from admin_users admins
+                    where admins.role = 'subtitle_contributor' and admins.is_active = true
+                    order by admins.display_name asc`,
+        }),
+    ]);
+
+    const contributors = statRows.map((row) => {
+        const active = Number(row.active_claim_count ?? 0);
+        const awaiting = Number(row.awaiting_review_count ?? 0);
+        const overdue = Number(row.overdue_count ?? 0);
+        const completed = Number(row.completed_count ?? 0);
+        return {
+            adminUserId: Number(row.admin_user_id),
+            displayName: row.display_name,
+            activeClaimCount: active,
+            awaitingReviewCount: awaiting,
+            overdueCount: overdue,
+            completedCount: completed,
+            // “空闲”定义为：没有进行中的课程，也没有待审核的稿子。
+            isIdle: active === 0 && awaiting === 0,
+        };
+    });
+
+    return {
+        generatedAt: now.toISOString(),
+        claimableCount: Number(claimable[0]?.total ?? 0),
+        unreadyDraftCount: Number(unready[0]?.total ?? 0),
+        claimBlockedCount: Number(blocked[0]?.total ?? 0),
+        awaitingReviewCount: Number(awaiting[0]?.total ?? 0),
+        overdueTasks: overdueRows.map((row) => {
+            const expiresIso = new Date(row.claim_expires_at).toISOString();
+            return {
+                exerciseId: Number(row.exercise_id),
+                exerciseTitle: row.exercise_title,
+                contributorDisplayName: row.contributor_display_name,
+                source: row.assignment_source,
+                stage: row.draft_status === 'returned' ? 'returned' : 'proofreading',
+                claimExpiresAt: expiresIso,
+                overdueHours: hoursBetween(expiresIso),
+            };
+        }),
+        contributors,
+        idleContributorCount: contributors.filter((item) => item.isIdle).length,
+        policy: {
+            claimWindowHours: CLAIM_WINDOW_HOURS,
+            maxConcurrentClaims: MAX_CONCURRENT_CLAIMS,
+            myActiveClaimCount: 0,
+        },
+    };
+}
+
 async function ensureExerciseIdsExist(exerciseIds: number[]) {
     if (exerciseIds.length === 0) return;
     const rows = await doRawQuery<{ id: number | string }>({
@@ -296,8 +815,9 @@ export async function replaceContributorAssignments(
                 { replacements: { exerciseIds }, transaction },
             );
             await sequelize.query(
-                `insert into exercise_workflow_assignees (exercise_id, workflow_role, admin_user_id)
-                 values ${exerciseIds.flatMap(() => ["(?, 'proofreader', ?)", "(?, 'second_reviewer', ?)"]).join(', ')}`,
+                `insert into exercise_workflow_assignees
+                   (exercise_id, workflow_role, assignment_source, admin_user_id, claimed_at, claim_expires_at, expiring_notified_at)
+                 values ${exerciseIds.flatMap(() => ["(?, 'proofreader', 'admin_assigned', ?, utc_timestamp(), date_add(utc_timestamp(), interval 48 hour), null)", "(?, 'second_reviewer', 'admin_assigned', ?, utc_timestamp(), date_add(utc_timestamp(), interval 48 hour), null)"]).join(', ')}`,
                 {
                     replacements: exerciseIds.flatMap((exerciseId) => [exerciseId, contributorId, exerciseId, contributorId]),
                     transaction,
@@ -372,9 +892,10 @@ export async function updateExerciseWorkflowAssignee({
         );
         if (adminUserId !== null) {
             await sequelize.query(
-                `insert into exercise_workflow_assignees (exercise_id, workflow_role, admin_user_id)
-                 values (:exerciseId, 'proofreader', :adminUserId),
-                        (:exerciseId, 'second_reviewer', :adminUserId)`,
+                `insert into exercise_workflow_assignees
+                   (exercise_id, workflow_role, assignment_source, admin_user_id, claimed_at, claim_expires_at, expiring_notified_at)
+                 values (:exerciseId, 'proofreader', 'admin_assigned', :adminUserId, utc_timestamp(), ${claimExpiryExpression()}, null),
+                        (:exerciseId, 'second_reviewer', 'admin_assigned', :adminUserId, utc_timestamp(), ${claimExpiryExpression()}, null)`,
                 { replacements: { exerciseId, adminUserId }, transaction },
             );
             // 补齐旧流程遗留的“未分配待审稿”，让它们进入这位贡献者的队列。
@@ -621,9 +1142,15 @@ export async function getAssignedExerciseIds(adminId: number) {
     const rows = await doRawQuery<{ exercise_id: number | string }>({
         // 校对人与二审人都需要在“课程管理”中看见任务；待审核稿保留提交时的审核人快照，
         // 因此重新分配负责人后，原审核人仍能完成已经交到自己手里的任务。
+        // 已过期的自助领取锁视同释放，不再出现在课程管理列表中。
         query: `select exercise_id from exercise_contributor_assignments where admin_user_id = ?
                 union
                 select exercise_id from exercise_workflow_assignees where admin_user_id = ?
+                  and (
+                    assignment_source = 'admin_assigned'
+                    or claim_expires_at is null
+                    or claim_expires_at > utc_timestamp()
+                  )
                 union
                 select exercise_id from exercise_subtitle_drafts
                 where reviewer_admin_user_id = ? and status = 'submitted'`,
@@ -667,7 +1194,13 @@ async function isWorkflowAssignee(
 ) {
     const rows = await doRawQuery<{ id: number | string }>({
         query: `select id from exercise_workflow_assignees
-                where exercise_id = ? and admin_user_id = ? and workflow_role = ? limit 1`,
+                where exercise_id = ? and admin_user_id = ? and workflow_role = ?
+                  and (
+                    assignment_source = 'admin_assigned'
+                    or claim_expires_at is null
+                    or claim_expires_at > utc_timestamp()
+                  )
+                limit 1`,
         params: [exerciseId, adminId, workflowRole],
     });
     return rows.length > 0;
@@ -691,6 +1224,8 @@ export async function canAccessExerciseWorkflow(admin: AdminActor, exerciseId: n
  * 尚未采用负责人机制的旧课程，保留原先“被授权即可提交”的兼容行为。
  */
 export async function canSubmitSubtitleDraft(admin: AdminActor, exerciseId: number) {
+    // 超级管理员只负责配置负责人与维护正式内容，不参与协作流程，更不能提交校对稿。
+    if (isSuperAdmin(admin)) return false;
     const proofreaderIsAssigned = await doRawQuery<{ id: number | string }>({
         query: `select id from exercise_workflow_assignees
                 where exercise_id = ? and workflow_role = 'proofreader' limit 1`,
@@ -751,7 +1286,7 @@ type WorkflowNotificationRow = {
     notification_type: AdminWorkflowNotificationType;
     exercise_id: number | string;
     exercise_title: string;
-    actor_display_name: string;
+    actor_display_name: string | null;
     review_note: string | null;
     is_read: boolean | number;
     created_at: Date | string;
@@ -790,12 +1325,19 @@ export async function listExerciseSubtitleDrafts(
     // 管理员可以查看待审稿来安排工作；通过/退回的权限仍由路由层严格校验负责人。
     const reviewerCanSeeSubmitted = isSuperAdmin(admin)
         || await canReviewSubtitleDraft(admin, exerciseId);
-    // 二审人只能看到提交时流转给自己的稿件；超级管理员可查看所有待审稿以便配置和排障。
-    const scope = options?.submittedOnly || reviewerCanSeeSubmitted
-        ? isSuperAdmin(admin)
-            ? `and drafts.status = 'submitted'`
-            : `and drafts.status = 'submitted' and drafts.reviewer_admin_user_id = :adminId`
-        : `and drafts.admin_user_id = :adminId`;
+    // 贡献者可能同时是本课的校对人和二审人（自助领取就是这种情况）。
+    // 因此不能因为具备二审权限就只查询 submitted：否则自己的 editing/returned
+    // 工作稿会被过滤掉，前端随后会错误回退到课程主字幕基线。
+    const scope = isSuperAdmin(admin)
+        ? `and drafts.status = 'submitted'`
+        : options?.submittedOnly
+            ? `and drafts.status = 'submitted' and drafts.reviewer_admin_user_id = :adminId`
+            : reviewerCanSeeSubmitted
+                ? `and (
+                     drafts.admin_user_id = :adminId
+                     or (drafts.status = 'submitted' and drafts.reviewer_admin_user_id = :adminId)
+                   )`
+                : `and drafts.admin_user_id = :adminId`;
     const rows = await doRawQuery<SubtitleDraftRow>({
         query: `
             select drafts.id, drafts.exercise_id, drafts.admin_user_id, admins.display_name,
@@ -811,23 +1353,39 @@ export async function listExerciseSubtitleDrafts(
     return rows.map(toSubtitleDraft);
 }
 
-/** 学习端负责人可读取自己课程的最新工作稿，普通学习者永远不可见。 */
+/**
+ * 学习端负责人可读取自己课程的协作字幕，普通学习者永远不可见。
+ * 校对人看自己的 editing/submitted/returned 工作稿；二审人只能看提交时
+ * 指定给自己的 submitted 稿件，避免把尚未送审的个人修改提前暴露给二审人。
+ */
 export async function getPreviewSubtitleDraftForLearner(exerciseId: number, learnerUserId: number | undefined) {
     if (!learnerUserId) return undefined;
     const rows = await doRawQuery<SubtitleDraftRow>({
         query: `
-            select drafts.id, drafts.exercise_id, drafts.admin_user_id, admins.display_name,
+            select drafts.id, drafts.exercise_id, drafts.admin_user_id, contributors.display_name,
                    drafts.transcript_json, drafts.status, drafts.review_note,
                    drafts.submitted_at, drafts.updated_at
             from exercise_subtitle_drafts drafts
-            inner join admin_users admins on admins.id = drafts.admin_user_id
+            inner join admin_users contributors on contributors.id = drafts.admin_user_id
+            inner join admin_users preview_admins
+              on preview_admins.learner_user_id = :learnerUserId
             inner join exercise_workflow_assignees assignees
               on assignees.exercise_id = drafts.exercise_id
-             and assignees.admin_user_id = admins.id
+             and assignees.admin_user_id = preview_admins.id
              and assignees.workflow_role in ('proofreader', 'second_reviewer')
             where drafts.exercise_id = :exerciseId
-              and admins.learner_user_id = :learnerUserId
-              and drafts.status in ('editing', 'submitted', 'returned')
+              and (
+                (
+                  assignees.workflow_role = 'proofreader'
+                  and drafts.admin_user_id = preview_admins.id
+                  and drafts.status in ('editing', 'submitted', 'returned')
+                )
+                or (
+                  assignees.workflow_role = 'second_reviewer'
+                  and drafts.reviewer_admin_user_id = preview_admins.id
+                  and drafts.status = 'submitted'
+                )
+              )
             order by drafts.updated_at desc
             limit 1
         `,
@@ -891,6 +1449,8 @@ export async function saveSubtitleDraft({
             },
         },
     );
+    // 滑动窗口：保存即续期，只有停止保存 48 小时以上的任务才会被释放。
+    await renewClaimWindow(exerciseId, adminId);
 }
 
 /** 提交将同一份工作稿锁定为待审核版本；再次修改必须先被管理员退回。 */
@@ -956,6 +1516,8 @@ export async function submitSubtitleDraft({
                 { replacements: { exerciseId }, transaction },
             );
         }
+        // 提交后停止计时：任务进入二审，不再回到任务池。
+        await clearClaimDeadline(exerciseId, adminId, transaction);
         // 使用投稿行的确定 ID 创建通知，确保一份投稿只给其提交时的审核人一条待办。
         await sequelize.query(
             `insert into admin_workflow_notifications
@@ -1043,6 +1605,14 @@ export async function returnSubtitleDraft({
             reviewNote,
         }, transaction);
 
+        // 退回后重新开始校对计时：给投稿人一个新的 48 小时滑动窗口。
+        await sequelize.query(
+            `update exercise_workflow_assignees
+             set claim_expires_at = ${claimExpiryExpression()}, expiring_notified_at = null
+             where exercise_id = :exerciseId and workflow_role = 'proofreader' and admin_user_id = :adminId`,
+            { replacements: { exerciseId: Number(draft.exercise_id), adminId: Number(draft.admin_user_id) }, transaction },
+        );
+
         // 初次制课若所有投稿都退回，课程回到草稿；已发布课程则始终保留发布状态。
         await sequelize.query(
             `update exercises course
@@ -1110,6 +1680,8 @@ export async function approveSubtitleDraft({
              where id = :draftId`,
             { replacements: { draftId, reviewerId }, transaction },
         );
+        // 已发布：校对计时结束，课程不再进入任务池。
+        await clearClaimDeadline(Number(draft.exercise_id), Number(draft.admin_user_id), transaction);
         await sequelize.query(
             `insert into exercise_contributions (exercise_id, admin_user_id, contribution_role)
              values (:exerciseId, :adminId, :role)
@@ -1194,6 +1766,8 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
         exercise_title: string;
         contributor_display_name: string;
         proofreader_id: number | string | null;
+        proofreader_source: CourseWorkflowAssignmentSource | null;
+        proofreader_claim_expires_at: Date | string | null;
         reviewer_snapshot_id: number | string | null;
         draft_admin_id: number | string;
         reviewed_by_admin_user_id: number | string | null;
@@ -1205,6 +1779,8 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
         query: `select drafts.id as draft_id, drafts.exercise_id, exercises.title as exercise_title,
                        contributors.display_name as contributor_display_name,
                        proofreader.admin_user_id as proofreader_id,
+                       proofreader.assignment_source as proofreader_source,
+                       proofreader.claim_expires_at as proofreader_claim_expires_at,
                        drafts.admin_user_id as draft_admin_id,
                        drafts.reviewer_admin_user_id as reviewer_snapshot_id,
                        drafts.reviewed_by_admin_user_id,
@@ -1233,6 +1809,8 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
             submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : undefined,
             updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : undefined,
             reviewNote: row.review_note || undefined,
+            assignmentSource: row.proofreader_source || undefined,
+            claimExpiresAt: row.proofreader_claim_expires_at ? new Date(row.proofreader_claim_expires_at).toISOString() : undefined,
         };
         // 进行中的校对/退回任务只归属于实际投稿人，且校对人必须是当前负责人。
         if (Number(row.draft_admin_id) === adminId && Number(row.proofreader_id) === adminId && (row.status === 'editing' || row.status === 'returned')) {
@@ -1255,12 +1833,20 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
     const unstartedRows = await doRawQuery<{
         exercise_id: number | string;
         exercise_title: string;
+        assignment_source: CourseWorkflowAssignmentSource;
+        claim_expires_at: Date | string | null;
     }>({
-        query: `select assignees.exercise_id, exercises.title as exercise_title
+        query: `select assignees.exercise_id, exercises.title as exercise_title,
+                       assignees.assignment_source, assignees.claim_expires_at
                 from exercise_workflow_assignees assignees
                 inner join exercises on exercises.id = assignees.exercise_id
                 where assignees.workflow_role = 'proofreader'
                   and assignees.admin_user_id = :adminId
+                  and (
+                    assignees.assignment_source = 'admin_assigned'
+                    or assignees.claim_expires_at is null
+                    or assignees.claim_expires_at > utc_timestamp()
+                  )
                   and not exists (
                     select 1 from exercise_subtitle_drafts drafts
                     where drafts.exercise_id = assignees.exercise_id
@@ -1279,6 +1865,8 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
             role: 'proofreader',
             stage: 'proofreading',
             draftStatus: 'editing',
+            assignmentSource: row.assignment_source,
+            claimExpiresAt: row.claim_expires_at ? new Date(row.claim_expires_at).toISOString() : undefined,
         });
     }
     return {
@@ -1300,7 +1888,7 @@ export async function listMyWorkflowNotifications(adminId: number): Promise<Admi
                        notifications.review_note, notifications.is_read, notifications.created_at
                 from admin_workflow_notifications notifications
                 inner join exercises on exercises.id = notifications.exercise_id
-                inner join admin_users actors on actors.id = notifications.actor_admin_user_id
+                left join admin_users actors on actors.id = notifications.actor_admin_user_id
                 where notifications.recipient_admin_user_id = ?
                 order by notifications.created_at desc, notifications.id desc
                 limit 50`,
@@ -1316,7 +1904,7 @@ export async function listMyWorkflowNotifications(adminId: number): Promise<Admi
         items: rows.map((row) => ({
             id: Number(row.id), type: row.notification_type,
             exerciseId: Number(row.exercise_id), exerciseTitle: row.exercise_title,
-            actorDisplayName: row.actor_display_name, reviewNote: row.review_note || undefined,
+            actorDisplayName: row.actor_display_name || '系统', reviewNote: row.review_note || undefined,
             isRead: Boolean(row.is_read), createdAt: new Date(row.created_at).toISOString(),
         })),
     };

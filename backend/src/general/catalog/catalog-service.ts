@@ -76,6 +76,9 @@ type ExerciseRow = {
     proofreader_assignee_json?: unknown;
     second_reviewer_assignee_json?: unknown;
     subtitle_drafts_json?: unknown;
+    proofreader_assignment_source?: string | null;
+    proofreader_claim_expires_at?: Date | string | null;
+    claim_blocked?: boolean | number | null;
 };
 
 const supportedContentLocales = new Set<ContentLocale>([
@@ -421,6 +424,15 @@ const buildExerciseSummary = (
         secondReviewerAssignee: parseWorkflowAssignee(row.second_reviewer_assignee_json),
         proofreaderDisplayName: row.proofreader_display_name || undefined,
         secondReviewerDisplayName: row.second_reviewer_display_name || undefined,
+        proofreaderAssignmentSource: row.proofreader_assignment_source === 'self_claimed'
+            ? 'self_claimed'
+            : row.proofreader_assignment_source === 'admin_assigned'
+                ? 'admin_assigned'
+                : undefined,
+        proofreaderClaimExpiresAt: row.proofreader_claim_expires_at
+            ? new Date(row.proofreader_claim_expires_at).toISOString()
+            : undefined,
+        claimBlocked: Boolean(row.claim_blocked),
         drafts: parseWorkflowList<CourseSubtitleDraftSummary>(row.subtitle_drafts_json),
     };
     return {
@@ -555,6 +567,21 @@ const adminWorkflowSelect = (exerciseAlias: string) => `
       inner join admin_users admins on admins.id = subtitle_drafts.admin_user_id
       where subtitle_drafts.exercise_id = ${exerciseAlias}.id
     ) as subtitle_drafts_json
+    ,(
+      select assignees.assignment_source
+      from exercise_workflow_assignees assignees
+      where assignees.exercise_id = ${exerciseAlias}.id
+        and assignees.workflow_role = 'proofreader'
+      limit 1
+    ) as proofreader_assignment_source
+    ,(
+      select assignees.claim_expires_at
+      from exercise_workflow_assignees assignees
+      where assignees.exercise_id = ${exerciseAlias}.id
+        and assignees.workflow_role = 'proofreader'
+      limit 1
+    ) as proofreader_claim_expires_at
+    ,${exerciseAlias}.claim_blocked as claim_blocked
 `;
 
 const buildExerciseDetail = (

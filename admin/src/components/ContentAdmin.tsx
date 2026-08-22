@@ -34,6 +34,7 @@ import { CourseManager } from './admin/CourseManager'
 import { DirectoryManager } from './admin/DirectoryManager'
 import { ListeningVideoRecorder } from './admin/ListeningVideoRecorder'
 import { CollaborationManager } from './admin/CollaborationManager'
+import { TaskPoolManager } from './admin/TaskPoolManager'
 import { WorkflowActivityPanel } from './admin/WorkflowActivityPanel'
 import { OpenContentApiDocumentation } from './admin/OpenContentApiDocumentation'
 import { OpenContentApiKeyManager } from './admin/OpenContentApiKeyManager'
@@ -232,6 +233,9 @@ export function ContentAdmin({
     if (location.pathname.startsWith('/activity')) {
       return 'activity'
     }
+    if (location.pathname.startsWith('/pool')) {
+      return 'pool'
+    }
     if (location.pathname.startsWith('/account-settings')) {
       return 'account-settings'
     }
@@ -264,7 +268,7 @@ export function ContentAdmin({
   useEffect(() => {
     if (
       adminUser.role === 'subtitle_contributor' &&
-      !['courses', 'importer', 'activity', 'account-settings'].includes(activeSection)
+      !['courses', 'pool', 'importer', 'activity', 'account-settings'].includes(activeSection)
     ) {
       navigate('/courses', { replace: true })
     }
@@ -314,6 +318,20 @@ export function ContentAdmin({
     }
   }, [adminToken, onNotify])
 
+  const openSubtitleReview = useCallback(async (exerciseId: number) => {
+    try {
+      const detail = await apiClient.getAdminExercise(exerciseId, adminToken)
+      if (!detail.subtitleDrafts?.length) {
+        onNotify('这门课程当前没有待二次审核的字幕稿', 'info')
+        return
+      }
+      setReviewNote('')
+      setReviewingExercise(detail)
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : '加载字幕稿失败', 'error')
+    }
+  }, [adminToken, onNotify])
+
   useEffect(() => {
     // 课程授权要按“内容分类 → 学习系列 → 课程”分级显示，
     // 因此进入人员管理时也必须刷新目录数据，不能只依赖此前访问过课程页的缓存。
@@ -336,7 +354,7 @@ export function ContentAdmin({
   }, [activeSection, exercises.length, onEnsureExercises, onNotify])
 
   useEffect(() => {
-    if (activeSection === 'courses') {
+    if (activeSection === 'courses' || activeSection === 'pool') {
       void refreshWorkflowContributors()
       void refreshWorkflowInbox()
     }
@@ -386,6 +404,7 @@ export function ContentAdmin({
       location.pathname === '/collaboration' ||
       location.pathname === '/courses' ||
       location.pathname === '/activity' ||
+      location.pathname === '/pool' ||
       location.pathname === '/account-settings' ||
       location.pathname === '/recorder' ||
       location.pathname === '/feedback' ||
@@ -686,6 +705,8 @@ export function ContentAdmin({
           ? '/collaboration'
         : section === 'activity'
           ? '/activity'
+        : section === 'pool'
+          ? '/pool'
         : section === 'courses'
           ? '/courses'
           : section === 'recorder'
@@ -803,7 +824,7 @@ export function ContentAdmin({
       onNotify('课程顺序已更新', 'success')
     }, '课程排序失败')
 
-  const refreshFeedback = async (status?: FeedbackStatus | 'all') => {
+  const refreshFeedback = useCallback(async (status?: FeedbackStatus | 'all') => {
     setFeedbackLoading(true)
     try {
       const response = await apiClient.getAcceptedAnswerFeedback(adminToken, status)
@@ -817,7 +838,7 @@ export function ContentAdmin({
     } finally {
       setFeedbackLoading(false)
     }
-  }
+  }, [adminToken, onNotify])
 
   useEffect(() => {
     if (activeSection !== 'feedback') {
@@ -825,9 +846,9 @@ export function ContentAdmin({
     }
 
     void refreshFeedback('all')
-  }, [activeSection, adminToken])
+  }, [activeSection, refreshFeedback])
 
-  const refreshGrowth = async () => {
+  const refreshGrowth = useCallback(async () => {
     setGrowthLoading(true)
     try {
       const response = await apiClient.getAdminGrowth(adminToken)
@@ -841,7 +862,7 @@ export function ContentAdmin({
     } finally {
       setGrowthLoading(false)
     }
-  }
+  }, [adminToken, onNotify])
 
   useEffect(() => {
     if (activeSection !== 'users') {
@@ -849,7 +870,7 @@ export function ContentAdmin({
     }
 
     void refreshGrowth()
-  }, [activeSection, adminToken])
+  }, [activeSection, refreshGrowth])
 
   return (
     <ConfigProvider theme={{ token: { colorPrimary: '#1cb0f6' } }}>
@@ -933,7 +954,6 @@ export function ContentAdmin({
           currentAdminId={adminUser.id}
           categoryGroups={categoryGroups}
           categories={categories}
-          exercises={exercises}
           isCatalogLoading={isCatalogLoading}
           catalogLoadError={catalogLoadError}
           onRefreshCatalog={refreshWorkspaceCatalog}
@@ -979,22 +999,9 @@ export function ContentAdmin({
           }}
           canManageCourses={adminUser.role === 'super_admin'}
           onReviewSubtitleDraft={(exerciseId) => {
-            void (async () => {
-              try {
-                const detail = await apiClient.getAdminExercise(exerciseId, adminToken)
-                if (!detail.subtitleDrafts?.length) {
-                  onNotify('这门课程当前没有待二次审核的字幕稿', 'info')
-                  return
-                }
-                setReviewNote('')
-                setReviewingExercise(detail)
-              } catch (error) {
-                onNotify(error instanceof Error ? error.message : '加载字幕稿失败', 'error')
-              }
-            })()
+            void openSubtitleReview(exerciseId)
           }}
           reviewTasks={reviewTasks}
-          workflowInbox={workflowInbox}
           workflowNotifications={workflowNotifications}
           onReadWorkflowNotifications={async () => {
             await apiClient.markWorkflowNotificationsRead(adminToken)
@@ -1005,6 +1012,7 @@ export function ContentAdmin({
             }))
           }}
           contributors={workflowContributors}
+          onNotify={onNotify}
           onUpdateWorkflowAssignee={async (exercise, workflowRole, adminUserId) => {
             try {
               await apiClient.updateExerciseWorkflowAssignee(exercise.id, workflowRole, adminUserId, adminToken)
@@ -1061,6 +1069,26 @@ export function ContentAdmin({
           adminToken={adminToken}
           currentAdminId={adminUser.id}
           onNotify={onNotify}
+        />
+      )}
+
+      {activeSection === 'pool' && (
+        <TaskPoolManager
+          adminToken={adminToken}
+          adminUser={adminUser}
+          onNotify={onNotify}
+          onClaimed={() => {
+            void refreshWorkflowInbox()
+            void onRefreshCatalog()
+          }}
+          workflowInbox={workflowInbox}
+          reviewTasks={reviewTasks}
+          onReviewSubtitleDraft={(exerciseId) => {
+            void openSubtitleReview(exerciseId)
+          }}
+          onEditCourse={(exerciseId) => {
+            void openImporterForExercise({ id: exerciseId } as CatalogExerciseSummary)
+          }}
         />
       )}
 

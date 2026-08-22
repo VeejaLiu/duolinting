@@ -97,91 +97,96 @@ export function useMediaPlayback({
   }
 
   const playMediaRange = (start: number, end?: number) =>
-    new Promise<void>(async (resolve) => {
-      const media = mediaRef.current
-      if (!media) {
-        globalThis.setTimeout(resolve, 500)
-        return
-      }
-
-      const playbackToken = playbackTokenRef.current + 1
-      playbackTokenRef.current = playbackToken
-      rangeCleanupRef.current?.()
-      rangeCleanupRef.current = null
-
-      const safeStart = Math.max(0, start)
-      const safeEnd = end === undefined ? undefined : Math.max(safeStart, end)
-      media.pause()
-      await seekMediaTo(media, safeStart)
-      if (playbackTokenRef.current !== playbackToken) {
-        resolve()
-        return
-      }
-
-      let finished = false
-      let frameId = 0
-      let timeoutId = 0
-
-      const cleanup = () => {
-        window.cancelAnimationFrame(frameId)
-        window.clearTimeout(timeoutId)
-        media.removeEventListener('pause', finish)
-        media.removeEventListener('ended', finish)
-        media.removeEventListener('error', finish)
-      }
-      const finish = () => {
-        if (finished) {
+    new Promise<void>((resolve) => {
+      const runPlaybackRange = async () => {
+        const media = mediaRef.current
+        if (!media) {
+          globalThis.setTimeout(resolve, 500)
           return
         }
-        finished = true
-        playbackTokenRef.current += 1
-        cleanup()
+
+        const playbackToken = playbackTokenRef.current + 1
+        playbackTokenRef.current = playbackToken
+        rangeCleanupRef.current?.()
         rangeCleanupRef.current = null
-        resolve()
-      }
-      const stopAtEnd = () => {
-        if (safeEnd === undefined) {
+
+        const safeStart = Math.max(0, start)
+        const safeEnd = end === undefined ? undefined : Math.max(safeStart, end)
+        media.pause()
+        await seekMediaTo(media, safeStart)
+        if (playbackTokenRef.current !== playbackToken) {
+          resolve()
           return
         }
 
-        if (media.currentTime >= safeEnd) {
-          media.pause()
-          if (Math.abs(media.currentTime - safeEnd) <= 0.12) {
-            media.currentTime = safeEnd
+        let finished = false
+        let frameId = 0
+        let timeoutId = 0
+
+        const cleanup = () => {
+          window.cancelAnimationFrame(frameId)
+          window.clearTimeout(timeoutId)
+          media.removeEventListener('pause', finish)
+          media.removeEventListener('ended', finish)
+          media.removeEventListener('error', finish)
+        }
+        const finish = () => {
+          if (finished) {
+            return
           }
-          finish()
-          return
+          finished = true
+          playbackTokenRef.current += 1
+          cleanup()
+          rangeCleanupRef.current = null
+          resolve()
         }
 
-        frameId = window.requestAnimationFrame(stopAtEnd)
-      }
-
-      rangeCleanupRef.current = cleanup
-      media.playbackRate = playbackRate
-      media.addEventListener('pause', finish)
-      media.addEventListener('ended', finish)
-      media.addEventListener('error', finish)
-
-      if (safeEnd !== undefined) {
-        // 字幕时间是媒体时间轴上的秒数；真实等待时间要除以播放速度。
-        // rAF 负责贴近结束点停止，timeout 是后台标签页或低频回调时的兜底。
-        const effectivePlaybackRate =
-          Number.isFinite(playbackRate) && playbackRate > 0 ? playbackRate : 1
-        const remainingMilliseconds = Math.max(
-          0,
-          Math.round(((safeEnd - safeStart) / effectivePlaybackRate) * 1000),
-        )
-        timeoutId = window.setTimeout(() => {
-          if (media.currentTime < safeEnd) {
-            media.currentTime = safeEnd
+        const stopAtEnd = () => {
+          if (safeEnd === undefined) {
+            return
           }
-          media.pause()
-          finish()
-        }, remainingMilliseconds)
-        frameId = window.requestAnimationFrame(stopAtEnd)
+
+          if (media.currentTime >= safeEnd) {
+            media.pause()
+            if (Math.abs(media.currentTime - safeEnd) <= 0.12) {
+              media.currentTime = safeEnd
+            }
+            finish()
+            return
+          }
+
+          frameId = window.requestAnimationFrame(stopAtEnd)
+        }
+
+        rangeCleanupRef.current = cleanup
+        media.playbackRate = playbackRate
+        media.addEventListener('pause', finish)
+        media.addEventListener('ended', finish)
+        media.addEventListener('error', finish)
+
+        if (safeEnd !== undefined) {
+          // 字幕时间是媒体时间轴上的秒数；真实等待时间要除以播放速度。
+          // rAF 负责贴近结束点停止，timeout 是后台标签页或低频回调时的兜底。
+          const effectivePlaybackRate =
+            Number.isFinite(playbackRate) && playbackRate > 0 ? playbackRate : 1
+          const remainingMilliseconds = Math.max(
+            0,
+            Math.round(((safeEnd - safeStart) / effectivePlaybackRate) * 1000),
+          )
+          timeoutId = window.setTimeout(() => {
+            if (media.currentTime < safeEnd) {
+              media.currentTime = safeEnd
+            }
+            media.pause()
+            finish()
+          }, remainingMilliseconds)
+          frameId = window.requestAnimationFrame(stopAtEnd)
+        }
+
+        void media.play().catch(finish)
       }
 
-      void media.play().catch(finish)
+      void runPlaybackRange()
     })
 
   const playMedia = async (startAt?: number) => {
