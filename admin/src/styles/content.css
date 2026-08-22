@@ -2157,6 +2157,34 @@
   color: #b42318;
 }
 
+/* 波形错误边界：波形区异常时的兜底占位，避免整页白屏，并提供重载入口。 */
+.waveform-error-boundary {
+  align-items: center;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b42318;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  min-height: 180px;
+  padding: 16px;
+  text-align: center;
+}
+
+.waveform-error-boundary strong {
+  font-size: 13px;
+}
+
+.waveform-error-message {
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .subtitle-detail-head,
 .subtitle-time-fields {
   align-items: center;

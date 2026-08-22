@@ -12,6 +12,7 @@ import type {
 import type { AdminNoticeTone } from './admin/AdminFeedback'
 import { MediaCourseForm } from './admin/MediaCourseForm'
 import { MediaWaveform } from './admin/MediaWaveform'
+import { MediaWaveformErrorBoundary } from './admin/MediaWaveformErrorBoundary'
 import { SubtitleImporter } from './admin/SubtitleImporter'
 import { SubtitleEditorInspector } from './admin/SubtitleEditorInspector'
 import {
@@ -1272,35 +1273,37 @@ export function AudioLessonImporter({
             />
           }
           waveform={
-            <MediaWaveform
-              activeLineIndex={activeLineIndex}
-              draftLines={draftLines}
-              mediaRef={mediaRef}
-              sourceUrl={localMediaUrl}
-              showInspector={false}
-              onActiveLineChange={setActiveLineIndex}
-              onAddLine={addLineAfterActive}
-              isTranslating={isTranslating}
-              onBatchAdjustTiming={(deltaMs) => {
-                const deltaSeconds = deltaMs / 1000
-                setDraftLines((lines) =>
-                  lines.map((line) => ({
-                    ...line,
-                    start: Math.max(0, line.start + deltaSeconds),
-                    end: Math.max(0, line.end + deltaSeconds),
-                  })),
-                )
-              }}
-              onPlayLine={playLine}
-              onRemoveLine={removeLine}
-              onMergeLine={mergeLineWithNext}
-              onSetPointFromPlayer={setPointFromPlayer}
-              onTranslate={handleTranslateLines}
-              onTranslateSingle={handleTranslateSingleLine}
-              translateError={translateError}
-              onDismissTranslateError={() => setTranslateError(null)}
-              onUpdateLine={updateLine}
-            />
+            <MediaWaveformErrorBoundary>
+              <MediaWaveform
+                activeLineIndex={activeLineIndex}
+                draftLines={draftLines}
+                mediaRef={mediaRef}
+                sourceUrl={localMediaUrl}
+                showInspector={false}
+                onActiveLineChange={setActiveLineIndex}
+                onAddLine={addLineAfterActive}
+                isTranslating={isTranslating}
+                onBatchAdjustTiming={(deltaMs) => {
+                  const deltaSeconds = deltaMs / 1000
+                  setDraftLines((lines) =>
+                    lines.map((line) => ({
+                      ...line,
+                      start: Math.max(0, line.start + deltaSeconds),
+                      end: Math.max(0, line.end + deltaSeconds),
+                    })),
+                  )
+                }}
+                onPlayLine={playLine}
+                onRemoveLine={removeLine}
+                onMergeLine={mergeLineWithNext}
+                onSetPointFromPlayer={setPointFromPlayer}
+                onTranslate={handleTranslateLines}
+                onTranslateSingle={handleTranslateSingleLine}
+                translateError={translateError}
+                onDismissTranslateError={() => setTranslateError(null)}
+                onUpdateLine={updateLine}
+              />
+            </MediaWaveformErrorBoundary>
           }
           onCourseFormChange={setCourseForm}
           clipboardPanel={clipboardPanel}
