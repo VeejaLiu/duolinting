@@ -824,7 +824,7 @@ export function ContentAdmin({
       onNotify('课程顺序已更新', 'success')
     }, '课程排序失败')
 
-  const refreshFeedback = async (status?: FeedbackStatus | 'all') => {
+  const refreshFeedback = useCallback(async (status?: FeedbackStatus | 'all') => {
     setFeedbackLoading(true)
     try {
       const response = await apiClient.getAcceptedAnswerFeedback(adminToken, status)
@@ -838,7 +838,7 @@ export function ContentAdmin({
     } finally {
       setFeedbackLoading(false)
     }
-  }
+  }, [adminToken, onNotify])
 
   useEffect(() => {
     if (activeSection !== 'feedback') {
@@ -846,9 +846,9 @@ export function ContentAdmin({
     }
 
     void refreshFeedback('all')
-  }, [activeSection, adminToken])
+  }, [activeSection, refreshFeedback])
 
-  const refreshGrowth = async () => {
+  const refreshGrowth = useCallback(async () => {
     setGrowthLoading(true)
     try {
       const response = await apiClient.getAdminGrowth(adminToken)
@@ -862,7 +862,7 @@ export function ContentAdmin({
     } finally {
       setGrowthLoading(false)
     }
-  }
+  }, [adminToken, onNotify])
 
   useEffect(() => {
     if (activeSection !== 'users') {
@@ -870,7 +870,7 @@ export function ContentAdmin({
     }
 
     void refreshGrowth()
-  }, [activeSection, adminToken])
+  }, [activeSection, refreshGrowth])
 
   return (
     <ConfigProvider theme={{ token: { colorPrimary: '#1cb0f6' } }}>

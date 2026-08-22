@@ -1325,12 +1325,19 @@ export async function listExerciseSubtitleDrafts(
     // 管理员可以查看待审稿来安排工作；通过/退回的权限仍由路由层严格校验负责人。
     const reviewerCanSeeSubmitted = isSuperAdmin(admin)
         || await canReviewSubtitleDraft(admin, exerciseId);
-    // 二审人只能看到提交时流转给自己的稿件；超级管理员可查看所有待审稿以便配置和排障。
-    const scope = options?.submittedOnly || reviewerCanSeeSubmitted
-        ? isSuperAdmin(admin)
-            ? `and drafts.status = 'submitted'`
-            : `and drafts.status = 'submitted' and drafts.reviewer_admin_user_id = :adminId`
-        : `and drafts.admin_user_id = :adminId`;
+    // 贡献者可能同时是本课的校对人和二审人（自助领取就是这种情况）。
+    // 因此不能因为具备二审权限就只查询 submitted：否则自己的 editing/returned
+    // 工作稿会被过滤掉，前端随后会错误回退到课程主字幕基线。
+    const scope = isSuperAdmin(admin)
+        ? `and drafts.status = 'submitted'`
+        : options?.submittedOnly
+            ? `and drafts.status = 'submitted' and drafts.reviewer_admin_user_id = :adminId`
+            : reviewerCanSeeSubmitted
+                ? `and (
+                     drafts.admin_user_id = :adminId
+                     or (drafts.status = 'submitted' and drafts.reviewer_admin_user_id = :adminId)
+                   )`
+                : `and drafts.admin_user_id = :adminId`;
     const rows = await doRawQuery<SubtitleDraftRow>({
         query: `
             select drafts.id, drafts.exercise_id, drafts.admin_user_id, admins.display_name,

@@ -27,6 +27,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
+import type { Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import {
   cleanEnglishAnswerText,
   cleanSubtitleSpacing,
@@ -219,7 +220,7 @@ export function MediaWaveform({
   const isSyncingRegionsRef = useRef(false)
   const isDraggingRegionRef = useRef(false)
   const timeoutCleanupRef = useRef<(() => void) | null>(null)
-  const regionByIdRef = useRef<Record<string, any>>({})
+  const regionByIdRef = useRef<Record<string, Region>>({})
   const [currentTime, setCurrentTime] = useState(0)
   const [zoom, setZoom] = useState(1)
   const [batchOffset, setBatchOffset] = useState(0)
@@ -231,6 +232,8 @@ export function MediaWaveform({
     status: 'idle',
     message: '选择媒体后显示音轨波形',
   })
+  const zoomRef = useRef(zoom)
+  const waveformStatusRef = useRef(waveform.status)
 
   const activeLine = draftLines[activeLineIndex]
 
@@ -365,7 +368,7 @@ export function MediaWaveform({
         draftLineCount: draftLinesRef.current.length,
         media: getMediaSnapshot(media),
         sourceUrl,
-        zoom,
+        zoom: zoomRef.current,
       })
 
       // 只为波形准备独立的音频元素。不能把主 video 交给 WaveSurfer：
@@ -394,7 +397,7 @@ export function MediaWaveform({
         height: 'auto',
         hideScrollbar: false,
         interact: true,
-        minPxPerSec: getPixelsPerSecond(zoom),
+        minPxPerSec: getPixelsPerSecond(zoomRef.current),
         normalize: true,
         plugins: [regions],
         progressColor: '#0f766e',
@@ -538,7 +541,7 @@ export function MediaWaveform({
             },
             media: getMediaSnapshot(media),
             sourceUrl,
-            waveformStatus: waveform.status,
+            waveformStatus: waveformStatusRef.current,
           })
           setWaveform({
 	            status: 'error',
@@ -678,6 +681,8 @@ export function MediaWaveform({
 	  }, [mediaRef, sourceUrl, isMediaReady])
 
   useEffect(() => {
+    zoomRef.current = zoom
+    waveformStatusRef.current = waveform.status
     const wavesurfer = waveSurferRef.current
     if (!wavesurfer || waveform.status !== 'ready') {
       return
@@ -767,7 +772,7 @@ export function MediaWaveform({
     }
 
     isSyncingRegionsRef.current = false
-  }, [activeLineIndex, draftLines, duration, waveform.status])
+  }, [activeLineIndex, draftLines, duration, mediaRef, waveform.status])
 
   return (
     <div className="waveform-panel">

@@ -136,7 +136,7 @@ function App() {
     }
     setCategoryGroups(catalog.categoryGroups)
     setCategories(catalog.categories)
-  }, [adminToken, showNotice])
+  }, [adminToken])
 
   const loadExercises = useCallback(async () => {
     const nextExercises = await apiClient.getAdminExercises(adminToken)
@@ -165,7 +165,7 @@ function App() {
       }
 
     })()
-  }, [adminToken])
+  }, [adminToken, showNotice])
 
   const login = async () => {
     setIsLoggingIn(true)

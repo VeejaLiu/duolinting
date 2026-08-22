@@ -70,6 +70,12 @@ const roundToMilliseconds = (seconds: number) =>
 
 // 后端媒体上传上限 120MB，前端选择文件时预检，超限直接拒绝
 const MAX_MEDIA_FILE_SIZE = 120 * 1024 * 1024
+const EMPTY_SUBTITLE_ANALYSIS: SubtitleDraftAnalysis = {
+  blockCount: 0,
+  bilingualBlockCount: 0,
+  isLikelyBilingual: false,
+  suggestedMode: 'single',
+}
 // 与后端翻译接口上限保持一致；智谱免费档并发很低，顺序提交比并发排队更稳定。
 // 批次保持较小（6 行）：大批次更容易触发模型合并/漏行，小批失败重试代价也低。
 const TRANSLATE_REQUEST_BATCH_SIZE = 6
@@ -241,12 +247,6 @@ export function AudioLessonImporter({
 }: AudioLessonImporterProps) {
   const canWriteClipboard =
     typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function'
-  const emptySubtitleAnalysis: SubtitleDraftAnalysis = {
-    blockCount: 0,
-    bilingualBlockCount: 0,
-    isLikelyBilingual: false,
-    suggestedMode: 'single',
-  }
   const navigate = useNavigate()
   const mediaRef = useRef<HTMLMediaElement | null>(null)
   const [mediaFile, setMediaFile] = useState<File | null>(null)
@@ -256,7 +256,7 @@ export function AudioLessonImporter({
   const [activeLineIndex, setActiveLineIndex] = useState(0)
   const [subtitleDraft, setSubtitleDraft] = useState('')
   const [subtitleAnalysis, setSubtitleAnalysis] =
-    useState<SubtitleDraftAnalysis>(emptySubtitleAnalysis)
+    useState<SubtitleDraftAnalysis>(EMPTY_SUBTITLE_ANALYSIS)
   const [subtitleImportMode, setSubtitleImportMode] =
     useState<SubtitleImportMode>('single')
   const [subtitleTimeOffset, setSubtitleTimeOffset] = useState(0)
@@ -426,7 +426,7 @@ export function AudioLessonImporter({
       setUploadedMediaUrl('')
       setMediaSize(null)
       setSubtitleDraft('')
-      setSubtitleAnalysis(emptySubtitleAnalysis)
+      setSubtitleAnalysis(EMPTY_SUBTITLE_ANALYSIS)
       setSubtitleImportMode('single')
       setActiveLineIndex(0)
       setDraftLines(nextDraftLines)
@@ -498,7 +498,7 @@ export function AudioLessonImporter({
     // 让工作台可以完整展示当前媒体，而不是退化成“媒体已加载”的笼统提示。
     setMediaSize(exercise.mediaSize ?? null)
     setSubtitleDraft('')
-    setSubtitleAnalysis(emptySubtitleAnalysis)
+    setSubtitleAnalysis(EMPTY_SUBTITLE_ANALYSIS)
     setSubtitleImportMode('single')
     setActiveLineIndex(0)
     setDraftLines(nextDraftLines)
@@ -683,7 +683,7 @@ export function AudioLessonImporter({
     await onRefreshCatalog()
   }
 
-  const uploadMediaFile = async (file: File) => {
+  const uploadMediaFile = useCallback(async (file: File) => {
     onStatusChange('正在上传媒体...', 'info')
     localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, adminToken)
     // 先用文件大小建立 0% 状态，即使浏览器尚未触发第一条进度事件，界面也能立即反馈。
@@ -700,7 +700,7 @@ export function AudioLessonImporter({
     }))
     onStatusChange(`媒体已上传：${result.objectName}`, 'success')
     return result
-  }
+  }, [adminToken, onStatusChange])
 
   const handleFileChange = async (file: File | null) => {
     // 选择文件时预检大小：超过后端 120MB 上限直接拒绝，避免上传到最后才失败
@@ -932,7 +932,7 @@ export function AudioLessonImporter({
             : 'single',
       )
     } catch {
-      setSubtitleAnalysis(emptySubtitleAnalysis)
+      setSubtitleAnalysis(EMPTY_SUBTITLE_ANALYSIS)
       setSubtitleImportMode('single')
     }
   }
@@ -1145,12 +1145,13 @@ export function AudioLessonImporter({
     courseForm,
     draftLines,
     exercises,
-    loadedExercise,
     mediaFile,
+    navigate,
     onRefreshCatalog,
     onStatusChange,
     saveDisabledReason,
     subtitleDraft,
+    uploadMediaFile,
     uploadedMediaUrl,
   ])
 
