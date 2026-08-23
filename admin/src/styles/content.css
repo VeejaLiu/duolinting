@@ -1403,16 +1403,148 @@
 }
 
 .subtitle-editor-inspector {
-  align-content: start;
   background: transparent;
   border: 0;
   border-radius: 0;
   display: grid;
-  gap: 8px;
+  grid-template-rows: auto minmax(0, 1fr);
   max-height: 760px;
+  min-height: 0;
   min-width: 0;
-  overflow: auto;
+  overflow: hidden;
   padding: 8px;
+}
+
+.subtitle-inspector-tablist {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  gap: 28px;
+  min-width: 0;
+}
+
+.subtitle-inspector-tab {
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: #334155;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 14px;
+  padding: 10px 0 9px;
+}
+
+.subtitle-inspector-tab:hover,
+.subtitle-inspector-tab:focus-visible {
+  border-bottom-color: #1cb0f6;
+  color: #0284c7;
+  outline: 0;
+}
+
+.subtitle-inspector-tab.active {
+  border-bottom-color: #1cb0f6;
+  color: #0284c7;
+  font-weight: 600;
+}
+
+.subtitle-inspector-tab-content {
+  border-top: 8px solid #ffffff;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.subtitle-list-embedded {
+  min-width: 0;
+  width: 100%;
+}
+
+.subtitle-list-antd-table {
+  min-width: 0;
+  width: 100%;
+}
+
+.subtitle-list-antd-table .ant-table {
+  font-size: 12px;
+}
+
+.subtitle-list-antd-table .ant-table-cell {
+  white-space: nowrap;
+}
+
+.subtitle-list-antd-table .ant-table-thead > tr > th,
+.subtitle-list-antd-table .ant-table-tbody > tr > td {
+  line-height: 1.25;
+  padding: 5px 8px;
+}
+
+.subtitle-resizable-column-title {
+  display: block;
+  position: relative;
+}
+
+.subtitle-column-resize-handle {
+  bottom: -6px;
+  cursor: col-resize;
+  position: absolute;
+  right: -9px;
+  top: -6px;
+  touch-action: none;
+  width: 9px;
+  z-index: 2;
+}
+
+.subtitle-column-resize-handle::after {
+  background: #cbd5e1;
+  bottom: 2px;
+  content: '';
+  left: 4px;
+  position: absolute;
+  top: 2px;
+  width: 1px;
+}
+
+.subtitle-column-resize-handle:hover::after,
+.subtitle-column-resize-handle:active::after {
+  background: #1cb0f6;
+  width: 2px;
+}
+
+.subtitle-list-antd-table .ant-table-row {
+  cursor: pointer;
+}
+
+.subtitle-list-antd-table .ant-table-row:hover > .ant-table-cell {
+  background: #eff6ff !important;
+}
+
+.subtitle-list-antd-table .subtitle-table-row-active > .ant-table-cell,
+.subtitle-list-antd-table .subtitle-table-row-active:hover > .ant-table-cell {
+  background: #dbeafe !important;
+  color: #1e3a8a;
+}
+
+.subtitle-table-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.subtitle-detail-tab {
+  min-height: 100%;
+  overflow: visible;
+  padding-right: 4px;
+}
+
+.subtitle-empty-state {
+  align-items: center;
+  color: #64748b;
+  display: flex;
+  font-size: 12px;
+  justify-content: center;
+  min-height: 160px;
+  padding: 24px 12px;
+  text-align: center;
 }
 
 .video-preview-stage {
@@ -1937,6 +2069,10 @@
   flex: 0 0 auto;
 }
 
+.waveform-popover-trigger {
+  display: inline-flex;
+}
+
 .waveform-line-actions,
 .waveform-timing-action {
   flex: 0 0 auto;
@@ -1972,6 +2108,66 @@
 
 .batch-timing-popover > .ant-btn-link {
   padding-inline: 0;
+}
+
+.translation-progress-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 292px;
+}
+
+.translation-progress-heading {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.translation-progress-heading .ant-tag {
+  margin-inline-end: 0;
+}
+
+.translation-progress-popover .ant-progress {
+  line-height: 1;
+  margin: 0;
+}
+
+.translation-progress-metrics {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.translation-progress-metrics > div {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 9px;
+}
+
+.translation-progress-metrics span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.translation-progress-metrics strong {
+  color: #0f172a;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.translation-progress-metrics strong.is-error {
+  color: #b42318;
+}
+
+.translation-progress-note.ant-typography {
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 /* AI 翻译失败的持久横幅：浅红警示底，文字可换行，右侧关闭按钮 */
@@ -2112,13 +2308,15 @@
 }
 
 .wavesurfer-view ::part(region-content) {
+  align-items: center;
   background: rgba(15, 23, 42, 0.88);
   border-radius: 3px;
   color: #ffffff;
-  display: block;
+  display: flex;
   box-sizing: border-box;
   font-size: 11px;
   font-weight: 800;
+  gap: 6px;
   line-height: 1.2;
   height: calc(100% - 4px);
   margin: 2px 6px !important;
@@ -2136,7 +2334,36 @@
 }
 
 .waveform-region-label {
+  align-items: center;
+  display: flex;
+  gap: 5px;
+  min-width: 0;
   pointer-events: none;
+}
+
+.wavesurfer-view ::part(waveform-region-index) {
+  align-items: center;
+  aspect-ratio: 1;
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: #1d4ed8;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 800;
+  height: 16px;
+  justify-content: center;
+  line-height: 1;
+  width: 16px;
+}
+
+.wavesurfer-view ::part(waveform-region-text) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .waveform-placeholder {
@@ -2356,70 +2583,9 @@
   font-size: 12px;
 }
 
-.subtitle-list-table {
-  border-top: 1px solid #e2e8f0;
-  display: grid;
+.subtitle-list-panel .ant-table-content {
   max-height: 360px;
-  overflow: auto;
-}
-
-.subtitle-list-row {
-  align-items: stretch;
-  background: #ffffff;
-  border: 0;
-  border-top: 1px solid #eef2f7;
-  color: #334155;
-  display: grid;
-  font: inherit;
-  gap: 0;
-  /* 译文拆为中/泰/日三列后整体更宽，容器已有 overflow: auto 负责横向滚动 */
-  grid-template-columns:
-    64px 92px 92px 92px minmax(220px, 1.4fr) minmax(140px, 1fr)
-    minmax(140px, 1fr) minmax(140px, 1fr) minmax(160px, 1fr);
-  min-width: 1240px;
-  padding: 0;
-  text-align: left;
-}
-
-.subtitle-list-row:first-child {
-  border-top: 0;
-}
-
-.subtitle-list-row span {
-  border-left: 1px solid #eef2f7;
-  font-size: 12px;
-  line-height: 1.45;
-  overflow: hidden;
-  padding: 8px 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.subtitle-list-row span:first-child {
-  border-left: 0;
-}
-
-.subtitle-list-row:not(.subtitle-list-head) {
-  cursor: pointer;
-}
-
-.subtitle-list-row:not(.subtitle-list-head):hover {
-  background: #eff6ff;
-}
-
-.subtitle-list-row.active {
-  background: #dbeafe;
-  color: #1e3a8a;
-}
-
-.subtitle-list-head {
-  background: #f8fafc;
-  color: #475569;
-  cursor: default;
-  font-weight: 800;
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  overflow: auto !important;
 }
 
 .line-editor-list {

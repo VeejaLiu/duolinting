@@ -1,9 +1,14 @@
 import {
   Button,
   InputNumber,
+  Modal,
   Popover,
+  Progress,
   Space,
+  Spin,
+  Tag,
   Tooltip,
+  Typography,
 } from 'antd'
 import {
   ArrowLeftToLine,
@@ -43,12 +48,25 @@ type AddLineRange = {
   end: number
 }
 
+export type TranslationProgress = {
+  mode: 'empty' | 'all'
+  status: 'running' | 'success' | 'partial' | 'error'
+  // “翻译条目”是一句字幕在一种目标语言下的一条译文；例如 59 句 × 3 种语言最多为 177 条。
+  total: number
+  completed: number
+  succeeded: number
+  failed: number
+  subtitleCount: number
+  targetLanguageCount: number
+}
+
 type MediaWaveformProps = {
   activeLineIndex: number
   draftLines: DraftLine[]
   mediaRef: React.MutableRefObject<HTMLMediaElement | null>
   sourceUrl: string
   isTranslating?: boolean
+  translationProgress?: TranslationProgress | null
   showInspector?: boolean
   showSubtitleList?: boolean
   onActiveLineChange: (index: number) => void
@@ -80,6 +98,7 @@ type WaveformIconButtonProps = {
   onClick: () => void
   disabled?: boolean
   danger?: boolean
+  busy?: boolean
 }
 
 const WaveformIconButton = ({
@@ -88,10 +107,12 @@ const WaveformIconButton = ({
   onClick,
   disabled = false,
   danger = false,
+  busy = false,
 }: WaveformIconButtonProps) => (
   <Tooltip title={label} placement="top">
     <Button
       aria-label={label}
+      aria-busy={busy}
       className="waveform-icon-button"
       danger={danger}
       disabled={disabled}
@@ -102,6 +123,78 @@ const WaveformIconButton = ({
     />
   </Tooltip>
 )
+
+type TranslationProgressPopoverProps = {
+  progress: TranslationProgress | null | undefined
+}
+
+const TranslationProgressPopover = ({ progress }: TranslationProgressPopoverProps) => {
+  if (!progress) {
+    return (
+      <div className="translation-progress-popover">
+        <Typography.Text strong>正在准备翻译...</Typography.Text>
+        <Progress percent={0} showInfo={false} size="small" status="active" />
+      </div>
+    )
+  }
+
+  const percent = progress.total === 0
+    ? 100
+    : Math.round((progress.completed / progress.total) * 100)
+  const remaining = Math.max(0, progress.total - progress.completed)
+  const isRunning = progress.status === 'running'
+  const needsAttention = progress.status === 'partial' || progress.status === 'error'
+  const title = isRunning
+    ? progress.mode === 'all'
+      ? '正在重新翻译全部译文'
+      : '正在补齐缺失译文'
+    : progress.total === 0
+      ? '无需翻译'
+      : progress.status === 'success'
+        ? '翻译完成'
+        : progress.status === 'partial'
+          ? '翻译完成，部分条目失败'
+          : '翻译中断'
+  const progressStatus = needsAttention
+    ? 'exception'
+    : progress.status === 'success'
+      ? 'success'
+      : 'active'
+
+  return (
+    <div className="translation-progress-popover">
+      <div className="translation-progress-heading">
+        <Typography.Text strong>{title}</Typography.Text>
+        <Tag color={isRunning ? 'processing' : needsAttention ? 'error' : 'success'}>
+          {isRunning ? `${percent}%` : progress.status === 'error' ? '已中断' : needsAttention ? '需检查' : '已完成'}
+        </Tag>
+      </div>
+      <Progress
+        percent={percent}
+        showInfo={false}
+        size="small"
+        status={progressStatus}
+      />
+      <div className="translation-progress-metrics">
+        <div>
+          <span>已翻译</span>
+          <strong>{progress.succeeded}</strong>
+        </div>
+        <div>
+          <span>剩余</span>
+          <strong>{remaining}</strong>
+        </div>
+        <div>
+          <span>失败</span>
+          <strong className={progress.failed > 0 ? 'is-error' : undefined}>{progress.failed}</strong>
+        </div>
+      </div>
+      <Typography.Text className="translation-progress-note" type="secondary">
+        本次涉及 {progress.subtitleCount} 句字幕、{progress.targetLanguageCount} 种目标语言，按译文条目统计
+      </Typography.Text>
+    </div>
+  )
+}
 
 const formatTimeWithMilliseconds = (seconds: number) => {
   if (!Number.isFinite(seconds)) {
@@ -157,10 +250,22 @@ const getPixelsPerSecond = (zoom: number) =>
 const clampZoom = (value: number) =>
   Math.round(clamp(value, MIN_ZOOM, MAX_ZOOM) * 4) / 4
 
-const createRegionContent = (line: DraftLine) => {
+const createRegionContent = (line: DraftLine, lineIndex: number) => {
   const content = document.createElement('span')
   content.className = 'waveform-region-label'
-  content.textContent = line.text || '未填写字幕'
+  const index = document.createElement('span')
+  index.className = 'waveform-region-index'
+  // WaveSurfer 将 region 内容放进 Shadow DOM；part 用于让外部样式真正作用到序号徽标。
+  index.setAttribute('part', 'waveform-region-index')
+  index.setAttribute('aria-hidden', 'true')
+  index.textContent = String(lineIndex + 1)
+
+  const text = document.createElement('span')
+  text.className = 'waveform-region-text'
+  text.setAttribute('part', 'waveform-region-text')
+  text.textContent = line.text || '未填写字幕'
+
+  content.append(index, text)
   return content
 }
 
@@ -201,6 +306,7 @@ export function MediaWaveform({
   mediaRef,
   sourceUrl,
   isTranslating,
+  translationProgress,
   showInspector = true,
   showSubtitleList = false,
   onActiveLineChange,
@@ -233,6 +339,7 @@ export function MediaWaveform({
   const regionPropsRef = useRef<Record<string, {
     color: string
     end: number
+    index: number
     start: number
     text: string
   }>>({})
@@ -240,6 +347,8 @@ export function MediaWaveform({
   const [zoom, setZoom] = useState(1)
   const [batchOffset, setBatchOffset] = useState(0)
   const [isBatchTimingOpen, setIsBatchTimingOpen] = useState(false)
+  const [isTranslationProgressOpen, setIsTranslationProgressOpen] = useState(false)
+  const [translationProgressMode, setTranslationProgressMode] = useState<'empty' | 'all'>('empty')
   const [isTranslatingSingle, setIsTranslatingSingle] = useState(false)
   // 等待媒体完全加载后再解析波形
   const [isMediaReady, setIsMediaReady] = useState(false)
@@ -251,6 +360,12 @@ export function MediaWaveform({
   const waveformStatusRef = useRef(waveform.status)
 
   const activeLine = draftLines[activeLineIndex]
+
+  const startTranslation = (mode: 'empty' | 'all') => {
+    setTranslationProgressMode(mode)
+    setIsTranslationProgressOpen(true)
+    onTranslate?.(mode)
+  }
 
   const playAdjacentLine = (direction: -1 | 1) => {
     const nextLineIndex = activeLineIndex + direction
@@ -749,7 +864,7 @@ export function MediaWaveform({
       if (!region) {
         const nextRegion = regions.addRegion({
           color,
-          content: createRegionContent(line),
+          content: createRegionContent(line, index),
           drag: true,
           end,
           id: line.id,
@@ -761,7 +876,7 @@ export function MediaWaveform({
         })
         applyRegionLaneLayout(nextRegion)
         regionByIdRef.current[line.id] = nextRegion
-        regionPropsRef.current[line.id] = { color, end, start, text: line.text }
+        regionPropsRef.current[line.id] = { color, end, index, start, text: line.text }
         addedRegionCount += 1
         return
       }
@@ -776,19 +891,20 @@ export function MediaWaveform({
         previousProps.color !== color ||
         Math.abs(previousProps.start - start) >= REGION_TIME_EPSILON ||
         Math.abs(previousProps.end - end) >= REGION_TIME_EPSILON
+      const indexChanged = !previousProps || previousProps.index !== index
 
-      if (!textChanged && !timingChanged) {
+      if (!textChanged && !timingChanged && !indexChanged) {
         return
       }
 
       region.setOptions({
         color,
-        ...(textChanged ? { content: createRegionContent(line) } : {}),
+        ...(textChanged || indexChanged ? { content: createRegionContent(line, index) } : {}),
         end,
         start,
       })
       applyRegionLaneLayout(region)
-      regionPropsRef.current[line.id] = { color, end, start, text: line.text }
+      regionPropsRef.current[line.id] = { color, end, index, start, text: line.text }
       updatedRegionCount += 1
     })
 
@@ -912,26 +1028,75 @@ export function MediaWaveform({
               icon={<Merge size={15} aria-hidden="true" />}
               onClick={() => onMergeLine?.(activeLineIndex)}
             />
-            <WaveformIconButton
-              label={isTranslating ? '翻译中...' : 'AI 翻译缺失译文'}
-              disabled={!sourceUrl || isTranslating || !onTranslate}
-              icon={<Languages size={15} aria-hidden="true" />}
-              onClick={() => onTranslate?.('empty')}
-            />
-            <WaveformIconButton
-              label="全部重译"
-              disabled={!sourceUrl || isTranslating || !onTranslate}
-              icon={<Languages size={15} aria-hidden="true" />}
-              onClick={() => {
-                if (
-                  window.confirm(
-                    '「全部重译」会覆盖所有语言（中文/ไทย/日本語）已填写的译文，确定继续吗？',
-                  )
-                ) {
-                  onTranslate?.('all')
+            <Popover
+              autoAdjustOverflow={false}
+              content={<TranslationProgressPopover progress={translationProgress} />}
+              onOpenChange={(open) => {
+                if (open && isTranslating && translationProgressMode === 'empty') {
+                  setIsTranslationProgressOpen(true)
+                } else if (!open) {
+                  setIsTranslationProgressOpen(false)
                 }
               }}
-            />
+              open={isTranslationProgressOpen && translationProgressMode === 'empty'}
+              placement="top"
+              trigger="click"
+            >
+              <span className="waveform-popover-trigger">
+                <WaveformIconButton
+                  label={isTranslating && translationProgressMode === 'empty' ? '翻译中...' : 'AI 翻译缺失译文'}
+                  busy={Boolean(isTranslating && translationProgressMode === 'empty')}
+                  disabled={!sourceUrl || !onTranslate || Boolean(isTranslating && translationProgressMode !== 'empty')}
+                  icon={isTranslating && translationProgressMode === 'empty'
+                    ? <Spin aria-hidden="true" size="small" />
+                    : <Languages size={15} aria-hidden="true" />}
+                  onClick={() => {
+                    if (isTranslating) {
+                      return
+                    }
+                    startTranslation('empty')
+                  }}
+                />
+              </span>
+            </Popover>
+            <Popover
+              autoAdjustOverflow={false}
+              content={<TranslationProgressPopover progress={translationProgress} />}
+              onOpenChange={(open) => {
+                if (open && isTranslating && translationProgressMode === 'all') {
+                  setIsTranslationProgressOpen(true)
+                } else if (!open) {
+                  setIsTranslationProgressOpen(false)
+                }
+              }}
+              open={isTranslationProgressOpen && translationProgressMode === 'all'}
+              placement="top"
+              trigger="click"
+            >
+              <span className="waveform-popover-trigger">
+                <WaveformIconButton
+                  label={isTranslating && translationProgressMode === 'all' ? '翻译中...' : '全部重译'}
+                  busy={Boolean(isTranslating && translationProgressMode === 'all')}
+                  disabled={!sourceUrl || !onTranslate || Boolean(isTranslating && translationProgressMode !== 'all')}
+                  icon={isTranslating && translationProgressMode === 'all'
+                    ? <Spin aria-hidden="true" size="small" />
+                    : <Languages size={15} aria-hidden="true" />}
+                  onClick={() => {
+                    if (isTranslating) {
+                      return
+                    }
+                    Modal.confirm({
+                      cancelText: '取消',
+                      centered: true,
+                      content: '此操作会覆盖中文、ไทย、日本語中所有已经填写的译文。',
+                      okText: '继续重译',
+                      onOk: () => startTranslation('all'),
+                      title: '确定全部重译？',
+                    })
+                  }}
+                />
+              </span>
+            </Popover>
           </div>
 
           <div className="waveform-tool-group waveform-timing-action" role="group" aria-label="整体时间偏移">

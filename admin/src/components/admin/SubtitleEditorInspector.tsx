@@ -9,29 +9,78 @@ import {
   type DraftLine,
 } from '../../lib/mediaDraftTools'
 import type { ContentLocale } from '@duolinting/domain'
+import { SubtitleList } from './SubtitleList'
 
 type SubtitleEditorInspectorProps = {
   activeLineIndex: number
   draftLines: DraftLine[]
+  onActiveLineChange: (index: number) => void
   onUpdateLine: (index: number, patch: Partial<DraftLine>) => void
   onTranslateSingle?: (text: string) => Promise<Partial<Record<ContentLocale, string>>>
 }
 
 const millisecondsToSeconds = (milliseconds: number) => Math.round(milliseconds) / 1000
+type SubtitleInspectorTab = 'list' | 'detail'
 
 export function SubtitleEditorInspector({
   activeLineIndex,
   draftLines,
+  onActiveLineChange,
   onUpdateLine,
   onTranslateSingle,
 }: SubtitleEditorInspectorProps) {
   const [isTranslatingSingle, setIsTranslatingSingle] = useState(false)
+  const [activeTab, setActiveTab] = useState<SubtitleInspectorTab>('list')
   const activeLine = draftLines[activeLineIndex]
 
   return (
     <aside className="subtitle-editor-inspector" aria-label="字幕详细编辑">
-      {activeLine && (
-        <>
+      <div className="subtitle-inspector-tablist" role="tablist" aria-label="字幕编辑视图">
+        <button
+          aria-controls="subtitle-list-panel"
+          aria-selected={activeTab === 'list'}
+          className={activeTab === 'list'
+            ? 'subtitle-inspector-tab active'
+            : 'subtitle-inspector-tab'}
+          id="subtitle-list-tab"
+          onClick={() => setActiveTab('list')}
+          role="tab"
+          type="button"
+        >
+          字幕列表（{draftLines.length}）
+        </button>
+        <button
+          aria-controls="subtitle-detail-panel"
+          aria-selected={activeTab === 'detail'}
+          className={activeTab === 'detail'
+            ? 'subtitle-inspector-tab active'
+            : 'subtitle-inspector-tab'}
+          id="subtitle-detail-tab"
+          onClick={() => setActiveTab('detail')}
+          role="tab"
+          type="button"
+        >
+          当前字幕详情
+        </button>
+      </div>
+      <div
+        aria-labelledby={activeTab === 'list' ? 'subtitle-list-tab' : 'subtitle-detail-tab'}
+        className="subtitle-inspector-tab-content"
+        id={activeTab === 'list' ? 'subtitle-list-panel' : 'subtitle-detail-panel'}
+        role="tabpanel"
+      >
+        {activeTab === 'list' ? (
+          <SubtitleList
+            activeLineIndex={activeLineIndex}
+            draftLines={draftLines}
+            embedded
+            onActiveLineChange={(index) => {
+              onActiveLineChange(index)
+              setActiveTab('detail')
+            }}
+          />
+        ) : activeLine ? (
+          <div className="subtitle-detail-tab">
           <div className="subtitle-time-fields" aria-label="字幕时间范围（毫秒）">
             <InputNumber
               aria-label="字幕开始时间（毫秒）"
@@ -162,8 +211,11 @@ export function SubtitleEditorInspector({
               />
             </label>
           </div>
-        </>
-      )}
+          </div>
+        ) : (
+          <div className="subtitle-empty-state">当前没有选中的字幕。</div>
+        )}
+      </div>
     </aside>
   )
 }

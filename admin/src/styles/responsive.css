@@ -192,7 +192,7 @@
     height: 100%;
     max-height: none;
     min-width: 0;
-    overflow: auto;
+    overflow: hidden;
     padding: 12px;
     width: 100%;
   }
@@ -320,6 +320,7 @@
       minmax(360px, var(--video-column-size, 2fr))
       8px
       minmax(300px, var(--subtitle-column-size, 1fr));
+    height: 100%;
     min-height: 0;
     min-width: 668px;
     overflow: hidden;
@@ -425,7 +426,7 @@
     padding-top: 7px;
   }
 
-  .waveform-subtitle-list .subtitle-list-table {
+  .waveform-subtitle-list .ant-table-content {
     max-height: 96px;
   }
 
@@ -480,10 +481,6 @@
   .waveform-panel {
     padding-left: 0;
     padding-right: 0;
-  }
-
-  .subtitle-editor-inspector {
-    gap: clamp(5px, 0.5vw, 8px);
   }
 
   .subtitle-editor-inspector .field input,

@@ -11,7 +11,10 @@ import type {
 } from '@duolinting/shared'
 import type { AdminNoticeTone } from './admin/AdminFeedback'
 import { MediaCourseForm } from './admin/MediaCourseForm'
-import { MediaWaveform } from './admin/MediaWaveform'
+import {
+  MediaWaveform,
+  type TranslationProgress,
+} from './admin/MediaWaveform'
 import { MediaWaveformErrorBoundary } from './admin/MediaWaveformErrorBoundary'
 import { SubtitleImporter } from './admin/SubtitleImporter'
 import { SubtitleEditorInspector } from './admin/SubtitleEditorInspector'
@@ -266,6 +269,8 @@ export function AudioLessonImporter({
   const [mediaUploadProgress, setMediaUploadProgress] =
     useState<FileUploadProgress | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
+  const [translationProgress, setTranslationProgress] =
+    useState<TranslationProgress | null>(null)
   // AI 翻译失败的持久错误信息（渲染为 MediaWaveform 内的横幅，不自动消失，可手动关闭；
   // 每次开始新一轮翻译时清除）。成功/无内容的轻提示仍走 onStatusChange。
   const [translateError, setTranslateError] = useState<string | null>(null)
@@ -793,23 +798,46 @@ export function AudioLessonImporter({
     try {
       // 按目标语言串行执行（每种语言内部仍按批处理），避免对翻译服务造成并发压力。
       // 每种语言只写回自己的 translations[locale] 键，因此跨语言共用调用开始时的 draftLines 快照是安全的。
-      const failedByLocale: { label: string; lineNumbers: number[] }[] = []
-      let translatedSegmentCount = 0
-
-      for (const targetLocale of TRANSLATION_TARGET_LOCALES) {
-        const candidates = draftLines
+      const tasksByLocale = TRANSLATION_TARGET_LOCALES.map((targetLocale) => ({
+        targetLocale,
+        candidates: draftLines
           .map((line, index) => ({ index, line }))
           .filter(({ line }) => line.text.trim())
-          .filter(({ line }) => mode === 'all' || !(line.translations[targetLocale] ?? '').trim())
+          .filter(({ line }) => mode === 'all' || !(line.translations[targetLocale] ?? '').trim()),
+      }))
+      const totalTranslationCount = tasksByLocale.reduce(
+        (total, { candidates }) => total + candidates.length,
+        0,
+      )
+      const subtitleCount = new Set(
+        tasksByLocale.flatMap(({ candidates }) => candidates.map(({ index }) => index)),
+      ).size
+      let completedTranslationCount = 0
+      let succeededTranslationCount = 0
+      let failedTranslationCount = 0
 
+      setTranslationProgress({
+        completed: 0,
+        failed: 0,
+        mode,
+        status: 'running',
+        subtitleCount,
+        succeeded: 0,
+        targetLanguageCount: TRANSLATION_TARGET_LOCALES.length,
+        total: totalTranslationCount,
+      })
+
+      const failedByLocale: { label: string; lineNumbers: number[] }[] = []
+
+      for (const { targetLocale, candidates } of tasksByLocale) {
         if (candidates.length === 0) {
           continue
         }
 
-        translatedSegmentCount += candidates.length
         const failedLineNumbers: number[] = []
         for (let start = 0; start < candidates.length; start += TRANSLATE_REQUEST_BATCH_SIZE) {
           const batch = candidates.slice(start, start + TRANSLATE_REQUEST_BATCH_SIZE)
+          let batchFailedCount = 0
           try {
             const result = await apiClient.translateLines(
               batch.map(({ line }) => line.text),
@@ -835,10 +863,24 @@ export function AudioLessonImporter({
             result.failedIndexes.forEach((failedIndex) => {
               failedLineNumbers.push(batch[failedIndex].index + 1)
             })
+            batchFailedCount = result.failedIndexes.length
           } catch {
             // 单批网络或网关失败不阻断后续字幕，最后统一提示人工处理的行号。
             batch.forEach(({ index }) => failedLineNumbers.push(index + 1))
+            batchFailedCount = batch.length
           }
+
+          completedTranslationCount += batch.length
+          failedTranslationCount += batchFailedCount
+          succeededTranslationCount += batch.length - batchFailedCount
+          setTranslationProgress((current) => current
+            ? {
+                ...current,
+                completed: completedTranslationCount,
+                failed: failedTranslationCount,
+                succeeded: succeededTranslationCount,
+              }
+            : current)
         }
 
         if (failedLineNumbers.length > 0) {
@@ -849,20 +891,32 @@ export function AudioLessonImporter({
         }
       }
 
-      if (translatedSegmentCount === 0) {
+      if (totalTranslationCount === 0) {
+        setTranslationProgress((current) => current
+          ? { ...current, status: 'success' }
+          : current)
         onStatusChange(
           mode === 'all' ? '没有可翻译的字幕' : '所有语言的译文均已填写，无需补齐',
           'info',
         )
       } else if (failedByLocale.length > 0) {
+        setTranslationProgress((current) => current
+          ? { ...current, status: 'partial' }
+          : current)
         const failureSummary = failedByLocale
           .map(({ label, lineNumbers }) => `${label}：第 ${lineNumbers.join(', ')} 行`)
           .join('；')
         setTranslateError(`批量翻译未全部成功，${failureSummary} 失败，请人工检查这些行后重试。`)
       } else {
-        onStatusChange(`成功为 ${translatedSegmentCount} 句次字幕生成译文（中文/ไทย/日本語）`, 'success')
+        setTranslationProgress((current) => current
+          ? { ...current, status: 'success' }
+          : current)
+        onStatusChange(`成功生成 ${totalTranslationCount} 条译文（中文/ไทย/日本語）`, 'success')
       }
     } catch (error) {
+      setTranslationProgress((current) => current
+        ? { ...current, status: 'error' }
+        : current)
       setTranslateError(error instanceof Error ? error.message : 'AI 翻译失败，请稍后重试')
     } finally {
       setIsTranslating(false)
@@ -1244,6 +1298,7 @@ export function AudioLessonImporter({
             <SubtitleEditorInspector
               activeLineIndex={activeLineIndex}
               draftLines={draftLines}
+              onActiveLineChange={setActiveLineIndex}
               onTranslateSingle={handleTranslateSingleLine}
               onUpdateLine={updateLine}
             />
@@ -1283,6 +1338,7 @@ export function AudioLessonImporter({
                 onActiveLineChange={setActiveLineIndex}
                 onAddLine={addLineAfterActive}
                 isTranslating={isTranslating}
+                translationProgress={translationProgress}
                 onBatchAdjustTiming={(deltaMs) => {
                   const deltaSeconds = deltaMs / 1000
                   setDraftLines((lines) =>

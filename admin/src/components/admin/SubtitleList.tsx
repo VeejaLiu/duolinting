@@ -1,3 +1,6 @@
+import { Table } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import {
   TRANSLATION_TARGET_LOCALES,
   type DraftLine,
@@ -6,8 +9,18 @@ import {
 type SubtitleListProps = {
   activeLineIndex: number
   draftLines: DraftLine[]
+  embedded?: boolean
   onActiveLineChange: (index: number) => void
 }
+
+type SubtitleTableRow = {
+  index: number
+  line: DraftLine
+}
+
+const MIN_EMBEDDED_TIME_COLUMN_WIDTH = 150
+const MAX_EMBEDDED_TIME_COLUMN_WIDTH = 240
+const DEFAULT_EMBEDDED_TIME_COLUMN_WIDTH = 178
 
 const formatTimeWithMilliseconds = (seconds: number) => {
   if (!Number.isFinite(seconds)) return '00:00.000'
@@ -21,50 +34,163 @@ const formatTimeWithMilliseconds = (seconds: number) => {
 export function SubtitleList({
   activeLineIndex,
   draftLines,
+  embedded = false,
   onActiveLineChange,
 }: SubtitleListProps) {
+  const [embeddedTimeColumnWidth, setEmbeddedTimeColumnWidth] = useState(
+    DEFAULT_EMBEDDED_TIME_COLUMN_WIDTH,
+  )
+  const timeColumnResizeRef = useRef<{ startWidth: number; startX: number } | null>(null)
+
+  const handleTimeColumnResizeStart = (event: ReactPointerEvent<HTMLSpanElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    timeColumnResizeRef.current = {
+      startWidth: embeddedTimeColumnWidth,
+      startX: event.clientX,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const handleTimeColumnResizeMove = (event: ReactPointerEvent<HTMLSpanElement>) => {
+    const resize = timeColumnResizeRef.current
+    if (!resize) return
+
+    // 时间列宽度以拖动起点为基准，并限制上下界，避免挤没时间文本或吞掉字幕区域。
+    const nextWidth = Math.min(
+      MAX_EMBEDDED_TIME_COLUMN_WIDTH,
+      Math.max(MIN_EMBEDDED_TIME_COLUMN_WIDTH, resize.startWidth + event.clientX - resize.startX),
+    )
+    setEmbeddedTimeColumnWidth(Math.round(nextWidth))
+  }
+
+  const handleTimeColumnResizeEnd = (event: ReactPointerEvent<HTMLSpanElement>) => {
+    timeColumnResizeRef.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const rows: SubtitleTableRow[] = draftLines.map((line, index) => ({ index, line }))
+  const embeddedColumns: ColumnsType<SubtitleTableRow> = [
+    {
+      align: 'center',
+      key: 'index',
+      render: (_, row) => row.index + 1,
+      title: '序号',
+      width: 48,
+    },
+    {
+      key: 'time',
+      render: (_, row) => (
+        <span className="subtitle-table-time">
+          {formatTimeWithMilliseconds(row.line.start)} - {formatTimeWithMilliseconds(row.line.end)}
+        </span>
+      ),
+      title: (
+        <span className="subtitle-resizable-column-title">
+          时间
+          <span
+            aria-label="拖动调整时间列宽度"
+            className="subtitle-column-resize-handle"
+            onPointerCancel={handleTimeColumnResizeEnd}
+            onPointerDown={handleTimeColumnResizeStart}
+            onPointerMove={handleTimeColumnResizeMove}
+            onPointerUp={handleTimeColumnResizeEnd}
+            role="separator"
+          />
+        </span>
+      ),
+      width: embeddedTimeColumnWidth,
+    },
+    {
+      ellipsis: true,
+      key: 'text',
+      render: (_, row) => row.line.text || '未填写字幕',
+      title: '字幕内容',
+      width: 320,
+    },
+  ]
+  const fullColumns: ColumnsType<SubtitleTableRow> = [
+    {
+      align: 'center',
+      key: 'index',
+      render: (_, row) => row.index + 1,
+      title: '序号',
+      width: 64,
+    },
+    {
+      key: 'start',
+      render: (_, row) => formatTimeWithMilliseconds(row.line.start),
+      title: '开始',
+      width: 110,
+    },
+    {
+      key: 'end',
+      render: (_, row) => formatTimeWithMilliseconds(row.line.end),
+      title: '结束',
+      width: 110,
+    },
+    {
+      key: 'duration',
+      render: (_, row) => formatTimeWithMilliseconds(
+        Math.max(0, row.line.end - row.line.start),
+      ),
+      title: '时长',
+      width: 110,
+    },
+    {
+      ellipsis: true,
+      key: 'text',
+      render: (_, row) => row.line.text || '未填写字幕',
+      title: '字幕内容',
+      width: 280,
+    },
+    ...TRANSLATION_TARGET_LOCALES.map((locale, index) => ({
+      ellipsis: true,
+      key: locale,
+      render: (_: unknown, row: SubtitleTableRow) => row.line.translations[locale] || '未填写',
+      title: ['中文', 'ไทย', '日本語'][index],
+      width: 180,
+    })),
+    {
+      ellipsis: true,
+      key: 'answers',
+      render: (_, row) => (
+        (row.line.answers ?? []).map((answer) => answer.trim()).filter(Boolean).join(' / ') || '无'
+      ),
+      title: '可接受答案',
+      width: 220,
+    },
+  ]
+  const table = (
+    <Table<SubtitleTableRow>
+      bordered
+      className="subtitle-list-antd-table"
+      columns={embedded ? embeddedColumns : fullColumns}
+      dataSource={rows}
+      locale={{ emptyText: '暂无字幕' }}
+      onRow={(row) => ({ onClick: () => onActiveLineChange(row.index) })}
+      pagination={false}
+      rowClassName={(row) => row.index === activeLineIndex ? 'subtitle-table-row-active' : ''}
+      rowKey={(row) => row.line.id}
+      scroll={{ x: embedded ? 48 + embeddedTimeColumnWidth + 320 : 1434 }}
+      size="small"
+      tableLayout="fixed"
+    />
+  )
+
+  if (embedded) {
+    return <div className="subtitle-list-embedded">{table}</div>
+  }
+
   return (
     <details className="subtitle-list-panel waveform-subtitle-list" open>
       <summary>
         <span>字幕列表</span>
         <strong>{draftLines.length} 条</strong>
       </summary>
-      <div className="subtitle-list-table" role="table" aria-label="字幕列表">
-        <div className="subtitle-list-row subtitle-list-head" role="row">
-          <span role="columnheader">序号</span>
-          <span role="columnheader">开始</span>
-          <span role="columnheader">结束</span>
-          <span role="columnheader">时长</span>
-          <span role="columnheader">字幕内容</span>
-          <span role="columnheader">中文</span>
-          <span role="columnheader">ไทย</span>
-          <span role="columnheader">日本語</span>
-          <span role="columnheader">可接受答案</span>
-        </div>
-        {draftLines.map((line, index) => (
-          <button
-            className={index === activeLineIndex ? 'subtitle-list-row active' : 'subtitle-list-row'}
-            key={line.id}
-            onClick={() => onActiveLineChange(index)}
-            role="row"
-            type="button"
-          >
-            <span role="cell">{index + 1}</span>
-            <span role="cell">{formatTimeWithMilliseconds(line.start)}</span>
-            <span role="cell">{formatTimeWithMilliseconds(line.end)}</span>
-            <span role="cell">{formatTimeWithMilliseconds(Math.max(0, line.end - line.start))}</span>
-            <span role="cell">{line.text || '未填写字幕'}</span>
-            {TRANSLATION_TARGET_LOCALES.map((locale) => (
-              <span role="cell" key={locale}>
-                {line.translations[locale] || '未填写'}
-              </span>
-            ))}
-            <span role="cell">
-              {(line.answers ?? []).map((answer) => answer.trim()).filter(Boolean).join(' / ') || '无'}
-            </span>
-          </button>
-        ))}
-      </div>
+      {table}
     </details>
   )
 }
