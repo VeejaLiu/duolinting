@@ -104,7 +104,7 @@ export function IntensiveStagePanel({
   videoPlayer: VideoPlayer
 }) {
   const { t } = useLanguage()
-  const { height: viewportHeight } = useWindowDimensions()
+  const { height: viewportHeight, width: viewportWidth } = useWindowDimensions()
   const listRef = useRef<ScrollView | null>(null)
   const listScrollYRef = useRef(0)
   const listHeightRef = useRef(0)
@@ -117,6 +117,12 @@ export function IntensiveStagePanel({
   const secondaryControlTopMargin = isVeryShortViewport ? 5 : 8
   const primaryControlHeight = isVeryShortViewport ? 44 : isShortViewport ? 46 : 48
   const secondaryControlHeight = isVeryShortViewport ? 50 : 54
+  // 四个逐句控制在小屏上若坚持单行，会把英文/泰文标签压到不可读或撑出卡片。
+  // 420pt 以下的手机改成两列，同时保留更大的触控目标；更宽的设备继续单行，
+  // 文案再通过 flexShrink + adjustsFontSizeToFit 做最后一道适配。
+  const shouldWrapPrimaryControls = viewportWidth < 420
+  const primaryControlFontSize = shouldWrapPrimaryControls ? 12 : 13
+  const primaryControlIconSize = shouldWrapPrimaryControls ? 16 : 17
   const videoHeight = isVeryShortViewport ? 140 : isShortViewport ? 170 : 220
   const audioHeight = isVeryShortViewport ? 124 : isShortViewport ? 150 : 180
   const listPadding = isVeryShortViewport ? 8 : 12
@@ -252,35 +258,59 @@ export function IntensiveStagePanel({
             )}
           </View>
         )}
-        <View className="flex-row gap-2" style={{ marginTop: controlTopMargin }}>
+        <View
+          className="flex-row flex-wrap gap-2"
+          style={{ marginTop: controlTopMargin }}
+        >
           <Pressable
-            className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[16px] bg-surface-raised px-1"
+            className={`${shouldWrapPrimaryControls ? 'w-[48%]' : 'flex-1'} flex-row items-center justify-center gap-1.5 rounded-[16px] bg-surface-raised px-1`}
             disabled={!canMovePrevious}
             onPress={() => onMoveSelectedLine(-1)}
             style={{
               minHeight: primaryControlHeight,
+              minWidth: 0,
               opacity: canMovePrevious ? 1 : 0.45,
             }}
           >
-            <FontAwesome6 color="#172033" name="backward-step" size={17} />
-            <Text className="text-[13px] font-black text-text-primary">
+            <FontAwesome6
+              color="#172033"
+              name="backward-step"
+              size={primaryControlIconSize}
+            />
+            <Text
+              adjustsFontSizeToFit
+              className="text-center font-black text-text-primary"
+              minimumFontScale={0.72}
+              numberOfLines={1}
+              style={{ flexShrink: 1, fontSize: primaryControlFontSize }}
+            >
               {t('study.previous')}
             </Text>
           </Pressable>
           <Pressable
-            className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-[16px] px-1 ${
+            className={`${shouldWrapPrimaryControls ? 'w-[48%]' : 'flex-1'} flex-row items-center justify-center gap-1.5 rounded-[16px] px-1 ${
               sentenceVisible ? 'bg-[#dff4ff]' : 'bg-surface-raised'
             }`}
             onPress={() => onToggleRevealLine(selectedLine.id)}
-            style={{ minHeight: primaryControlHeight }}
+            style={{ minHeight: primaryControlHeight, minWidth: 0 }}
           >
-            <FontAwesome6 color="#1cb0f6" name="closed-captioning" size={17} />
-            <Text className="text-[13px] font-black text-text-primary">
+            <FontAwesome6
+              color="#1cb0f6"
+              name="closed-captioning"
+              size={primaryControlIconSize}
+            />
+            <Text
+              adjustsFontSizeToFit
+              className="text-center font-black text-text-primary"
+              minimumFontScale={0.72}
+              numberOfLines={1}
+              style={{ flexShrink: 1, fontSize: primaryControlFontSize }}
+            >
               {t('study.subtitle')}
             </Text>
           </Pressable>
           <Pressable
-            className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[16px] bg-brand px-1"
+            className={`${shouldWrapPrimaryControls ? 'w-[48%]' : 'flex-1'} flex-row items-center justify-center gap-1.5 rounded-[16px] bg-brand px-1`}
             disabled={!canToggleCurrentLine}
             onPress={() => {
               if (currentLineIsPlaying) {
@@ -292,34 +322,54 @@ export function IntensiveStagePanel({
             }}
             style={{
               minHeight: primaryControlHeight,
+              minWidth: 0,
               opacity: canToggleCurrentLine ? 1 : 0.6,
             }}
           >
             <FontAwesome6
               color="#ffffff"
               name={currentLineIsPlaying ? 'pause' : 'play'}
-              size={17}
+              size={primaryControlIconSize}
             />
-            <Text className="text-[13px] font-black text-white">{t('study.thisSentence')}</Text>
+            <Text
+              adjustsFontSizeToFit
+              className="text-center font-black text-white"
+              minimumFontScale={0.72}
+              numberOfLines={1}
+              style={{ flexShrink: 1, fontSize: primaryControlFontSize }}
+            >
+              {t('study.thisSentence')}
+            </Text>
           </Pressable>
           <Pressable
-            className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[16px] bg-surface-raised px-1"
+            className={`${shouldWrapPrimaryControls ? 'w-[48%]' : 'flex-1'} flex-row items-center justify-center gap-1.5 rounded-[16px] bg-surface-raised px-1`}
             disabled={!canMoveNext}
             onPress={() => onMoveSelectedLine(1)}
             style={{
               minHeight: primaryControlHeight,
+              minWidth: 0,
               opacity: canMoveNext ? 1 : 0.45,
             }}
           >
-            <FontAwesome6 color="#172033" name="forward-step" size={17} />
-            <Text className="text-[13px] font-black text-text-primary">
+            <FontAwesome6
+              color="#172033"
+              name="forward-step"
+              size={primaryControlIconSize}
+            />
+            <Text
+              adjustsFontSizeToFit
+              className="text-center font-black text-text-primary"
+              minimumFontScale={0.72}
+              numberOfLines={1}
+              style={{ flexShrink: 1, fontSize: primaryControlFontSize }}
+            >
               {t('study.next')}
             </Text>
           </Pressable>
         </View>
         <View className="flex-row gap-2" style={{ marginTop: secondaryControlTopMargin }}>
           <Pressable
-            className="flex-1 flex-row items-center justify-center gap-2 px-3"
+            className="min-w-0 flex-1 flex-row items-center justify-center gap-2 px-3"
             onPress={() => onMarkLineUnclear(selectedLine.id)}
             style={{
               backgroundColor: lineProgress.unclear
@@ -341,17 +391,22 @@ export function IntensiveStagePanel({
             />
             <Text
               className="text-center text-base font-black"
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+              numberOfLines={1}
               style={{
                 color: lineProgress.unclear
                   ? '#ffffff'
                   : statusButtonNeutralText,
+                flexShrink: 1,
+                fontSize: isVeryShortViewport ? 14 : 16,
               }}
             >
               {lineProgress.unclear ? t('study.markedDifficult') : t('study.markDifficult')}
             </Text>
           </Pressable>
           <Pressable
-            className="flex-1 flex-row items-center justify-center gap-2 px-3"
+            className="min-w-0 flex-1 flex-row items-center justify-center gap-2 px-3"
             onPress={() => {
               onRevealLine(selectedLine.id)
               onMarkLineMastered(selectedLine.id)
@@ -376,10 +431,15 @@ export function IntensiveStagePanel({
             />
             <Text
               className="text-center text-base font-black"
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+              numberOfLines={1}
               style={{
                 color: lineProgress.mastered
                   ? '#ffffff'
                   : statusButtonNeutralText,
+                flexShrink: 1,
+                fontSize: isVeryShortViewport ? 14 : 16,
               }}
             >
               {lineProgress.mastered ? t('study.mastered') : t('study.master')}

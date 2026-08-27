@@ -75,8 +75,12 @@ export function ContributorCredits({
         <View
           className="rounded-full border border-[#bce8fc] bg-[#e9f8ff] px-2 py-1"
           key={responsibility}
+          style={{ maxWidth: '100%' }}
         >
-          <Text className="text-[11px] font-extrabold text-[#168bc0]">
+          <Text
+            className="text-[11px] font-extrabold text-[#168bc0]"
+            style={{ flexShrink: 1 }}
+          >
             {responsibility}
           </Text>
         </View>
@@ -85,8 +89,12 @@ export function ContributorCredits({
         <View
           className="rounded-full border border-[#d8e6f1] bg-[#f5faff] px-2 py-1"
           key={contributor.displayName}
+          style={{ maxWidth: '100%' }}
         >
-          <Text className="text-[11px] font-extrabold text-text-muted">
+          <Text
+            className="text-[11px] font-extrabold text-text-muted"
+            style={{ flexShrink: 1 }}
+          >
             {t('study.credits.contributor', {
               name: contributor.displayName,
               roles: contributor.roles

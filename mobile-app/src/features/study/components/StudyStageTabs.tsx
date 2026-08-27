@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View, useWindowDimensions } from 'react-native'
 import type { StudyStage } from '@duolinting/domain'
 import { useLanguage } from '@/i18n/LanguageProvider'
 
@@ -14,6 +14,8 @@ export function StudyStageTabs({
   compact?: boolean
 }) {
   const { t } = useLanguage()
+  const { width: viewportWidth } = useWindowDimensions()
+  const isNarrowViewport = viewportWidth < 420
   const activeStageIndex = studyStages.indexOf(stage)
 
   return (
@@ -26,7 +28,7 @@ export function StudyStageTabs({
         return (
           <Pressable
             key={item}
-            className={`flex-1 items-center justify-center px-2 ${
+            className={`min-w-0 flex-1 items-center justify-center px-2 ${
               current
                 ? 'bg-brand'
                 : highlighted
@@ -34,9 +36,10 @@ export function StudyStageTabs({
                   : 'bg-white'
             } ${isLast ? '' : 'border-r-2 border-r-[#bde8ff]'}`}
             onPress={() => onStageChange(item)}
-            style={{ minHeight: compact ? 46 : 58 }}
+            style={{ minHeight: compact ? 46 : 58, minWidth: 0 }}
           >
             <Text
+              adjustsFontSizeToFit
               className={`text-center font-black ${
                 current
                   ? 'text-white'
@@ -44,8 +47,19 @@ export function StudyStageTabs({
                     ? 'text-brand'
                     : 'text-text-secondary'
               }`}
-              numberOfLines={1}
-              style={{ fontSize: compact ? 14 : 16 }}
+              minimumFontScale={0.72}
+              numberOfLines={2}
+              style={{
+                flexShrink: 1,
+                fontSize: compact
+                  ? isNarrowViewport
+                    ? 13
+                    : 14
+                  : isNarrowViewport
+                    ? 15
+                    : 16,
+                lineHeight: compact ? 16 : 19,
+              }}
             >
               {index + 1} {item === 'extensive' ? t('study.extensive') : item === 'intensive' ? t('study.intensive') : t('study.difficultSentences')}
             </Text>

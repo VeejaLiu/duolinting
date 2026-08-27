@@ -47,9 +47,11 @@ export function StudyHeader({
         </Pressable>
         <View className="ml-3 flex-1">
           <Text
+            adjustsFontSizeToFit
             className="font-black text-text-primary"
+            minimumFontScale={0.78}
             numberOfLines={compact ? 1 : 2}
-            style={{ fontSize: compact ? 17 : 20 }}
+            style={{ flexShrink: 1, fontSize: compact ? 17 : 20 }}
           >
             {title}
           </Text>
