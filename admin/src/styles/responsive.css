@@ -111,6 +111,9 @@
     min-height: 0;
     overflow: hidden;
     padding: 0;
+    /* 让工作台唯一的内容行参与剩余高度分配，避免 auto 行被波形的
+       固有高度撑开，进而把整个页面无限向下推。 */
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .import-layout {
@@ -234,6 +237,18 @@
     flex: 1 1 auto;
     height: auto;
     min-height: 0;
+  }
+
+  /* 与桌面端保持一致：波形编辑主体必须是可收缩的 flex 子项。
+     若继续沿用基础样式的 grid + min-height:auto，波形画布的内容高度会
+     反向撑开工作区，在 1120px 断点下表现为页面持续变长。 */
+  .waveform-editor-main {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .wavesurfer-view {
