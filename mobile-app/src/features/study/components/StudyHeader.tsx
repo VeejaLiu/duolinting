@@ -1,6 +1,7 @@
 import { FontAwesome6 } from '@expo/vector-icons'
 import { Pressable, Text, View } from 'react-native'
 import type { CourseContributor, CourseWorkflowCredits } from '@duolinting/domain'
+import { useLanguage } from '@/i18n/LanguageProvider'
 import { ContributorCredits } from './ContributorCredits'
 
 export function StudyHeader({
@@ -16,6 +17,8 @@ export function StudyHeader({
   contributors?: CourseContributor[]
   workflowCredits?: CourseWorkflowCredits
 }) {
+  const { t } = useLanguage()
+
   return (
     <View
       className="border-b-2 border-[#d7e4ef] bg-white px-4"
@@ -32,6 +35,7 @@ export function StudyHeader({
     >
       <View className="flex-row items-center">
         <Pressable
+          accessibilityLabel={t('common.back')}
           className="items-center justify-center rounded-[16px] border-2 border-[#d7e2ee] border-b-[4px] border-b-[#d7e4ef] bg-white"
           onPress={onBack}
           style={{

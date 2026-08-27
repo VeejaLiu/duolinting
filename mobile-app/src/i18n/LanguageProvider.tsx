@@ -111,7 +111,10 @@ export function LanguageProvider({ children }: PropsWithChildren) {
     setUiLocale: (locale) => updatePreferences({ uiLocale: locale }),
     setContentLocale: (locale) => updatePreferences({ contentLocale: locale }),
     t: (key, values) => {
-      let message = messages[storedPreferences.uiLocale][key]
+      // key 是组件唯一持有的稳定标识；真正的用户文案始终从当前语言目录取。
+      // 英语兜底用于防止热更新或新增语言 key 时短暂出现 undefined。
+      let message: string =
+        messages[storedPreferences.uiLocale][key] ?? messages['en-US'][key] ?? key
       if (!values) return message
       for (const [name, value] of Object.entries(values)) {
         message = message.replaceAll(`{{${name}}}`, String(value))
