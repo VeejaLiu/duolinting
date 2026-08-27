@@ -288,6 +288,27 @@ export function SettingsScreen() {
               ) : null}
             </View>
           </View>
+
+          <View>
+            <Text className="px-1 text-xs font-black text-text-secondary">{t('settings.aboutSection')}</Text>
+            <View className="mt-2 rounded-[20px] border-2 border-[#e4eef8] border-b-[5px] border-b-[#d7e4ef] bg-white px-5 py-3">
+              <Pressable
+                className="flex-row items-center py-1"
+                onPress={() => router.push('/settings/about')}
+              >
+                <View className="h-10 w-10 items-center justify-center rounded-[13px] bg-[#edf7ff]">
+                  <FontAwesome6 color="#1cb0f6" name="circle-info" size={17} />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-base font-black text-text-primary">{t('settings.about')}</Text>
+                  <Text className="mt-0.5 text-sm font-bold text-text-secondary">
+                    {t('settings.aboutDescription')}
+                  </Text>
+                </View>
+                <FontAwesome6 color="#8191a6" name="chevron-right" size={15} />
+              </Pressable>
+            </View>
+          </View>
         </AppScrollView>
         <BottomSheet
           title={languagePicker === 'ui' ? t('language.chooseInterface') : t('language.chooseContent')}
