@@ -33,7 +33,7 @@ type GuideCopy = {
   maintenance: { eyebrow: string; title: string; lead: string; cards: Array<{ mark: string; title: string; body: string }> };
   rules: { eyebrow: string; title: string; lead: string; items: string[] };
   code: { eyebrow: string; title: string; body: string; action: string; note: string };
-  footer: { home: string; download: string; guide: string; privacy: string; terms: string; source: string; statement: string };
+  footer: { home: string; download: string; guide: string; privacy: string; terms: string; support: string; source: string; statement: string };
 };
 
 const githubUrl = "https://github.com/VeejaLiu/duolinting";
@@ -179,7 +179,7 @@ const copy: Record<Locale, GuideCopy> = {
       action: "查看 GitHub 仓库",
       note: "开源代码贡献与受控内容发布，是两条清楚、互相配合的协作路径。",
     },
-    footer: { home: "首页", download: "下载", guide: "贡献指南", privacy: "隐私", terms: "使用条款", source: "GitHub", statement: "DuolinTing 是受 YouZack 听力学习理念启发的独立开源项目，并非 YouZack 官方产品，也不代表获得其官方背书。" },
+    footer: { home: "首页", download: "下载", guide: "贡献指南", privacy: "隐私", terms: "使用条款", support: "支持与联系", source: "GitHub", statement: "DuolinTing 是受 YouZack 听力学习理念启发的独立开源项目，并非 YouZack 官方产品，也不代表获得其官方背书。" },
   },
   en: {
     home: "Back to home",
@@ -273,7 +273,7 @@ const copy: Record<Locale, GuideCopy> = {
     maintenance: { eyebrow: "Care for lessons after release", title: "Bring feedback back into the content, so the next practice is better.", lead: "Publication is not the last step. The admin area provides ways to maintain lessons, record a course walk-through, and review product-level signals.", cards: [{ mark: "↻", title: "Course management", body: "Filter, order, edit, or archive lessons, and use media/subtitle completeness to guide further improvements." }, { mark: "✓", title: "Feedback center", body: "Handle learner feedback about accepted answers, mark it processed or ignored, then revise the relevant line where needed." }, { mark: "▶", title: "Video recording", body: "Record a line-by-line walkthrough of a prepared lesson for demonstrations or internal review." }, { mark: "◔", title: "Growth analysis", body: "Review registrations, DAU/WAU/MAU, and client distribution to understand the overall product and content rhythm." }] },
     rules: { eyebrow: "Content and rights", title: "We respect creators and protect learners.", lead: "Follow these principles before every import and release.", items: ["Upload only material you created, have permission to use, or that is explicitly open-licensed for this use. If you are unsure, do not upload or publish it.", "Do not copy, upload, or redistribute audio, video, subtitles, cover art, or translations without authorization.", "Do not scrape or copy companion subtitles curated by YouZack. DuolinTing is an independent open-source project inspired by its listening-practice approach.", "Content accounts are configured by maintainers; course tasks can be self-claimed in Admin, but account provisioning and release remain maintainer-controlled."] },
     code: { eyebrow: "Code and deployment contributions", title: "Want to make DuolinTing itself better?", body: "The source code is open under Apache-2.0. Product improvements, documentation, deployment, and engineering collaboration can start from the GitHub repository; content collaboration still needs an admin account configured by a maintainer.", action: "View the GitHub repository", note: "Open-source code contribution and controlled content publishing are two clear, complementary collaboration paths." },
-    footer: { home: "Home", download: "Download", guide: "Contribution guide", privacy: "Privacy", terms: "Terms", source: "GitHub", statement: "DuolinTing is an independent open-source project inspired by YouZack’s approach to listening practice. It is not an official YouZack product and is not endorsed by YouZack." },
+    footer: { home: "Home", download: "Download", guide: "Contribution guide", privacy: "Privacy", terms: "Terms", support: "Support", source: "GitHub", statement: "DuolinTing is an independent open-source project inspired by YouZack’s approach to listening practice. It is not an official YouZack product and is not endorsed by YouZack." },
   },
 };
 
@@ -288,6 +288,7 @@ export function ContributeGuide({ initialLocale = "zh" }: { initialLocale?: Loca
   const nav = useMemo(() => t.nav, [t.nav]);
   const docs = t.docs;
   const languagePath = initialLocale === "en" ? "/contribute" : "/en/contribute";
+  const supportPath = initialLocale === "en" ? "/en/support" : "/support";
 
   useEffect(() => {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
@@ -321,6 +322,7 @@ export function ContributeGuide({ initialLocale = "zh" }: { initialLocale?: Loca
             <Link className="language-switch" href={languagePath}>{t.language}</Link>
             <a className="docs-header-source" href={githubUrl} target="_blank" rel="noreferrer"><GitHubMark /> GitHub</a>
             <Link className="docs-home-link" href={initialLocale === "en" ? "/en" : "/"}>{t.home} <span aria-hidden="true">↗</span></Link>
+            <Link className="docs-home-link" href={supportPath}>{t.footer.support}</Link>
             <button className="docs-menu-trigger" type="button" aria-expanded={menuOpen} aria-label="Toggle contribution guide navigation" onClick={() => setMenuOpen(!menuOpen)}><span></span><span></span><span></span></button>
           </div>
         </div>

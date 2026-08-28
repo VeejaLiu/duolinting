@@ -1,4 +1,5 @@
 import { FontAwesome6 } from '@expo/vector-icons'
+import * as Linking from 'expo-linking'
 import { useRouter } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -17,6 +18,7 @@ import {
 import { useDeleteAccountMutation } from '@/features/auth/hooks'
 import { progressStorage } from '@/services/progressStorage'
 import { syncDailyReminder } from '@/services/studyReminder'
+import { PRIVACY_POLICY_URL, SUPPORT_URL } from '@/lib/publicLinks'
 import { useActivityStore, type ReminderTime } from '@/stores/activityStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useStudyStore } from '@/stores/studyStore'
@@ -377,6 +379,45 @@ export function SettingsScreen() {
                   </Text>
                 </View>
                 <FontAwesome6 color="#8191a6" name="chevron-right" size={15} />
+              </Pressable>
+            </View>
+          </View>
+
+          <View>
+            <Text className="px-1 text-xs font-black text-text-secondary">{t('settings.helpAndLegal')}</Text>
+            <View className="mt-2 rounded-[20px] border-2 border-[#e4eef8] border-b-[5px] border-b-[#d7e4ef] bg-white px-5 py-3">
+              <Pressable
+                accessibilityRole="link"
+                className="flex-row items-center py-1"
+                onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)}
+              >
+                <View className="h-10 w-10 items-center justify-center rounded-[13px] bg-[#edf7ff]">
+                  <FontAwesome6 color="#1cb0f6" name="shield-halved" size={16} />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-base font-black text-text-primary">{t('settings.privacyPolicy')}</Text>
+                  <Text className="mt-0.5 text-sm font-bold text-text-secondary">
+                    {t('settings.privacyPolicyDescription')}
+                  </Text>
+                </View>
+                <FontAwesome6 color="#8191a6" name="arrow-up-right-from-square" size={14} />
+              </Pressable>
+              <View className="my-3 border-t-2 border-[#e4eef8]" />
+              <Pressable
+                accessibilityRole="link"
+                className="flex-row items-center py-1"
+                onPress={() => void Linking.openURL(SUPPORT_URL)}
+              >
+                <View className="h-10 w-10 items-center justify-center rounded-[13px] bg-[#edf7ff]">
+                  <FontAwesome6 color="#1cb0f6" name="circle-question" size={17} />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-base font-black text-text-primary">{t('settings.support')}</Text>
+                  <Text className="mt-0.5 text-sm font-bold text-text-secondary">
+                    {t('settings.supportDescription')}
+                  </Text>
+                </View>
+                <FontAwesome6 color="#8191a6" name="arrow-up-right-from-square" size={14} />
               </Pressable>
             </View>
           </View>

@@ -28,7 +28,7 @@ export function PlaybackControls({
       </Pressable>
       <Pressable className="rounded-pill bg-brand px-5 py-3" onPress={onPlayPause}>
         <Text className="font-semibold text-white">
-          {isPlaying ? pauseLabel ?? t('shadowing.pause') : playLabel ?? t('study.play')}
+          {isPlaying ? pauseLabel ?? t('study.pause') : playLabel ?? t('study.play')}
         </Text>
       </Pressable>
       <Pressable className="rounded-pill bg-surface-raised px-4 py-3" onPress={onNext}>

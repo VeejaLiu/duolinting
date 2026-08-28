@@ -6,7 +6,6 @@ import type {
 } from '@duolinting/domain'
 import { useEffect, useRef, useState } from 'react'
 import {
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -17,7 +16,6 @@ import { VideoView, type VideoPlayer } from 'expo-video'
 import { AcceptedAnswerFeedbackSheet } from '@/components/composites/AcceptedAnswerFeedbackSheet'
 import { TranscriptLineRow } from '@/components/composites/TranscriptLineRow'
 import { AppTextInput } from '@/components/primitives/AppTextInput'
-import { ShadowingRecorder } from './ShadowingRecorder'
 import { useLanguage } from '@/i18n/LanguageProvider'
 
 const transcriptRowHeight = 72
@@ -27,7 +25,7 @@ const statusButtonNeutralText = '#3a5068'
 const unclearButtonActiveBackground = '#ffb300'
 const masteredButtonActiveBackground = '#78ca3c'
 
-// 精听练习工具（听写/笔记/跟读）暂时下线：产品决定现阶段不提供这些功能。
+// 精听练习工具（听写/笔记）暂时下线：产品决定现阶段不提供这些功能。
 // 相关状态、回调与渲染代码全部保留，恢复时把开关改回 true 即可。
 const SHOW_PRACTICE_TOOLS = false
 // 收词入口（及配套生词功能）暂时下线，同样保留代码便于恢复。
@@ -137,21 +135,15 @@ export function IntensiveStagePanel({
   const sentenceVisible = Boolean(revealedLineIds[selectedLine.id])
 
   // ===== 练习工具分段 =====
-  // 听写 / 笔记 / 跟读任一时刻只渲染一段，把垂直空间还给下方的句子列表。
+  // 听写 / 笔记任一时刻只渲染一段，把垂直空间还给下方的句子列表。
   // - 默认停在「听写」段（精听主流程）；
-  // - 跟读依赖 expo-audio 录音，web 端不可用，web 上不出现该分段；
-  // - 切句时【不】重置分段：用户在笔记/跟读中切换上句下句时保持当前工具，
+  // - 切句时【不】重置分段：用户在笔记中切换上句下句时保持当前工具，
   //   避免每次切句都被弹回听写段打断操作。
-  const [activeTool, setActiveTool] = useState<
-    'dictation' | 'note' | 'shadowing'
-  >('dictation')
-  const toolSegments = (
-    [
-      { key: 'dictation', label: t('study.dictation'), icon: 'pen-to-square' },
-      { key: 'note', label: t('study.note'), icon: 'note-sticky' },
-      { key: 'shadowing', label: t('study.shadowing'), icon: 'microphone' },
-    ] as const
-  ).filter((segment) => Platform.OS !== 'web' || segment.key !== 'shadowing')
+  const [activeTool, setActiveTool] = useState<'dictation' | 'note'>('dictation')
+  const toolSegments = [
+    { key: 'dictation', label: t('study.dictation'), icon: 'pen-to-square' },
+    { key: 'note', label: t('study.note'), icon: 'note-sticky' },
+  ] as const
 
   useEffect(() => {
     const targetY = Math.max(
@@ -505,9 +497,9 @@ export function IntensiveStagePanel({
             </View>
           </View>
         ) : null}
-        {/* 练习工具分段控件：听写 / 笔记 / 跟读 三段切换，多邻国 chunky 风格，
+        {/* 练习工具分段控件：听写 / 笔记两段切换，多邻国 chunky 风格，
             选中段蓝底白字；收词 chips 留在分段之外常显（轻量且与字幕揭示联动）。
-            SHOW_PRACTICE_TOOLS=false 时整段（含下方三个工具面板）不渲染。 */}
+            SHOW_PRACTICE_TOOLS=false 时整段（含下方两个工具面板）不渲染。 */}
         {SHOW_PRACTICE_TOOLS ? (
         <>
         <View
@@ -594,18 +586,6 @@ export function IntensiveStagePanel({
             value={lineProgress.note}
           />
         </View>
-        ) : null}
-        {/* 跟读段：expo-audio 录音在 web 端不可用，该分段在 web 上不出现；
-            组件内部自管录音状态与临时文件（切句自动清理），父层只透传
-            暂停/播放当前句两个回调 */}
-        {activeTool === 'shadowing' && Platform.OS !== 'web' ? (
-          <View style={{ marginTop: secondaryControlTopMargin }}>
-            <ShadowingRecorder
-              line={selectedLine}
-              onPause={onPause}
-              onPlayLine={onPlayLine}
-            />
-          </View>
         ) : null}
         </>
         ) : null}

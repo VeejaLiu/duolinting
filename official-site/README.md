@@ -78,8 +78,8 @@ DEPLOY_HOST=<ssh-host> npm run deploy:build-server -- official-site
 
 - `https://www.duolinting.cn/robots.txt`
 - `https://www.duolinting.cn/sitemap.xml`
-- 中文页面：`/`、`/download`、`/contribute`、`/privacy`、`/terms`
-- 英文页面：`/en`、`/en/download`、`/en/contribute`、`/en/privacy`、`/en/terms`
+- 中文页面：`/`、`/download`、`/contribute`、`/support`、`/privacy`、`/terms`
+- 英文页面：`/en`、`/en/download`、`/en/contribute`、`/en/support`、`/en/privacy`、`/en/terms`
 
 每个中英文对应页面都包含 canonical 与 `hreflang`，并将完整正文服务端输出。首页提供组织、网站、软件产品和 FAQ 结构化数据；贡献指南提供文章结构化数据。
 

@@ -256,6 +256,12 @@ h1 em { color: var(--brand-strong); font-style: normal; }
 .legal-content h1 { max-width: 760px; }
 .legal-content h2 { margin: 43px 0 10px; font-size: 23px; letter-spacing: -.5px; }
 .legal-content p:not(.eyebrow) { color: var(--secondary); font-size: 15px; font-weight: 650; line-height: 1.8; }
+.legal-content a { color: var(--brand-strong); font-weight: 850; }
+.legal-content a:hover { color: var(--brand); }
+.legal-content .legal-list { margin: 0; padding-left: 24px; color: var(--secondary); font-size: 15px; font-weight: 650; line-height: 1.8; }
+.legal-content .legal-list li + li { margin-top: 10px; }
+.legal-content .contact-value { color: var(--ink); font-weight: 850; }
+.legal-content .legal-links { margin-top: 52px; color: #8191a6; font-size: 14px; }
 .legal-updated { color: #8191a6 !important; font-size: 13px !important; }
 .not-found { display: grid; min-height: 100vh; place-items: center; padding: 28px; background: radial-gradient(circle at 83% 9%, rgba(28,176,246,.2), transparent 30%), #f7fbff; text-align: center; }
 .not-found > div { max-width: 630px; }

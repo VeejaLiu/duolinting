@@ -18,7 +18,6 @@
     "expo-application": "~7.0.8",
     "expo-audio": "~1.1.1",
     "expo-constants": "~18.0.13",
-    "expo-file-system": "~19.0.23",
     "expo-font": "~14.0.9",
     "expo-image": "~3.0.11",
     "expo-linking": "~8.0.12",

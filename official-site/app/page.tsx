@@ -19,7 +19,7 @@ type Copy = {
   download: { eyebrow: string; title: string; body: string; web: string; apk: string; ios: string };
   source: { eyebrow: string; title: string; body: string; action: string; note: string };
   faq: { eyebrow: string; title: string; items: Array<{ question: string; answer: string }> };
-  footer: { product: string; download: string; contribute: string; source: string; privacy: string; terms: string; statement: string };
+  footer: { product: string; download: string; contribute: string; source: string; privacy: string; terms: string; support: string; statement: string };
 };
 
 const copy: Record<Locale, Copy> = {
@@ -84,7 +84,7 @@ const copy: Record<Locale, Copy> = {
       ],
     },
     footer: {
-      product: "产品", download: "下载", contribute: "贡献指南", source: "GitHub", privacy: "隐私", terms: "使用条款",
+      product: "产品", download: "下载", contribute: "贡献指南", source: "GitHub", privacy: "隐私", terms: "使用条款", support: "支持与联系",
       statement: "DuolinTing 是受 YouZack 听力学习理念启发的独立开源项目，并非 YouZack 官方产品，也不代表获得其官方背书。",
     },
   },
@@ -149,7 +149,7 @@ const copy: Record<Locale, Copy> = {
       ],
     },
     footer: {
-      product: "Product", download: "Download", contribute: "Contribution guide", source: "GitHub", privacy: "Privacy", terms: "Terms",
+      product: "Product", download: "Download", contribute: "Contribution guide", source: "GitHub", privacy: "Privacy", terms: "Terms", support: "Support",
       statement: "DuolinTing is an independent open-source project inspired by YouZack’s approach to listening practice. It is not an official YouZack product and is not endorsed by YouZack.",
     },
   },
@@ -169,6 +169,9 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
   const languageLabel = locale === "zh" ? "EN" : "中文";
   const downloadPath = initialLocale === "en" ? "/en/download" : "/download";
   const contributePath = initialLocale === "en" ? "/en/contribute" : "/contribute";
+  const privacyPath = initialLocale === "en" ? "/en/privacy" : "/privacy";
+  const termsPath = initialLocale === "en" ? "/en/terms" : "/terms";
+  const supportPath = initialLocale === "en" ? "/en/support" : "/support";
   const languagePath = initialLocale === "en" ? "/" : "/en";
 
   useEffect(() => { document.documentElement.lang = locale === "zh" ? "zh-CN" : "en"; }, [locale]);
@@ -253,7 +256,7 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
 
       <section className="faq-section section-pad"><div className="site-shell faq-layout"><div><p className="eyebrow"><span></span>{t.faq.eyebrow}</p><h2>{t.faq.title}</h2></div><div className="faq-list">{t.faq.items.map((item, index) => <article key={item.question} className={openFaq === index ? "open" : ""}><button type="button" aria-expanded={openFaq === index} onClick={() => setOpenFaq(openFaq === index ? null : index)}><strong>{item.question}</strong><span>+</span></button><div><p>{item.answer}</p></div></article>)}</div></div></section>
 
-      <footer className="site-footer"><div className="site-shell"><div className="footer-top"><button className="brand" type="button" onClick={() => scrollToSection("top")}><Image className="brand-logo" src="/duolinting-logo-ear.png" alt="" width={44} height={42} /><span><strong>DuolinTing</strong><small>多邻听</small></span></button><nav><button type="button" onClick={() => scrollToSection("product")}>{t.footer.product}</button><Link href={downloadPath}>{t.footer.download}</Link><Link href={contributePath}>{t.footer.contribute}</Link><a href="https://github.com/VeejaLiu/duolinting" target="_blank" rel="noreferrer">{t.footer.source}</a><Link href="/privacy">{t.footer.privacy}</Link><Link href="/terms">{t.footer.terms}</Link></nav></div><p>{t.footer.statement}</p></div></footer>
+      <footer className="site-footer"><div className="site-shell"><div className="footer-top"><button className="brand" type="button" onClick={() => scrollToSection("top")}><Image className="brand-logo" src="/duolinting-logo-ear.png" alt="" width={44} height={42} /><span><strong>DuolinTing</strong><small>多邻听</small></span></button><nav><button type="button" onClick={() => scrollToSection("product")}>{t.footer.product}</button><Link href={downloadPath}>{t.footer.download}</Link><Link href={contributePath}>{t.footer.contribute}</Link><a href="https://github.com/VeejaLiu/duolinting" target="_blank" rel="noreferrer">{t.footer.source}</a><Link href={privacyPath}>{t.footer.privacy}</Link><Link href={termsPath}>{t.footer.terms}</Link><Link href={supportPath}>{t.footer.support}</Link></nav></div><p>{t.footer.statement}</p></div></footer>
     </main>
   );
 }
