@@ -257,7 +257,8 @@
 }
 
 /* 制课工作台使用桌面端完整视口，避免普通页面的留白规则挤压编辑区域。 */
-@media (min-width: 1121px) {
+/* 使用 1120px 作为桌面规则的起点，避免 1120.xpx 落入 1120 与 1121 之间的空档。 */
+@media (min-width: 1120px) {
   /* 制课页没有独立的顶部栏，工作区本身应从视口顶部铺满到视口底部。 */
   .admin-workspace-layout:has(.import-workbench) {
     align-items: stretch;
@@ -448,7 +449,7 @@
 }
 
 /* 小尺寸桌面（例如 Mac 的缩放分辨率）使用紧凑密度，避免大屏字号和控件尺寸硬挤在一起。 */
-@media (min-width: 1121px) and (max-width: 1440px) {
+@media (min-width: 1120px) and (max-width: 1440px) {
   .import-workbench {
     --workbench-font-size: clamp(11px, 0.9vw, 14px);
     font-size: var(--workbench-font-size);
