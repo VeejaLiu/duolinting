@@ -559,6 +559,15 @@ export type ChangePasswordRequest = {
   newPassword: string
 }
 
+/** 已登录用户发起账号删除时提交的当前密码，用于确认高风险操作。 */
+export type DeleteAccountRequest = {
+  currentPassword: string
+}
+
+export type DeleteAccountResponse = {
+  deleted: true
+}
+
 export type AuthResponse = {
   user: AuthUser
   token: string

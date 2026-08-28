@@ -1,5 +1,6 @@
 import type {
   ChangePasswordRequest,
+  DeleteAccountRequest,
   LoginRequest,
   RegisterRequest,
 } from '@duolinting/domain'
@@ -44,5 +45,14 @@ export function useChangePasswordMutation() {
       // 后端撤销旧会话后为当前设备签发新 token，必须立即替换本地 token。
       await applyAuthenticated(response)
     },
+  })
+}
+
+export function useDeleteAccountMutation() {
+  const authToken = useAuthStore((state) => state.authToken)
+
+  return useMutation({
+    mutationFn: (request: DeleteAccountRequest) =>
+      apiClient.deleteAccount(request, authToken),
   })
 }

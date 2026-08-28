@@ -53,6 +53,8 @@ type ActivityState = ActivityLog & {
   setDailyGoal: (value: number) => void
   setReminderEnabled: (enabled: boolean) => void
   setReminderTime: (time: ReminderTime) => void
+  /** 删除账号后清空设备上的账号级活动数据，由调用方随后移除持久化快照。 */
+  resetForAccountDeletion: () => void
   /**
    * 登录后从服务端拉回活动记录并合并进本地：
    * - days 按天取 max（服务端是天级累计值，本地可能有未上报的历史，
@@ -210,5 +212,16 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       time.minute <= 59
     set({ reminderTime: valid ? time : DEFAULT_REMINDER_TIME })
     persistActivityLog(get())
+  },
+
+  resetForAccountDeletion: () => {
+    // 不在这里写盘：删除流程会统一移除 study/activity 两份本地快照，
+    // 避免先写默认值再删除造成额外 IO；hydrated 状态保持不变。
+    set({
+      days: {},
+      dailyGoal: DEFAULT_DAILY_GOAL,
+      reminderEnabled: false,
+      reminderTime: DEFAULT_REMINDER_TIME,
+    })
   },
 }))

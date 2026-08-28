@@ -37,6 +37,15 @@ const writeJson = async (key: string, value: unknown): Promise<void> => {
   }
 }
 
+/** 删除账号时移除设备上的学习进度与活动快照；存储异常不阻塞退出流程。 */
+const removeLocalData = async (): Promise<void> => {
+  try {
+    await AsyncStorage.multiRemove([STUDY_STORE_KEY, ACTIVITY_LOG_KEY])
+  } catch {
+    // 忽略本地清理异常，服务端账号删除仍然已经完成
+  }
+}
+
 export const progressStorage = {
   async loadStudyStore(): Promise<StudyStore | null> {
     return readJson<StudyStore>(STUDY_STORE_KEY)
@@ -49,5 +58,8 @@ export const progressStorage = {
   },
   async saveActivityLog(log: ActivityLog): Promise<void> {
     await writeJson(ACTIVITY_LOG_KEY, log)
+  },
+  async clearLearnerData(): Promise<void> {
+    await removeLocalData()
   },
 }

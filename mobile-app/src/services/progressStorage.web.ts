@@ -54,6 +54,18 @@ const writeJson = (key: string, value: unknown): void => {
   }
 }
 
+/** 删除账号时移除浏览器端的学习进度与活动快照；清理失败不阻塞退出流程。 */
+const removeLocalData = (): void => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(STUDY_STORE_KEY)
+      window.localStorage.removeItem(ACTIVITY_LOG_KEY)
+    }
+  } catch {
+    // 忽略本地清理异常，服务端账号删除仍然已经完成
+  }
+}
+
 export const progressStorage = {
   async loadStudyStore(): Promise<StudyStore | null> {
     return readJson<StudyStore>(STUDY_STORE_KEY)
@@ -66,5 +78,8 @@ export const progressStorage = {
   },
   async saveActivityLog(log: ActivityLog): Promise<void> {
     writeJson(ACTIVITY_LOG_KEY, log)
+  },
+  async clearLearnerData(): Promise<void> {
+    removeLocalData()
   },
 }

@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import type { AuthUser, RegisterRequest } from '../../domain';
+import { sequelize } from '../../models/db-config-mysql';
 import { UserModel } from '../../models/schema/UserDB';
 import {
     issueUserSession,
@@ -13,6 +14,14 @@ export type AuthResult = {
     data?: {
         user: AuthUser;
         token: string;
+    };
+};
+
+export type DeleteAccountResult = {
+    success: boolean;
+    message: string;
+    data?: {
+        deleted: true;
     };
 };
 
@@ -154,5 +163,81 @@ export async function changeUserPassword({
         success: true,
         message: 'success',
         data: { user, token },
+    };
+}
+
+/**
+ * 删除学习账号及其全部账号级数据。
+ *
+ * 这些表没有数据库外键，因此必须在一个事务中显式清理所有 user_id
+ * 关联记录，再删除 users 主记录；否则会留下不可见的学习数据或悬空关联。
+ * admin_users 不是学习账号数据，保留后台账号本身，只解除它与学习账号的绑定。
+ */
+export async function deleteUserAccount({
+    userId,
+    currentPassword,
+}: {
+    userId: string | number;
+    currentPassword: string;
+}): Promise<DeleteAccountResult> {
+    const numericUserId = Number(userId);
+    if (!Number.isSafeInteger(numericUserId) || numericUserId <= 0) {
+        return { success: false, message: 'User not found' };
+    }
+
+    const userRecord = await UserModel.findByPk(numericUserId);
+    if (!userRecord) {
+        return { success: false, message: 'User not found' };
+    }
+
+    const row = plainUser(userRecord);
+    const passwordMatches = row.password_hash
+        ? await bcrypt.compare(currentPassword, row.password_hash)
+        : false;
+    if (!passwordMatches) {
+        return { success: false, message: 'Current password is incorrect' };
+    }
+
+    await sequelize.transaction(async (transaction) => {
+        // Keep this list explicit: each table is an account-owned data store,
+        // and the fixed names avoid turning user input into SQL identifiers.
+        const userOwnedTables = [
+            'user_sessions',
+            'exercise_progress',
+            'line_progress',
+            'vocabulary_items',
+            'accepted_answer_feedback',
+            'user_preferences',
+            'user_daily_activity',
+            'user_access_daily',
+        ];
+
+        for (const tableName of userOwnedTables) {
+            await sequelize.query(`delete from ${tableName} where user_id = ?`, {
+                replacements: [numericUserId],
+                transaction,
+            });
+        }
+
+        // A subtitle contributor may also have a learner account. Preserve the
+        // admin identity and its content history, but remove the deleted link.
+        await sequelize.query(
+            'update admin_users set learner_user_id = null where learner_user_id = ?',
+            {
+                replacements: [numericUserId],
+                transaction,
+            },
+        );
+
+        await sequelize.query('delete from users where id = ?', {
+            replacements: [numericUserId],
+            transaction,
+        });
+    });
+
+    return {
+        success: true,
+        message: 'success',
+        data: { deleted: true },
     };
 }

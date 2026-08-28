@@ -2,7 +2,7 @@ import { Pressable, Text, type PressableProps } from 'react-native'
 
 type ButtonProps = PressableProps & {
   label: string
-  tone?: 'primary' | 'secondary' | 'ghost' | 'success' | 'neutral'
+  tone?: 'primary' | 'secondary' | 'ghost' | 'success' | 'neutral' | 'danger'
 }
 
 export function Button({
@@ -21,6 +21,8 @@ export function Button({
         ? `${baseClassName} border-[#d7e2ee] border-b-[5px] bg-white border-b-[#d7e4ef]`
         : tone === 'neutral'
           ? `${baseClassName} border-[#d7e2ee] border-b-[5px] bg-surface-raised border-b-[#d7e4ef]`
+          : tone === 'danger'
+            ? `${baseClassName} border-[#ff4b4b] border-b-[5px] bg-[#ff4b4b] border-b-[#d9363e]`
           : `min-h-[48px] items-center justify-center rounded-pill px-5 py-3 ${
               disabled ? 'opacity-50' : ''
             }`
@@ -30,6 +32,8 @@ export function Button({
       ? 'text-center text-base font-black text-white'
       : tone === 'ghost'
         ? 'text-center text-base font-black text-brand'
+        : tone === 'danger'
+          ? 'text-center text-base font-black text-white'
         : 'text-center text-base font-black text-text-primary'
 
   return (

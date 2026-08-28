@@ -1,7 +1,8 @@
 import { FontAwesome6 } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Platform, Pressable, Switch, Text, View } from 'react-native'
+import { Platform, Pressable, Switch, Text, TextInput, View } from 'react-native'
 import { Button } from '@/components/foundation/Button'
 import { SafeScreen } from '@/components/primitives/SafeScreen'
 import { AppScrollView } from '@/components/primitives/AppScrollView'
@@ -13,9 +14,12 @@ import {
   contentLocaleLabels,
   uiLocaleLabels,
 } from '@/i18n/locale'
+import { useDeleteAccountMutation } from '@/features/auth/hooks'
+import { progressStorage } from '@/services/progressStorage'
 import { syncDailyReminder } from '@/services/studyReminder'
 import { useActivityStore, type ReminderTime } from '@/stores/activityStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useStudyStore } from '@/stores/studyStore'
 
 const DAILY_GOAL_OPTIONS = [5, 10, 20, 50]
 
@@ -80,6 +84,8 @@ function LanguageSettingRow({
 /** 设置页集中处理持久化偏好与账号操作，避免“我的”主页承载操作表单。 */
 export function SettingsScreen() {
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const deleteAccountMutation = useDeleteAccountMutation()
   const authUser = useAuthStore((state) => state.authUser)
   const accountStatus = useAuthStore((state) => state.accountStatus)
   const logout = useAuthStore((state) => state.logout)
@@ -91,6 +97,9 @@ export function SettingsScreen() {
   const setReminderTime = useActivityStore((state) => state.setReminderTime)
   const [reminderHint, setReminderHint] = useState<string | null>(null)
   const [languagePicker, setLanguagePicker] = useState<'ui' | 'content' | null>(null)
+  const [deleteAccountVisible, setDeleteAccountVisible] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteAccountError, setDeleteAccountError] = useState('')
   const {
     contentLocale,
     setContentLocale,
@@ -119,6 +128,49 @@ export function SettingsScreen() {
     setReminderTime(time)
     if (reminderEnabled) {
       void syncDailyReminder(true, time, reminderCopy)
+    }
+  }
+
+  const openDeleteAccount = () => {
+    if (deleteAccountMutation.isPending) {
+      return
+    }
+
+    deleteAccountMutation.reset()
+    setDeletePassword('')
+    setDeleteAccountError('')
+    setDeleteAccountVisible(true)
+  }
+
+  const closeDeleteAccount = () => {
+    setDeleteAccountVisible(false)
+    setDeletePassword('')
+    setDeleteAccountError('')
+  }
+
+  const submitDeleteAccount = async () => {
+    if (!deletePassword) {
+      setDeleteAccountError(t('settings.deleteAccountPasswordRequired'))
+      return
+    }
+
+    setDeleteAccountError('')
+    try {
+      await deleteAccountMutation.mutateAsync({ currentPassword: deletePassword })
+
+      // 服务端删除成功后同步清空设备上的账号数据，避免下一个账号在同一
+      // 台设备上看到上一账号的进度、活动记录或已缓存的私有查询结果。
+      useStudyStore.getState().resetStore()
+      useActivityStore.getState().resetForAccountDeletion()
+      queryClient.clear()
+      await progressStorage.clearLearnerData()
+      await logout()
+
+      setDeleteAccountVisible(false)
+      router.replace('/(tabs)/account')
+    } catch {
+      // 保留密码输入，便于用户修正；具体错误统一用本地化文案呈现。
+      setDeleteAccountError(t('settings.deleteAccountFailed'))
     }
   }
 
@@ -267,23 +319,42 @@ export function SettingsScreen() {
                   </Pressable>
 
                   <View className="mt-5 border-t-2 border-[#e4eef8] pt-5">
-                  <Text className="text-base font-black text-text-primary">{t('settings.logoutCurrentAccount')}</Text>
-                  <Text className="mt-1 text-sm font-bold text-text-secondary">
-                    {t(accountStatus)}
-                  </Text>
-                  <View className="mt-3">
-                    <Button
-                      label={t('settings.logout')}
-                      tone="secondary"
-                      onPress={async () => {
-                        // 退出只清除认证会话；学习存档继续保留在本机，
-                        // 不把“退出”误解为删除用户的学习数据。
-                        await logout()
-                        router.back()
-                      }}
-                    />
+                    <Text className="text-base font-black text-text-primary">
+                      {t('settings.logoutCurrentAccount')}
+                    </Text>
+                    <Text className="mt-1 text-sm font-bold text-text-secondary">
+                      {t(accountStatus)}
+                    </Text>
+                    <View className="mt-3">
+                      <Button
+                        label={t('settings.logout')}
+                        tone="secondary"
+                        onPress={async () => {
+                          // 退出只清除认证会话；学习存档继续保留在本机，
+                          // 不把“退出”误解为删除用户的学习数据。
+                          await logout()
+                          router.back()
+                        }}
+                      />
+                    </View>
                   </View>
-                </View>
+
+                  <View className="mt-5 border-t-2 border-[#e4eef8] pt-5">
+                    <Text className="text-base font-black text-danger">
+                      {t('settings.deleteAccount')}
+                    </Text>
+                    <Text className="mt-1 text-sm font-bold text-text-secondary">
+                      {t('settings.deleteAccountDescription')}
+                    </Text>
+                    <View className="mt-3">
+                      <Button
+                        disabled={deleteAccountMutation.isPending}
+                        label={t('settings.deleteAccount')}
+                        tone="danger"
+                        onPress={openDeleteAccount}
+                      />
+                    </View>
+                  </View>
                 </View>
               ) : null}
             </View>
@@ -351,6 +422,64 @@ export function SettingsScreen() {
                     />
                   </Pressable>
                 ))}
+          </View>
+        </BottomSheet>
+        <BottomSheet
+          title={t('settings.deleteAccount')}
+          visible={deleteAccountVisible}
+          onClose={closeDeleteAccount}
+        >
+          <View className="px-5 pb-2 pt-2">
+            <View className="rounded-[16px] border-2 border-[#ffb59f] bg-[#fff0eb] px-4 py-3">
+              <Text className="text-sm font-black leading-5 text-[#c2410c]">
+                {t('settings.deleteAccountWarning')}
+              </Text>
+            </View>
+            <Text className="mt-4 text-base font-black text-text-primary">
+              {t('settings.deleteAccountPasswordHint')}
+            </Text>
+            <View className="mt-2 min-h-[50px] flex-row items-center rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4">
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                className="min-h-[50px] flex-1 text-base font-bold text-text-primary"
+                editable={!deleteAccountMutation.isPending}
+                onChangeText={setDeletePassword}
+                placeholder={t('password.placeholder')}
+                placeholderTextColor="#8191a6"
+                secureTextEntry
+                value={deletePassword}
+              />
+            </View>
+            {deleteAccountError ? (
+              <View className="mt-3 rounded-[14px] border-2 border-[#ffb59f] bg-[#fff0eb] px-3 py-2">
+                <Text className="text-sm font-black text-[#c2410c]">
+                  {deleteAccountError}
+                </Text>
+              </View>
+            ) : null}
+            <View className="mt-5 flex-row" style={{ gap: 12 }}>
+              <View className="flex-1">
+                <Button
+                  disabled={deleteAccountMutation.isPending}
+                  label={t('common.cancel')}
+                  tone="secondary"
+                  onPress={closeDeleteAccount}
+                />
+              </View>
+              <View className="flex-1">
+                <Button
+                  disabled={deleteAccountMutation.isPending}
+                  label={
+                    deleteAccountMutation.isPending
+                      ? t('settings.deletingAccount')
+                      : t('settings.deleteAccountConfirm')
+                  }
+                  tone="danger"
+                  onPress={() => void submitDeleteAccount()}
+                />
+              </View>
+            </View>
           </View>
         </BottomSheet>
       </View>

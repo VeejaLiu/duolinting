@@ -7,6 +7,8 @@ import type {
   CatalogExerciseSummary,
   CatalogResponse,
   DailyActivitySummary,
+  DeleteAccountRequest,
+  DeleteAccountResponse,
   LeaderboardResponse,
   ListeningExercise,
   LoginRequest,
@@ -180,6 +182,15 @@ export const createApiClient = ({
         '/api/v1/auth/password',
         {
           method: 'PUT',
+          body: JSON.stringify(request),
+        },
+        { authToken },
+      ),
+    deleteAccount: (request: DeleteAccountRequest, authToken: string) =>
+      fetchApiResult<DeleteAccountResponse>(
+        '/api/v1/auth/account',
+        {
+          method: 'DELETE',
           body: JSON.stringify(request),
         },
         { authToken },

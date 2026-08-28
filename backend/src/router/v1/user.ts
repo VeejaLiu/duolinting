@@ -4,6 +4,7 @@ import { validateErrorCheck } from '../../lib/express-validator/express-validato
 import { verifyTokenMiddleware } from '../../lib/token/verifyTokenMiddleware';
 import {
     changeUserPassword,
+    deleteUserAccount,
     getUserInfo,
     loginUser,
     registerUser,
@@ -114,6 +115,20 @@ router.put(
             currentPassword: req.body.currentPassword,
             newPassword: req.body.newPassword,
             clientType: getRequestClientType(req),
+        });
+        res.status(result.success ? 200 : 400).send(result);
+    },
+);
+
+router.delete(
+    '/account',
+    verifyTokenMiddleware,
+    body('currentPassword').isString().isLength({ min: 1 }).withMessage('Current password is required'),
+    validateErrorCheck,
+    async (req: any, res) => {
+        const result = await deleteUserAccount({
+            userId: req.user.userId,
+            currentPassword: req.body.currentPassword,
         });
         res.status(result.success ? 200 : 400).send(result);
     },
