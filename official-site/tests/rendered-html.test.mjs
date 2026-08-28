@@ -49,12 +49,12 @@ test("server-renders the contribution guide with the real production workflow", 
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /用真实媒体，贡献真正能练的听力课/);
-  assert.match(html, /后台工作台，逐步操作/);
+  assert.match(html, /Admin 工作台和「任务广场」/);
+  assert.match(html, /字幕工作流/);
   assert.match(html, /docs-sidebar/);
   assert.match(html, /docs-toc/);
   assert.match(html, /admin-course-workbench\.png/);
-  assert.match(html, /\.srt、\.vtt、\.ass、\.lrc/);
-  assert.match(html, /发布前检查/);
+  assert.match(html, /课程权限与任务分发已集成到 Admin 工作台/);
   assert.match(html, /不得抓取或复制 YouZack/);
 });
 
