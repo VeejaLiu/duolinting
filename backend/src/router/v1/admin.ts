@@ -324,10 +324,14 @@ router.get('/subtitle-workflow-inbox', async (req: any, res) => {
 router.get('/workflow/claimable-tasks', async (req: any, res) => {
     const page = Math.max(1, Number.parseInt(String(req.query.page ?? '1'), 10) || 1);
     const pageSize = Math.min(100, Math.max(1, Number.parseInt(String(req.query.pageSize ?? '20'), 10) || 20));
+    const groupId = Number.parseInt(String(req.query.groupId ?? ''), 10);
+    const categoryId = Number.parseInt(String(req.query.categoryId ?? ''), 10);
     res.status(200).send(await listClaimableWorkflowTasks({
         adminId: req.admin.id,
         page,
         pageSize,
+        ...(Number.isInteger(groupId) && groupId > 0 ? { groupId } : {}),
+        ...(Number.isInteger(categoryId) && categoryId > 0 ? { categoryId } : {}),
     }));
 });
 

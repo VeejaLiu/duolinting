@@ -358,12 +358,27 @@ export const apiClient = {
       { method: 'GET' },
       { adminToken },
     ),
-  getClaimableWorkflowTasks: (adminToken: string, page = 1, pageSize = 20) =>
-    fetchJson<ClaimableWorkflowTaskPage>(
-      `/api/v1/admin/workflow/claimable-tasks?page=${page}&pageSize=${pageSize}`,
+  getClaimableWorkflowTasks: (
+    adminToken: string,
+    options: {
+      page?: number
+      pageSize?: number
+      groupId?: number
+      categoryId?: number
+    } = {},
+  ) => {
+    const params = new URLSearchParams({
+      page: String(options.page ?? 1),
+      pageSize: String(options.pageSize ?? 20),
+    })
+    if (options.groupId) params.set('groupId', String(options.groupId))
+    if (options.categoryId) params.set('categoryId', String(options.categoryId))
+    return fetchJson<ClaimableWorkflowTaskPage>(
+      `/api/v1/admin/workflow/claimable-tasks?${params.toString()}`,
       { method: 'GET' },
       { adminToken },
-    ),
+    )
+  },
   claimWorkflowTask: (exerciseId: number, adminToken: string) =>
     fetchJson<AdminContentResponse>(
       `/api/v1/admin/exercises/${exerciseId}/workflow-claim`,

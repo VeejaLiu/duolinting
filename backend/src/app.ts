@@ -71,7 +71,7 @@ async function Main() {
     app.use('/api', index);
 
     loadMonitor(app);
-    // 低频清扫器：释放过期的自助领取任务。开发期可用环境变量覆盖周期，默认 10 分钟。
+    // 低频清扫器：释放所有来源的过期任务。开发期可用环境变量覆盖周期，默认 10 分钟。
     startWorkflowClaimSweeper(
         Number(process.env.WORKFLOW_CLAIM_SWEEPER_INTERVAL_MS) || undefined,
     );

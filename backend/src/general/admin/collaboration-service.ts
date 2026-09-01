@@ -197,7 +197,18 @@ export async function getPreviewExerciseIdsForLearner(userId: number | undefined
                 from admin_users admins
                 inner join exercise_workflow_assignees assignees on assignees.admin_user_id = admins.id
                 where admins.learner_user_id = :userId
-                  and assignees.workflow_role in ('proofreader', 'second_reviewer')`,
+                  and assignees.workflow_role in ('proofreader', 'second_reviewer')
+                  and (assignees.claim_expires_at is null or assignees.claim_expires_at > utc_timestamp())
+                  and (
+                    assignees.workflow_role = 'proofreader'
+                    or not exists (
+                      select 1 from exercise_workflow_assignees expired_proofreader
+                      where expired_proofreader.exercise_id = assignees.exercise_id
+                        and expired_proofreader.workflow_role = 'proofreader'
+                        and expired_proofreader.claim_expires_at is not null
+                        and expired_proofreader.claim_expires_at <= utc_timestamp()
+                    )
+                  )`,
         params: { userId },
     });
     return rows.map((row) => Number(row.exercise_id));
@@ -215,6 +226,30 @@ const normalizeAssignedExerciseIds = (ids: unknown) =>
  * 用参数化小时数构造，避免把业务时长硬编码进 SQL 字符串。
  */
 const claimExpiryExpression = () => `date_add(utc_timestamp(), interval ${Number(CLAIM_WINDOW_HOURS)} hour)`;
+
+type ClaimAssignmentRow = {
+    workflow_role: CourseContributionRole;
+    admin_user_id: number | string;
+    // MySQL returns this CASE expression as 0/1; keep the wider type for driver differences.
+    is_expired: boolean | number | string;
+};
+
+type ExpiredClaimRow = {
+    exercise_id: number | string;
+    admin_user_id: number | string;
+    draft_status: SubtitleDraftStatus | null;
+};
+
+const isSqlTrue = (value: boolean | number | string) =>
+    value === true || value === 1 || value === '1';
+
+// null 表示已停止计时（例如已提交二审），其余时间值必须仍在当前时刻之后。
+// 这里给任务中心的结果集做一次惰性校验，避免清扫器尚未运行时继续展示过期任务。
+const isClaimWindowActive = (claimExpiresAt: Date | string | null | undefined) => {
+    if (claimExpiresAt === null || claimExpiresAt === undefined) return true;
+    const expiresAt = new Date(claimExpiresAt).getTime();
+    return Number.isFinite(expiresAt) && expiresAt > Date.now();
+};
 
 /** 任务池与领取策略；贡献者和超级管理员共用同一份口径。 */
 export function getTaskClaimPolicy(): AdminTaskClaimPolicy {
@@ -272,7 +307,7 @@ export async function claimWorkflowTask(exerciseId: number, adminId: number) {
         }
 
         const [exercise] = await sequelize.query<{ status: string; audio_url: string }>(
-            `select status, audio_url from exercises where id = :exerciseId limit 1`,
+            `select status, audio_url from exercises where id = :exerciseId limit 1 for update`,
             { replacements: { exerciseId }, type: QueryTypes.SELECT, transaction },
         );
         if (!exercise || exercise.status !== 'draft') {
@@ -280,6 +315,65 @@ export async function claimWorkflowTask(exerciseId: number, adminId: number) {
         }
         if (!String(exercise.audio_url ?? '').trim()) {
             throw new Error('该课程媒体尚未就绪，暂不能领取');
+        }
+
+        // 清扫器按分钟级周期运行，领取接口不能假设过期记录已经被清掉。
+        // 课程行已锁住，下面再锁住现有工作流记录：只有当前校对负责人仍在有效期内
+        // 才阻止接管。历史迁移只给校对行补过期时间，不能让二审行的 NULL 期限挡住接管。
+        const existingAssignees = await sequelize.query<ClaimAssignmentRow>(
+            `select workflow_role, admin_user_id,
+                    case when claim_expires_at is not null and claim_expires_at <= utc_timestamp()
+                         then 1 else 0 end as is_expired
+             from exercise_workflow_assignees
+             where exercise_id = :exerciseId
+               and workflow_role in ('proofreader', 'second_reviewer')
+             for update`,
+            { replacements: { exerciseId }, type: QueryTypes.SELECT, transaction },
+        );
+        const activeProofreader = existingAssignees.find(
+            (row) => row.workflow_role === 'proofreader' && !isSqlTrue(row.is_expired),
+        );
+        if (activeProofreader) {
+            throw new Error('该课程当前已被其他贡献者领取，请刷新任务池后重试');
+        }
+
+        // 任务池只以 proofreader 作为“是否有人领取”的锁；没有有效校对锁时，
+        // 无论是过期记录还是历史遗留的孤立二审记录，都要在接管前一并清理。
+        const staleAssignees = activeProofreader ? [] : existingAssignees;
+        if (staleAssignees.length > 0) {
+            const staleAdminIds = [...new Set(existingAssignees.map((row) => Number(row.admin_user_id)))];
+            await sequelize.query(
+                `delete from exercise_workflow_assignees
+                 where exercise_id = :exerciseId
+                   and admin_user_id in (:staleAdminIds)
+                   and workflow_role in ('proofreader', 'second_reviewer')`,
+                { replacements: { exerciseId, staleAdminIds }, transaction },
+            );
+            // 课程授权是编辑权限的兼容映射；接管时必须同时清除旧成员的映射，
+            // 否则旧成员仍可能在下一次请求中看见并修改已经转交的课程。
+            await sequelize.query(
+                `delete from exercise_contributor_assignments
+                 where exercise_id = :exerciseId and admin_user_id in (:staleAdminIds)`,
+                { replacements: { exerciseId, staleAdminIds }, transaction },
+            );
+            for (const staleAdminId of staleAdminIds) {
+                await sequelize.query(
+                    `insert into admin_workflow_notifications
+                       (recipient_admin_user_id, actor_admin_user_id, exercise_id, subtitle_draft_id, notification_type)
+                     values (:staleAdminId, null, :exerciseId, null, 'task_claim_expired')`,
+                    { replacements: { staleAdminId, exerciseId }, transaction },
+                );
+            }
+            const staleProofreader = staleAssignees.find((row) => row.workflow_role === 'proofreader');
+            if (staleProofreader) {
+                await recordWorkflowActivity({
+                    eventType: 'workflow_claim_expired',
+                    actorAdminUserId: null,
+                    targetAdminUserId: Number(staleProofreader.admin_user_id),
+                    exerciseId,
+                    workflowRole: 'proofreader',
+                }, transaction);
+            }
         }
 
         // 唯一键冲突会抛错，表示该课程刚被别人领取，避免重复工作。
@@ -370,17 +464,11 @@ async function clearClaimDeadline(exerciseId: number, adminId: number, transacti
     );
 }
 
-type ExpiredClaimRow = {
-    exercise_id: number | string;
-    admin_user_id: number | string;
-    draft_status: SubtitleDraftStatus | null;
-};
-
 /**
- * 清扫器主逻辑：释放所有已过期的自助领取任务。返回被释放的任务供记录通知与动态。
+ * 清扫器主逻辑：释放所有已过期的工作流任务，不区分管理员指派还是自助领取。
  * 惰性过期判定在查询/领取侧同时生效，因此即使清扫器短暂停摆也不会把过期锁当真。
  */
-export async function expireOverdueSelfClaims(): Promise<ExpiredClaimRow[]> {
+export async function expireOverdueClaims(): Promise<ExpiredClaimRow[]> {
     const rows = await sequelize.query<ExpiredClaimRow>(
         `select assignees.exercise_id, assignees.admin_user_id,
                 coalesce(drafts.status, 'editing') as draft_status
@@ -389,7 +477,6 @@ export async function expireOverdueSelfClaims(): Promise<ExpiredClaimRow[]> {
            on drafts.exercise_id = assignees.exercise_id
           and drafts.admin_user_id = assignees.admin_user_id
          where assignees.workflow_role = 'proofreader'
-           and assignees.assignment_source = 'self_claimed'
            and assignees.claim_expires_at is not null
            and assignees.claim_expires_at <= utc_timestamp()
            and coalesce(drafts.status, 'editing') <> 'submitted'`,
@@ -402,8 +489,7 @@ export async function expireOverdueSelfClaims(): Promise<ExpiredClaimRow[]> {
             const [, metadata] = await sequelize.query(
                 `delete from exercise_workflow_assignees
                  where exercise_id = :exerciseId and admin_user_id = :adminId
-                   and workflow_role in ('proofreader', 'second_reviewer')
-                   and assignment_source = 'self_claimed'`,
+                   and workflow_role in ('proofreader', 'second_reviewer')`,
                 { replacements: { exerciseId, adminId }, transaction },
             );
             if ((metadata as { affectedRows?: number }).affectedRows === 0) return;
@@ -430,8 +516,8 @@ export async function expireOverdueSelfClaims(): Promise<ExpiredClaimRow[]> {
     return rows;
 }
 
-/** 给即将到期（12 小时内）的自助领取任务发一次提醒，避免静默丢失工作。 */
-export async function notifyExpiringSelfClaims(now: Date) {
+/** 给即将到期（12 小时内）的工作流任务发一次提醒，避免任务被静默释放。 */
+export async function notifyExpiringClaims(now: Date) {
     const threshold = new Date(now.getTime() + CLAIM_EXPIRING_NOTICE_HOURS * 60 * 60 * 1000);
     const rows = await doRawQuery<{ exercise_id: number | string; admin_user_id: number | string }>({
         query: `select assignees.exercise_id, assignees.admin_user_id
@@ -440,7 +526,6 @@ export async function notifyExpiringSelfClaims(now: Date) {
                   on drafts.exercise_id = assignees.exercise_id
                  and drafts.admin_user_id = assignees.admin_user_id
                 where assignees.workflow_role = 'proofreader'
-                  and assignees.assignment_source = 'self_claimed'
                   and assignees.claim_expires_at is not null
                   and assignees.claim_expires_at > utc_timestamp()
                   and assignees.claim_expires_at <= :threshold
@@ -468,20 +553,35 @@ export async function notifyExpiringSelfClaims(now: Date) {
 
 /**
  * 任务池的可领取课程：草稿状态、媒体就绪、未被禁止领取、且当前没有有效校对负责人。
- * 已过期的自助领取锁视同无主，由“not exists”条件惰性过滤。
+ * 两种来源的过期锁都视同无主，由“not exists”条件惰性过滤。
  */
 export async function listClaimableWorkflowTasks({
     adminId,
     page = 1,
     pageSize = 20,
+    groupId,
+    categoryId,
 }: {
     adminId: number;
     page?: number;
     pageSize?: number;
+    groupId?: number;
+    categoryId?: number;
 }): Promise<ClaimableWorkflowTaskPage> {
     const resolvedPage = Number.isInteger(page) && page > 0 ? page : 1;
     const resolvedPageSize = Number.isInteger(pageSize) ? Math.min(Math.max(pageSize, 1), 100) : 20;
     const offset = (resolvedPage - 1) * resolvedPageSize;
+    // 过滤条件使用绑定参数，避免把前端传入的目录 ID 拼进 SQL；空值表示不过滤。
+    const normalizedGroupId = typeof groupId === 'number' && Number.isInteger(groupId) && groupId > 0 ? groupId : undefined;
+    const normalizedCategoryId = typeof categoryId === 'number' && Number.isInteger(categoryId) && categoryId > 0 ? categoryId : undefined;
+    const directoryConditions = [
+        normalizedGroupId ? 'and c.group_id = :groupId' : '',
+        normalizedCategoryId ? 'and e.category_id = :categoryId' : '',
+    ].join('\n                      ');
+    const directoryParams = {
+        ...(normalizedGroupId ? { groupId: normalizedGroupId } : {}),
+        ...(normalizedCategoryId ? { categoryId: normalizedCategoryId } : {}),
+    };
     const [countRows, rows] = await Promise.all([
         doRawQuery<{ total: number | string }>({
             query: `select count(*) as total
@@ -490,6 +590,7 @@ export async function listClaimableWorkflowTasks({
                     where e.status = 'draft'
                       and e.claim_blocked = false
                       and trim(e.audio_url) <> ''
+                      ${directoryConditions}
                       and not exists (
                         select 1 from exercise_workflow_assignees assignees
                         where assignees.exercise_id = e.id
@@ -499,9 +600,11 @@ export async function listClaimableWorkflowTasks({
                             or assignees.claim_expires_at > utc_timestamp()
                           )
                       )`,
+            params: directoryParams,
         }),
         doRawQuery<{
             exercise_id: number | string;
+            category_id: number | string;
             exercise_title: string;
             category_name: string;
             difficulty: string;
@@ -509,7 +612,7 @@ export async function listClaimableWorkflowTasks({
             line_count: number | string;
             claim_release_count: number | string;
         }>({
-            query: `select e.id as exercise_id, e.title as exercise_title, c.name as category_name,
+            query: `select e.id as exercise_id, e.category_id, e.title as exercise_title, c.name as category_name,
                            e.difficulty, e.media_type,
                            json_length(coalesce(e.transcript_json, json_array())) as line_count,
                            (
@@ -522,6 +625,7 @@ export async function listClaimableWorkflowTasks({
                     where e.status = 'draft'
                       and e.claim_blocked = false
                       and trim(e.audio_url) <> ''
+                      ${directoryConditions}
                       and not exists (
                         select 1 from exercise_workflow_assignees assignees
                         where assignees.exercise_id = e.id
@@ -533,13 +637,14 @@ export async function listClaimableWorkflowTasks({
                       )
                     order by e.sort_order asc, e.created_at desc, e.title asc
                     limit :limit offset :offset`,
-            params: { limit: resolvedPageSize, offset },
+            params: { ...directoryParams, limit: resolvedPageSize, offset },
         }),
     ]);
     return {
         items: rows.map((row) => ({
             exerciseId: Number(row.exercise_id),
             exerciseTitle: row.exercise_title,
+            categoryId: Number(row.category_id),
             categoryName: row.category_name,
             difficulty: row.difficulty as ClaimableWorkflowTaskPage['items'][number]['difficulty'],
             mediaType: row.media_type === 'video' ? 'video' : 'audio',
@@ -1140,21 +1245,45 @@ export async function resetContributorDisplayNameCooldown(memberId: number) {
 
 export async function getAssignedExerciseIds(adminId: number) {
     const rows = await doRawQuery<{ exercise_id: number | string }>({
-        // 校对人与二审人都需要在“课程管理”中看见任务；待审核稿保留提交时的审核人快照，
+        // 校对人与二审人都需要在“课程管理”中看见当前任务；待审核稿保留提交时的审核人快照，
         // 因此重新分配负责人后，原审核人仍能完成已经交到自己手里的任务。
-        // 已过期的自助领取锁视同释放，不再出现在课程管理列表中。
-        query: `select exercise_id from exercise_contributor_assignments where admin_user_id = ?
-                union
-                select exercise_id from exercise_workflow_assignees where admin_user_id = ?
+        // 课程授权表没有期限字段，必须通过当前校对负责人记录判断它是否已经过期。
+        query: `select assignments.exercise_id
+                from exercise_contributor_assignments assignments
+                where assignments.admin_user_id = ?
                   and (
-                    assignment_source = 'admin_assigned'
-                    or claim_expires_at is null
-                    or claim_expires_at > utc_timestamp()
+                    not exists (
+                      select 1 from exercise_workflow_assignees workflow
+                      where workflow.exercise_id = assignments.exercise_id
+                        and workflow.workflow_role = 'proofreader'
+                    )
+                    or exists (
+                      select 1 from exercise_workflow_assignees workflow
+                      where workflow.exercise_id = assignments.exercise_id
+                        and workflow.workflow_role = 'proofreader'
+                        and workflow.admin_user_id = ?
+                        and (workflow.claim_expires_at is null or workflow.claim_expires_at > utc_timestamp())
+                    )
+                  )
+                union
+                select assignees.exercise_id
+                from exercise_workflow_assignees assignees
+                where assignees.admin_user_id = ?
+                  and (assignees.claim_expires_at is null or assignees.claim_expires_at > utc_timestamp())
+                  and (
+                    assignees.workflow_role = 'proofreader'
+                    or not exists (
+                      select 1 from exercise_workflow_assignees expired_proofreader
+                      where expired_proofreader.exercise_id = assignees.exercise_id
+                        and expired_proofreader.workflow_role = 'proofreader'
+                        and expired_proofreader.claim_expires_at is not null
+                        and expired_proofreader.claim_expires_at <= utc_timestamp()
+                    )
                   )
                 union
                 select exercise_id from exercise_subtitle_drafts
                 where reviewer_admin_user_id = ? and status = 'submitted'`,
-        params: [adminId, adminId, adminId],
+        params: [adminId, adminId, adminId, adminId],
     });
     return rows.map((row) => Number(row.exercise_id));
 }
@@ -1174,6 +1303,7 @@ export async function canEditExerciseSubtitles(admin: AdminActor, exerciseId: nu
                       where workflow.exercise_id = assignments.exercise_id
                         and workflow.workflow_role = 'proofreader'
                         and workflow.admin_user_id = assignments.admin_user_id
+                        and (workflow.claim_expires_at is null or workflow.claim_expires_at > utc_timestamp())
                     )
                     or not exists (
                       select 1 from exercise_workflow_assignees workflow
@@ -1193,12 +1323,18 @@ async function isWorkflowAssignee(
     workflowRole: CourseContributionRole,
 ) {
     const rows = await doRawQuery<{ id: number | string }>({
-        query: `select id from exercise_workflow_assignees
-                where exercise_id = ? and admin_user_id = ? and workflow_role = ?
+        query: `select assignees.id from exercise_workflow_assignees assignees
+                where assignees.exercise_id = ? and assignees.admin_user_id = ? and assignees.workflow_role = ?
+                  and (assignees.claim_expires_at is null or assignees.claim_expires_at > utc_timestamp())
                   and (
-                    assignment_source = 'admin_assigned'
-                    or claim_expires_at is null
-                    or claim_expires_at > utc_timestamp()
+                    assignees.workflow_role = 'proofreader'
+                    or not exists (
+                      select 1 from exercise_workflow_assignees expired_proofreader
+                      where expired_proofreader.exercise_id = assignees.exercise_id
+                        and expired_proofreader.workflow_role = 'proofreader'
+                        and expired_proofreader.claim_expires_at is not null
+                        and expired_proofreader.claim_expires_at <= utc_timestamp()
+                    )
                   )
                 limit 1`,
         params: [exerciseId, adminId, workflowRole],
@@ -1206,7 +1342,7 @@ async function isWorkflowAssignee(
     return rows.length > 0;
 }
 
-/** 课程详情对两种负责人均可见；但只有校对负责人可修改并提交字幕。 */
+/** 课程详情对两种当前负责人均可见；过期负责人不再获得工作流访问权。 */
 export async function canAccessExerciseWorkflow(admin: AdminActor, exerciseId: number) {
     if (isSuperAdmin(admin)) return true;
     if (await canEditExerciseSubtitles(admin, exerciseId)) return true;
@@ -1373,6 +1509,17 @@ export async function getPreviewSubtitleDraftForLearner(exerciseId: number, lear
               on assignees.exercise_id = drafts.exercise_id
              and assignees.admin_user_id = preview_admins.id
              and assignees.workflow_role in ('proofreader', 'second_reviewer')
+             and (assignees.claim_expires_at is null or assignees.claim_expires_at > utc_timestamp())
+             and (
+               assignees.workflow_role = 'proofreader'
+               or not exists (
+                 select 1 from exercise_workflow_assignees expired_proofreader
+                 where expired_proofreader.exercise_id = assignees.exercise_id
+                   and expired_proofreader.workflow_role = 'proofreader'
+                   and expired_proofreader.claim_expires_at is not null
+                   and expired_proofreader.claim_expires_at <= utc_timestamp()
+               )
+             )
             where drafts.exercise_id = :exerciseId
               and (
                 (
@@ -1812,8 +1959,10 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
             assignmentSource: row.proofreader_source || undefined,
             claimExpiresAt: row.proofreader_claim_expires_at ? new Date(row.proofreader_claim_expires_at).toISOString() : undefined,
         };
+        const proofreaderClaimActive = Number(row.proofreader_id) === adminId
+            && isClaimWindowActive(row.proofreader_claim_expires_at);
         // 进行中的校对/退回任务只归属于实际投稿人，且校对人必须是当前负责人。
-        if (Number(row.draft_admin_id) === adminId && Number(row.proofreader_id) === adminId && (row.status === 'editing' || row.status === 'returned')) {
+        if (Number(row.draft_admin_id) === adminId && proofreaderClaimActive && (row.status === 'editing' || row.status === 'returned')) {
             items.push({ ...base, role: 'proofreader', stage: row.status === 'returned' ? 'returned' : 'proofreading', draftStatus: row.status });
         }
         // 投稿提交时保存 reviewer 快照；之后重新分配负责人也不会把待审核任务漂移给别人。
@@ -1842,11 +1991,7 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
                 inner join exercises on exercises.id = assignees.exercise_id
                 where assignees.workflow_role = 'proofreader'
                   and assignees.admin_user_id = :adminId
-                  and (
-                    assignees.assignment_source = 'admin_assigned'
-                    or assignees.claim_expires_at is null
-                    or assignees.claim_expires_at > utc_timestamp()
-                  )
+                  and (assignees.claim_expires_at is null or assignees.claim_expires_at > utc_timestamp())
                   and not exists (
                     select 1 from exercise_subtitle_drafts drafts
                     where drafts.exercise_id = assignees.exercise_id

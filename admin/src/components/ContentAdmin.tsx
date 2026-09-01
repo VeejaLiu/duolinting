@@ -39,6 +39,13 @@ import { WorkflowActivityPanel } from './admin/WorkflowActivityPanel'
 import { OpenContentApiDocumentation } from './admin/OpenContentApiDocumentation'
 import { OpenContentApiKeyManager } from './admin/OpenContentApiKeyManager'
 import { apiClient } from '../lib/apiClient'
+import {
+  createAdminOperationId,
+  getAdminErrorDetails,
+  logAdminError,
+  logAdminInfo,
+  logAdminWarn,
+} from '../lib/adminLogger'
 
 type ContentAdminProps = {
   adminToken: string
@@ -766,63 +773,179 @@ export function ContentAdmin({
   const moveCourse = (
     exerciseId: number,
     direction: 'up' | 'down',
-  ) =>
+  ) => {
+    const operationId = createAdminOperationId('course-sort')
+    const operationStartedAt = Date.now()
+    let outcome: 'pending' | 'saved' | 'not-found' | 'boundary' | 'failed' = 'pending'
+    logAdminInfo('CourseSort', 'move-requested', {
+      operationId,
+      exerciseId,
+      direction,
+    })
+
     void runAdminTask(async () => {
-      const availableExercises = exercises.length > 0 ? exercises : await onEnsureExercises()
-      const currentExercise = availableExercises.find((exercise) => exercise.id === exerciseId)
-      if (!currentExercise) {
-        return
-      }
+      try {
+        // 课程管理页使用分页数据展示，但排序需要知道整个系列的真实邻居。
+        // 排序成功后目录刷新不会更新父层的全量 exercises 缓存，因此每次移动前都重新读取，
+        // 否则连续下移会基于上一次操作前的顺序再次写入旧的交换结果。
+        logAdminInfo('CourseSort', 'latest-exercises-fetch-start', { operationId })
+        const availableExercises = await onEnsureExercises()
+        logAdminInfo('CourseSort', 'latest-exercises-fetch-success', {
+          operationId,
+          totalExerciseCount: availableExercises.length,
+        })
+        const currentExercise = availableExercises.find((exercise) => exercise.id === exerciseId)
+        if (!currentExercise) {
+          outcome = 'not-found'
+          logAdminWarn('CourseSort', 'move-skipped-exercise-not-found', {
+            operationId,
+            exerciseId,
+            totalExerciseCount: availableExercises.length,
+          })
+          return
+        }
 
-      const siblingExercises = availableExercises
-        .filter((exercise) => exercise.categoryId === currentExercise.categoryId)
-        .sort((left, right) => left.sortOrder - right.sortOrder)
-      const currentIndex = siblingExercises.findIndex((exercise) => exercise.id === exerciseId)
-      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
-      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblingExercises.length) {
-        return
-      }
+        const siblingExercises = availableExercises
+          .filter((exercise) => exercise.categoryId === currentExercise.categoryId)
+          .sort((left, right) => left.sortOrder - right.sortOrder)
+        const currentIndex = siblingExercises.findIndex((exercise) => exercise.id === exerciseId)
+        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+        if (currentIndex < 0) {
+          outcome = 'not-found'
+          logAdminWarn('CourseSort', 'move-skipped-current-not-in-siblings', {
+            operationId,
+            exerciseId,
+            categoryId: currentExercise.categoryId,
+            siblingCount: siblingExercises.length,
+          })
+          return
+        }
+        if (targetIndex < 0 || targetIndex >= siblingExercises.length) {
+          outcome = 'boundary'
+          logAdminWarn('CourseSort', 'move-skipped-boundary', {
+            operationId,
+            exerciseId,
+            direction,
+            categoryId: currentExercise.categoryId,
+            currentIndex,
+            targetIndex,
+            siblingCount: siblingExercises.length,
+          })
+          return
+        }
 
-      // 排序只交换相邻两门课的 sortOrder（2 次写），不整体重编号——
-      // sortOrder 间距本来就是为了支撑局部交换。
-      const current = siblingExercises[currentIndex]
-      const neighbor = siblingExercises[targetIndex]
-      const swapped: CatalogExerciseSummary[] = [
-        { ...current, sortOrder: neighbor.sortOrder },
-        { ...neighbor, sortOrder: current.sortOrder },
-      ]
+        // 只记录当前项附近的顺序，避免课程数量很大时把控制台刷满；
+        // 这段信息足以判断连续移动时服务端返回的顺序是否已经变化。
+        const siblingPreview = siblingExercises
+          .slice(Math.max(0, currentIndex - 2), Math.min(siblingExercises.length, currentIndex + 3))
+          .map((exercise) => ({
+            id: exercise.id,
+            title: exercise.title,
+            sortOrder: exercise.sortOrder,
+          }))
+        logAdminInfo('CourseSort', 'neighbor-selected', {
+          operationId,
+          exerciseId,
+          direction,
+          categoryId: currentExercise.categoryId,
+          currentIndex,
+          targetIndex,
+          siblingCount: siblingExercises.length,
+          siblingPreview,
+        })
 
-      // 历史遗留的重复排序值交换后顺序不变，此时才回退到全量重编号兜底
-      const toPersist =
-        current.sortOrder === neighbor.sortOrder
+        // 排序只交换相邻两门课的 sortOrder（2 次写），不整体重编号——
+        // sortOrder 间距本来就是为了支撑局部交换。
+        const current = siblingExercises[currentIndex]
+        const neighbor = siblingExercises[targetIndex]
+        const swapped: CatalogExerciseSummary[] = [
+          { ...current, sortOrder: neighbor.sortOrder },
+          { ...neighbor, sortOrder: current.sortOrder },
+        ]
+
+        // 历史遗留的重复排序值交换后顺序不变，此时才回退到全量重编号兜底
+        const usesFullRenumber = current.sortOrder === neighbor.sortOrder
+        const toPersist = usesFullRenumber
           ? normalizeSortOrder(moveItem(siblingExercises, exerciseId, direction) ?? [])
           : swapped
-
-      // 串行 upsert：中途失败时已保存的排序保持，避免并发写留下半套 sortOrder
-      for (const exercise of toPersist) {
-        await apiClient.createExercise(
-          {
+        logAdminInfo('CourseSort', 'persist-plan-created', {
+          operationId,
+          exerciseId,
+          direction,
+          strategy: usesFullRenumber ? 'full-renumber' : 'adjacent-swap',
+          current: { id: current.id, sortOrder: current.sortOrder },
+          neighbor: { id: neighbor.id, sortOrder: neighbor.sortOrder },
+          persistCount: toPersist.length,
+          persistItems: toPersist.slice(0, 50).map((exercise) => ({
             id: exercise.id,
-            categoryId: exercise.categoryId,
-            title: exercise.title,
-            source: exercise.source,
-            sourceUrl: exercise.sourceUrl,
-            difficulty: exercise.difficulty,
-            durationLabel: exercise.durationLabel,
-            mediaType: exercise.mediaType,
-            audioUrl: exercise.audioUrl,
-            coverImageUrl: exercise.coverImageUrl,
-            summary: exercise.summary,
             sortOrder: exercise.sortOrder,
-            // 透传原状态，避免把 archived 课程改回 published
-            status: exercise.status,
-          },
-          adminToken,
-        )
+          })),
+          omittedPersistItemCount: Math.max(0, toPersist.length - 50),
+        })
+
+        // 串行 upsert：中途失败时已保存的排序保持，避免并发写留下半套 sortOrder
+        for (const exercise of toPersist) {
+          const previousSortOrder = siblingExercises.find((item) => item.id === exercise.id)?.sortOrder
+          logAdminInfo('CourseSort', 'sort-save-start', {
+            operationId,
+            exerciseId: exercise.id,
+            title: exercise.title,
+            previousSortOrder,
+            nextSortOrder: exercise.sortOrder,
+          })
+          await apiClient.createExercise(
+            {
+              id: exercise.id,
+              categoryId: exercise.categoryId,
+              title: exercise.title,
+              source: exercise.source,
+              sourceUrl: exercise.sourceUrl,
+              difficulty: exercise.difficulty,
+              durationLabel: exercise.durationLabel,
+              mediaType: exercise.mediaType,
+              audioUrl: exercise.audioUrl,
+              coverImageUrl: exercise.coverImageUrl,
+              summary: exercise.summary,
+              sortOrder: exercise.sortOrder,
+              // 透传原状态，避免把 archived 课程改回 published
+              status: exercise.status,
+            },
+            adminToken,
+          )
+          logAdminInfo('CourseSort', 'sort-save-success', {
+            operationId,
+            exerciseId: exercise.id,
+            nextSortOrder: exercise.sortOrder,
+          })
+        }
+
+        logAdminInfo('CourseSort', 'catalog-refresh-start', { operationId })
+        await onRefreshCatalog()
+        logAdminInfo('CourseSort', 'catalog-refresh-success', { operationId })
+        outcome = 'saved'
+        onNotify('课程顺序已更新', 'success')
+      } catch (error) {
+        outcome = 'failed'
+        logAdminError('CourseSort', 'move-failed', {
+          operationId,
+          exerciseId,
+          direction,
+          elapsedMs: Date.now() - operationStartedAt,
+          ...getAdminErrorDetails(error),
+        })
+        throw error
       }
-      await onRefreshCatalog()
-      onNotify('课程顺序已更新', 'success')
-    }, '课程排序失败')
+    }, '课程排序失败').then((succeeded) => {
+      logAdminInfo('CourseSort', 'move-finished', {
+        operationId,
+        exerciseId,
+        direction,
+        outcome,
+        taskSucceeded: succeeded,
+        elapsedMs: Date.now() - operationStartedAt,
+      })
+    })
+  }
 
   const refreshFeedback = useCallback(async (status?: FeedbackStatus | 'all') => {
     setFeedbackLoading(true)
@@ -1076,6 +1199,8 @@ export function ContentAdmin({
         <TaskPoolManager
           adminToken={adminToken}
           adminUser={adminUser}
+          categoryGroups={categoryGroups}
+          categories={categories}
           onNotify={onNotify}
           onClaimed={() => {
             void refreshWorkflowInbox()

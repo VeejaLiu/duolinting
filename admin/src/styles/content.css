@@ -3162,6 +3162,23 @@
   gap: 10px;
 }
 
+.task-pool-filters {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.task-pool-filter-select {
+  min-width: 180px;
+}
+
+.task-pool-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
 .task-pool-item {
   align-items: center;
   background: #ffffff;

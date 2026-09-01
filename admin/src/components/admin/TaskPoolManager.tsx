@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Badge,
   Button,
   Card,
   Empty,
+  Pagination,
   Space,
+  Select,
   Table,
   Tabs,
   Tag,
@@ -29,12 +31,16 @@ import type {
   AdminUser,
   AdminWorkflowOverview,
   ClaimableWorkflowTask,
+  ExerciseCategory,
+  MaterialCategory,
 } from '@duolinting/shared'
 import { apiClient } from '../../lib/apiClient'
 
 type TaskPoolManagerProps = {
   adminToken: string
   adminUser: AdminUser
+  categoryGroups: MaterialCategory[]
+  categories: ExerciseCategory[]
   onNotify: (message: string, tone?: 'info' | 'success' | 'error') => void
   /** 领取成功后通知父级刷新课程列表与任务中心。 */
   onClaimed?: () => void
@@ -94,6 +100,8 @@ function StatCard({ value, label, tone }: { value: number; label: string; tone?:
 export function TaskPoolManager({
   adminToken,
   adminUser,
+  categoryGroups,
+  categories,
   onNotify,
   onClaimed,
   workflowInbox,
@@ -105,8 +113,20 @@ export function TaskPoolManager({
   const [overview, setOverview] = useState<AdminWorkflowOverview | null>(null)
   const [loading, setLoading] = useState(false)
   const [busyExerciseId, setBusyExerciseId] = useState<number | null>(null)
+  const [poolPage, setPoolPage] = useState(1)
+  const [poolPageSize, setPoolPageSize] = useState(20)
+  const [poolTotal, setPoolTotal] = useState(0)
+  const [selectedGroupId, setSelectedGroupId] = useState<number | undefined>()
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>()
   const isSuperAdmin = adminUser.role === 'super_admin'
   const [activeTab, setActiveTab] = useState<string>(isSuperAdmin ? 'overview' : 'claimable')
+  const categoryOptions = useMemo(
+    () => categories
+      .filter((category) => !selectedGroupId || category.groupId === selectedGroupId)
+      .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'zh-CN'))
+      .map((category) => ({ label: category.name, value: category.id })),
+    [categories, selectedGroupId],
+  )
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -115,14 +135,27 @@ export function TaskPoolManager({
         const overviewResult = await apiClient.getWorkflowOverview(adminToken)
         setOverview(overviewResult)
       }
-      const poolResult = await apiClient.getClaimableWorkflowTasks(adminToken, 1, 50)
+      const poolResult = await apiClient.getClaimableWorkflowTasks(adminToken, {
+        page: poolPage,
+        pageSize: poolPageSize,
+        ...(selectedGroupId ? { groupId: selectedGroupId } : {}),
+        ...(selectedCategoryId ? { categoryId: selectedCategoryId } : {}),
+      })
+      const lastPage = Math.max(1, Math.ceil(poolResult.total / poolPageSize))
+      if (poolPage > lastPage) {
+        setPool([])
+        setPoolTotal(poolResult.total)
+        setPoolPage(lastPage)
+        return
+      }
       setPool(poolResult.items)
+      setPoolTotal(poolResult.total)
     } catch (error) {
       onNotify(error instanceof Error ? error.message : '任务池加载失败', 'error')
     } finally {
       setLoading(false)
     }
-  }, [adminToken, isSuperAdmin, onNotify])
+  }, [adminToken, isSuperAdmin, onNotify, poolPage, poolPageSize, selectedCategoryId, selectedGroupId])
 
   useEffect(() => {
     // Deferred startup read keeps the effect limited to initiating I/O; state updates
@@ -152,49 +185,103 @@ export function TaskPoolManager({
   const activeTaskCount = workflowInbox.items.filter((task) => task.stage !== 'completed').length
 
   const claimableTab = (
-    <div className="task-pool-list">
-      {pool.length === 0 ? (
-        <Empty
-          description={isSuperAdmin
-            ? '任务池为空。请到「课程管理」补充课程草稿，或检查是否有媒体未就绪的课程。'
-            : '当前没有可领取的任务，管理员补充课程草稿后会出现在这里。'}
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
+    <Space direction="vertical" size={12} style={{ display: 'flex' }}>
+      <div className="task-pool-filters">
+        <Typography.Text type="secondary">筛选任务</Typography.Text>
+        <Select<number>
+          allowClear
+          className="task-pool-filter-select"
+          onChange={(value) => {
+            setSelectedGroupId(value)
+            setSelectedCategoryId(undefined)
+            setPoolPage(1)
+          }}
+          options={categoryGroups
+            .slice()
+            .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'zh-CN'))
+            .map((group) => ({ label: group.name, value: group.id }))}
+          placeholder="全部分类"
+          showSearch
+          optionFilterProp="label"
+          value={selectedGroupId}
         />
-      ) : (
-        pool.map((task) => (
-          <div className="task-pool-item" key={task.exerciseId}>
-            <div className="task-pool-item-main">
-              <Typography.Text className="task-pool-item-title">{task.exerciseTitle}</Typography.Text>
-              <Space size={6} wrap>
-                {difficultyTag(task)}
-                <Tag variant="outlined">{task.mediaType === 'video' ? '视频' : '音频'}</Tag>
-                <Tag>{task.categoryName}</Tag>
-                <Tag variant="outlined">{task.lineCount} 句字幕</Tag>
-                {task.claimReleaseCount > 0 && <Tag color="gold" variant="outlined">曾释放 {task.claimReleaseCount} 次</Tag>}
-              </Space>
+        <Select<number>
+          allowClear
+          className="task-pool-filter-select"
+          disabled={categoryOptions.length === 0}
+          onChange={(value) => {
+            setSelectedCategoryId(value)
+            setPoolPage(1)
+          }}
+          options={categoryOptions}
+          placeholder="全部系列"
+          showSearch
+          optionFilterProp="label"
+          value={selectedCategoryId}
+        />
+      </div>
+
+      <div className="task-pool-list">
+        {pool.length === 0 ? (
+          <Empty
+            description={isSuperAdmin
+              ? '当前筛选条件下没有任务。请到「课程管理」补充课程草稿，或检查是否有媒体未就绪的课程。'
+              : '当前筛选条件下没有可领取的任务。'}
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
+        ) : (
+          pool.map((task) => (
+            <div className="task-pool-item" key={task.exerciseId}>
+              <div className="task-pool-item-main">
+                <Typography.Text className="task-pool-item-title">{task.exerciseTitle}</Typography.Text>
+                <Space size={6} wrap>
+                  {difficultyTag(task)}
+                  <Tag variant="outlined">{task.mediaType === 'video' ? '视频' : '音频'}</Tag>
+                  <Tag>{task.categoryName}</Tag>
+                  <Tag variant="outlined">{task.lineCount} 句字幕</Tag>
+                  {task.claimReleaseCount > 0 && <Tag color="gold" variant="outlined">曾释放 {task.claimReleaseCount} 次</Tag>}
+                </Space>
+              </div>
+              {isSuperAdmin ? (
+                // 超级管理员不参与协作流程，只查看任务池；不给领取入口。
+                <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                  仅字幕贡献者可领取
+                </Typography.Text>
+              ) : (
+                <Tooltip title={task.claimReleaseCount > 0 ? `该课程曾被领取后释放 ${task.claimReleaseCount} 次` : '领取后锁定给你，保存草稿会自动续期'}>
+                  <Button
+                    icon={<Lock size={14} />}
+                    loading={busyExerciseId === task.exerciseId}
+                    onClick={() => void claim(task.exerciseId)}
+                    size="middle"
+                    type="primary"
+                  >
+                    领取任务
+                  </Button>
+                </Tooltip>
+              )}
             </div>
-            {isSuperAdmin ? (
-              // 超级管理员不参与协作流程，只查看任务池；不给领取入口。
-              <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                仅字幕贡献者可领取
-              </Typography.Text>
-            ) : (
-              <Tooltip title={task.claimReleaseCount > 0 ? `该课程曾被领取后释放 ${task.claimReleaseCount} 次` : '领取后锁定给你，保存草稿会自动续期'}>
-                <Button
-                  icon={<Lock size={14} />}
-                  loading={busyExerciseId === task.exerciseId}
-                  onClick={() => void claim(task.exerciseId)}
-                  size="middle"
-                  type="primary"
-                >
-                  领取任务
-                </Button>
-              </Tooltip>
-            )}
-          </div>
-        ))
+          ))
+        )}
+      </div>
+
+      {poolTotal > 0 && (
+        <div className="task-pool-pagination">
+          <Pagination
+            current={poolPage}
+            pageSize={poolPageSize}
+            pageSizeOptions={[10, 20, 50]}
+            showSizeChanger
+            showTotal={(total) => `共 ${total} 个任务`}
+            total={poolTotal}
+            onChange={(nextPage, nextPageSize) => {
+              setPoolPage(nextPageSize !== poolPageSize ? 1 : nextPage)
+              setPoolPageSize(nextPageSize)
+            }}
+          />
+        </div>
       )}
-    </div>
+    </Space>
   )
 
   const myTasksTab = (

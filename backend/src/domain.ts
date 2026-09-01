@@ -115,7 +115,7 @@ export type CourseWorkflowSummary = {
     proofreaderDisplayName?: string;
     /** 已通过流程后记录的实际二审署名。 */
     secondReviewerDisplayName?: string;
-    /** 校对负责人是管理员指派还是自助领取；仅影响超时是否自动释放。 */
+    /** 校对负责人是管理员指派还是自助领取；两种来源都遵循超时释放规则。 */
     proofreaderAssignmentSource?: CourseWorkflowAssignmentSource;
     /** 校对任务的滑动期限；未设置表示任务已停止计时（如已提交二审）。 */
     proofreaderClaimExpiresAt?: string;
@@ -193,13 +193,14 @@ export type AdminSubtitleWorkflowTaskInbox = {
 /** 后台工作流通知由服务端保存，重新登录后仍可查阅。 */
 export type AdminWorkflowNotificationType = 'subtitle_submitted' | 'subtitle_returned' | 'subtitle_approved' | 'task_claim_expiring' | 'task_claim_expired';
 
-/** 任务来源：管理员指派不会自动释放，只有自助领取会在超时后回到任务池。 */
+/** 任务来源：两种来源都遵循同一套超时释放规则；该字段用于展示任务来源。 */
 export type CourseWorkflowAssignmentSource = 'admin_assigned' | 'self_claimed';
 
 /** 任务广场的可领取课程，只包含领取所需的最小信息。 */
 export type ClaimableWorkflowTask = {
     exerciseId: number;
     exerciseTitle: string;
+    categoryId: number;
     categoryName: string;
     difficulty: Difficulty;
     mediaType: LessonMediaType;
