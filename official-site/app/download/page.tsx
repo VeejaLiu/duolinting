@@ -152,8 +152,8 @@ export default function DownloadPage({ initialLocale = "zh" }: { initialLocale?:
           <a className="chrome-scroll-link" href="#platforms">{t.scroll}<span aria-hidden="true">↓</span></a>
         </div>
         <div className="site-shell chrome-product-stage" aria-label={locale === "zh" ? "DuolinTing 网页与移动端学习界面" : "DuolinTing web and mobile learning interfaces"}>
-          <div className="chrome-product-browser"><div className="chrome-browser-top"><i></i><i></i><i></i><span>DuolinTing · {t.web}</span></div><Image src="/learner-web.png" alt="" width={1800} height={930} sizes="(max-width: 1180px) 100vw, 1100px" priority /></div>
-          <div className="chrome-product-phone"><Image src="/learner-mobile.png" alt="" width={556} height={1200} sizes="(max-width: 560px) 120px, 175px" /></div>
+          <div className="chrome-product-browser"><div className="chrome-browser-top"><i></i><i></i><i></i><span>DuolinTing · {t.web}</span></div><Image src="/learner-web.webp" alt="" width={1800} height={930} sizes="(max-width: 1180px) 100vw, 1100px" priority /></div>
+          <div className="chrome-product-phone"><Image src="/learner-mobile.webp" alt="" width={556} height={1200} sizes="(max-width: 560px) 120px, 175px" /></div>
         </div>
       </section>
 

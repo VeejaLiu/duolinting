@@ -80,8 +80,10 @@ DEPLOY_HOST=<ssh-host> npm run deploy:build-server -- official-site
 - `https://www.duolinting.cn/sitemap.xml`
 - 中文页面：`/`、`/download`、`/contribute`、`/support`、`/privacy`、`/terms`
 - 英文页面：`/en`、`/en/download`、`/en/contribute`、`/en/support`、`/en/privacy`、`/en/terms`
+- 练习方式落地页（动态路由，内容来自 `app/content/landing-pages.ts`）：`/practice/<slug>` 与 `/en/practice/<slug>`，当前覆盖泛听、精听、听写、生词本、难点复习五个主题。
+- 博客与教程（动态路由，内容来自 `app/content/blog-posts.ts`）：`/blog`、`/en/blog`、`/blog/<slug>`、`/en/blog/<slug>`，当前覆盖精听方法、YouZack 替代、SRT 字幕做听力练习三篇。
 
-每个中英文对应页面都包含 canonical 与 `hreflang`，并将完整正文服务端输出。首页提供组织、网站、软件产品和 FAQ 结构化数据；贡献指南提供文章结构化数据。
+每个中英文对应页面都包含 canonical 与 `hreflang`，并将完整正文服务端输出。首页提供组织、网站、软件产品和 FAQ 结构化数据；贡献指南提供 `HowTo` 结构化数据；练习方式落地页提供 `BreadcrumbList` 与 `FAQPage` 结构化数据；博客文章提供 `BlogPosting` 与 `BreadcrumbList` 结构化数据。落地页与博客共用同一套 `generateStaticParams` + `generateMetadata` 动态路由骨架。
 
 ### 域名切换后的 SEO 验收
 
@@ -112,6 +114,9 @@ curl -s https://www.duolinting.cn/contribute | rg 'canonical|application/ld\+jso
 - `app/`：官网页面、文案和发布配置。
 - `app/content/learner-web.ts`：网页学习端入口的唯一读取点。
 - `app/content/android-release.ts`：Android APK 发布清单；只有最终签名 APK 的 HTTPS 地址、文件大小、SHA-256 和日期齐全后才可标记发布。
+- `app/content/landing-pages.ts`：练习方式落地页的唯一内容数据源，由 `app/practice/[slug]` 与 `app/en/practice/[slug]` 动态路由消费。
+- `app/content/blog-posts.ts`：博客文章的唯一内容数据源，由 `app/blog/[slug]` 与 `app/en/blog/[slug]` 动态路由消费；选题大纲见 `docs/seo-blog-outlines.md`。
+- `scripts/generate-og-images.mjs`：为落地页和博客生成 `public/og-<slug>.png` 社交图（satori + sharp，含 CJK 字体），新增页面后重跑一次。
 - `public/`：来自实际学习端、移动端和管理端的产品素材。
 - `Dockerfile`：线上独立运行镜像。
 - `.openai/hosting.json`：现有 Sites 项目配置；本次没有执行 Sites 发布。

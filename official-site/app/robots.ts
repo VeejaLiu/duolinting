@@ -8,6 +8,8 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
     },
     sitemap: officialSiteHref("/sitemap.xml"),
+    // `host` is a Yandex-specific directive; Google and Bing ignore it.
+    // It is harmless to keep and helps the rare Yandex crawl.
     host: new URL(officialSiteUrl).host,
   };
 }

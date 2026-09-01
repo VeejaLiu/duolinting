@@ -5,11 +5,11 @@ import { officialSiteUrl } from "./content/site-url";
 export const metadata: Metadata = {
   metadataBase: new URL(officialSiteUrl),
   title: {
-    default: "DuolinTing 多邻听｜把真实材料变成逐句听懂的练习",
+    default: "DuolinTing 多邻听｜精听与泛听练习，逐句听懂真实音频",
     template: "%s｜DuolinTing 多邻听",
   },
   description:
-    "用真实音频和视频进行泛听、逐句精听与难点复习。DuolinTing 是一套开源的语言听力学习与制课工具。",
+    "DuolinTing 多邻听：用真实音频和视频进行泛听、逐句精听与难点复习的英语听力练习工具。开源、可自部署。",
   icons: {
     icon: "/duolinting-logo-ear.png",
     shortcut: "/duolinting-logo-ear.png",
@@ -27,16 +27,16 @@ export const metadata: Metadata = {
     locale: "zh_CN",
     siteName: "DuolinTing 多邻听",
     url: "/",
-    title: "DuolinTing 多邻听｜把真实材料变成逐句听懂的练习",
+    title: "DuolinTing 多邻听｜精听与泛听练习，逐句听懂真实音频",
     description:
-      "用真实音频和视频进行泛听、逐句精听与难点复习。DuolinTing 是一套开源的语言听力学习与制课工具。",
-    images: [{ url: "/learner-web.png", width: 1800, height: 929, alt: "DuolinTing 网页学习端" }],
+      "用真实音频和视频进行泛听、逐句精听与难点复习的英语听力练习工具。开源、可自部署。",
+    images: [{ url: "/og-home.png", width: 1200, height: 630, alt: "DuolinTing 多邻听——精听与泛听练习" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "DuolinTing 多邻听｜把真实材料变成逐句听懂的练习",
-    description: "用真实音频和视频进行泛听、逐句精听与难点复习。",
-    images: ["/learner-web.png"],
+    title: "DuolinTing 多邻听｜精听与泛听练习，逐句听懂真实音频",
+    description: "用真实音频和视频进行泛听、逐句精听与难点复习的英语听力练习工具。",
+    images: ["/og-home.png"],
   },
 };
 

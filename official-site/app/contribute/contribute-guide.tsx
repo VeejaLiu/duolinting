@@ -97,9 +97,9 @@ const copy: Record<Locale, GuideCopy> = {
         { title: "在工作台完成任务", body: "校对人修改后提交二审，提交即锁定；每次保存草稿会自动顺延 48 小时任务期限，超时未保存自动释放回任务广场。通过后的课程由超级管理员发布。" },
       ],
       images: [
-        { src: "/contributor-account-provisioning.png", alt: "Admin 中添加字幕贡献者账号的表单", title: "账号由超级管理员开通", body: "使用邮箱登录，并填写会出现在课程中的显示名称。" },
-        { src: "/contributor-first-login.png", alt: "一次性显示的字幕贡献者账号开通信息", title: "登录信息仅展示一次", body: "临时密码不会保存在后台；请立即安全发送给成员。" },
-        { src: "/contributor-course-credit.png", alt: "课程标题栏中显示校对与审核贡献者名称", title: "贡献会被公开署名", body: "校对与审核人的显示名称会在网页和 App 的课程标题区域展示。" },
+        { src: "/contributor-account-provisioning.webp", alt: "Admin 中添加字幕贡献者账号的表单", title: "账号由超级管理员开通", body: "使用邮箱登录，并填写会出现在课程中的显示名称。" },
+        { src: "/contributor-first-login.webp", alt: "一次性显示的字幕贡献者账号开通信息", title: "登录信息仅展示一次", body: "临时密码不会保存在后台；请立即安全发送给成员。" },
+        { src: "/contributor-course-credit.webp", alt: "课程标题栏中显示校对与审核贡献者名称", title: "贡献会被公开署名", body: "校对与审核人的显示名称会在网页和 App 的课程标题区域展示。" },
       ],
     },
     workflow: {
@@ -239,9 +239,9 @@ const copy: Record<Locale, GuideCopy> = {
         { title: "Finish work in the workspace", body: "Proofreaders submit to second review; submission locks the draft. Each save extends the 48-hour deadline, and un-saved work is released back to the Task Plaza. A super administrator publishes approved content." },
       ],
       images: [
-        { src: "/contributor-account-provisioning.png", alt: "Admin form for adding a subtitle contributor", title: "Accounts are provisioned by a super administrator", body: "Contributors sign in by email and choose the display name shown on courses." },
-        { src: "/contributor-first-login.png", alt: "One-time subtitle contributor account details", title: "Login details are shown only once", body: "Temporary passwords are not retained by Admin; send them securely right away." },
-        { src: "/contributor-course-credit.png", alt: "Course title area showing proofreader and reviewer names", title: "Contributors receive visible credit", body: "Proofreader and reviewer display names appear in the course title area on web and mobile." },
+        { src: "/contributor-account-provisioning.webp", alt: "Admin form for adding a subtitle contributor", title: "Accounts are provisioned by a super administrator", body: "Contributors sign in by email and choose the display name shown on courses." },
+        { src: "/contributor-first-login.webp", alt: "One-time subtitle contributor account details", title: "Login details are shown only once", body: "Temporary passwords are not retained by Admin; send them securely right away." },
+        { src: "/contributor-course-credit.webp", alt: "Course title area showing proofreader and reviewer names", title: "Contributors receive visible credit", body: "Proofreader and reviewer display names appear in the course title area on web and mobile." },
       ],
     },
     workflow: {
@@ -298,15 +298,21 @@ export function ContributeGuide({ initialLocale = "zh" }: { initialLocale?: Loca
     <main className="contribute-docs-page" lang={locale === "zh" ? "zh-CN" : "en"}>
       <StructuredData value={{
         "@context": "https://schema.org",
-        "@type": "TechArticle",
-        headline: locale === "zh" ? "DuolinTing 贡献指南" : "DuolinTing contribution guide",
-        description: locale === "zh" ? "了解如何用拥有使用权的真实媒体，在 DuolinTing 后台制作、检查、发布并维护一门逐句听力课。" : "Learn how to turn rights-cleared real media into a DuolinTing listening lesson, from the admin workspace through publication and maintenance.",
+        "@type": "HowTo",
+        name: locale === "zh" ? "如何制作一门 DuolinTing 逐句精听课程" : "How to create a DuolinTing line-by-line listening lesson",
+        description: locale === "zh" ? t.hero.lead : t.hero.lead,
         inLanguage: locale === "zh" ? "zh-CN" : "en",
         mainEntityOfPage: officialSiteHref(locale === "zh" ? "/contribute" : "/en/contribute"),
-        image: officialSiteHref("/admin-course-workbench.png"),
+        image: officialSiteHref("/admin-course-workbench.webp"),
         author: { "@type": "Organization", name: "DuolinTing" },
         publisher: { "@type": "Organization", name: "DuolinTing", logo: { "@type": "ImageObject", url: officialSiteHref("/duolinting-logo-ear.png") } },
         dateModified: "2026-08-21",
+        step: t.path.steps.map((step, index) => ({
+          "@type": "HowToStep",
+          position: index + 1,
+          name: step.title,
+          text: step.body,
+        })),
       }} />
       <header className="docs-header">
         <div className="docs-header-inner">

@@ -53,7 +53,7 @@ test("server-renders the contribution guide with the real production workflow", 
   assert.match(html, /字幕工作流/);
   assert.match(html, /docs-sidebar/);
   assert.match(html, /docs-toc/);
-  assert.match(html, /admin-course-workbench\.png/);
+  assert.match(html, /admin-course-workbench\.webp/);
   assert.match(html, /课程权限与任务分发已集成到 Admin 工作台/);
   assert.match(html, /不得抓取或复制 YouZack/);
 });
@@ -100,10 +100,59 @@ test("uses the product design system and real product assets", async () => {
   assert.match(css, /--green: #58cc02/);
   assert.match(css, /--ink: #172033/);
   assert.match(page, /duolinting-logo-ear\.png/);
-  assert.match(page, /learner-web\.png/);
-  assert.match(page, /learner-mobile\.png/);
-  assert.match(page, /admin-course-workbench\.png/);
+  assert.match(page, /learner-web\.webp/);
+  assert.match(page, /learner-mobile\.webp/);
+  assert.match(page, /admin-course-workbench\.webp/);
   assert.match(page, /learnerWebUrl/);
   assert.doesNotMatch(page, /href="\/download">\{t\.hero\.web\}/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
+});
+
+test("server-renders feature landing pages with per-page metadata and structured data", async () => {
+  const [zh, en] = await Promise.all([
+    render("/practice/intensive-listening"),
+    render("/en/practice/intensive-listening"),
+  ]);
+
+  assert.equal(zh.status, 200);
+  const zhHtml = await zh.text();
+  assert.match(zhHtml, /逐句精听 · 第二阶段/);
+  assert.match(zhHtml, /先听、再判断、再核对/);
+  assert.match(zhHtml, /rel="canonical" href="https:\/\/www\.duolinting\.cn\/practice\/intensive-listening"/);
+  assert.match(zhHtml, /href="https:\/\/www\.duolinting\.cn\/en\/practice\/intensive-listening" hreflang="en"/);
+  assert.match(zhHtml, /application\/ld\+json/);
+  assert.match(zhHtml, /"@type":"FAQPage"/);
+  assert.match(zhHtml, /landing-related-card/);
+
+  assert.equal(en.status, 200);
+  const enHtml = await en.text();
+  assert.match(enHtml, /Line-by-line listening · Stage two/);
+  assert.match(enHtml, /<main class="landing-page" lang="en">/);
+  assert.match(enHtml, /rel="canonical" href="https:\/\/www\.duolinting\.cn\/en\/practice\/intensive-listening"/);
+});
+
+test("server-renders the blog index and posts with BlogPosting structured data", async () => {
+  const [index, post, enPost] = await Promise.all([
+    render("/blog"),
+    render("/blog/intensive-listening-method"),
+    render("/en/blog/intensive-listening-method"),
+  ]);
+
+  assert.equal(index.status, 200);
+  const indexHtml = await index.text();
+  assert.match(indexHtml, /博客与教程/);
+  assert.match(indexHtml, /blog-index-card/);
+  assert.match(indexHtml, /什么是精听？精听的正确步骤/);
+
+  assert.equal(post.status, 200);
+  const postHtml = await post.text();
+  assert.match(postHtml, /先听、判断、核对、重复/);
+  assert.match(postHtml, /"@type":"BlogPosting"/);
+  assert.match(postHtml, /rel="canonical" href="https:\/\/www\.duolinting\.cn\/blog\/intensive-listening-method"/);
+  assert.match(postHtml, /href="https:\/\/www\.duolinting\.cn\/en\/blog\/intensive-listening-method" hreflang="en"/);
+
+  assert.equal(enPost.status, 200);
+  const enPostHtml = await enPost.text();
+  assert.match(enPostHtml, /<main class="blog-page" lang="en">/);
+  assert.match(enPostHtml, /rel="canonical" href="https:\/\/www\.duolinting\.cn\/en\/blog\/intensive-listening-method"/);
 });

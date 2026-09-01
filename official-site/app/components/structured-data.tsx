@@ -19,7 +19,10 @@ export const organizationSchema: JsonLd = {
   alternateName: "多邻听",
   url: officialSiteHref(),
   logo: officialSiteHref("/duolinting-logo-ear.png"),
-  sameAs: ["https://github.com/VeejaLiu/duolinting"],
+  sameAs: [
+    "https://github.com/VeejaLiu/duolinting",
+    "https://discord.com/users/924180303487066182",
+  ],
 };
 
 export const softwareApplicationSchema: JsonLd = {
@@ -28,11 +31,22 @@ export const softwareApplicationSchema: JsonLd = {
   name: "DuolinTing",
   alternateName: "多邻听",
   applicationCategory: "EducationalApplication",
+  applicationSubCategory: "Language learning",
   operatingSystem: "Web, Android",
   url: officialSiteHref(),
-  image: officialSiteHref("/learner-web.png"),
+  image: officialSiteHref("/learner-web.webp"),
+  screenshot: officialSiteHref("/learner-web.webp"),
   description: "Practice listening with real audio and video through warm-up listening, line-by-line practice, and difficult-line review.",
   inLanguage: ["zh-CN", "en"],
+  featureList: [
+    "Warm-up (extensive) listening",
+    "Line-by-line intensive listening",
+    "Difficult-line review",
+    "Loop a line and change playback speed",
+    "Subtitles, translations, and dictation",
+    "Vocabulary and notes",
+    "Cross-device learning progress",
+  ],
   offers: {
     "@type": "Offer",
     price: "0",

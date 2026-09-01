@@ -13,13 +13,13 @@ type Copy = {
   nav: { product: string; creators: string; download: string; openSource: string };
   hero: { eyebrow: string; titleStart: string; titleAccent: string; titleEnd: string; body: string; web: string; apk: string; note: string };
   practice: { eyebrow: string; title: string; body: string };
-  stages: Array<{ number: string; title: string; body: string }>;
-  learner: { eyebrow: string; title: string; body: string; bullets: string[] };
+  stages: Array<{ number: string; title: string; body: string; slug: string }>;
+  learner: { eyebrow: string; title: string; body: string; bullets: Array<{ text: string; slug?: string }> };
   creators: { eyebrow: string; title: string; body: string; steps: string[]; action: string };
   download: { eyebrow: string; title: string; body: string; web: string; apk: string; ios: string };
   source: { eyebrow: string; title: string; body: string; action: string; note: string };
   faq: { eyebrow: string; title: string; items: Array<{ question: string; answer: string }> };
-  footer: { product: string; download: string; contribute: string; source: string; privacy: string; terms: string; support: string; statement: string };
+  footer: { product: string; download: string; blog: string; contribute: string; source: string; privacy: string; terms: string; support: string; statement: string };
 };
 
 const copy: Record<Locale, Copy> = {
@@ -41,15 +41,15 @@ const copy: Record<Locale, Copy> = {
       body: "不让“没听懂”一闪而过；每个阶段都为下一次真正理解服务。",
     },
     stages: [
-      { number: "01", title: "泛听热身", body: "先完整听一遍，建立对主题、说话人与语境的整体认识。" },
-      { number: "02", title: "逐句精听", body: "按时间轴练习每一句；先听、再判断、再核对。" },
-      { number: "03", title: "难点复习", body: "集中练还不熟悉的句子，让时间花在真正需要的地方。" },
+      { number: "01", title: "泛听热身", body: "先完整听一遍，建立对主题、说话人与语境的整体认识。", slug: "extensive-listening" },
+      { number: "02", title: "逐句精听", body: "按时间轴练习每一句；先听、再判断、再核对。", slug: "intensive-listening" },
+      { number: "03", title: "难点复习", body: "集中练还不熟悉的句子，让时间花在真正需要的地方。", slug: "difficult-review" },
     ],
     learner: {
       eyebrow: "按你的节奏来",
       title: "每一句，都值得认真听懂。",
       body: "所有练习都围绕同一段真实材料展开。你可以控制播放、查看答案，也可以把真正难的部分留下来。",
-      bullets: ["单句循环与播放速度", "字幕、翻译与听写", "难点标记、生词与笔记", "登录后延续跨端学习进度"],
+      bullets: [{ text: "单句循环与播放速度", slug: "intensive-listening" }, { text: "字幕、翻译与听写", slug: "dictation" }, { text: "难点标记、生词与笔记", slug: "vocabulary" }, { text: "登录后延续跨端学习进度" }],
     },
     creators: {
       eyebrow: "为真实内容而设的制课工具",
@@ -84,7 +84,7 @@ const copy: Record<Locale, Copy> = {
       ],
     },
     footer: {
-      product: "产品", download: "下载", contribute: "贡献指南", source: "GitHub", privacy: "隐私", terms: "使用条款", support: "支持与联系",
+      product: "产品", download: "下载", blog: "博客", contribute: "贡献指南", source: "GitHub", privacy: "隐私", terms: "使用条款", support: "支持与联系",
       statement: "DuolinTing 是受 YouZack 听力学习理念启发的独立开源项目，并非 YouZack 官方产品，也不代表获得其官方背书。",
     },
   },
@@ -106,15 +106,15 @@ const copy: Record<Locale, Copy> = {
       body: "Don’t let a missed line pass by; every stage helps you understand it the next time.",
     },
     stages: [
-      { number: "01", title: "Warm up with the whole story", body: "Listen through once to understand the topic, speakers, and context." },
-      { number: "02", title: "Listen closely, line by line", body: "Practice on the timeline: listen first, decide what you heard, then check." },
-      { number: "03", title: "Review what still feels hard", body: "Focus on the lines you have not mastered, so your time goes where it matters." },
+      { number: "01", title: "Warm up with the whole story", body: "Listen through once to understand the topic, speakers, and context.", slug: "extensive-listening" },
+      { number: "02", title: "Listen closely, line by line", body: "Practice on the timeline: listen first, decide what you heard, then check.", slug: "intensive-listening" },
+      { number: "03", title: "Review what still feels hard", body: "Focus on the lines you have not mastered, so your time goes where it matters.", slug: "difficult-review" },
     ],
     learner: {
       eyebrow: "At your pace",
       title: "Every line is worth understanding.",
       body: "Every practice tool stays close to the same real material. Control playback, reveal answers when you are ready, and save the lines that need another pass.",
-      bullets: ["Loop a line and change playback speed", "Subtitles, translations, and dictation", "Difficult lines, vocabulary, and notes", "Continue your progress across devices"],
+      bullets: [{ text: "Loop a line and change playback speed", slug: "intensive-listening" }, { text: "Subtitles, translations, and dictation", slug: "dictation" }, { text: "Difficult lines, vocabulary, and notes", slug: "vocabulary" }, { text: "Continue your progress across devices" }],
     },
     creators: {
       eyebrow: "Made for real content",
@@ -149,7 +149,7 @@ const copy: Record<Locale, Copy> = {
       ],
     },
     footer: {
-      product: "Product", download: "Download", contribute: "Contribution guide", source: "GitHub", privacy: "Privacy", terms: "Terms", support: "Support",
+      product: "Product", download: "Download", blog: "Blog", contribute: "Contribution guide", source: "GitHub", privacy: "Privacy", terms: "Terms", support: "Support",
       statement: "DuolinTing is an independent open-source project inspired by YouZack’s approach to listening practice. It is not an official YouZack product and is not endorsed by YouZack.",
     },
   },
@@ -172,6 +172,8 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
   const privacyPath = initialLocale === "en" ? "/en/privacy" : "/privacy";
   const termsPath = initialLocale === "en" ? "/en/terms" : "/terms";
   const supportPath = initialLocale === "en" ? "/en/support" : "/support";
+  const blogPath = initialLocale === "en" ? "/en/blog" : "/blog";
+  const practicePrefix = initialLocale === "en" ? "/en/practice" : "/practice";
   const languagePath = initialLocale === "en" ? "/" : "/en";
 
   useEffect(() => { document.documentElement.lang = locale === "zh" ? "zh-CN" : "en"; }, [locale]);
@@ -202,6 +204,7 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
           </button>
           <nav className={`primary-nav ${menuOpen ? "is-open" : ""}`} aria-label="Primary navigation">
             {navigation.map(([label, id]) => <button key={id} type="button" onClick={() => { scrollToSection(id); setMenuOpen(false); }}>{label}</button>)}
+            <Link className="nav-blog-link" href={blogPath} onClick={() => setMenuOpen(false)}>{t.footer.blog}</Link>
             <Link className="language-switch mobile-only" href={languagePath}>{languageLabel}</Link>
           </nav>
           <div className="header-actions">
@@ -235,19 +238,19 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
       </section>
 
       <section id="product" className="practice-section section-pad">
-        <div className="site-shell"><div className="section-heading split-heading"><div><p className="eyebrow"><span></span>{t.practice.eyebrow}</p><h2>{t.practice.title}</h2></div><p>{t.practice.body}</p></div><div className="stage-grid">{t.stages.map((stage) => <article className="stage-card" key={stage.number}><span>{stage.number}</span><h3>{stage.title}</h3><p>{stage.body}</p></article>)}</div></div>
+        <div className="site-shell"><div className="section-heading split-heading"><div><p className="eyebrow"><span></span>{t.practice.eyebrow}</p><h2>{t.practice.title}</h2></div><p>{t.practice.body}</p></div><div className="stage-grid">{t.stages.map((stage) => <Link className="stage-card stage-card-link" key={stage.number} href={`${practicePrefix}/${stage.slug}`}><span>{stage.number}</span><h3>{stage.title}</h3><p>{stage.body}</p><small className="stage-more">{initialLocale === "en" ? "Learn more" : "了解更多"} →</small></Link>)}</div></div>
       </section>
 
       <section className="learner-section section-pad">
-        <div className="site-shell feature-grid"><div className="web-shot-wrap"><Image src="/learner-web.png" alt={locale === "zh" ? "DuolinTing 网页学习端界面" : "DuolinTing web learner interface"} width={1800} height={929} sizes="(max-width: 900px) 100vw, 52vw" /><div className="browser-dots" aria-hidden="true"><i></i><i></i><i></i></div></div><div className="feature-copy"><p className="eyebrow"><span></span>{t.learner.eyebrow}</p><h2>{t.learner.title}</h2><p>{t.learner.body}</p><ul>{t.learner.bullets.map((bullet) => <li key={bullet}><span>✓</span>{bullet}</li>)}</ul></div></div>
+        <div className="site-shell feature-grid"><div className="web-shot-wrap"><Image src="/learner-web.webp" alt={locale === "zh" ? "DuolinTing 网页学习端界面" : "DuolinTing web learner interface"} width={1800} height={929} sizes="(max-width: 900px) 100vw, 52vw" /><div className="browser-dots" aria-hidden="true"><i></i><i></i><i></i></div></div><div className="feature-copy"><p className="eyebrow"><span></span>{t.learner.eyebrow}</p><h2>{t.learner.title}</h2><p>{t.learner.body}</p><ul>{t.learner.bullets.map((bullet) => <li key={bullet.text}><span>✓</span>{bullet.slug ? <Link className="feature-bullet-link" href={`${practicePrefix}/${bullet.slug}`}>{bullet.text}</Link> : bullet.text}</li>)}</ul></div></div>
       </section>
 
       <section id="creators" className="creator-section section-pad">
-        <div className="site-shell creator-grid"><div className="creator-copy"><p className="eyebrow"><span></span>{t.creators.eyebrow}</p><h2>{t.creators.title}</h2><p>{t.creators.body}</p><ol>{t.creators.steps.map((step, index) => <li key={step}><b>{index + 1}</b><span>{step}</span>{index < t.creators.steps.length - 1 && <i aria-hidden="true">→</i>}</li>)}</ol><Link className="text-action" href={contributePath}>{t.creators.action} <span>→</span></Link></div><div className="admin-shot-wrap"><Image src="/admin-course-workbench.png" alt={locale === "zh" ? "DuolinTing 制课工作台的波形与字幕时间轴" : "DuolinTing creation workspace with waveform and subtitle timeline"} width={1800} height={1328} sizes="(max-width: 900px) 100vw, 52vw" /></div></div>
+        <div className="site-shell creator-grid"><div className="creator-copy"><p className="eyebrow"><span></span>{t.creators.eyebrow}</p><h2>{t.creators.title}</h2><p>{t.creators.body}</p><ol>{t.creators.steps.map((step, index) => <li key={step}><b>{index + 1}</b><span>{step}</span>{index < t.creators.steps.length - 1 && <i aria-hidden="true">→</i>}</li>)}</ol><Link className="text-action" href={contributePath}>{t.creators.action} <span>→</span></Link></div><div className="admin-shot-wrap"><Image src="/admin-course-workbench.webp" alt={locale === "zh" ? "DuolinTing 制课工作台的波形与字幕时间轴" : "DuolinTing creation workspace with waveform and subtitle timeline"} width={1800} height={1328} sizes="(max-width: 900px) 100vw, 52vw" /></div></div>
       </section>
 
       <section id="download" className="download-section section-pad">
-        <div className="site-shell download-panel"><div className="download-phone"><Image src="/learner-mobile.png" alt={locale === "zh" ? "DuolinTing Android 移动端逐句精听界面" : "DuolinTing Android line-by-line practice interface"} width={556} height={1200} sizes="(max-width: 900px) 190px, 255px" /></div><div className="download-copy"><p className="eyebrow"><span></span>{t.download.eyebrow}</p><h2>{t.download.title}</h2><p>{t.download.body}</p><div className="download-actions">{learnerWebUrl ? <a className="button button-primary" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.download.web}<span className="external-link-icon" aria-hidden="true">↗</span></a> : <button className="button button-primary" type="button" disabled>{t.download.web}</button>}<Link className="button button-secondary" href={downloadPath}>{t.download.apk}</Link></div><p className="ios-note"><span>●</span>{t.download.ios}</p></div><aside className="release-card" aria-label="Android release details"><div className="release-heading"><strong>DuolinTing for Android</strong><span>{locale === "zh" ? "官方发布" : "Official release"}</span></div><dl><div><dt>{locale === "zh" ? "当前版本" : "Current version"}</dt><dd>{release.version} · Build {release.build}</dd></div><div><dt>{locale === "zh" ? "Android 包名" : "Android package"}</dt><dd>{release.packageName}</dd></div><div><dt>{locale === "zh" ? "发行信息" : "Release details"}</dt><dd>{locale === "zh" ? "发布时显示日期与文件大小" : "Release details shown when published"}</dd></div><div><dt>SHA-256</dt><dd>{locale === "zh" ? "发布时显示最终校验值" : "Final checksum shown on release"}</dd></div></dl><Link className="apk-button" href={downloadPath}>{t.hero.apk}</Link><p><span>✓</span>HTTPS <span>✓</span>{locale === "zh" ? "签名版本" : "Signed release"} <span>✓</span>SHA-256</p></aside></div>
+        <div className="site-shell download-panel"><div className="download-phone"><Image src="/learner-mobile.webp" alt={locale === "zh" ? "DuolinTing Android 移动端逐句精听界面" : "DuolinTing Android line-by-line practice interface"} width={556} height={1200} sizes="(max-width: 900px) 190px, 255px" /></div><div className="download-copy"><p className="eyebrow"><span></span>{t.download.eyebrow}</p><h2>{t.download.title}</h2><p>{t.download.body}</p><div className="download-actions">{learnerWebUrl ? <a className="button button-primary" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.download.web}<span className="external-link-icon" aria-hidden="true">↗</span></a> : <button className="button button-primary" type="button" disabled>{t.download.web}</button>}<Link className="button button-secondary" href={downloadPath}>{t.download.apk}</Link></div><p className="ios-note"><span>●</span>{t.download.ios}</p></div><aside className="release-card" aria-label="Android release details"><div className="release-heading"><strong>DuolinTing for Android</strong><span>{locale === "zh" ? "官方发布" : "Official release"}</span></div><dl><div><dt>{locale === "zh" ? "当前版本" : "Current version"}</dt><dd>{release.version} · Build {release.build}</dd></div><div><dt>{locale === "zh" ? "Android 包名" : "Android package"}</dt><dd>{release.packageName}</dd></div><div><dt>{locale === "zh" ? "发行信息" : "Release details"}</dt><dd>{locale === "zh" ? "发布时显示日期与文件大小" : "Release details shown when published"}</dd></div><div><dt>SHA-256</dt><dd>{locale === "zh" ? "发布时显示最终校验值" : "Final checksum shown on release"}</dd></div></dl><Link className="apk-button" href={downloadPath}>{t.hero.apk}</Link><p><span>✓</span>HTTPS <span>✓</span>{locale === "zh" ? "签名版本" : "Signed release"} <span>✓</span>SHA-256</p></aside></div>
       </section>
 
       <section id="open-source" className="open-source-section section-pad">
@@ -256,7 +259,7 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
 
       <section className="faq-section section-pad"><div className="site-shell faq-layout"><div><p className="eyebrow"><span></span>{t.faq.eyebrow}</p><h2>{t.faq.title}</h2></div><div className="faq-list">{t.faq.items.map((item, index) => <article key={item.question} className={openFaq === index ? "open" : ""}><button type="button" aria-expanded={openFaq === index} onClick={() => setOpenFaq(openFaq === index ? null : index)}><strong>{item.question}</strong><span>+</span></button><div><p>{item.answer}</p></div></article>)}</div></div></section>
 
-      <footer className="site-footer"><div className="site-shell"><div className="footer-top"><button className="brand" type="button" onClick={() => scrollToSection("top")}><Image className="brand-logo" src="/duolinting-logo-ear.png" alt="" width={44} height={42} /><span><strong>DuolinTing</strong><small>多邻听</small></span></button><nav><button type="button" onClick={() => scrollToSection("product")}>{t.footer.product}</button><Link href={downloadPath}>{t.footer.download}</Link><Link href={contributePath}>{t.footer.contribute}</Link><a href="https://github.com/VeejaLiu/duolinting" target="_blank" rel="noreferrer">{t.footer.source}</a><Link href={privacyPath}>{t.footer.privacy}</Link><Link href={termsPath}>{t.footer.terms}</Link><Link href={supportPath}>{t.footer.support}</Link></nav></div><p>{t.footer.statement}</p></div></footer>
+      <footer className="site-footer"><div className="site-shell"><div className="footer-top"><button className="brand" type="button" onClick={() => scrollToSection("top")}><Image className="brand-logo" src="/duolinting-logo-ear.png" alt="" width={44} height={42} /><span><strong>DuolinTing</strong><small>多邻听</small></span></button><nav><button type="button" onClick={() => scrollToSection("product")}>{t.footer.product}</button><Link href={downloadPath}>{t.footer.download}</Link><Link href={blogPath}>{t.footer.blog}</Link><Link href={contributePath}>{t.footer.contribute}</Link><a href="https://github.com/VeejaLiu/duolinting" target="_blank" rel="noreferrer">{t.footer.source}</a><Link href={privacyPath}>{t.footer.privacy}</Link><Link href={termsPath}>{t.footer.terms}</Link><Link href={supportPath}>{t.footer.support}</Link></nav></div><p>{t.footer.statement}</p></div></footer>
     </main>
   );
 }
