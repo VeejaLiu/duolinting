@@ -13,6 +13,12 @@
       "expo-secure-store",
       "expo-localization",
       [
+        "expo-audio",
+        {
+          "microphonePermission": "DuolinTing 需要使用麦克风录音，用于跟读练习。"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#FFFFFF",
@@ -23,7 +29,7 @@
     ],
     "ios": {
       "bundleIdentifier": "com.duolinting.app",
-      "buildNumber": "9",
+      "buildNumber": "10",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
