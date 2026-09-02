@@ -19,6 +19,7 @@ Optional environment variables:
   BUILDKIT_BUILDER=duolinting-buildkit        Dedicated docker-container builder.
   BUILDKIT_MEMORY_LIMIT=1280m                 Memory limit for the builder.
   BUILDKIT_CPU_QUOTA=200000                   CPU quota (2 CPUs at 100000us period).
+  BUILDKIT_IMAGE=moby/buildkit:v0.14.1        Pinned BuildKit image.
 
 Run deploy:sync-sources -- release first. This command verifies that the
 server has the same committed source revision, then builds only the named
@@ -48,6 +49,7 @@ min_free_gib="${MIN_FREE_GIB:-6}"
 buildkit_builder="${BUILDKIT_BUILDER:-duolinting-buildkit}"
 buildkit_memory_limit="${BUILDKIT_MEMORY_LIMIT:-1280m}"
 buildkit_cpu_quota="${BUILDKIT_CPU_QUOTA:-200000}"
+buildkit_image="${BUILDKIT_IMAGE:-moby/buildkit:v0.14.1}"
 cd "$root_dir"
 
 image_for_service() {
@@ -94,6 +96,11 @@ if ! [[ "$buildkit_cpu_quota" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
+if ! [[ "$buildkit_image" =~ ^[A-Za-z0-9./:_-]+$ ]]; then
+  printf 'BUILDKIT_IMAGE contains unsupported characters: %s\n' "$buildkit_image" >&2
+  exit 2
+fi
+
 memory_number="${buildkit_memory_limit%?}"
 memory_unit="${buildkit_memory_limit: -1}"
 case "$memory_unit" in
@@ -104,6 +111,10 @@ esac
 buildkit_builder_quoted="$(printf '%q' "$buildkit_builder")"
 buildkit_memory_limit_quoted="$(printf '%q' "$buildkit_memory_limit")"
 buildkit_cpu_quota_quoted="$(printf '%q' "$buildkit_cpu_quota")"
+buildkit_image_quoted="$(printf '%q' "$buildkit_image")"
+buildkit_config_path_quoted="$(printf '%q' "$remote_dir/.duolinting-buildkitd.toml")"
+buildkit_signature_path_quoted="$(printf '%q' "$remote_dir/.duolinting-buildkit.signature")"
+buildkit_signature="memory=$buildkit_memory_limit;cpu-quota=$buildkit_cpu_quota;image=$buildkit_image"
 
 printf 'Building production images on %s for: %s\n' "$DEPLOY_HOST" "${services[*]}"
 ssh "$DEPLOY_HOST" "set -euo pipefail
@@ -121,11 +132,35 @@ fi
 builder=$buildkit_builder_quoted
 builder_memory=$buildkit_memory_limit_quoted
 builder_cpu_quota=$buildkit_cpu_quota_quoted
+builder_image=$buildkit_image_quoted
+builder_config=$buildkit_config_path_quoted
+builder_signature_file=$buildkit_signature_path_quoted
 builder_container=\"buildx_buildkit_${buildkit_builder}0\"
+if [ ! -f \"\$builder_config\" ]; then
+  cat > \"\$builder_config\" <<'BUILDKIT_CONFIG'
+[registry."docker.io"]
+  mirrors = ["https://mirror.ccs.tencentyun.com", "https://docker.m.daocloud.io"]
+
+[worker.oci]
+  max-parallelism = 1
+BUILDKIT_CONFIG
+elif ! grep -Fq 'mirror.ccs.tencentyun.com' \"\$builder_config\" || \\
+     ! grep -Fq 'max-parallelism = 1' \"\$builder_config\"; then
+  printf 'BuildKit config %s exists but is not the managed configuration\\n' \"\$builder_config\" >&2
+  exit 1
+fi
 if ! sudo docker buildx inspect \"\$builder\" >/dev/null 2>&1; then
   sudo docker buildx create --name \"\$builder\" --driver docker-container \\
+    --buildkitd-config \"\$builder_config\" \\
+    --driver-opt \"image=\$builder_image\" \\
     --driver-opt \"memory=\$builder_memory\" \\
     --driver-opt \"cpu-quota=\$builder_cpu_quota\" >/dev/null
+  printf '%s\\n' '$buildkit_signature' > \"\$builder_signature_file\"
+elif [ ! -f \"\$builder_signature_file\" ] || \\
+     [ \"\$(cat \"\$builder_signature_file\")\" != '$buildkit_signature' ]; then
+  printf 'BuildKit builder %s exists with an unknown or different configuration; remove it once before retrying\\n' \\
+    \"\$builder\" >&2
+  exit 1
 fi
 builder_driver=\$(sudo docker buildx inspect \"\$builder\" | awk '/^Driver:/ { print \$2; exit }')
 test \"\$builder_driver\" = docker-container || {
