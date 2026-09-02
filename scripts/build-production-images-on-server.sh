@@ -144,7 +144,8 @@ if [ ! -f \"\$builder_config\" ]; then
 [worker.oci]
   max-parallelism = 1
 BUILDKIT_CONFIG
-elif ! grep -Fq 'mirror.ccs.tencentyun.com' \"\$builder_config\" || \\
+elif ! grep -Fq '[registry.\"docker.io\"]' \"\$builder_config\" || \\
+     ! grep -Fq 'mirrors = [\"mirror.ccs.tencentyun.com\", \"docker.m.daocloud.io\"]' \"\$builder_config\" || \\
      ! grep -Fq 'max-parallelism = 1' \"\$builder_config\"; then
   printf 'BuildKit config %s exists but is not the managed configuration\\n' \"\$builder_config\" >&2
   exit 1
