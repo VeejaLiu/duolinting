@@ -73,3 +73,7 @@ EXPO_PUBLIC_API_BASE_URL=http://192.168.1.20:8100 npm run dev:mobile-app
 - 还没有 Apple / Google 登录
 - 还没有推送通知、打卡提醒、订阅付费
 - 还没有完整自动化测试矩阵
+
+## iOS 商店发布
+
+iOS 正式商店包统一通过本机 Xcode 完成原生工程同步、Archive、验证和上传。完整流程见：[iOS-Xcode-本地商店发布流程](../docs/iOS-Xcode-本地商店发布流程.md)。
