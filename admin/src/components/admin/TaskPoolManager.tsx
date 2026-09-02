@@ -8,6 +8,7 @@ import {
   Pagination,
   Space,
   Select,
+  Spin,
   Table,
   Tabs,
   Tag,
@@ -28,6 +29,7 @@ import {
 import type {
   AdminReviewTask,
   AdminSubtitleWorkflowTaskInbox,
+  AdminTaskClaimPolicy,
   AdminUser,
   AdminWorkflowOverview,
   ClaimableWorkflowTask,
@@ -43,7 +45,16 @@ type TaskPoolManagerProps = {
   categories: ExerciseCategory[]
   onNotify: (message: string, tone?: 'info' | 'success' | 'error') => void
   /** 领取成功后通知父级刷新课程列表与任务中心。 */
-  onClaimed?: () => void
+  onClaimed?: () => void | Promise<void>
+  /** 放弃任务后通知父级刷新课程列表与任务中心。 */
+  onReleased?: () => void | Promise<void>
+  onRequestConfirm: (options: {
+    title: string
+    message: string
+    confirmLabel?: string
+    cancelLabel?: string
+    tone?: 'danger' | 'default'
+  }) => Promise<boolean>
   workflowInbox: AdminSubtitleWorkflowTaskInbox
   reviewTasks: AdminReviewTask[]
   onReviewSubtitleDraft?: (exerciseId: number) => void
@@ -104,14 +115,18 @@ export function TaskPoolManager({
   categories,
   onNotify,
   onClaimed,
+  onReleased,
+  onRequestConfirm,
   workflowInbox,
   reviewTasks,
   onReviewSubtitleDraft,
   onEditCourse,
 }: TaskPoolManagerProps) {
   const [pool, setPool] = useState<ClaimableWorkflowTask[]>([])
+  const [policy, setPolicy] = useState<AdminTaskClaimPolicy | null>(null)
   const [overview, setOverview] = useState<AdminWorkflowOverview | null>(null)
-  const [loading, setLoading] = useState(false)
+  // 初始为 true，避免首帧把空列表误显成「没有任务」的空态。
+  const [loading, setLoading] = useState(true)
   const [busyExerciseId, setBusyExerciseId] = useState<number | null>(null)
   const [poolPage, setPoolPage] = useState(1)
   const [poolPageSize, setPoolPageSize] = useState(20)
@@ -141,6 +156,7 @@ export function TaskPoolManager({
         ...(selectedGroupId ? { groupId: selectedGroupId } : {}),
         ...(selectedCategoryId ? { categoryId: selectedCategoryId } : {}),
       })
+      setPolicy(poolResult.policy)
       const lastPage = Math.max(1, Math.ceil(poolResult.total / poolPageSize))
       if (poolPage > lastPage) {
         setPool([])
@@ -171,7 +187,8 @@ export function TaskPoolManager({
     try {
       await apiClient.claimWorkflowTask(exerciseId, adminToken)
       onNotify('已领取该课程，进入「我的任务」即可开始校对', 'success')
-      onClaimed?.()
+      // 先刷新任务中心再切到「我的任务」，避免刚领取的任务短暂看不到。
+      await onClaimed?.()
       setActiveTab('mine')
       await refresh()
     } catch (error) {
@@ -182,7 +199,29 @@ export function TaskPoolManager({
     }
   }
 
+  const release = async (exerciseId: number) => {
+    const confirmed = await onRequestConfirm({
+      title: '放弃任务',
+      message: '放弃后该课程会回到任务池，其他贡献者可以重新领取；你已保存的校对草稿会保留。',
+      confirmLabel: '确认放弃',
+      tone: 'danger',
+    })
+    if (!confirmed) return
+    setBusyExerciseId(exerciseId)
+    try {
+      await apiClient.releaseWorkflowTask(exerciseId, adminToken)
+      onNotify('已放弃该课程，任务已回到任务池', 'success')
+      await onReleased?.()
+      await refresh()
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : '放弃任务失败', 'error')
+    } finally {
+      setBusyExerciseId(null)
+    }
+  }
+
   const activeTaskCount = workflowInbox.items.filter((task) => task.stage !== 'completed').length
+  const isClaimLimitReached = !!policy && policy.myActiveClaimCount >= policy.maxConcurrentClaims
 
   const claimableTab = (
     <Space direction="vertical" size={12} style={{ display: 'flex' }}>
@@ -221,8 +260,21 @@ export function TaskPoolManager({
         />
       </div>
 
+      {!isSuperAdmin && policy && (
+        <Typography.Text
+          style={{ fontSize: 12 }}
+          type={isClaimLimitReached ? 'danger' : 'secondary'}
+        >
+          {isClaimLimitReached
+            ? `你已持有 ${policy.myActiveClaimCount}/${policy.maxConcurrentClaims} 门课程，需先完成或放弃现有任务才能继续领取`
+            : `当前持有 ${policy.myActiveClaimCount}/${policy.maxConcurrentClaims} 门课程，领取后保存草稿自动续期 ${policy.claimWindowHours} 小时`}
+        </Typography.Text>
+      )}
+
       <div className="task-pool-list">
-        {pool.length === 0 ? (
+        {loading && pool.length === 0 ? (
+          <Spin style={{ display: 'block', margin: '32px auto' }} />
+        ) : pool.length === 0 ? (
           <Empty
             description={isSuperAdmin
               ? '当前筛选条件下没有任务。请到「课程管理」补充课程草稿，或检查是否有媒体未就绪的课程。'
@@ -248,8 +300,13 @@ export function TaskPoolManager({
                   仅字幕贡献者可领取
                 </Typography.Text>
               ) : (
-                <Tooltip title={task.claimReleaseCount > 0 ? `该课程曾被领取后释放 ${task.claimReleaseCount} 次` : '领取后锁定给你，保存草稿会自动续期'}>
+                <Tooltip title={isClaimLimitReached
+                  ? `你已持有 ${policy?.maxConcurrentClaims ?? 0} 门课程，需先完成或放弃现有任务`
+                  : task.claimReleaseCount > 0
+                    ? `该课程曾被领取后释放 ${task.claimReleaseCount} 次`
+                    : '领取后锁定给你，保存草稿会自动续期'}>
                   <Button
+                    disabled={isClaimLimitReached}
                     icon={<Lock size={14} />}
                     loading={busyExerciseId === task.exerciseId}
                     onClick={() => void claim(task.exerciseId)}
@@ -316,36 +373,37 @@ export function TaskPoolManager({
       </div>
 
       <Typography.Text className="task-section-title" strong>当前任务</Typography.Text>
-      {workflowInbox.items.filter((task) => task.stage !== 'completed').length === 0 ? (
-        <Empty description="当前没有待处理字幕任务。" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      {workflowInbox.items.filter((task) => task.stage !== 'completed' && task.stage !== 'awaiting_review').length === 0 ? (
+        <Empty description="当前没有待校对或待修改的字幕任务。" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
         <div className="my-task-list">
-          {workflowInbox.items.filter((task) => task.stage !== 'completed').map((task) => (
+          {workflowInbox.items.filter((task) => task.stage !== 'completed' && task.stage !== 'awaiting_review').map((task) => (
             <div className="my-task-item" key={`${task.exerciseId}-${task.draftId}-${task.role}-${task.stage}`}>
               <div className="my-task-item-main">
                 <Typography.Text className="my-task-item-title">{task.exerciseTitle}</Typography.Text>
                 <Typography.Text type="secondary">
-                  {task.role === 'second_reviewer' ? '审核' : '校对'} · {task.contributorDisplayName} · {task.stage === 'awaiting_review' ? '等待审核' : task.stage === 'returned' ? `退回修改${task.reviewNote ? `：${task.reviewNote}` : ''}` : '校对中'}
+                  校对 · {task.contributorDisplayName} · {task.stage === 'returned' ? `退回修改${task.reviewNote ? `：${task.reviewNote}` : ''}` : '校对中'}
                 </Typography.Text>
               </div>
               <Space className="my-task-item-actions" size={8}>
-                {task.stage === 'awaiting_review' && reviewTasks.some((item) => item.draftId === task.draftId) && (
-                  <Button onClick={() => onReviewSubtitleDraft?.(task.exerciseId)} size="small" type="primary">开始审核</Button>
-                )}
-                {(task.stage === 'proofreading' || task.stage === 'returned') && (
-                  <>
-                    {(() => {
-                      const deadline = formatClaimDeadline(task.claimExpiresAt)
-                      return deadline
-                        ? <Tag color={deadline.expired ? 'red' : 'blue'} icon={<Clock size={12} />} variant="outlined">{deadline.text}</Tag>
-                        : null
-                    })()}
-                    <Button
-                      onClick={() => onEditCourse(task.exerciseId)}
-                      size="small"
-                      type="primary"
-                    >{task.stage === 'returned' ? '继续修改' : '开始校对'}</Button>
-                  </>
+                {(() => {
+                  const deadline = formatClaimDeadline(task.claimExpiresAt)
+                  return deadline
+                    ? <Tag color={deadline.expired ? 'red' : 'blue'} icon={<Clock size={12} />} variant="outlined">{deadline.text}</Tag>
+                    : null
+                })()}
+                <Button
+                  onClick={() => onEditCourse(task.exerciseId)}
+                  size="small"
+                  type="primary"
+                >{task.stage === 'returned' ? '继续修改' : '开始校对'}</Button>
+                {task.assignmentSource === 'self_claimed' && (
+                  <Button
+                    danger
+                    loading={busyExerciseId === task.exerciseId}
+                    onClick={() => void release(task.exerciseId)}
+                    size="small"
+                  >放弃任务</Button>
                 )}
               </Space>
             </div>
@@ -463,7 +521,7 @@ export function TaskPoolManager({
     ...(isSuperAdmin ? [{ key: 'overview', label: '任务池概览', children: overviewTab }] : []),
     {
       key: 'claimable',
-      label: <Space size={6}><Inbox size={14} />可领取<Badge count={pool.length} color="#1cb0f6" showZero overflowCount={99} /></Space>,
+      label: <Space size={6}><Inbox size={14} />可领取<Badge count={poolTotal} color="#1cb0f6" showZero overflowCount={99} /></Space>,
       children: claimableTab,
     },
     ...(!isSuperAdmin ? [{

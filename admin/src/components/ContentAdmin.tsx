@@ -1202,10 +1202,15 @@ export function ContentAdmin({
           categoryGroups={categoryGroups}
           categories={categories}
           onNotify={onNotify}
-          onClaimed={() => {
-            void refreshWorkflowInbox()
-            void onRefreshCatalog()
+          onClaimed={async () => {
+            await refreshWorkflowInbox()
+            await onRefreshCatalog()
           }}
+          onReleased={async () => {
+            await refreshWorkflowInbox()
+            await onRefreshCatalog()
+          }}
+          onRequestConfirm={onRequestConfirm}
           workflowInbox={workflowInbox}
           reviewTasks={reviewTasks}
           onReviewSubtitleDraft={(exerciseId) => {
