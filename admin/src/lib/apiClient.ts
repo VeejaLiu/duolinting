@@ -99,6 +99,35 @@ const formatApiError = (errorBody: ApiErrorBody | undefined, status: number) => 
   return errorBody?.message ?? `API request failed: ${status}`
 }
 
+/** 携带 HTTP 状态码的请求错误，便于上层区分「会话失效(401)」与其它失败。 */
+export class ApiClientError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiClientError'
+    this.status = status
+  }
+}
+
+let onUnauthorizedHandler: (() => void) | null = null
+
+/**
+ * 注册全局「后台会话失效」回调；传入 null 可注销。
+ * 仅当携带 adminToken 的请求返回 401 时触发，登录接口的 401（密码错误）不会命中。
+ */
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  onUnauthorizedHandler = handler
+}
+
+const reportUnauthorizedIfNeeded = (
+  status: number,
+  options?: { adminToken?: string; authToken?: string },
+) => {
+  if (status === 401 && options?.adminToken) {
+    onUnauthorizedHandler?.()
+  }
+}
+
 const fetchJson = async <T>(
   path: string,
   init?: RequestInit,
@@ -125,7 +154,8 @@ const fetchJson = async <T>(
     const errorBody = (await response.json().catch(() => undefined)) as
       | ApiErrorBody
       | undefined
-    throw new Error(formatApiError(errorBody, response.status))
+    reportUnauthorizedIfNeeded(response.status, options)
+    throw new ApiClientError(formatApiError(errorBody, response.status), response.status)
   }
 
   return response.json() as Promise<T>
@@ -189,9 +219,11 @@ const uploadFile = async <T>(
         return
       }
 
+      reportUnauthorizedIfNeeded(request.status, options)
       reject(
-        new Error(
+        new ApiClientError(
           formatApiError(body as ApiErrorBody | undefined, request.status),
+          request.status,
         ),
       )
     }

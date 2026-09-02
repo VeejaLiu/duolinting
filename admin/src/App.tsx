@@ -14,7 +14,7 @@ import {
   AdminConfirmDialog,
   type AdminNoticeTone,
 } from './components/admin/AdminFeedback'
-import { apiClient } from './lib/apiClient'
+import { apiClient, ApiClientError, setUnauthorizedHandler } from './lib/apiClient'
 import {
   ADMIN_TOKEN_STORAGE_KEY,
   ADMIN_USER_STORAGE_KEY,
@@ -88,6 +88,24 @@ function App() {
     appMessage[tone]({ content, duration })
   }, [appMessage])
 
+  // 任何携带 adminToken 的请求返回 401 都视为会话失效，统一清会话并回登录页。
+  // 用 ref 持有最新的清会话/提示函数，避免 effect 依赖项随渲染漂移。
+  const sessionExpiredNotifiedRef = useRef(false)
+  const handleSessionExpiredRef = useRef<() => void>(() => {})
+  handleSessionExpiredRef.current = () => {
+    clearAdminSession()
+    // 并发多个请求同时 401 时，只提示一次，避免刷屏。
+    if (!sessionExpiredNotifiedRef.current) {
+      sessionExpiredNotifiedRef.current = true
+      showNotice('管理员登录已过期，请重新登录', 'error')
+    }
+  }
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => handleSessionExpiredRef.current())
+    return () => setUnauthorizedHandler(null)
+  }, [])
+
   const requestConfirm = (options: {
     title: string
     message: string
@@ -158,7 +176,11 @@ function App() {
         // 这样迁移后的超级管理员无需手动清除浏览器缓存就能看见协作管理面板。
         localStorage.setItem(ADMIN_USER_STORAGE_KEY, JSON.stringify(currentAdmin))
         setAdminUser(currentAdmin)
-      } catch {
+      } catch (error) {
+        // 会话失效(401)已由全局 handler 统一清会话并回登录页；这里只兜底网络错误等其它情况。
+        if (error instanceof ApiClientError && error.status === 401) {
+          return
+        }
         clearAdminSession()
         showNotice('管理员登录已过期，请重新登录', 'error')
         return
@@ -175,6 +197,7 @@ function App() {
       localStorage.setItem(ADMIN_USER_STORAGE_KEY, JSON.stringify(result.user))
       setAdminToken(result.token)
       setAdminUser(result.user)
+      sessionExpiredNotifiedRef.current = false
       showNotice('管理员已登录', 'success')
     } catch (error) {
       showNotice(error instanceof Error ? error.message : '登录失败', 'error')
