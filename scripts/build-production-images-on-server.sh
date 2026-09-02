@@ -127,7 +127,7 @@ if ! sudo docker buildx inspect \"\$builder\" >/dev/null 2>&1; then
     --driver-opt \"memory=\$builder_memory\" \\
     --driver-opt \"cpu-quota=\$builder_cpu_quota\" >/dev/null
 fi
-builder_driver=\$(sudo docker buildx inspect \"\$builder\" | awk -F': ' '\$1 == \"Driver\" { print \$2; exit }')
+builder_driver=\$(sudo docker buildx inspect \"\$builder\" | awk '/^Driver:/ { print \$2; exit }')
 test \"\$builder_driver\" = docker-container || {
   printf 'BuildKit builder %s must use docker-container, got %s\\n' \"\$builder\" \"\$builder_driver\" >&2
   exit 1
