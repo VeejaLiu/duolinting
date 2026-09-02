@@ -138,8 +138,8 @@ builder_signature_file=$buildkit_signature_path_quoted
 builder_container=\"buildx_buildkit_${buildkit_builder}0\"
 if [ ! -f \"\$builder_config\" ]; then
   cat > \"\$builder_config\" <<'BUILDKIT_CONFIG'
-[registry."docker.io"]
-  mirrors = ["mirror.ccs.tencentyun.com", "docker.m.daocloud.io"]
+[registry.\"docker.io\"]
+  mirrors = [\"mirror.ccs.tencentyun.com\", \"docker.m.daocloud.io\"]
 
 [worker.oci]
   max-parallelism = 1
