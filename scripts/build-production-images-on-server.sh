@@ -96,7 +96,7 @@ fi
 
 memory_number="${buildkit_memory_limit%?}"
 memory_unit="${buildkit_memory_limit: -1}"
-case "${memory_unit,,}" in
+case "$memory_unit" in
   m) buildkit_memory_bytes=$((memory_number * 1024 * 1024)) ;;
   g) buildkit_memory_bytes=$((memory_number * 1024 * 1024 * 1024)) ;;
 esac
