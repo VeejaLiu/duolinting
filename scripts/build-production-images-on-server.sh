@@ -139,7 +139,7 @@ builder_container=\"buildx_buildkit_${buildkit_builder}0\"
 if [ ! -f \"\$builder_config\" ]; then
   cat > \"\$builder_config\" <<'BUILDKIT_CONFIG'
 [registry."docker.io"]
-  mirrors = ["https://mirror.ccs.tencentyun.com", "https://docker.m.daocloud.io"]
+  mirrors = ["mirror.ccs.tencentyun.com", "docker.m.daocloud.io"]
 
 [worker.oci]
   max-parallelism = 1
