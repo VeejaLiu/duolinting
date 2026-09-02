@@ -10,8 +10,13 @@ COPY packages/app-config/package.json packages/app-config/package.json
 COPY packages/ui-tokens/package.json packages/ui-tokens/package.json
 COPY packages/api-client/package.json packages/api-client/package.json
 COPY packages/shared/package.json packages/shared/package.json
+# The backend build only needs its own toolchain plus the two shared runtime
+# packages. Installing the mobile/admin workspaces here used to create a large
+# avoidable memory spike whenever this layer was rebuilt from scratch.
 RUN --mount=type=cache,id=duolinting-npm,target=/root/.npm,sharing=locked \
-    npm ci --workspaces --include-workspace-root
+    npm ci --workspace @duolinting/backend \
+    --workspace @duolinting/domain --workspace @duolinting/shared \
+    --ignore-scripts --no-audit --no-fund
 
 FROM deps AS build
 COPY packages/domain packages/domain
