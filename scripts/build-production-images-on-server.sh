@@ -163,7 +163,7 @@ elif [ ! -f \"\$builder_signature_file\" ] || \\
     \"\$builder\" >&2
   exit 1
 fi
-builder_driver=\$(sudo docker buildx inspect \"\$builder\" | awk '/^Driver:/ { print \$2; exit }')
+builder_driver=\$(sudo docker buildx inspect \"\$builder\" | awk '/^Driver:/ { print \$2 }')
 test \"\$builder_driver\" = docker-container || {
   printf 'BuildKit builder %s must use docker-container, got %s\\n' \"\$builder\" \"\$builder_driver\" >&2
   exit 1
