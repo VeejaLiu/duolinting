@@ -12,6 +12,7 @@ import type {
 } from '@duolinting/shared'
 import type { AdminNoticeTone } from './AdminFeedback'
 import { apiClient, resolveApiUrl } from '../../lib/apiClient'
+import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type ListeningVideoRecorderProps = {
   adminToken: string
@@ -106,6 +107,7 @@ export function ListeningVideoRecorder({
   exercises,
   onNotify,
 }: ListeningVideoRecorderProps) {
+  const { t } = useAdminLanguage()
   const [searchParams] = useSearchParams()
   // 音频、视频共用同一个时间轴控制器。视频必须由 video 元素实际渲染，
   // 不能再把 mp4 放进 audio 元素，否则录屏只有声音与封面、没有原始画面。
@@ -231,7 +233,7 @@ export function ListeningVideoRecorder({
       .catch((error) => {
         if (!cancelled) {
           setExercise(null)
-          onNotify(`课程加载失败：${error instanceof Error ? error.message : '未知错误'}`, 'error')
+          onNotify(t('课程加载失败：{{error}}', { error: error instanceof Error ? error.message : t('未知错误') }), 'error')
         }
       })
       .finally(() => {
@@ -241,7 +243,7 @@ export function ListeningVideoRecorder({
     return () => {
       cancelled = true
     }
-  }, [adminToken, onNotify, selectedExerciseId])
+  }, [adminToken, onNotify, selectedExerciseId, t])
 
   useEffect(() => () => {
     runIdRef.current += 1
@@ -345,7 +347,7 @@ export function ListeningVideoRecorder({
         frameId = window.requestAnimationFrame(checkEnd)
       } catch {
         if (runIdRef.current === runId) {
-          onNotify('媒体无法播放，已停止录制。请确认该课程的媒体文件可以正常播放。', 'error')
+          onNotify(t('媒体无法播放，已停止录制。请确认该课程的媒体文件可以正常播放。'), 'error')
         }
         finish(false)
       }
@@ -372,7 +374,7 @@ export function ListeningVideoRecorder({
     setPhase('countdown')
     setCountdown(START_COUNTDOWN_SECONDS)
     if (!await waitForMediaReady(media, runId)) {
-      onNotify('课程媒体还没有准备好，请稍候再试。', 'info')
+      onNotify(t('课程媒体还没有准备好，请稍候再试。'), 'info')
       setPhase('idle')
       return
     }
@@ -409,9 +411,9 @@ export function ListeningVideoRecorder({
   }
 
   const openCanvasFullscreen = () => {
-    // 全屏的是外层专注容器，内部成片画布始终维持 9:16，避免横屏时拉伸原视频。
+    // 全屏的是外层专注容器，内部成片画布始终维持竖屏 3:4，避免横屏时拉伸原视频。
     void focusShellRef.current?.requestFullscreen?.().catch(() => {
-      onNotify('无法进入专注录制模式，请检查浏览器权限设置。', 'error')
+      onNotify(t('无法进入专注录制模式，请检查浏览器权限设置。'), 'error')
     })
   }
 
@@ -429,15 +431,15 @@ export function ListeningVideoRecorder({
   const isTranscriptVisible = phase === 'show-transcript' || phase === 'complete'
   const playableLineCount = exercise?.lines.filter(isPlayableLine).length ?? 0
   const recordingUnavailableReason = !exercise
-    ? '正在加载课程'
+    ? t('正在加载课程')
     : !exercise.audioUrl
-      ? '该课程还没有上传媒体'
+      ? t('该课程还没有上传媒体')
       : playableLineCount === 0
-        ? '该课程还没有可播放的字幕时间轴'
+        ? t('该课程还没有可播放的字幕时间轴')
         : !isMediaReady
-          ? '正在准备课程媒体'
+          ? t('正在准备课程媒体')
           : null
-  const canStartRecording = !recordingUnavailableReason || recordingUnavailableReason === '正在准备课程媒体'
+  const canStartRecording = !recordingUnavailableReason || recordingUnavailableReason === t('正在准备课程媒体')
   const completedLineCount = exercise
     ? phase === 'complete'
       ? exercise.lines.length
@@ -447,37 +449,37 @@ export function ListeningVideoRecorder({
     ? Math.round((completedLineCount / exercise.lines.length) * 100)
     : 0
   const phaseRoundLabel = phase === 'blind-listen'
-    ? `第 ${Math.max(playbackRound, 1)} / 2 遍`
+    ? t('第 {{current}} / 2 遍', { current: Math.max(playbackRound, 1) })
     : phase === 'show-transcript'
-      ? '第 3 / 3 遍'
+      ? t('第 3 / 3 遍')
       : null
 
   return (
     <div className="recorder-workspace">
       <header className="recorder-header">
         <div>
-          <h2>视频录制</h2>
-          <p>以固定竖屏画布自动播放逐句精听；在专注录制模式下框选画布即可录制成片。</p>
+          <h2>{t('视频录制')}</h2>
+          <p>{t('以固定竖屏画布自动播放逐句精听；在专注录制模式下框选画布即可录制成片。')}</p>
         </div>
         <div className="recorder-controls">
           <button className="command-button secondary" disabled={isRunning} onClick={stop} type="button">
-            <RotateCcw size={15} /> 重置
+            <RotateCcw size={15} /> {t('重置')}
           </button>
           <button className="command-button secondary" onClick={openCanvasFullscreen} type="button">
-            <Expand size={15} /> 专注录制模式
+            <Expand size={15} /> {t('专注录制模式')}
           </button>
           {!isRunning && (
             <button className="command-button" disabled={!canStartRecording || loading} onClick={() => void runRecording()} type="button">
-              <Play size={15} /> 开始录制
+              <Play size={15} /> {t('开始录制')}
             </button>
           )}
-          {isRunning && <button className="command-button secondary" onClick={stop} type="button"><Square size={15} /> 停止</button>}
+          {isRunning && <button className="command-button secondary" onClick={stop} type="button"><Square size={15} /> {t('停止')}</button>}
         </div>
       </header>
 
-      <section className="recorder-settings" aria-label="录制配置">
+      <section className="recorder-settings" aria-label={t('录制配置')}>
         <div className="recorder-course-picker">
-          <span className="recorder-settings-label">录制课程</span>
+          <span className="recorder-settings-label">{t('录制课程')}</span>
           <Cascader
             className="recorder-course-select"
             disabled={isRunning || courseCascaderOptions.length === 0}
@@ -487,20 +489,20 @@ export function ListeningVideoRecorder({
               if (typeof courseId === 'string' && /^\d+$/.test(courseId)) selectExercise(courseId)
             }}
             options={courseCascaderOptions}
-            placeholder="选择内容分类、学习系列和课程"
+            placeholder={t('选择内容分类、学习系列和课程')}
             value={selectedCoursePath}
           />
         </div>
         <div className="recorder-course-status" aria-live="polite">
-          {exercise && <Tag color={exercise.status === 'published' ? 'green' : exercise.status === 'proofread' ? 'blue' : exercise.status === 'draft' ? 'gold' : 'default'} variant="filled">{statusLabel(exercise.status)}</Tag>}
-          {exercise && <Tag color={isVideoExercise ? 'blue' : 'cyan'} variant="filled">{isVideoExercise ? '视频' : '音频'}</Tag>}
-          {exercise && <span>{playableLineCount} 句可录制字幕</span>}
-          {!exercise && !loading && <span>请选择课程</span>}
+          {exercise && <Tag color={exercise.status === 'published' ? 'green' : exercise.status === 'proofread' ? 'blue' : exercise.status === 'draft' ? 'gold' : 'default'} variant="filled">{statusLabel(exercise.status, t)}</Tag>}
+          {exercise && <Tag color={isVideoExercise ? 'blue' : 'cyan'} variant="filled">{isVideoExercise ? t('视频') : t('音频')}</Tag>}
+          {exercise && <span>{t('{{count}} 句可录制字幕', { count: playableLineCount })}</span>}
+          {!exercise && !loading && <span>{t('请选择课程')}</span>}
         </div>
         <div className="recorder-translation-control">
           <div>
-            <strong>成片语言</strong>
-            <span>{contentLocale === 'en-US' ? '仅显示英文原句' : `英文原句 + ${translatedLineCount} / ${exercise?.lines.length ?? 0} 句译文`}</span>
+            <strong>{t('成片语言')}</strong>
+            <span>{contentLocale === 'en-US' ? t('仅显示英文原句') : t('英文原句 + {{translated}} / {{total}} 句译文', { translated: translatedLineCount, total: exercise?.lines.length ?? 0 })}</span>
           </div>
           <Select
             className="recorder-locale-select"
@@ -515,15 +517,15 @@ export function ListeningVideoRecorder({
 
       <div className="recorder-stage-area" ref={focusShellRef}>
         {/* 全屏后页面顶部工具栏不在全屏元素内，因此在专注容器内提供同一组播放控制。 */}
-        <div className="recorder-focus-controls" role="toolbar" aria-label="专注录制控制">
+        <div className="recorder-focus-controls" role="toolbar" aria-label={t('专注录制控制')}>
           {!isRunning && (
             <button className="command-button" disabled={!canStartRecording || loading} onClick={() => void runRecording()} type="button">
-              <Play size={15} /> 开始录制
+              <Play size={15} /> {t('开始录制')}
             </button>
           )}
-          {isRunning && <button className="command-button secondary" onClick={stop} type="button"><Square size={15} /> 停止</button>}
+          {isRunning && <button className="command-button secondary" onClick={stop} type="button"><Square size={15} /> {t('停止')}</button>}
           <button className="command-button secondary" onClick={closeCanvasFullscreen} type="button">
-            <Minimize2 size={15} /> 退出专注
+            <Minimize2 size={15} /> {t('退出专注')}
           </button>
         </div>
         <div className="recorder-canvas" ref={canvasRef}>
@@ -611,7 +613,7 @@ export function ListeningVideoRecorder({
                 <>
                   {/* 模糊层只用于填充横向媒体窗；清晰封面始终按原始比例显示在上层。 */}
                   <img alt="" aria-hidden="true" className="recorder-cover-blur" src={resolveApiUrl(exercise.coverImageUrl)} />
-                  <img alt="课程封面" className="recorder-cover-image" src={resolveApiUrl(exercise.coverImageUrl)} />
+                  <img alt={t('课程封面')} className="recorder-cover-image" src={resolveApiUrl(exercise.coverImageUrl)} />
                 </>
               )}
               {!isVideoExercise && !exercise?.coverImageUrl && (
@@ -629,7 +631,7 @@ export function ListeningVideoRecorder({
               {phase === 'countdown' && <p className="recorder-stage-copy">{messages.countdown}</p>}
               {phase === 'idle' && (
                 <>
-                  <p className="recorder-course-title">{exercise?.title ?? '请选择一节课程'}</p>
+                  <p className="recorder-course-title">{exercise?.title ?? t('请选择一节课程')}</p>
                   <p className="recorder-stage-copy">{messages.idleDescription}</p>
                 </>
               )}
@@ -646,10 +648,10 @@ export function ListeningVideoRecorder({
           </main>
 
           <footer className="recorder-canvas-footer">
-            <div aria-label={`课程进度 ${progressPercentage}%`} className="recorder-progress-track">
+            <div aria-label={t('课程进度 {{percentage}}%', { percentage: progressPercentage })} className="recorder-progress-track">
               <span style={{ width: `${progressPercentage}%` }} />
             </div>
-            <span>逐句精听</span>
+            <span>{t('逐句精听')}</span>
           </footer>
         </div>
       </div>
@@ -675,9 +677,9 @@ const hasLineLocale = (line: TranscriptLine, locale: ContentLocale) => {
   return Boolean(line.translations?.[locale]?.trim())
 }
 
-const statusLabel = (status: ListeningExercise['status']) => ({
+const statusLabel = (status: ListeningExercise['status'], t: (key: string) => string) => t({
   draft: '草稿',
   proofread: '已校对',
   published: '已发布',
   archived: '已归档',
-})[status]
+}[status])

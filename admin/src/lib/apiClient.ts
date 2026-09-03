@@ -26,6 +26,7 @@ import type {
   CreateCategoryRequest,
   CreateExerciseRequest,
   CreateTranscriptLineRequest,
+  ExerciseSubtitleVersion,
   ImageUploadResponse,
   ListeningExercise,
   PreviewVolunteer,
@@ -600,6 +601,18 @@ export const apiClient = {
     fetchJson<AdminContentResponse>(
       `/api/v1/admin/subtitle-drafts/${draftId}/return`,
       { method: 'POST', body: JSON.stringify({ reviewNote }) },
+      { adminToken },
+    ),
+  revertPublishedSubtitle: (exerciseId: number, reason: string, adminToken: string) =>
+    fetchJson<AdminContentResponse>(
+      `/api/v1/admin/exercises/${exerciseId}/subtitle-revert`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
+      { adminToken },
+    ),
+  getExerciseSubtitleVersions: (exerciseId: number, adminToken: string) =>
+    fetchJson<{ items: ExerciseSubtitleVersion[] }>(
+      `/api/v1/admin/exercises/${exerciseId}/subtitle-versions`,
+      { method: 'GET' },
       { adminToken },
     ),
   getAdminMembers: (adminToken: string) =>

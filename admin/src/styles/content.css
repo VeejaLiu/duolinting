@@ -543,7 +543,8 @@
 }
 
 .recorder-canvas {
-  aspect-ratio: 9 / 16;
+  /* 竖屏 3:4（即高度:宽度为 4:3），比 9:16 更适合录制时同时容纳视频和字幕。 */
+  aspect-ratio: 3 / 4;
   background: #050505;
   border: 1px solid #202020;
   border-radius: 18px;
@@ -930,7 +931,7 @@
 /* 专注录制模式只放大环境，画布严格保持竖屏比例，适合系统录屏框选。 */
 .recorder-stage-area:fullscreen .recorder-canvas,
 .recorder-stage-area:-webkit-full-screen .recorder-canvas {
-  height: min(calc(100vh - 20px), calc((100vw - 48px) * 16 / 9));
+  height: min(calc(100vh - 20px), calc((100vw - 48px) * 4 / 3));
   max-height: none;
   width: auto;
 }
@@ -944,7 +945,12 @@
   .recorder-translation-control { border-left: 0; border-top: 1px solid #e2e8f0; padding-left: 0; padding-top: 12px; }
   .recorder-workspace { min-height: 0; }
   .recorder-stage-area { min-height: 560px; padding: 14px; }
-  .recorder-canvas { height: min(540px, calc(100vh - 360px)); max-height: 540px; width: min(100%, 304px); }
+  /* 窄屏只指定宽度，让 aspect-ratio 自动计算高度，避免固定宽高把画布重新拉回 9:16。 */
+  .recorder-canvas {
+    height: auto;
+    max-height: none;
+    width: min(100%, 405px, calc((100vh - 360px) * 3 / 4));
+  }
 }
 
 .course-toolbar,
@@ -3269,4 +3275,24 @@
 
 .batch-importer-table .ant-tag {
   margin-inline-end: 0;
+}
+
+/* 字幕版本历史：逐句时间轴 + 文案 */
+.subtitle-version-lines {
+  display: grid;
+  gap: 4px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.subtitle-version-line {
+  align-items: baseline;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 96px 1fr;
+}
+
+.subtitle-version-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
