@@ -151,6 +151,22 @@ export type SubtitleDraft = {
     updatedAt?: string;
 };
 
+/** 字幕版本历史的一个快照：提交、审核通过或回退时的字幕内容与理由。 */
+export type SubtitleVersionSource = 'submitted' | 'approved' | 'reverted';
+
+export type ExerciseSubtitleVersion = {
+    id: number;
+    exerciseId: number;
+    subtitleDraftId?: number;
+    versionNo: number;
+    lines: TranscriptLine[];
+    source: SubtitleVersionSource;
+    adminUserId: number;
+    adminDisplayName: string;
+    note?: string;
+    createdAt: string;
+};
+
 export type AdminExercisePage = {
     items: CatalogExerciseSummary[];
     page: number;
@@ -290,7 +306,8 @@ export type AdminWorkflowActivityType =
     | 'workflow_claim_expired'
     | 'subtitle_submitted'
     | 'subtitle_returned'
-    | 'subtitle_approved';
+    | 'subtitle_approved'
+    | 'subtitle_reverted';
 
 export type AdminWorkflowActivity = {
     id: number;

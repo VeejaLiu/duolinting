@@ -21,9 +21,11 @@ import {
     listMySubtitleReviewTasks,
     listMySubtitleWorkflowInbox,
     listMyWorkflowNotifications,
+    listExerciseSubtitleVersions,
     listPreviewVolunteers,
     listLearnerUsers,
     releaseWorkflowTask,
+    revertPublishedSubtitle,
     updateContributorLearnerBinding,
     updateExerciseClaimAvailability,
     bindOwnContributorLearner,
@@ -968,5 +970,44 @@ router.post(
         }
     },
 );
+
+/** 超级管理员把已发布课程回退到草稿，重新进入校对流程（必须填写理由，留档）。 */
+router.post(
+    '/exercises/:exerciseId/subtitle-revert',
+    requireSuperAdmin,
+    body('reason').isString().trim().isLength({ min: 1, max: 4000 }),
+    validateErrorCheck,
+    async (req: any, res) => {
+        const exerciseId = toId(req.params.exerciseId);
+        if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+            return res.status(400).send({ success: false, message: 'Invalid exercise id' });
+        }
+        try {
+            await revertPublishedSubtitle({ exerciseId, adminId: req.admin.id, reason: req.body.reason });
+            res.status(200).send({ ok: true });
+        } catch (error) {
+            res.status(409).send({
+                success: false,
+                message: error instanceof Error ? error.message : '课程回退失败',
+            });
+        }
+    },
+);
+
+/** 字幕版本历史，供管理员与后续校对者回溯每一版。 */
+router.get('/exercises/:exerciseId/subtitle-versions', async (req: any, res) => {
+    const exerciseId = toId(req.params.exerciseId);
+    if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+        return res.status(400).send({ success: false, message: 'Invalid exercise id' });
+    }
+    try {
+        res.status(200).send({ items: await listExerciseSubtitleVersions(exerciseId) });
+    } catch (error) {
+        res.status(500).send({
+            success: false,
+            message: error instanceof Error ? error.message : '字幕版本历史加载失败',
+        });
+    }
+});
 
 export default router;

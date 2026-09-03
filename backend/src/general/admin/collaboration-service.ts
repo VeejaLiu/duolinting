@@ -18,8 +18,10 @@ import type {
     CourseWorkflowAssignmentSource,
     CourseWorkflowCredits,
     CreateTranscriptLineRequest,
+    ExerciseSubtitleVersion,
     SubtitleDraft,
     SubtitleDraftStatus,
+    SubtitleVersionSource,
     TranscriptLine,
 } from '../../domain';
 import type { Transaction } from 'sequelize';
@@ -871,6 +873,46 @@ async function recordWorkflowActivity(
     );
 }
 
+/**
+ * 追加一条字幕版本快照。版本号按课程内单调递增，只追加、不覆盖，
+ * 与协作事件、通知共用同一事务，保证"有版本就有对应动态"。
+ */
+async function recordSubtitleVersion(
+    params: {
+        exerciseId: number;
+        subtitleDraftId?: number | null;
+        source: SubtitleVersionSource;
+        adminUserId: number;
+        transcriptLines: TranscriptLine[];
+        note?: string | null;
+    },
+    transaction: Transaction,
+) {
+    const [maxRow] = await sequelize.query<{ next_no: number | string }>(
+        `select coalesce(max(version_no), 0) + 1 as next_no
+         from exercise_subtitle_versions where exercise_id = :exerciseId`,
+        { replacements: { exerciseId: params.exerciseId }, type: QueryTypes.SELECT, transaction },
+    );
+    const versionNo = Number(maxRow?.next_no ?? 1);
+    await sequelize.query(
+        `insert into exercise_subtitle_versions
+           (exercise_id, subtitle_draft_id, version_no, transcript_json, source, admin_user_id, note)
+         values (:exerciseId, :subtitleDraftId, :versionNo, cast(:transcriptJson as json), :source, :adminUserId, :note)`,
+        {
+            replacements: {
+                exerciseId: params.exerciseId,
+                subtitleDraftId: params.subtitleDraftId ?? null,
+                versionNo,
+                transcriptJson: JSON.stringify(params.transcriptLines),
+                source: params.source,
+                adminUserId: params.adminUserId,
+                note: params.note ?? null,
+            },
+            transaction,
+        },
+    );
+}
+
 export async function replaceContributorAssignments(
     contributorId: number,
     exerciseIdsInput: unknown,
@@ -1685,6 +1727,14 @@ export async function submitSubtitleDraft({
         if (!draft) {
             throw new Error('字幕稿保存后无法读取');
         }
+        // 提交是版本历史的关键节点之一，留档便于后续校对者回溯每一版。
+        await recordSubtitleVersion({
+            exerciseId,
+            subtitleDraftId: Number(draft.id),
+            source: 'submitted',
+            adminUserId: adminId,
+            transcriptLines: lines,
+        }, transaction);
         await recordWorkflowActivity({
             eventType: 'subtitle_submitted',
             actorAdminUserId: adminId,
@@ -1867,6 +1917,14 @@ export async function approveSubtitleDraft({
                 transaction,
             },
         );
+        // 审核通过是正式发布版本，单独留档，作为"被采纳版本"的证据。
+        await recordSubtitleVersion({
+            exerciseId: Number(draft.exercise_id),
+            subtitleDraftId: draftId,
+            source: 'approved',
+            adminUserId: Number(draft.admin_user_id),
+            transcriptLines: parseSubtitleDraftLines(draft.transcript_json),
+        }, transaction);
         await recordWorkflowActivity({
             eventType: 'subtitle_approved',
             actorAdminUserId: reviewerId,
@@ -1876,6 +1934,127 @@ export async function approveSubtitleDraft({
             workflowRole: 'second_reviewer',
         }, transaction);
     });
+}
+
+/**
+ * 把已发布课程回退到草稿，重新进入校对流程。
+ * - 保留现有正式字幕作为下一次校对起点；
+ * - 清空校对/二审负责人，课程回到任务池，任何贡献者都可重新领取；
+ * - 回退动作作为一条 reverted 版本快照 + 协作动态事件留档，理由必填。
+ */
+export async function revertPublishedSubtitle({
+    exerciseId,
+    adminId,
+    reason,
+}: {
+    exerciseId: number;
+    adminId: number;
+    reason: string;
+}) {
+    const normalizedReason = String(reason ?? '').trim();
+    if (!normalizedReason) {
+        throw new Error('请填写回退理由');
+    }
+
+    await sequelize.transaction(async (transaction) => {
+        const [exercise] = await sequelize.query<{ status: string; transcript_json: unknown }>(
+            `select status, transcript_json from exercises where id = :exerciseId limit 1 for update`,
+            { replacements: { exerciseId }, type: QueryTypes.SELECT, transaction },
+        );
+        if (!exercise) {
+            throw new Error('课程不存在');
+        }
+        if (exercise.status !== 'published') {
+            throw new Error('只有已发布的课程可以回退到草稿');
+        }
+
+        // 最近一次已通过的投稿，作为"被回退版本"的作者与证据来源。
+        const [approvedDraft] = await sequelize.query<{
+            id: number | string;
+            admin_user_id: number | string;
+        }>(
+            `select id, admin_user_id from exercise_subtitle_drafts
+             where exercise_id = :exerciseId and status = 'approved'
+             order by reviewed_at desc, id desc limit 1`,
+            { replacements: { exerciseId }, type: QueryTypes.SELECT, transaction },
+        );
+
+        // 先快照被回退时的正式字幕：这就是回退动作本身留下的证据。
+        await recordSubtitleVersion({
+            exerciseId,
+            subtitleDraftId: approvedDraft ? Number(approvedDraft.id) : null,
+            source: 'reverted',
+            adminUserId: adminId,
+            transcriptLines: parseSubtitleDraftLines(exercise.transcript_json),
+            note: normalizedReason,
+        }, transaction);
+
+        // 课程回到草稿，保留现有字幕；重新开放自助领取。
+        await sequelize.query(
+            `update exercises
+             set status = 'draft', claim_blocked = false, updated_at = current_timestamp
+             where id = :exerciseId`,
+            { replacements: { exerciseId }, transaction },
+        );
+
+        // 清空负责人，让课程重新进入任务池（任何人可领取）。
+        await sequelize.query(
+            `delete from exercise_workflow_assignees
+             where exercise_id = :exerciseId and workflow_role in ('proofreader', 'second_reviewer')`,
+            { replacements: { exerciseId }, transaction },
+        );
+        await sequelize.query(
+            `delete from exercise_contributor_assignments where exercise_id = :exerciseId`,
+            { replacements: { exerciseId }, transaction },
+        );
+
+        await recordWorkflowActivity({
+            eventType: 'subtitle_reverted',
+            actorAdminUserId: adminId,
+            targetAdminUserId: approvedDraft ? Number(approvedDraft.admin_user_id) : null,
+            exerciseId,
+            subtitleDraftId: approvedDraft ? Number(approvedDraft.id) : null,
+            workflowRole: 'proofreader',
+            reviewNote: normalizedReason,
+        }, transaction);
+    });
+}
+
+/** 某门课程的字幕版本历史，按版本号倒序，供管理员与贡献者回溯每一版。 */
+export async function listExerciseSubtitleVersions(exerciseId: number): Promise<ExerciseSubtitleVersion[]> {
+    const rows = await doRawQuery<{
+        id: number | string;
+        exercise_id: number | string;
+        subtitle_draft_id: number | string | null;
+        version_no: number | string;
+        transcript_json: unknown;
+        source: SubtitleVersionSource;
+        admin_user_id: number | string;
+        display_name: string | null;
+        note: string | null;
+        created_at: Date | string;
+    }>({
+        query: `select versions.id, versions.exercise_id, versions.subtitle_draft_id,
+                       versions.version_no, versions.transcript_json, versions.source,
+                       versions.admin_user_id, admins.display_name, versions.note, versions.created_at
+                from exercise_subtitle_versions versions
+                left join admin_users admins on admins.id = versions.admin_user_id
+                where versions.exercise_id = :exerciseId
+                order by versions.version_no desc, versions.id desc`,
+        params: { exerciseId },
+    });
+    return rows.map((row) => ({
+        id: Number(row.id),
+        exerciseId: Number(row.exercise_id),
+        subtitleDraftId: row.subtitle_draft_id ? Number(row.subtitle_draft_id) : undefined,
+        versionNo: Number(row.version_no),
+        lines: parseSubtitleDraftLines(row.transcript_json),
+        source: row.source,
+        adminUserId: Number(row.admin_user_id),
+        adminDisplayName: row.display_name || '系统',
+        note: row.note || undefined,
+        createdAt: new Date(row.created_at).toISOString(),
+    }));
 }
 
 /** 审核人只看到提交时已指派给自己的待审稿，避免管理员改人后任务漂移。 */
