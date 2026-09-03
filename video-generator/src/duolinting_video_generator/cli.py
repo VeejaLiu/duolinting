@@ -44,6 +44,15 @@ def _saved_environment_path() -> Path:
     return _project_directory() / ".env"
 
 
+def _default_storage_path(environment_key: str, directory_name: str) -> str:
+    """Keep generated files inside this project unless the user opts into another path."""
+
+    configured = os.environ.get(environment_key)
+    if configured:
+        return configured
+    return str(_project_directory() / directory_name)
+
+
 def _save_interactive_config(base_url: str, api_key: str) -> None:
     """Persist first-run settings locally while preserving other .env options."""
 
@@ -343,7 +352,7 @@ def _resolve_media_for_render(
     if client is None:
         base_url, api_key = _api_settings(args)
         client = OpenContentClient(base_url, api_key)
-    download_directory = media_dir or Path("./media").resolve()
+    download_directory = media_dir or Path(_default_storage_path("DUOLINTING_VIDEO_MEDIA_DIR", "media")).expanduser().resolve()
     destination = downloaded_media_path(course, download_directory)
     if destination.is_file() and destination.stat().st_size > 0:
         print(f"使用已缓存媒体：{destination}")
@@ -531,9 +540,9 @@ def _interactive(*, reset_config: bool = False) -> int:
     client = OpenContentClient(base_url, api_key)
     print("正在读取课程目录……")
     catalog = client.fetch_catalog()
-    cache_dir = Path(os.environ.get("DUOLINTING_VIDEO_CACHE_DIR", "./cache")).expanduser().resolve()
-    media_dir = Path(os.environ.get("DUOLINTING_VIDEO_MEDIA_DIR", "./media")).expanduser().resolve()
-    output_dir = Path(os.environ.get("DUOLINTING_VIDEO_OUTPUT_DIR", "./output")).expanduser().resolve()
+    cache_dir = Path(_default_storage_path("DUOLINTING_VIDEO_CACHE_DIR", "cache")).expanduser().resolve()
+    media_dir = Path(_default_storage_path("DUOLINTING_VIDEO_MEDIA_DIR", "media")).expanduser().resolve()
+    output_dir = Path(_default_storage_path("DUOLINTING_VIDEO_OUTPUT_DIR", "output")).expanduser().resolve()
     atomic_write_json(cache_dir / "catalog.json", catalog)
 
     course = _choose_interactive_course(catalog)
@@ -548,7 +557,7 @@ def _interactive(*, reset_config: bool = False) -> int:
         api_key=api_key,
         cache_dir=str(cache_dir),
         media_dir=str(media_dir),
-        manifest=str(Path.cwd() / "media-manifest.json"),
+        manifest=str(_project_directory() / "media-manifest.json"),
     )
     media_path, _ = _resolve_media_for_render(args=render_args, course=course, client=client)
     logo_candidate = os.environ.get("DUOLINTING_VIDEO_LOGO", "").strip()
@@ -603,24 +612,24 @@ def _parser() -> argparse.ArgumentParser:
     sync = subparsers.add_parser("sync", help="Fetch the published catalog and dltjson files")
     sync.add_argument("--api-base", help="Admin origin, or DUOLINTING_API_BASE")
     sync.add_argument("--api-key", help="API key, or DUOLINTING_OPEN_CONTENT_API_KEY")
-    sync.add_argument("--cache-dir", default=os.environ.get("DUOLINTING_VIDEO_CACHE_DIR", "./cache"))
+    sync.add_argument("--cache-dir", default=_default_storage_path("DUOLINTING_VIDEO_CACHE_DIR", "cache"))
     sync.set_defaults(handler=_command_sync)
 
     list_command = subparsers.add_parser("list", help="List courses in the local cache")
-    list_command.add_argument("--cache-dir", default=os.environ.get("DUOLINTING_VIDEO_CACHE_DIR", "./cache"))
+    list_command.add_argument("--cache-dir", default=_default_storage_path("DUOLINTING_VIDEO_CACHE_DIR", "cache"))
     list_command.set_defaults(handler=_command_list)
 
     def add_render_arguments(command: argparse.ArgumentParser) -> None:
         command.add_argument("--api-base", help="Admin origin, or DUOLINTING_API_BASE (used when media must be downloaded)")
         command.add_argument("--api-key", help="API key, or DUOLINTING_OPEN_CONTENT_API_KEY (used when media must be downloaded)")
-        command.add_argument("--cache-dir", default=os.environ.get("DUOLINTING_VIDEO_CACHE_DIR", "./cache"))
-        command.add_argument("--media-dir", default=os.environ.get("DUOLINTING_VIDEO_MEDIA_DIR", "./media"))
-        command.add_argument("--manifest", default="./media-manifest.json")
+        command.add_argument("--cache-dir", default=_default_storage_path("DUOLINTING_VIDEO_CACHE_DIR", "cache"))
+        command.add_argument("--media-dir", default=_default_storage_path("DUOLINTING_VIDEO_MEDIA_DIR", "media"))
+        command.add_argument("--manifest", default=str(_project_directory() / "media-manifest.json"))
         command.add_argument("--locale", choices=("en-US", "zh-CN", "th-TH", "ja-JP"), default="zh-CN")
         command.add_argument("--font-name", default=_default_font_name())
         command.add_argument("--gap-seconds", type=float, default=0.3)
         command.add_argument("--logo", help="Optional local logo PNG, for example ../admin/public/duolinting-logo-ear.png")
-        command.add_argument("--output-dir", default=os.environ.get("DUOLINTING_VIDEO_OUTPUT_DIR", "./output"))
+        command.add_argument("--output-dir", default=_default_storage_path("DUOLINTING_VIDEO_OUTPUT_DIR", "output"))
 
     render = subparsers.add_parser("render", help="Render one cached course locally")
     render.add_argument("--course-id", type=int, required=True)

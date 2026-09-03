@@ -60,6 +60,10 @@ python run.py --reset-config
 
 该选项会清除本地保存的地址和 API Key，然后只在这一次重新设置。
 
+默认的 `cache/`、`media/` 和 `output/` 都位于 `video-generator/` 目录中，即使你从仓库
+根目录启动 `python video-generator/run.py` 也不会把生成文件散落到仓库根目录。需要
+更换位置时，再通过对应的环境变量或命令行参数覆盖默认值。
+
 API Key 只从环境变量或本地 `.env` 读取，不要把它写进脚本、提交记录或开源仓库。
 
 ## 最简单的用法
