@@ -20,6 +20,7 @@ import type {
 import type { AdminNoticeTone } from './AdminFeedback'
 import { CoverImageField } from './CoverImageField'
 import { apiClient, resolveApiUrl } from '../../lib/apiClient'
+import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 const directoryLocalizationLocales = ['en-US', 'th-TH', 'ja-JP'] as const
 const directoryLocalizationLabels = {
@@ -84,7 +85,8 @@ function DirectoryForm({
   onNotify,
   onSave,
 }: DirectoryFormProps) {
-  const entityLabel = kind === 'group' ? '内容分类' : '学习系列'
+  const { t } = useAdminLanguage()
+  const entityLabel = kind === 'group' ? t('内容分类') : t('学习系列')
   const [isGeneratingLocalizations, setIsGeneratingLocalizations] = useState(false)
   const updateLocalized = (
     locale: typeof directoryLocalizationLocales[number],
@@ -100,7 +102,7 @@ function DirectoryForm({
     const sourceName = form.name.trim()
     const sourceDescription = form.description.trim()
     if (!sourceName) {
-      onNotify(`请先填写${entityLabel}名称`, 'error')
+      onNotify(t('请先填写{{entity}}名称', { entity: entityLabel }), 'error')
       return
     }
 
@@ -138,18 +140,18 @@ function DirectoryForm({
     <Card className="directory-editor" size="small">
       <Form layout="vertical">
         <Flex gap={16} wrap>
-          <Form.Item label="名称" required style={{ flex: '1 1 260px', marginBottom: 0 }}>
+          <Form.Item label={t('名称')} required style={{ flex: '1 1 260px', marginBottom: 0 }}>
             <Input disabled={disabled} value={form.name} onChange={(event) => onChange('name', event.target.value)} />
           </Form.Item>
-          <Form.Item label="色值" style={{ flex: '0 1 180px', marginBottom: 0 }}>
+          <Form.Item label={t('色值')} style={{ flex: '0 1 180px', marginBottom: 0 }}>
             <Input disabled={disabled} value={form.accent} onChange={(event) => onChange('accent', event.target.value)} />
           </Form.Item>
         </Flex>
-        <Form.Item label={kind === 'group' ? '说明' : '描述'} style={{ marginTop: 16, marginBottom: 0 }}>
+        <Form.Item label={kind === 'group' ? t('说明') : t('描述')} style={{ marginTop: 16, marginBottom: 0 }}>
           <Input disabled={disabled} value={form.description} onChange={(event) => onChange('description', event.target.value)} />
         </Form.Item>
         {kind === 'category' && (
-          <Form.Item label="来源链接（可选）" style={{ marginTop: 16, marginBottom: 0 }}>
+          <Form.Item label={t('来源链接（可选）')} style={{ marginTop: 16, marginBottom: 0 }}>
             <Input
               disabled={disabled}
               placeholder="https://example.com/original-material"
@@ -159,9 +161,9 @@ function DirectoryForm({
             />
           </Form.Item>
         )}
-        <Divider style={{ margin: '20px 0 12px' }}>多语言内容</Divider>
+        <Divider style={{ margin: '20px 0 12px' }}>{t('多语言内容')}</Divider>
         <Flex align="center" justify="space-between" gap={12} style={{ marginBottom: 12 }}>
-          <Typography.Text type="secondary">同时检查和编辑所有语言，中文名称与说明作为 AI 翻译源。</Typography.Text>
+          <Typography.Text type="secondary">{t('同时检查和编辑所有语言，中文名称与说明作为 AI 翻译源。')}</Typography.Text>
           <Button
             disabled={disabled || isGeneratingLocalizations || !form.name.trim()}
             icon={<Sparkles size={15} />}
@@ -169,23 +171,23 @@ function DirectoryForm({
             onClick={() => void generateLocalizations()}
             type="primary"
           >
-            {isGeneratingLocalizations ? '生成中' : 'AI 填充全部语言'}
+            {isGeneratingLocalizations ? t('生成中') : t('AI 填充全部语言')}
           </Button>
         </Flex>
         <div className="directory-localization-grid">
           {directoryLocalizationLocales.map((locale) => {
             const localized = form.localizations?.[locale] ?? {}
             return (
-              <Card key={locale} size="small" title={`${directoryLocalizationLabels[locale]} · ${locale}`}>
+              <Card key={locale} size="small" title={`${t(directoryLocalizationLabels[locale])} · ${locale}`}>
                 <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                  <Form.Item label="名称" style={{ marginBottom: 0 }}>
+                  <Form.Item label={t('名称')} style={{ marginBottom: 0 }}>
                     <Input
                       disabled={disabled || isGeneratingLocalizations}
                       value={localized.name ?? ''}
                       onChange={(event) => updateLocalized(locale, { name: event.target.value })}
                     />
                   </Form.Item>
-                  <Form.Item label="说明" style={{ marginBottom: 0 }}>
+                  <Form.Item label={t('说明')} style={{ marginBottom: 0 }}>
                     <Input
                       disabled={disabled || isGeneratingLocalizations}
                       value={localized.description ?? ''}
@@ -197,19 +199,19 @@ function DirectoryForm({
             )
           })}
         </div>
-        <Form.Item label="封面图（可选）" style={{ marginTop: 16, marginBottom: 0 }}>
+        <Form.Item label={t('封面图（可选）')} style={{ marginTop: 16, marginBottom: 0 }}>
           <CoverImageField
             adminToken={adminToken}
             disabled={disabled}
-            label={`${entityLabel}封面`}
+            label={`${entityLabel}${t('封面')}`}
             onChange={(url) => onChange('coverImageUrl', url)}
             onNotify={onNotify}
             value={form.coverImageUrl ?? ''}
           />
         </Form.Item>
         <Flex justify="end" gap={8} style={{ marginTop: 16 }}>
-          <Button disabled={disabled || isGeneratingLocalizations} onClick={onCancel}>取消</Button>
-          <Button disabled={disabled || isGeneratingLocalizations} icon={<Save size={15} />} onClick={onSave} type="primary">保存{entityLabel}</Button>
+          <Button disabled={disabled || isGeneratingLocalizations} onClick={onCancel}>{t('取消')}</Button>
+          <Button disabled={disabled || isGeneratingLocalizations} icon={<Save size={15} />} onClick={onSave} type="primary">{t('保存')}{entityLabel}</Button>
         </Flex>
       </Form>
     </Card>
@@ -223,7 +225,8 @@ function ActionButton({ disabled, label, onClick, children, danger = false }: {
   label: string
   onClick: () => void
 }) {
-  return <Tooltip title={label}><Button danger={danger} disabled={disabled} icon={children} onClick={onClick} size="small" type="text" /></Tooltip>
+  const { t } = useAdminLanguage()
+  return <Tooltip title={t(label)}><Button danger={danger} disabled={disabled} icon={children} onClick={onClick} size="small" type="text" /></Tooltip>
 }
 
 export function DirectoryManager(props: DirectoryManagerProps) {
@@ -232,7 +235,8 @@ export function DirectoryManager(props: DirectoryManagerProps) {
     onNotify, onCategoryGroupFormChange, onCategoryFormChange, onSaveCategoryGroup,
     onSaveCategory, onEditCategoryGroup, onEditCategory, onDeleteCategoryGroup,
     onDeleteCategory, onMoveCategoryGroup, onMoveCategory, onRefresh, onRequestConfirm,
-  } = props
+} = props
+  const { t } = useAdminLanguage()
   const [activeEditor, setActiveEditor] = useState<ActiveEditor>(null)
 
   // 保存成功后才关闭编辑器；失败（如 400 校验错误，已有 toast 提示）保留当前编辑内容
@@ -250,9 +254,9 @@ export function DirectoryManager(props: DirectoryManagerProps) {
   // 删除前二次确认：删除内容分类/学习系列会连带删除其封面媒体文件，且不可撤销
   const confirmDeleteGroup = async (group: MaterialCategory) => {
     const confirmed = await onRequestConfirm({
-      title: '删除内容分类',
-      message: `删除内容分类“${group.name}”后，会同时删除其封面等媒体文件。此操作不可撤销。`,
-      confirmLabel: '确认删除',
+      title: t('删除内容分类'),
+      message: t('删除内容分类“{{name}}”后，会同时删除其封面等媒体文件。此操作不可撤销。', { name: group.name }),
+      confirmLabel: t('确认删除'),
       tone: 'danger',
     })
     if (confirmed) {
@@ -261,9 +265,9 @@ export function DirectoryManager(props: DirectoryManagerProps) {
   }
   const confirmDeleteCategory = async (category: ExerciseCategory) => {
     const confirmed = await onRequestConfirm({
-      title: '删除学习系列',
-      message: `删除学习系列“${category.name}”后，会同时删除其封面等媒体文件。此操作不可撤销。`,
-      confirmLabel: '确认删除',
+      title: t('删除学习系列'),
+      message: t('删除学习系列“{{name}}”后，会同时删除其封面等媒体文件。此操作不可撤销。', { name: category.name }),
+      confirmLabel: t('确认删除'),
       tone: 'danger',
     })
     if (confirmed) {
@@ -285,12 +289,12 @@ export function DirectoryManager(props: DirectoryManagerProps) {
     ? categoryGroups.find((group) => group.id === activeEditor.groupId)
     : null
   const activeEditorTitle = (() => {
-    if (activeEditor?.type === 'create-group') return '新建内容分类'
-    if (activeEditor?.type === 'edit-group') return '编辑内容分类'
+    if (activeEditor?.type === 'create-group') return t('新建内容分类')
+    if (activeEditor?.type === 'edit-group') return t('编辑内容分类')
     if (activeEditor?.type === 'create-category') {
-      return `新建学习系列${activeCategoryGroup ? ` · ${activeCategoryGroup.name}` : ''}`
+      return `${t('新建学习系列')}${activeCategoryGroup ? ` · ${activeCategoryGroup.name}` : ''}`
     }
-    if (activeEditor?.type === 'edit-category') return '编辑学习系列'
+    if (activeEditor?.type === 'edit-category') return t('编辑学习系列')
     return ''
   })()
   const activeEditorContent =
@@ -303,9 +307,9 @@ export function DirectoryManager(props: DirectoryManagerProps) {
   const refreshDirectory = async () => {
     try {
       await onRefresh()
-      onNotify('目录已刷新', 'success')
+      onNotify(t('目录已刷新'), 'success')
     } catch (error) {
-      onNotify(error instanceof Error ? error.message : '目录刷新失败', 'error')
+      onNotify(error instanceof Error ? error.message : t('目录刷新失败'), 'error')
     }
   }
 
@@ -313,16 +317,16 @@ export function DirectoryManager(props: DirectoryManagerProps) {
     <Card
       className="directory-manager"
       extra={<Space>
-        <Button disabled={isSaving} icon={<RefreshCw size={15} />} onClick={() => void refreshDirectory()}>刷新</Button>
+        <Button disabled={isSaving} icon={<RefreshCw size={15} />} onClick={() => void refreshDirectory()}>{t('刷新')}</Button>
         <Button disabled={isSaving} icon={<Plus size={15} />} onClick={() => {
           onCategoryGroupFormChange(() => ({ name: '', description: '', accent: '#1cb0f6', coverImageUrl: '', sortOrder: 10 }))
           setActiveEditor({ type: 'create-group' })
-        }} type="primary">新建内容分类</Button>
+        }} type="primary">{t('新建内容分类')}</Button>
       </Space>}
-      title={<Space><Layers3 size={18} /><span>目录结构</span></Space>}
+      title={<Space><Layers3 size={18} /><span>{t('目录结构')}</span></Space>}
     >
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        {categoryGroups.length === 0 ? <Empty description="还没有内容分类，请直接在这里新建。" /> : (
+        {categoryGroups.length === 0 ? <Empty description={t('还没有内容分类，请直接在这里新建。')} /> : (
           <List
             dataSource={categoryGroups}
             renderItem={(group, groupIndex) => {
@@ -333,7 +337,7 @@ export function DirectoryManager(props: DirectoryManagerProps) {
                     <Space size={12}>
                       <Avatar shape="square" size={32} src={group.coverImageUrl ? resolveApiUrl(group.coverImageUrl) : undefined} style={{ backgroundColor: group.accent }} />
                       <Space direction="vertical" size={0}>
-                        <Space size={8}><Tag color="blue">内容分类</Tag><Typography.Text strong>{group.name}</Typography.Text></Space>
+                        <Space size={8}><Tag color="blue">{t('内容分类')}</Tag><Typography.Text strong>{group.name}</Typography.Text></Space>
                         <Typography.Text type="secondary">{group.description}</Typography.Text>
                       </Space>
                     </Space>
@@ -347,10 +351,10 @@ export function DirectoryManager(props: DirectoryManagerProps) {
                   </Flex>
                   <div className="directory-category-area">
                     <Flex align="center" justify="space-between">
-                      <Typography.Text type="secondary">学习系列</Typography.Text>
+                      <Typography.Text type="secondary">{t('学习系列')}</Typography.Text>
                       <Badge count={groupCategories.length} showZero color="#1cb0f6" />
                     </Flex>
-                    {groupCategories.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="这个内容分类下还没有学习系列" /> : (
+                    {groupCategories.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('这个内容分类下还没有学习系列')} /> : (
                       <List
                         className="directory-category-list"
                         dataSource={groupCategories}

@@ -5,6 +5,7 @@ import {
   TRANSLATION_TARGET_LOCALES,
   type DraftLine,
 } from '../../lib/mediaDraftTools'
+import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type SubtitleListProps = {
   activeLineIndex: number
@@ -37,6 +38,7 @@ export function SubtitleList({
   embedded = false,
   onActiveLineChange,
 }: SubtitleListProps) {
+  const { t } = useAdminLanguage()
   const [embeddedTimeColumnWidth, setEmbeddedTimeColumnWidth] = useState(
     DEFAULT_EMBEDDED_TIME_COLUMN_WIDTH,
   )
@@ -77,7 +79,7 @@ export function SubtitleList({
       align: 'center',
       key: 'index',
       render: (_, row) => row.index + 1,
-      title: '序号',
+      title: t('序号'),
       width: 48,
     },
     {
@@ -89,9 +91,9 @@ export function SubtitleList({
       ),
       title: (
         <span className="subtitle-resizable-column-title">
-          时间
+          {t('时间')}
           <span
-            aria-label="拖动调整时间列宽度"
+            aria-label={t('拖动调整时间列宽度')}
             className="subtitle-column-resize-handle"
             onPointerCancel={handleTimeColumnResizeEnd}
             onPointerDown={handleTimeColumnResizeStart}
@@ -106,8 +108,8 @@ export function SubtitleList({
     {
       ellipsis: true,
       key: 'text',
-      render: (_, row) => row.line.text || '未填写字幕',
-      title: '字幕内容',
+      render: (_, row) => row.line.text || t('未填写字幕'),
+      title: t('字幕内容'),
       width: 320,
     },
   ]
@@ -116,19 +118,19 @@ export function SubtitleList({
       align: 'center',
       key: 'index',
       render: (_, row) => row.index + 1,
-      title: '序号',
+      title: t('序号'),
       width: 64,
     },
     {
       key: 'start',
       render: (_, row) => formatTimeWithMilliseconds(row.line.start),
-      title: '开始',
+      title: t('开始'),
       width: 110,
     },
     {
       key: 'end',
       render: (_, row) => formatTimeWithMilliseconds(row.line.end),
-      title: '结束',
+      title: t('结束'),
       width: 110,
     },
     {
@@ -136,30 +138,30 @@ export function SubtitleList({
       render: (_, row) => formatTimeWithMilliseconds(
         Math.max(0, row.line.end - row.line.start),
       ),
-      title: '时长',
+      title: t('时长'),
       width: 110,
     },
     {
       ellipsis: true,
       key: 'text',
-      render: (_, row) => row.line.text || '未填写字幕',
-      title: '字幕内容',
+      render: (_, row) => row.line.text || t('未填写字幕'),
+      title: t('字幕内容'),
       width: 280,
     },
     ...TRANSLATION_TARGET_LOCALES.map((locale, index) => ({
       ellipsis: true,
       key: locale,
-      render: (_: unknown, row: SubtitleTableRow) => row.line.translations[locale] || '未填写',
-      title: ['中文', 'ไทย', '日本語'][index],
+      render: (_: unknown, row: SubtitleTableRow) => row.line.translations[locale] || t('未填写'),
+      title: t(['中文', 'ไทย', '日本語'][index]),
       width: 180,
     })),
     {
       ellipsis: true,
       key: 'answers',
       render: (_, row) => (
-        (row.line.answers ?? []).map((answer) => answer.trim()).filter(Boolean).join(' / ') || '无'
+        (row.line.answers ?? []).map((answer) => answer.trim()).filter(Boolean).join(' / ') || t('无')
       ),
-      title: '可接受答案',
+      title: t('可接受答案'),
       width: 220,
     },
   ]
@@ -169,7 +171,7 @@ export function SubtitleList({
       className="subtitle-list-antd-table"
       columns={embedded ? embeddedColumns : fullColumns}
       dataSource={rows}
-      locale={{ emptyText: '暂无字幕' }}
+      locale={{ emptyText: t('暂无字幕') }}
       onRow={(row) => ({ onClick: () => onActiveLineChange(row.index) })}
       pagination={false}
       rowClassName={(row) => row.index === activeLineIndex ? 'subtitle-table-row-active' : ''}
@@ -187,8 +189,8 @@ export function SubtitleList({
   return (
     <details className="subtitle-list-panel waveform-subtitle-list" open>
       <summary>
-        <span>字幕列表</span>
-        <strong>{draftLines.length} 条</strong>
+        <span>{t('字幕列表')}</span>
+        <strong>{draftLines.length} {t('条')}</strong>
       </summary>
       {table}
     </details>

@@ -19,6 +19,7 @@ import {
   ADMIN_TOKEN_STORAGE_KEY,
   ADMIN_USER_STORAGE_KEY,
 } from './lib/contentTools'
+import { adminUiLocaleLabels, useAdminLanguage } from './i18n/AdminLanguageProvider'
 
 const loadStoredAdminUser = () => {
   const raw = localStorage.getItem(ADMIN_USER_STORAGE_KEY)
@@ -35,6 +36,7 @@ const loadStoredAdminUser = () => {
 
 function App() {
   const { message: appMessage } = AntdApp.useApp()
+  const { t, uiLocale, setUiLocale } = useAdminLanguage()
   const [categoryGroups, setCategoryGroups] = useState<MaterialCategory[]>([])
   const [categories, setCategories] = useState<ExerciseCategory[]>([])
   const [exercises, setExercises] = useState<CatalogExerciseSummary[]>([])
@@ -97,7 +99,7 @@ function App() {
     // 并发多个请求同时 401 时，只提示一次，避免刷屏。
     if (!sessionExpiredNotifiedRef.current) {
       sessionExpiredNotifiedRef.current = true
-      showNotice('管理员登录已过期，请重新登录', 'error')
+      showNotice(t('管理员登录已过期，请重新登录'), 'error')
     }
   }
 
@@ -128,11 +130,11 @@ function App() {
       }
       setConfirmState({
         open: true,
-        title: '保存课程后离开？',
-        message: '当前制课工作台里还有未保存的课程信息或字幕。请选择保存后离开，或放弃当前修改直接离开。',
-        confirmLabel: '保存并离开',
-        cancelLabel: '继续编辑',
-        alternateLabel: '放弃修改并离开',
+        title: t('保存课程后离开？'),
+        message: t('当前制课工作台里还有未保存的课程信息或字幕。请选择保存后离开，或放弃当前修改直接离开。'),
+        confirmLabel: t('保存并离开'),
+        cancelLabel: t('继续编辑'),
+        alternateLabel: t('放弃修改并离开'),
         tone: 'danger',
       })
     })
@@ -182,12 +184,12 @@ function App() {
           return
         }
         clearAdminSession()
-        showNotice('管理员登录已过期，请重新登录', 'error')
+        showNotice(t('管理员登录已过期，请重新登录'), 'error')
         return
       }
 
     })()
-  }, [adminToken, showNotice])
+  }, [adminToken, showNotice, t])
 
   const login = async () => {
     setIsLoggingIn(true)
@@ -198,9 +200,9 @@ function App() {
       setAdminToken(result.token)
       setAdminUser(result.user)
       sessionExpiredNotifiedRef.current = false
-      showNotice('管理员已登录', 'success')
+      showNotice(t('管理员已登录'), 'success')
     } catch (error) {
-      showNotice(error instanceof Error ? error.message : '登录失败', 'error')
+      showNotice(error instanceof Error ? error.message : t('登录失败'), 'error')
     } finally {
       setIsLoggingIn(false)
     }
@@ -219,7 +221,7 @@ function App() {
       // 即使网络中断也要清理本地凭据；服务端会话还有绝对过期时间兜底。
     }
     clearAdminSession()
-    showNotice('管理员已退出登录', 'info')
+    showNotice(t('管理员已退出登录'), 'info')
   }
 
   const handleLoginSubmit: React.FormEventHandler<HTMLFormElement> = (event) => {
@@ -229,7 +231,7 @@ function App() {
 
   const changeRequiredPassword = async () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      showNotice('两次输入的新密码不一致', 'error')
+      showNotice(t('两次输入的新密码不一致'), 'error')
       return
     }
     setIsChangingPassword(true)
@@ -241,9 +243,9 @@ function App() {
       localStorage.setItem(ADMIN_USER_STORAGE_KEY, JSON.stringify(updatedUser))
       setAdminUser(updatedUser)
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
-      showNotice('密码已修改，欢迎进入管理后台', 'success')
+      showNotice(t('密码已修改，欢迎进入管理后台'), 'success')
     } catch (error) {
-      showNotice(error instanceof Error ? error.message : '密码修改失败', 'error')
+      showNotice(error instanceof Error ? error.message : t('密码修改失败'), 'error')
     } finally {
       setIsChangingPassword(false)
     }
@@ -254,28 +256,47 @@ function App() {
     void changeRequiredPassword()
   }
 
+  const languageSelector = (
+    <label className="field login-language-field">
+      <span>{t('界面语言')}</span>
+      <select
+        aria-label={t('界面语言')}
+        onChange={(event) => {
+          const locale = event.target.value
+          if (locale === 'zh-CN' || locale === 'en-US' || locale === 'th-TH' || locale === 'ja-JP') setUiLocale(locale)
+        }}
+        value={uiLocale}
+      >
+        {(Object.keys(adminUiLocaleLabels) as Array<keyof typeof adminUiLocaleLabels>).map((locale) => (
+          <option key={locale} value={locale}>{adminUiLocaleLabels[locale]}</option>
+        ))}
+      </select>
+    </label>
+  )
+
 
   const loginPage = (
     <main className="app-shell login-shell">
-      <section className="login-page" aria-label="管理员登录">
+      <section className="login-page" aria-label={t('管理员登录')}>
         <div className="login-brand">
           <img alt="DuolinTing" className="login-brand-logo" src="/duolinting-logo-ear.png" />
           <div className="login-brand-copy">
-            <h1>管理后台</h1>
-            <p>统一内容管理端</p>
+            <h1>{t('管理后台')}</h1>
+            <p>{t('统一内容管理端')}</p>
           </div>
         </div>
+        {languageSelector}
 
         <form className="login-panel" onSubmit={handleLoginSubmit}>
           <div className="login-panel-head">
             <LockKeyhole size={20} aria-hidden="true" />
             <div>
-              <h2>管理员登录</h2>
-              <p>登录后进入内容、课程、媒体与字幕管理工作台。</p>
+              <h2>{t('管理员登录')}</h2>
+              <p>{t('登录后进入内容、课程、媒体与字幕管理工作台。')}</p>
             </div>
           </div>
           <label className="field">
-            <span>登录邮箱</span>
+            <span>{t('登录邮箱')}</span>
             <input
               autoComplete="email"
               inputMode="email"
@@ -293,7 +314,7 @@ function App() {
             />
           </label>
           <label className="field">
-            <span>密码</span>
+            <span>{t('密码')}</span>
             <input
               autoComplete="current-password"
               type="password"
@@ -304,11 +325,11 @@ function App() {
                   password: event.target.value,
                 }))
               }
-              placeholder="输入管理员密码"
+              placeholder={t('输入管理员密码')}
             />
           </label>
           <button className="command-button" disabled={isLoggingIn} type="submit">
-            {isLoggingIn ? '登录中' : '登录'}
+            {isLoggingIn ? t('登录中') : t('登录')}
           </button>
         </form>
       </section>
@@ -317,25 +338,26 @@ function App() {
 
   const requiredPasswordPage = (
     <main className="app-shell login-shell">
-      <section className="login-page" aria-label="修改初始密码">
+      <section className="login-page" aria-label={t('修改初始密码')}>
         <div className="login-brand">
           <img alt="DuolinTing" className="login-brand-logo" src="/duolinting-logo-ear.png" />
           <div className="login-brand-copy">
-            <h1>欢迎加入</h1>
-            <p>请先保护你的后台账号</p>
+            <h1>{t('欢迎加入')}</h1>
+            <p>{t('请先保护你的后台账号')}</p>
           </div>
         </div>
+        {languageSelector}
 
         <form className="login-panel" onSubmit={handleChangeRequiredPassword}>
           <div className="login-panel-head">
             <LockKeyhole size={20} aria-hidden="true" />
             <div>
-              <h2>修改初始密码</h2>
-              <p>这是管理员为你开通的临时密码。修改后才能进入管理后台。</p>
+              <h2>{t('修改初始密码')}</h2>
+              <p>{t('这是管理员为你开通的临时密码。修改后才能进入管理后台。')}</p>
             </div>
           </div>
           <label className="field">
-            <span>临时密码</span>
+            <span>{t('临时密码')}</span>
             <input
               autoComplete="current-password"
               type="password"
@@ -344,7 +366,7 @@ function App() {
             />
           </label>
           <label className="field">
-            <span>新密码（至少 8 位）</span>
+            <span>{t('新密码（至少 8 位）')}</span>
             <input
               autoComplete="new-password"
               minLength={8}
@@ -354,7 +376,7 @@ function App() {
             />
           </label>
           <label className="field">
-            <span>确认新密码</span>
+            <span>{t('确认新密码')}</span>
             <input
               autoComplete="new-password"
               minLength={8}
@@ -364,10 +386,10 @@ function App() {
             />
           </label>
           <button className="command-button" disabled={isChangingPassword || passwordForm.newPassword.length < 8} type="submit">
-            {isChangingPassword ? '保存中' : '确认并进入后台'}
+            {isChangingPassword ? t('保存中') : t('确认并进入后台')}
           </button>
           <button className="command-button secondary" disabled={isChangingPassword} onClick={() => void logout()} type="button">
-            退出登录
+            {t('退出登录')}
           </button>
         </form>
       </section>

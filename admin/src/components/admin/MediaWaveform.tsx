@@ -42,6 +42,7 @@ import {
 } from '../../lib/mediaDraftTools'
 import type { ContentLocale } from '@duolinting/domain'
 import { SubtitleList } from './SubtitleList'
+import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type AddLineRange = {
   start: number
@@ -129,10 +130,11 @@ type TranslationProgressPopoverProps = {
 }
 
 const TranslationProgressPopover = ({ progress }: TranslationProgressPopoverProps) => {
+  const { t } = useAdminLanguage()
   if (!progress) {
     return (
       <div className="translation-progress-popover">
-        <Typography.Text strong>正在准备翻译...</Typography.Text>
+        <Typography.Text strong>{t('正在准备翻译...')}</Typography.Text>
         <Progress percent={0} showInfo={false} size="small" status="active" />
       </div>
     )
@@ -146,15 +148,15 @@ const TranslationProgressPopover = ({ progress }: TranslationProgressPopoverProp
   const needsAttention = progress.status === 'partial' || progress.status === 'error'
   const title = isRunning
     ? progress.mode === 'all'
-      ? '正在重新翻译全部译文'
-      : '正在补齐缺失译文'
+      ? t('正在重新翻译全部译文')
+      : t('正在补齐缺失译文')
     : progress.total === 0
-      ? '无需翻译'
+      ? t('无需翻译')
       : progress.status === 'success'
-        ? '翻译完成'
+        ? t('翻译完成')
         : progress.status === 'partial'
-          ? '翻译完成，部分条目失败'
-          : '翻译中断'
+          ? t('翻译完成，部分条目失败')
+          : t('翻译中断')
   const progressStatus = needsAttention
     ? 'exception'
     : progress.status === 'success'
@@ -166,7 +168,7 @@ const TranslationProgressPopover = ({ progress }: TranslationProgressPopoverProp
       <div className="translation-progress-heading">
         <Typography.Text strong>{title}</Typography.Text>
         <Tag color={isRunning ? 'processing' : needsAttention ? 'error' : 'success'}>
-          {isRunning ? `${percent}%` : progress.status === 'error' ? '已中断' : needsAttention ? '需检查' : '已完成'}
+          {isRunning ? `${percent}%` : progress.status === 'error' ? t('已中断') : needsAttention ? t('需检查') : t('已完成')}
         </Tag>
       </div>
       <Progress
@@ -177,20 +179,20 @@ const TranslationProgressPopover = ({ progress }: TranslationProgressPopoverProp
       />
       <div className="translation-progress-metrics">
         <div>
-          <span>已翻译</span>
+          <span>{t('已翻译')}</span>
           <strong>{progress.succeeded}</strong>
         </div>
         <div>
-          <span>剩余</span>
+          <span>{t('剩余')}</span>
           <strong>{remaining}</strong>
         </div>
         <div>
-          <span>失败</span>
+          <span>{t('失败')}</span>
           <strong className={progress.failed > 0 ? 'is-error' : undefined}>{progress.failed}</strong>
         </div>
       </div>
       <Typography.Text className="translation-progress-note" type="secondary">
-        本次涉及 {progress.subtitleCount} 句字幕、{progress.targetLanguageCount} 种目标语言，按译文条目统计
+        {t('本次涉及 {{subtitles}} 句字幕、{{languages}} 种目标语言，按译文条目统计', { subtitles: progress.subtitleCount, languages: progress.targetLanguageCount })}
       </Typography.Text>
     </div>
   )
@@ -250,7 +252,7 @@ const getPixelsPerSecond = (zoom: number) =>
 const clampZoom = (value: number) =>
   Math.round(clamp(value, MIN_ZOOM, MAX_ZOOM) * 4) / 4
 
-const createRegionContent = (line: DraftLine, lineIndex: number) => {
+const createRegionContent = (line: DraftLine, lineIndex: number, emptyLabel = '未填写字幕') => {
   const content = document.createElement('span')
   content.className = 'waveform-region-label'
   const index = document.createElement('span')
@@ -263,7 +265,7 @@ const createRegionContent = (line: DraftLine, lineIndex: number) => {
   const text = document.createElement('span')
   text.className = 'waveform-region-text'
   text.setAttribute('part', 'waveform-region-text')
-  text.textContent = line.text || '未填写字幕'
+  text.textContent = line.text || emptyLabel
 
   content.append(index, text)
   return content
@@ -322,6 +324,7 @@ export function MediaWaveform({
   translateError,
   onDismissTranslateError,
 }: MediaWaveformProps) {
+  const { t } = useAdminLanguage()
   const waveformContainerRef = useRef<HTMLDivElement | null>(null)
   const waveSurferRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<RegionsPlugin | null>(null)
@@ -354,7 +357,7 @@ export function MediaWaveform({
   const [isMediaReady, setIsMediaReady] = useState(false)
   const [waveform, setWaveform] = useState<WaveformState>({
     status: 'idle',
-    message: '选择媒体后显示音轨波形',
+    message: t('选择媒体后显示音轨波形'),
   })
   const zoomRef = useRef(zoom)
   const waveformStatusRef = useRef(waveform.status)
@@ -429,7 +432,7 @@ export function MediaWaveform({
         logMediaDebug('waveform-init-skipped-empty-source')
 	        setWaveform({
 	          status: 'idle',
-	          message: '选择媒体后显示音轨波形',
+          message: t('选择媒体后显示音轨波形'),
 	        })
         setCurrentTime(0)
         return
@@ -443,7 +446,7 @@ export function MediaWaveform({
         })
 	        setWaveform({
 	          status: 'loading',
-	          message: '正在准备媒体时间轴...',
+          message: t('正在准备媒体时间轴...'),
         })
         return
       }
@@ -463,7 +466,7 @@ export function MediaWaveform({
         })
 	        setWaveform({
 	          status: 'loading',
-	          message: '正在等待媒体加载...',
+          message: t('正在等待媒体加载...'),
         })
 
 	        const onCanPlay = () => {
@@ -492,7 +495,7 @@ export function MediaWaveform({
 
 	      setWaveform({
 	        status: 'loading',
-	        message: '正在解析媒体波形...',
+        message: t('正在解析媒体波形...'),
 	      })
       logMediaDebug('wavesurfer-create-start', {
         draftLineCount: draftLinesRef.current.length,
@@ -679,7 +682,7 @@ export function MediaWaveform({
           })
           setWaveform({
 	            status: 'error',
-	            message: `波形解析失败：${error.message}`,
+            message: t('波形解析失败：{{error}}', { error: error.message }),
           })
           // 波形解析失败也必须立即释放独立解码器，避免它继续占用浏览器
           // 的媒体管线，影响主视频后续播放。
@@ -813,7 +816,7 @@ export function MediaWaveform({
       }
       clearTimeout(timeoutId)
     }
-	  }, [mediaRef, sourceUrl, isMediaReady])
+  }, [isMediaReady, mediaRef, sourceUrl, t])
 
   useEffect(() => {
     zoomRef.current = zoom
@@ -864,7 +867,7 @@ export function MediaWaveform({
       if (!region) {
         const nextRegion = regions.addRegion({
           color,
-          content: createRegionContent(line, index),
+          content: createRegionContent(line, index, t('未填写字幕')),
           drag: true,
           end,
           id: line.id,
@@ -899,7 +902,7 @@ export function MediaWaveform({
 
       region.setOptions({
         color,
-        ...(textChanged || indexChanged ? { content: createRegionContent(line, index) } : {}),
+        ...(textChanged || indexChanged ? { content: createRegionContent(line, index, t('未填写字幕')) } : {}),
         end,
         start,
       })
@@ -922,7 +925,7 @@ export function MediaWaveform({
     }
 
     isSyncingRegionsRef.current = false
-  }, [activeLineIndex, draftLines, duration, mediaRef, waveform.status])
+  }, [activeLineIndex, draftLines, duration, mediaRef, t, waveform.status])
 
   // 选中字幕时，若该行起点不在当前可视范围内，把波形滚动到该行（补偿 autoScroll 关闭后
   // 试听/跳转时光标可能跑到视野外）。仅在越界时滚动一次，不再依赖 renderProgress 逐帧滚动。
@@ -949,10 +952,10 @@ export function MediaWaveform({
   return (
     <div className="waveform-panel">
       <div className="waveform-editor-main">
-        <div className="waveform-controls" role="toolbar" aria-label="音轨波形工具栏">
-          <div className="waveform-tool-group zoom-control" role="group" aria-label="波形缩放">
+        <div className="waveform-controls" role="toolbar" aria-label={t('音轨波形工具栏')}>
+          <div className="waveform-tool-group zoom-control" role="group" aria-label={t('波形缩放')}>
             <WaveformIconButton
-              label="缩小波形"
+              label={t('缩小波形')}
               disabled={zoom <= MIN_ZOOM}
               icon={<ZoomOut size={15} aria-hidden="true" />}
               onClick={() => setZoom((current) => clampZoom(current - ZOOM_STEP))}
@@ -967,7 +970,7 @@ export function MediaWaveform({
               onChange={(event) => setZoom(clampZoom(Number(event.target.value)))}
             />
             <WaveformIconButton
-              label="放大波形"
+              label={t('放大波形')}
               disabled={zoom >= MAX_ZOOM}
               icon={<ZoomIn size={15} aria-hidden="true" />}
               onClick={() => setZoom((current) => clampZoom(current + ZOOM_STEP))}
@@ -975,39 +978,39 @@ export function MediaWaveform({
             <strong>{zoom.toFixed(1)}x</strong>
           </div>
 
-          <div className="waveform-tool-group waveform-line-actions" role="group" aria-label="当前字幕操作">
+          <div className="waveform-tool-group waveform-line-actions" role="group" aria-label={t('当前字幕操作')}>
             <WaveformIconButton
-              label="试听"
+              label={t('试听')}
               disabled={!activeLine}
               icon={<Play size={15} aria-hidden="true" />}
               onClick={() => activeLine && onPlayLine(activeLine)}
             />
             <WaveformIconButton
-              label="上一句"
+              label={t('上一句')}
               disabled={activeLineIndex <= 0 || draftLines.length === 0}
               icon={<StepBack size={15} aria-hidden="true" />}
               onClick={() => playAdjacentLine(-1)}
             />
             <WaveformIconButton
-              label="下一句"
+              label={t('下一句')}
               disabled={activeLineIndex < 0 || activeLineIndex >= draftLines.length - 1}
               icon={<StepForward size={15} aria-hidden="true" />}
               onClick={() => playAdjacentLine(1)}
             />
             <WaveformIconButton
-              label="设开始"
+              label={t('设开始')}
               disabled={!activeLine}
               icon={<ArrowLeftToLine size={15} aria-hidden="true" />}
               onClick={() => onSetPointFromPlayer('start', activeLineIndex)}
             />
             <WaveformIconButton
-              label="设结束"
+              label={t('设结束')}
               disabled={!activeLine}
               icon={<ArrowRightToLine size={15} aria-hidden="true" />}
               onClick={() => onSetPointFromPlayer('end', activeLineIndex)}
             />
             <WaveformIconButton
-              label="删除"
+              label={t('删除')}
               danger
               disabled={!activeLine}
               icon={<Trash2 size={15} aria-hidden="true" />}
@@ -1015,15 +1018,15 @@ export function MediaWaveform({
             />
           </div>
 
-          <div className="waveform-tool-group waveform-actions" role="group" aria-label="字幕操作">
+          <div className="waveform-tool-group waveform-actions" role="group" aria-label={t('字幕操作')}>
             <WaveformIconButton
-              label="新增字幕"
+              label={t('新增字幕')}
               disabled={!sourceUrl}
               icon={<ListPlus size={15} aria-hidden="true" />}
               onClick={() => onAddLine()}
             />
             <WaveformIconButton
-              label="与下一句合并"
+              label={t('与下一句合并')}
               disabled={!onMergeLine || activeLineIndex < 0 || activeLineIndex >= draftLines.length - 1}
               icon={<Merge size={15} aria-hidden="true" />}
               onClick={() => onMergeLine?.(activeLineIndex)}
@@ -1044,7 +1047,7 @@ export function MediaWaveform({
             >
               <span className="waveform-popover-trigger">
                 <WaveformIconButton
-                  label={isTranslating && translationProgressMode === 'empty' ? '翻译中...' : 'AI 翻译缺失译文'}
+                  label={isTranslating && translationProgressMode === 'empty' ? t('翻译中...') : t('AI 翻译缺失译文')}
                   busy={Boolean(isTranslating && translationProgressMode === 'empty')}
                   disabled={!sourceUrl || !onTranslate || Boolean(isTranslating && translationProgressMode !== 'empty')}
                   icon={isTranslating && translationProgressMode === 'empty'
@@ -1075,7 +1078,7 @@ export function MediaWaveform({
             >
               <span className="waveform-popover-trigger">
                 <WaveformIconButton
-                  label={isTranslating && translationProgressMode === 'all' ? '翻译中...' : '全部重译'}
+                  label={isTranslating && translationProgressMode === 'all' ? t('翻译中...') : t('全部重译')}
                   busy={Boolean(isTranslating && translationProgressMode === 'all')}
                   disabled={!sourceUrl || !onTranslate || Boolean(isTranslating && translationProgressMode !== 'all')}
                   icon={isTranslating && translationProgressMode === 'all'
@@ -1086,12 +1089,12 @@ export function MediaWaveform({
                       return
                     }
                     Modal.confirm({
-                      cancelText: '取消',
+                      cancelText: t('取消'),
                       centered: true,
-                      content: '此操作会覆盖中文、ไทย、日本語中所有已经填写的译文。',
-                      okText: '继续重译',
+                      content: t('此操作会覆盖中文、ไทย、日本語中所有已经填写的译文。'),
+                      okText: t('继续重译'),
                       onOk: () => startTranslation('all'),
-                      title: '确定全部重译？',
+                      title: t('确定全部重译？'),
                     })
                   }}
                 />
@@ -1099,28 +1102,28 @@ export function MediaWaveform({
             </Popover>
           </div>
 
-          <div className="waveform-tool-group waveform-timing-action" role="group" aria-label="整体时间偏移">
+          <div className="waveform-tool-group waveform-timing-action" role="group" aria-label={t('整体时间偏移')}>
             <Popover
               content={
                 <div className="batch-timing-popover">
-                  <strong>整体时间偏移</strong>
+                  <strong>{t('整体时间偏移')}</strong>
                   <Space align="center" size={4}>
                     <Button
-                      aria-label="所有字幕减少 500ms"
+                      aria-label={t('所有字幕减少 500ms')}
                       icon={<ChevronsLeft size={14} aria-hidden="true" />}
                       onClick={() => applyBatchOffset(batchOffset - 500)}
                       size="small"
-                      title="减少 500ms"
+                      title={t('减少 500ms')}
                     />
                     <Button
-                      aria-label="所有字幕减少 10ms"
+                      aria-label={t('所有字幕减少 10ms')}
                       icon={<Minus size={14} aria-hidden="true" />}
                       onClick={() => applyBatchOffset(batchOffset - 10)}
                       size="small"
-                      title="减少 10ms"
+                      title={t('减少 10ms')}
                     />
                     <InputNumber
-                      aria-label="自定义时间偏移（毫秒）"
+                      aria-label={t('自定义时间偏移（毫秒）')}
                       disabled={draftLines.length === 0}
                       onChange={(value) => applyBatchOffset(value ?? 0)}
                       size="small"
@@ -1128,18 +1131,18 @@ export function MediaWaveform({
                     />
                     <span>ms</span>
                     <Button
-                      aria-label="所有字幕增加 10ms"
+                      aria-label={t('所有字幕增加 10ms')}
                       icon={<Plus size={14} aria-hidden="true" />}
                       onClick={() => applyBatchOffset(batchOffset + 10)}
                       size="small"
-                      title="增加 10ms"
+                      title={t('增加 10ms')}
                     />
                     <Button
-                      aria-label="所有字幕增加 500ms"
+                      aria-label={t('所有字幕增加 500ms')}
                       icon={<ChevronsRight size={14} aria-hidden="true" />}
                       onClick={() => applyBatchOffset(batchOffset + 500)}
                       size="small"
-                      title="增加 500ms"
+                      title={t('增加 500ms')}
                     />
                   </Space>
                   <Button
@@ -1149,7 +1152,7 @@ export function MediaWaveform({
                     size="small"
                     type="link"
                   >
-                    重置为 0
+                    {t('重置为 0')}
                   </Button>
                 </div>
               }
@@ -1158,9 +1161,9 @@ export function MediaWaveform({
               placement="bottomLeft"
               trigger="click"
             >
-              <Tooltip title="整体时间偏移" placement="top">
+              <Tooltip title={t('整体时间偏移')} placement="top">
                 <Button
-                  aria-label="整体时间偏移"
+                  aria-label={t('整体时间偏移')}
                   className="waveform-icon-button"
                   disabled={draftLines.length === 0}
                   icon={<Clock size={15} aria-hidden="true" />}
@@ -1179,7 +1182,7 @@ export function MediaWaveform({
           <div className="translate-error-banner" role="alert">
             <span className="translate-error-text">{translateError}</span>
             <button
-              aria-label="关闭翻译错误提示"
+              aria-label={t('关闭翻译错误提示')}
               className="translate-error-dismiss"
               onClick={onDismissTranslateError}
               type="button"
@@ -1213,15 +1216,15 @@ export function MediaWaveform({
           />
         ) : null}
       </div>
-      {showInspector && <aside className="waveform-editor-inspector" aria-label="字幕编辑器">
+      {showInspector && <aside className="waveform-editor-inspector" aria-label={t('字幕编辑器')}>
         <div className="waveform-inspector-heading">
-          <strong>字幕编辑</strong>
-          <span>{draftLines.length} 条</span>
+          <strong>{t('字幕编辑')}</strong>
+          <span>{draftLines.length} {t('条')}</span>
         </div>
         {activeLine && (
           <div className="subtitle-detail-editor">
           <div className="subtitle-detail-head">
-            <strong>当前字幕</strong>
+            <strong>{t('当前字幕')}</strong>
             <span>
               {formatTimeWithMilliseconds(activeLine.start)} - {formatTimeWithMilliseconds(activeLine.end)}
             </span>
@@ -1231,21 +1234,21 @@ export function MediaWaveform({
               type="button"
             >
               <Play size={14} aria-hidden="true" />
-              试听
+              {t('试听')}
             </button>
             <button
               className="mini-command secondary"
               onClick={() => onSetPointFromPlayer('start', activeLineIndex)}
               type="button"
             >
-              设开始
+              {t('设开始')}
             </button>
             <button
               className="mini-command secondary"
               onClick={() => onSetPointFromPlayer('end', activeLineIndex)}
               type="button"
             >
-              设结束
+              {t('设结束')}
             </button>
             <button
               className="mini-command danger"
@@ -1253,12 +1256,12 @@ export function MediaWaveform({
               type="button"
             >
               <Trash2 size={14} aria-hidden="true" />
-              删除
+              {t('删除')}
             </button>
           </div>
           <div className="subtitle-time-fields">
             <label className="time-ms-field">
-              <span>开始</span>
+              <span>{t('开始')}</span>
               <input
                 min="0"
                 step="1"
@@ -1273,7 +1276,7 @@ export function MediaWaveform({
               <small>ms</small>
             </label>
             <label className="time-ms-field">
-              <span>结束</span>
+              <span>{t('结束')}</span>
               <input
                 min="0"
                 step="1"
@@ -1290,7 +1293,7 @@ export function MediaWaveform({
           </div>
           <div className="subtitle-text-grid">
             <label className="field wide">
-              <span>英文字幕</span>
+              <span>{t('英文字幕')}</span>
               <input
                 value={activeLine.text}
                 onChange={(event) =>
@@ -1305,7 +1308,7 @@ export function MediaWaveform({
             </label>
             <div className="field wide">
               <div className="translation-field-head">
-                <span>字幕译文（按语言对照填写）</span>
+                <span>{t('字幕译文（按语言对照填写）')}</span>
                 <button
                   className="mini-command secondary"
                   disabled={!activeLine.text.trim() || isTranslatingSingle || !onTranslateSingle}
@@ -1324,16 +1327,16 @@ export function MediaWaveform({
                       setIsTranslatingSingle(false)
                     }
                   }}
-                  title="为当前这一句生成所有语言的译文"
+                  title={t('为当前这一句生成所有语言的译文')}
                   type="button"
                 >
                   <Languages size={14} aria-hidden="true" />
-                  {isTranslatingSingle ? '翻译中...' : 'AI 翻译本句'}
+                  {isTranslatingSingle ? t('翻译中...') : t('AI 翻译本句')}
                 </button>
               </div>
               {TRANSLATION_TARGET_LOCALES.map((locale) => (
                 <label className="translation-locale-row" key={locale}>
-                  <span>{TRANSLATION_LOCALE_LABELS[locale]}</span>
+                  <span>{t(TRANSLATION_LOCALE_LABELS[locale])}</span>
                   <input
                     value={activeLine.translations[locale] ?? ''}
                     onChange={(event) =>
@@ -1351,7 +1354,7 @@ export function MediaWaveform({
               ))}
             </div>
             <div className="field wide answer-field">
-              <span>其他可接受答案</span>
+              <span>{t('其他可接受答案')}</span>
               <div className="answer-input-list">
                 {(activeLine.answers ?? []).map((answer, answerIndex) => (
                   <div className="answer-input-row" key={answerIndex}>
@@ -1369,7 +1372,7 @@ export function MediaWaveform({
                         )
                         onUpdateLine(activeLineIndex, { answers: nextAnswers })
                       }}
-                      placeholder="填写另一种可接受答案"
+                      placeholder={t('填写另一种可接受答案')}
                     />
                     <button
                       className="mini-command"
@@ -1382,7 +1385,7 @@ export function MediaWaveform({
                       }
                       type="button"
                     >
-                      删除
+                      {t('删除')}
                     </button>
                   </div>
                 ))}
@@ -1396,12 +1399,12 @@ export function MediaWaveform({
                   type="button"
                 >
                   <ListPlus size={14} aria-hidden="true" />
-                  添加答案
+                  {t('添加答案')}
                 </button>
               </div>
             </div>
             <label className="field wide">
-              <span>关键词，逗号分隔</span>
+              <span>{t('关键词，逗号分隔')}</span>
               <input
                 value={activeLine.keywordsText}
                 onChange={(event) =>

@@ -121,6 +121,21 @@
   height: calc(100vh - 48px);
 }
 
+.admin-workspace-nav {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.admin-account-language {
+  cursor: default;
+  display: grid;
+  gap: 4px;
+  min-width: 156px;
+  padding: 4px 0;
+}
+
 .admin-workspace-content.ant-layout-content {
   min-width: 0;
   padding: 20px 24px 32px;

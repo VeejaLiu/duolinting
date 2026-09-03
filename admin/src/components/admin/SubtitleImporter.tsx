@@ -12,6 +12,7 @@ import type {
   SubtitleDraftAnalysis,
   SubtitleImportMode,
 } from '../../lib/mediaDraftTools'
+import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type SubtitleImporterProps = {
   subtitleDraft: string
@@ -52,6 +53,7 @@ export function SubtitleImporter({
   onDltjsonPaste,
   isModal = false,
 }: SubtitleImporterProps) {
+  const { t } = useAdminLanguage()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const dltjsonFileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -62,25 +64,25 @@ export function SubtitleImporter({
   return (
     <details className="subtitle-import" open={isModal || undefined}>
       <summary>
-        <span className="subtitle-import-title">字幕导入 / 导出</span>
+        <span className="subtitle-import-title">{t('字幕导入 / 导出')}</span>
         <span className="subtitle-import-formats">SRT · VTT · ASS · LRC · TXT</span>
       </summary>
 
       <div className="subtitle-import-body">
         <div className="subtitle-import-intro">
-          <strong>导入字幕并生成逐句时间轴</strong>
-          <span>支持字幕文件、文本粘贴和 dltjson，导入后仍可在波形上继续校准。</span>
+          <strong>{t('导入字幕并生成逐句时间轴')}</strong>
+          <span>{t('支持字幕文件、文本粘贴和 dltjson，导入后仍可在波形上继续校准。')}</span>
         </div>
         <div className="subtitle-import-tools">
           <button
             className="command-button"
             disabled={copySegmentPromptDisabled}
             onClick={onCopySegmentPrompt}
-            title="复制专家分段提示词 + 当前英文字幕（SRT 格式），可粘贴到 ChatGPT 等模型优化分段"
+            title={t('复制专家分段提示词 + 当前英文字幕（SRT 格式），可粘贴到 ChatGPT 等模型优化分段')}
             type="button"
           >
             <Sparkles size={15} aria-hidden="true" />
-            复制分段提示词
+            {t('复制分段提示词')}
           </button>
           <input
             ref={fileInputRef}
@@ -101,12 +103,12 @@ export function SubtitleImporter({
             type="button"
           >
             <Upload size={15} aria-hidden="true" />
-            从文件导入
+            {t('从文件导入')}
           </button>
         </div>
 
         <label className="field">
-          <span>粘贴字幕文本</span>
+          <span>{t('粘贴字幕文本')}</span>
           <textarea
             className="code-textarea"
             rows={8}
@@ -118,7 +120,7 @@ export function SubtitleImporter({
 
         {analysis.isLikelyBilingual && (
           <div className="field">
-            <span>检测到双语字幕</span>
+            <span>{t('检测到双语字幕')}</span>
             <div className="subtitle-bilingual-options">
               <label className="mini-radio">
                 <input
@@ -127,7 +129,7 @@ export function SubtitleImporter({
                   onChange={() => onImportModeChange('first-chinese')}
                   type="radio"
                 />
-                <span>第一行是中文</span>
+                <span>{t('第一行是中文')}</span>
               </label>
               <label className="mini-radio">
                 <input
@@ -136,23 +138,22 @@ export function SubtitleImporter({
                   onChange={() => onImportModeChange('second-chinese')}
                   type="radio"
                 />
-                <span>第二行是中文</span>
+                <span>{t('第二行是中文')}</span>
               </label>
             </div>
             <small>
-              共检测到 {analysis.blockCount} 段，其中 {analysis.bilingualBlockCount}{' '}
-              段符合双语两行结构。
+              {t('共检测到 {{blocks}} 段，其中 {{bilingual}} 段符合双语两行结构。', { blocks: analysis.blockCount, bilingual: analysis.bilingualBlockCount })}
             </small>
           </div>
         )}
 
         <div className="subtitle-import-footer">
           <div className="subtitle-offset">
-            <span>时间偏移</span>
+            <span>{t('时间偏移')}</span>
             <button
               className="mini-command"
               onClick={() => adjustOffset(-100)}
-              title="减 100ms"
+              title={t('减 100ms')}
               type="button"
             >
               <Minus size={13} aria-hidden="true" />
@@ -171,7 +172,7 @@ export function SubtitleImporter({
             <button
               className="mini-command"
               onClick={() => adjustOffset(100)}
-              title="加 100ms"
+              title={t('加 100ms')}
               type="button"
             >
               <Plus size={13} aria-hidden="true" />
@@ -182,42 +183,42 @@ export function SubtitleImporter({
             onClick={onImportSubtitle}
             type="button"
           >
-            导入为逐句字幕
+            {t('导入为逐句字幕')}
           </button>
         </div>
 
         <div className="subtitle-import-export">
           <div className="subtitle-import-section-title">
             <strong>dltjson</strong>
-            <span>保存和迁移完整字幕编辑数据</span>
+            <span>{t('保存和迁移完整字幕编辑数据')}</span>
           </div>
           <div className="dltjson-actions">
             <button
               className="mini-command secondary"
               onClick={onDltjsonCopy}
-              title="复制 dltjson 到剪切板，不支持时会打开手动复制面板"
+              title={t('复制 dltjson 到剪切板，不支持时会打开手动复制面板')}
               type="button"
             >
               <Clipboard size={14} aria-hidden="true" />
-              复制 dltjson
+              {t('复制 dltjson')}
             </button>
             <button
               className="mini-command secondary"
               onClick={onDltjsonPaste}
-              title="打开 dltjson 粘贴输入框"
+              title={t('打开 dltjson 粘贴输入框')}
               type="button"
             >
               <ClipboardPaste size={14} aria-hidden="true" />
-              粘贴 dltjson
+              {t('粘贴 dltjson')}
             </button>
             <button
               className="mini-command"
               onClick={onDltjsonExport}
-              title="导出为 dltjson 文件"
+              title={t('导出为 dltjson 文件')}
               type="button"
             >
               <Download size={14} aria-hidden="true" />
-              导出 dltjson
+              {t('导出 dltjson')}
             </button>
             <button
               className="mini-command secondary"
@@ -225,7 +226,7 @@ export function SubtitleImporter({
               type="button"
             >
               <Upload size={14} aria-hidden="true" />
-              导入 dltjson
+              {t('导入 dltjson')}
             </button>
             <input
               ref={dltjsonFileInputRef}

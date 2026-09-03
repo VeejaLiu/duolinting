@@ -1,7 +1,10 @@
 import { Component, Fragment, type ErrorInfo, type ReactNode } from 'react'
+import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type MediaWaveformErrorBoundaryProps = {
   children: ReactNode
+  errorTitle: string
+  retryLabel: string
 }
 
 type MediaWaveformErrorBoundaryState = {
@@ -15,7 +18,7 @@ type MediaWaveformErrorBoundaryState = {
  * 避免异常一路冒泡到根节点导致整个 admin 页面白屏。出错时展示可重试的占位，
  * 点击「重新加载波形」会用一个新 key 强制重挂 MediaWaveform，重新初始化 WaveSurfer。
  */
-export class MediaWaveformErrorBoundary extends Component<
+class MediaWaveformErrorBoundaryInner extends Component<
   MediaWaveformErrorBoundaryProps,
   MediaWaveformErrorBoundaryState
 > {
@@ -49,10 +52,10 @@ export class MediaWaveformErrorBoundary extends Component<
     if (this.state.hasError) {
       return (
         <div className="waveform-error-boundary" role="alert">
-          <strong>波形加载失败</strong>
+          <strong>{this.props.errorTitle}</strong>
           <span className="waveform-error-message">{this.state.errorMessage}</span>
           <button className="mini-command" onClick={this.handleReset} type="button">
-            重新加载波形
+            {this.props.retryLabel}
           </button>
         </div>
       )
@@ -60,4 +63,13 @@ export class MediaWaveformErrorBoundary extends Component<
 
     return <Fragment key={this.state.resetKey}>{this.props.children}</Fragment>
   }
+}
+
+export function MediaWaveformErrorBoundary({ children }: { children: ReactNode }) {
+  const { t } = useAdminLanguage()
+  return (
+    <MediaWaveformErrorBoundaryInner errorTitle={t('波形加载失败')} retryLabel={t('重新加载波形')}>
+      {children}
+    </MediaWaveformErrorBoundaryInner>
+  )
 }

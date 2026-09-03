@@ -2,6 +2,7 @@ import { ReloadOutlined } from '@ant-design/icons'
 import { Line } from '@ant-design/charts'
 import { Alert, Button, Card, Col, Empty, Progress, Row, Space, Statistic, Tag, Typography } from 'antd'
 import type { AdminGrowthClientDistribution, AdminGrowthReport, AdminGrowthTrendPoint } from '@duolinting/shared'
+import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type GrowthAnalyticsPanelProps = {
   report: AdminGrowthReport | null
@@ -45,6 +46,7 @@ function GrowthTrendChart({
   series: TrendSeries[]
   emptyDescription: string
 }) {
+  const { t, uiLocale } = useAdminLanguage()
   const chartData = series.flatMap((item) => trend.map((point, index) => ({
     date: point.date,
     metric: item.label,
@@ -75,7 +77,7 @@ function GrowthTrendChart({
                 {
                   name: { field: 'metric' },
                   field: 'value',
-                  valueFormatter: (value: number) => `${new Intl.NumberFormat('zh-CN').format(value)} 人`,
+                  valueFormatter: (value: number) => `${new Intl.NumberFormat(uiLocale).format(value)} ${t('人')}`,
                 },
               ],
               shared: true,
@@ -89,18 +91,19 @@ function GrowthTrendChart({
 
 /** 端侧活跃按端独立去重；跨端用户会出现在多个端，用来观察产品触点覆盖。 */
 function ClientDistributionCard({ item, mau }: { item: AdminGrowthClientDistribution; mau: number }) {
+  const { t } = useAdminLanguage()
   const share = mau > 0 ? Math.round((item.active30dCount / mau) * 1000) / 10 : 0
   return (
     <Card size="small">
       <Space direction="vertical" size={10} style={{ width: '100%' }}>
         <Space>
-          <Tag color={clientColors[item.clientType]}>{clientLabels[item.clientType]}</Tag>
-          <Typography.Text type="secondary">近 30 天触点覆盖</Typography.Text>
+          <Tag color={clientColors[item.clientType]}>{t(clientLabels[item.clientType])}</Tag>
+          <Typography.Text type="secondary">{t('近 30 天触点覆盖')}</Typography.Text>
         </Space>
-        <Statistic value={item.active30dCount} suffix="人" valueStyle={{ color: clientColors[item.clientType] }} />
+        <Statistic value={item.active30dCount} suffix={t('人')} valueStyle={{ color: clientColors[item.clientType] }} />
         <Progress percent={share} showInfo={false} strokeColor={clientColors[item.clientType]} />
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          今日 {item.activeTodayCount} · 近 7 天 {item.active7dCount} · 占 MAU {share}%
+          {t('今日')} {item.activeTodayCount} · {t('近 7 天')} {item.active7dCount} · MAU {share}%
         </Typography.Text>
       </Space>
     </Card>
@@ -108,12 +111,13 @@ function ClientDistributionCard({ item, mau }: { item: AdminGrowthClientDistribu
 }
 
 export function UserActivityPanel({ report, isLoading, onRefresh }: GrowthAnalyticsPanelProps) {
+  const { t, uiLocale } = useAdminLanguage()
   const cards = report
     ? [
-        { title: '累计注册用户', value: report.summary.totalUsers },
-        { title: '今日新增注册', value: report.summary.registeredTodayCount, color: '#1cb0f6' },
-        { title: '近 7 天新增', value: report.summary.registered7dCount, color: '#0d8f74' },
-        { title: '近 30 天新增', value: report.summary.registered30dCount, color: '#b45309' },
+        { title: t('累计注册用户'), value: report.summary.totalUsers },
+        { title: t('今日新增注册'), value: report.summary.registeredTodayCount, color: '#1cb0f6' },
+        { title: t('近 7 天新增'), value: report.summary.registered7dCount, color: '#0d8f74' },
+        { title: t('近 30 天新增'), value: report.summary.registered30dCount, color: '#b45309' },
         { title: 'DAU', value: report.summary.dau, color: '#1cb0f6' },
         { title: 'WAU', value: report.summary.wau, color: '#0d8f74' },
         { title: 'MAU', value: report.summary.mau, color: '#b45309' },
@@ -123,19 +127,19 @@ export function UserActivityPanel({ report, isLoading, onRefresh }: GrowthAnalyt
 
   return (
     <section className="admin-section">
-      <div className="panel-title"><span>增长分析</span></div>
+      <div className="panel-title"><span>{t('增长分析')}</span></div>
       <Space wrap size="middle" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Text type="secondary">关注注册增长、日活留存和产品端侧分布，不展示个人学习内容。</Typography.Text>
-        <Button icon={<ReloadOutlined />} loading={isLoading} onClick={onRefresh} type="default">刷新</Button>
+        <Typography.Text type="secondary">{t('关注注册增长、日活留存和产品端侧分布，不展示个人学习内容。')}</Typography.Text>
+        <Button icon={<ReloadOutlined />} loading={isLoading} onClick={onRefresh} type="default">{t('刷新')}</Button>
       </Space>
 
       {report && !report.trackingStartedAt ? (
-        <Alert showIcon type="info" message="访问追踪将在用户完成登录后开始积累"
-          description="注册趋势可立即查看；DAU、WAU、MAU 与端侧活跃分布会从本次上线后的已登录访问开始形成准确历史。" />
+        <Alert showIcon type="info" message={t('访问追踪将在用户完成登录后开始积累')}
+          description={t('注册趋势可立即查看；DAU、WAU、MAU 与端侧活跃分布会从本次上线后的已登录访问开始形成准确历史。')} />
       ) : null}
       {report?.trackingStartedAt ? (
-        <Alert showIcon type="info" message={`访问追踪开始于 ${report.trackingStartedAt}`}
-          description="DAU、WAU、MAU 按已登录用户去重；端侧分布允许同一用户同时出现在多个端。" />
+        <Alert showIcon type="info" message={`${t('访问追踪开始于')} ${report.trackingStartedAt}`}
+          description={t('DAU、WAU、MAU 按已登录用户去重；端侧分布允许同一用户同时出现在多个端。')} />
       ) : null}
 
       {report ? (
@@ -152,41 +156,41 @@ export function UserActivityPanel({ report, isLoading, onRefresh }: GrowthAnalyt
             <Col lg={14} xs={24}>
               <Space direction="vertical" size={16} style={{ width: '100%' }}>
                 <GrowthTrendChart
-                  title="新增注册与日活"
-                  description="每日新增注册与当日去重活跃用户（DAU）。"
+                  title={t('新增注册与日活')}
+                  description={t('每日新增注册与当日去重活跃用户（DAU）。')}
                   trend={report.trend}
                   series={[
-                    { key: 'registered', label: '新增注册', color: '#1cb0f6', values: report.trend.map((point) => point.registeredUserCount) },
+                    { key: 'registered', label: t('新增注册'), color: '#1cb0f6', values: report.trend.map((point) => point.registeredUserCount) },
                     { key: 'dau', label: 'DAU', color: '#7c3aed', values: report.trend.map((point) => point.activeUserCount) },
                   ]}
-                  emptyDescription="近 30 天暂无新增注册或已登录访问数据"
+                  emptyDescription={t('近 30 天暂无新增注册或已登录访问数据')}
                 />
                 <GrowthTrendChart
-                  title="注册规模与活跃用户"
-                  description="累计注册按截止当日计算；WAU/MAU 分别为截至当日滚动 7 / 30 天的去重活跃用户。"
+                  title={t('注册规模与活跃用户')}
+                  description={t('累计注册按截止当日计算；WAU/MAU 分别为截至当日滚动 7 / 30 天的去重活跃用户。')}
                   trend={report.trend}
                   series={[
-                    { key: 'total-registered', label: '累计注册', color: '#1cb0f6', values: report.trend.map((point) => point.totalRegisteredUserCount) },
+                    { key: 'total-registered', label: t('累计注册'), color: '#1cb0f6', values: report.trend.map((point) => point.totalRegisteredUserCount) },
                     { key: 'wau', label: 'WAU', color: '#58cc02', values: report.trend.map((point) => point.weeklyActiveUserCount) },
                     { key: 'mau', label: 'MAU', color: '#ff9600', values: report.trend.map((point) => point.monthlyActiveUserCount) },
                   ]}
-                  emptyDescription="近 30 天暂无注册或已登录访问数据"
+                  emptyDescription={t('近 30 天暂无注册或已登录访问数据')}
                 />
                 <GrowthTrendChart
-                  title="各端每日活跃"
-                  description="每条线按端内用户去重；同一用户跨端访问会分别出现在对应端，不可相加为总 DAU。"
+                  title={t('各端每日活跃')}
+                  description={t('每条线按端内用户去重；同一用户跨端访问会分别出现在对应端，不可相加为总 DAU。')}
                   trend={report.trend}
                   series={[
-                    { key: 'web-app', label: '电脑 Web', color: clientColors.web_app, values: report.trend.map((point) => point.webAppActiveUserCount) },
+                    { key: 'web-app', label: t('电脑 Web'), color: clientColors.web_app, values: report.trend.map((point) => point.webAppActiveUserCount) },
                     { key: 'mobile-web', label: 'Mobile Web', color: clientColors.mobile_web, values: report.trend.map((point) => point.mobileWebActiveUserCount) },
-                    { key: 'mobile-app', label: '原生 App', color: clientColors.mobile_app, values: report.trend.map((point) => point.mobileAppActiveUserCount) },
+                    { key: 'mobile-app', label: t('原生 App'), color: clientColors.mobile_app, values: report.trend.map((point) => point.mobileAppActiveUserCount) },
                   ]}
-                  emptyDescription="近 30 天暂无已登录访问数据"
+                  emptyDescription={t('近 30 天暂无已登录访问数据')}
                 />
               </Space>
             </Col>
             <Col lg={10} xs={24}>
-              <Card title="端侧活跃分布" size="small">
+              <Card title={t('端侧活跃分布')} size="small">
                 <Space direction="vertical" size={12} style={{ width: '100%' }}>
                   {report.clientDistribution.map((item) => <ClientDistributionCard item={item} key={item.clientType} mau={report.summary.mau} />)}
                 </Space>
@@ -194,10 +198,10 @@ export function UserActivityPanel({ report, isLoading, onRefresh }: GrowthAnalyt
             </Col>
           </Row>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            数据更新于 {new Date(report.generatedAt).toLocaleString()}。DAU/WAU/MAU 仅覆盖已登录用户；未登录访客不纳入统计。
+            {t('数据更新于 {{time}}。DAU/WAU/MAU 仅覆盖已登录用户；未登录访客不纳入统计。', { time: new Date(report.generatedAt).toLocaleString(uiLocale) })}
           </Typography.Text>
         </>
-      ) : <Empty description={isLoading ? '增长数据加载中…' : '暂无增长数据。'} />}
+      ) : <Empty description={isLoading ? t('增长数据加载中…') : t('暂无增长数据。')} />}
     </section>
   )
 }

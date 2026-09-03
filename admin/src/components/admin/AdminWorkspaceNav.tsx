@@ -1,7 +1,8 @@
-import { Menu } from 'antd'
+import { Menu, Select, Typography } from 'antd'
 import type { MenuProps } from 'antd'
 import { BookOpen, Clapperboard, Inbox, KeyRound, Layers3, ListChecks, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, UserRound, Users, UsersRound, type LucideIcon } from 'lucide-react'
 import type { AdminUser } from '@duolinting/shared'
+import { adminUiLocaleLabels, useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 export type AdminSection = 'importer' | 'directory' | 'courses' | 'recorder' | 'feedback' | 'users' | 'collaboration' | 'activity' | 'pool' | 'api-keys' | 'account-settings'
 
@@ -65,6 +66,7 @@ export function AdminWorkspaceNav({
   onLogout,
   onSectionChange,
 }: AdminWorkspaceNavProps) {
+  const { t, uiLocale, setUiLocale } = useAdminLanguage()
   // 制课工作台只作为“课程管理”里某门课程的编辑页入口，不在侧栏单独出现。
   // 贡献者因此只看到自己获授权的课程管理入口；超级管理员保留完整管理菜单。
   const visibleSections = adminSections.filter((section) =>
@@ -73,8 +75,8 @@ export function AdminWorkspaceNav({
       : section.id === 'courses' || section.id === 'pool' || section.id === 'activity' || section.id === 'account-settings',
   )
   if (adminUser.role === 'super_admin') {
-    visibleSections.push({ id: 'collaboration', label: '人员管理', Icon: UsersRound })
-    visibleSections.push({ id: 'api-keys', label: '开放内容 API', Icon: KeyRound })
+    visibleSections.push({ id: 'collaboration', label: t('人员管理'), Icon: UsersRound })
+    visibleSections.push({ id: 'api-keys', label: t('开放内容 API'), Icon: KeyRound })
   }
   const workspaceItems: MenuProps['items'] = visibleSections.map(({
     id,
@@ -83,7 +85,7 @@ export function AdminWorkspaceNav({
   }) => ({
     key: id,
     icon: <Icon size={17} aria-hidden="true" />,
-    label,
+    label: t(label),
   }))
 
   const menuItems: MenuProps['items'] = [
@@ -91,15 +93,15 @@ export function AdminWorkspaceNav({
       className: 'admin-menu-collapse',
       icon: collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />,
       key: 'collapse',
-      label: collapsed ? '展开侧栏' : '收起侧栏',
-      title: collapsed ? '展开侧栏' : '收起侧栏',
+      label: collapsed ? t('展开侧栏') : t('收起侧栏'),
+      title: collapsed ? t('展开侧栏') : t('收起侧栏'),
     },
     {
       className: 'admin-menu-brand',
       disabled: true,
       icon: <img alt="" className="admin-menu-brand-icon" src="/duolinting-logo-ear.png" />,
       key: 'brand',
-      label: collapsed ? 'DuolinTing' : 'DuolinTing 管理后台',
+      label: collapsed ? 'DuolinTing' : `DuolinTing ${t('管理后台')}`,
     },
     ...workspaceItems,
     { type: 'divider' },
@@ -107,12 +109,31 @@ export function AdminWorkspaceNav({
       className: 'admin-menu-account',
       icon: <UserRound size={17} aria-hidden="true" />,
       key: 'account',
-      label: collapsed ? '后台账号' : `${adminUser.displayName} · ${adminUser.role === 'super_admin' ? '超级管理员' : '字幕贡献者'}`,
+      label: collapsed ? t('后台账号') : `${adminUser.displayName} · ${adminUser.role === 'super_admin' ? t('超级管理员') : t('字幕贡献者')}`,
       children: [
+        {
+          key: 'language',
+          label: (
+            <div className="admin-account-language" onClick={(event) => event.stopPropagation()}>
+              <Typography.Text type="secondary">{t('界面语言')}</Typography.Text>
+              <Select
+                aria-label={t('界面语言')}
+                onChange={setUiLocale}
+                onClick={(event) => event.stopPropagation()}
+                options={(Object.keys(adminUiLocaleLabels) as Array<keyof typeof adminUiLocaleLabels>).map((locale) => ({
+                  label: adminUiLocaleLabels[locale],
+                  value: locale,
+                }))}
+                size="small"
+                value={uiLocale}
+              />
+            </div>
+          ),
+        },
         {
           icon: <LogOut size={16} aria-hidden="true" />,
           key: 'logout',
-          label: '退出登录',
+          label: t('退出登录'),
         },
       ],
     },
@@ -127,18 +148,23 @@ export function AdminWorkspaceNav({
       onLogout()
       return
     }
+    if (key === 'language') {
+      return
+    }
     if (key !== 'account') {
       onSectionChange(key as AdminSection)
     }
   }
 
   return (
+    <div className="admin-workspace-nav">
       <Menu
         className={collapsed ? 'admin-workspace-menu is-collapsed' : 'admin-workspace-menu'}
         items={menuItems}
         mode="vertical"
-      onClick={handleMenuClick}
-      selectedKeys={[activeSection]}
-    />
+        onClick={handleMenuClick}
+        selectedKeys={[activeSection]}
+      />
+    </div>
   )
 }

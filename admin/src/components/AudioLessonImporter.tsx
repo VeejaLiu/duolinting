@@ -25,6 +25,7 @@ import {
 } from '../lib/apiClient'
 import { ADMIN_TOKEN_STORAGE_KEY } from '../lib/contentTools'
 import { useMediaPlayback } from '../hooks/useMediaPlayback'
+import { useAdminLanguage } from '../i18n/AdminLanguageProvider'
 import {
   analyzeSubtitleDraft,
   createEmptyDraftLine,
@@ -249,6 +250,7 @@ export function AudioLessonImporter({
   onRegisterSaveBeforeLeave,
   adminRole,
 }: AudioLessonImporterProps) {
+  const { t } = useAdminLanguage()
   const canWriteClipboard =
     typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function'
   const navigate = useNavigate()
@@ -1267,30 +1269,30 @@ export function AudioLessonImporter({
           onNotify={onStatusChange}
           statusBar={
             <div className="admin-footer media-workbench-status">
-              <span>{validLineCount} 句可保存</span>
+              <span>{t('{{count}} 句可保存', { count: validLineCount })}</span>
               <span>
                 {isUploadingMedia
                   ? mediaUploadProgress
                     ? mediaUploadProgress.percent === 100
-                      ? '文件已发送，正在等待服务器确认'
-                      : `媒体上传中${mediaUploadProgress.percent === null ? '' : ` ${mediaUploadProgress.percent}%`}`
-                    : '正在将媒体绑定到课程'
+                      ? t('文件已发送，正在等待服务器确认')
+                      : `${t('媒体上传中')}${mediaUploadProgress.percent === null ? '' : ` ${mediaUploadProgress.percent}%`}`
+                    : t('正在将媒体绑定到课程')
                   : courseForm.audioUrl
-                    ? '媒体已就绪'
-                    : '媒体未上传'}
+                    ? t('媒体已就绪')
+                    : t('媒体未上传')}
               </span>
               <span>
                 {isSubmittedSubtitleDraft
-                  ? '已提交审核，当前不可继续修改或重复提交'
+                  ? t('已提交审核，当前不可继续修改或重复提交')
                   : isApprovedSubtitleDraft
-                    ? '已审核通过并发布，本次校对工作已完成'
+                    ? t('已审核通过并发布，本次校对工作已完成')
                   : ownSubtitleDraft?.status === 'returned'
-                    ? '审核已退回，请按意见修改后重新提交'
+                    ? t('审核已退回，请按意见修改后重新提交')
                     : courseForm.status === 'published'
-                      ? '已完成二次审核，学习端公开可见'
+                      ? t('已完成二次审核，学习端公开可见')
                       : courseForm.status === 'proofread'
-                        ? '已校对，志愿者可预览'
-                        : '草稿，志愿者可预览'}
+                        ? t('已校对，志愿者可预览')
+                        : t('草稿，志愿者可预览')}
               </span>
             </div>
           }

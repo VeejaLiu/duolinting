@@ -1,4 +1,5 @@
 import { TriangleAlert } from 'lucide-react'
+import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 export type AdminNoticeTone = 'info' | 'success' | 'error'
 
@@ -19,14 +20,15 @@ export function AdminConfirmDialog({
   open,
   title,
   message,
-  confirmLabel = '确认',
-  cancelLabel = '取消',
+  confirmLabel,
+  cancelLabel,
   alternateLabel,
   tone = 'default',
   onCancel,
   onConfirm,
   onAlternate,
 }: AdminConfirmDialogProps) {
+  const { t } = useAdminLanguage()
   if (!open) {
     return null
   }
@@ -50,7 +52,7 @@ export function AdminConfirmDialog({
         </div>
         <div className="admin-modal-actions">
           <button className="mini-command secondary" onClick={onCancel} type="button">
-            {cancelLabel}
+            {cancelLabel ?? t('取消')}
           </button>
           {alternateLabel && onAlternate && (
             <button className="mini-command danger" onClick={onAlternate} type="button">
@@ -62,7 +64,7 @@ export function AdminConfirmDialog({
             onClick={onConfirm}
             type="button"
           >
-            {confirmLabel}
+            {confirmLabel ?? t('确认')}
           </button>
         </div>
       </div>

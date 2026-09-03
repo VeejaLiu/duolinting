@@ -31,6 +31,7 @@ import type { AdminNoticeTone } from './AdminFeedback'
 import { CoverImageField } from './CoverImageField'
 import { apiClient, type FileUploadProgress } from '../../lib/apiClient'
 import { formatDurationLabel, type DraftLine } from '../../lib/mediaDraftTools'
+import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type ClipboardPanelState =
   | { mode: 'hidden' }
@@ -190,6 +191,7 @@ export function MediaCourseForm({
   onSaveLesson,
   onSubmitSubtitleDraft,
 }: MediaCourseFormProps) {
+  const { t } = useAdminLanguage()
   const [localizationLocale, setLocalizationLocale] = useState<ContentLocale>('en-US')
   const [previewTime, setPreviewTime] = useState(0)
   const [isCourseMetaOpen, setIsCourseMetaOpen] = useState(false)
@@ -218,7 +220,7 @@ export function MediaCourseForm({
     const sourceTitle = courseForm.title.trim()
     const sourceSummary = courseForm.summary.trim()
     if (!sourceTitle) {
-      onNotify('请先填写课程标题', 'error')
+      onNotify(t('请先填写课程标题'), 'error')
       return
     }
 
@@ -237,7 +239,7 @@ export function MediaCourseForm({
           750,
         )
         if (result.failedIndexes.length > 0 || !result.translations[0]?.trim()) {
-          throw new Error(`${courseLocalizationLabels[locale]}翻译失败`)
+          throw new Error(`${t(courseLocalizationLabels[locale])}${t('翻译失败')}`)
         }
         nextLocalizations[locale] = {
           ...nextLocalizations[locale],
@@ -247,38 +249,38 @@ export function MediaCourseForm({
         }
       }
       onCourseFormChange((current) => ({ ...current, localizations: nextLocalizations }))
-      onNotify('已生成英语、泰语和日语的课程标题与摘要', 'success')
+      onNotify(t('已生成英语、泰语和日语的课程标题与摘要'), 'success')
     } catch (error) {
-      onNotify(error instanceof Error ? error.message : 'AI 多语言生成失败', 'error')
+      onNotify(error instanceof Error ? error.message : t('AI 多语言生成失败'), 'error')
     } finally {
       setIsGeneratingLocalizations(false)
     }
   }
   const currentMediaName = mediaFile?.name ||
-    (courseForm.audioUrl ? courseForm.source.trim() || '已加载媒体' : '尚未选择媒体')
+    (courseForm.audioUrl ? courseForm.source.trim() || t('已加载媒体') : t('尚未选择媒体'))
   const currentMediaAddress = courseForm.audioUrl
     ? courseForm.audioUrl
     : mediaFile
-      ? '本地文件（上传完成后生成媒体地址）'
-      : '尚未生成媒体地址'
-  const currentMediaTypeLabel = courseForm.mediaType === 'video' ? '视频' : '音频'
+      ? t('本地文件（上传完成后生成媒体地址）')
+      : t('尚未生成媒体地址')
+  const currentMediaTypeLabel = courseForm.mediaType === 'video' ? t('视频') : t('音频')
   const currentMediaStatusLabel = mediaUploadProgress
-    ? '正在上传'
+    ? t('正在上传')
     : courseForm.audioUrl
       ? mediaFile
-        ? '已上传，可重新选择替换'
-        : '已加载，可重新选择替换'
+        ? t('已上传，可重新选择替换')
+        : t('已加载，可重新选择替换')
       : mediaFile
-        ? '本地预览，等待上传'
-        : '等待选择'
+        ? t('本地预览，等待上传')
+        : t('等待选择')
   const currentMediaSizeLabel =
-    typeof mediaSize === 'number' && mediaSize > 0 ? formatFileSize(mediaSize) : '未知'
+    typeof mediaSize === 'number' && mediaSize > 0 ? formatFileSize(mediaSize) : t('未知')
   const mediaUploadLabel = mediaUploadProgress
     ? mediaUploadProgress.percent === 100
-      ? '文件已发送，正在等待服务器确认'
+      ? t('文件已发送，正在等待服务器确认')
       : mediaUploadProgress.percent === null
-        ? '正在上传媒体'
-        : `正在上传媒体 ${mediaUploadProgress.percent}%`
+        ? t('正在上传媒体')
+        : `${t('正在上传媒体')} ${mediaUploadProgress.percent}%`
     : ''
   const mediaUploadSizeLabel = mediaUploadProgress?.total
     ? `${formatFileSize(Math.min(mediaUploadProgress.loaded, mediaUploadProgress.total))} / ${formatFileSize(mediaUploadProgress.total)}`
@@ -377,12 +379,12 @@ export function MediaCourseForm({
           {currentMediaName}
         </span>
         <span className="media-file-address" title={currentMediaAddress}>
-          地址：{currentMediaAddress}
+          {t('地址：')}{currentMediaAddress}
         </span>
         <span className="media-file-meta">
-          类型：{currentMediaTypeLabel} · 大小：{currentMediaSizeLabel}
+          {t('类型：')}{currentMediaTypeLabel} · {t('大小：')}{currentMediaSizeLabel}
         </span>
-        <span className="media-file-status">状态：{currentMediaStatusLabel}</span>
+        <span className="media-file-status">{t('状态：')}{currentMediaStatusLabel}</span>
         {mediaUploadProgress && (
           <span className="media-upload-progress" aria-live="polite">
             <span>{mediaUploadLabel}</span>
@@ -511,7 +513,7 @@ export function MediaCourseForm({
     <>
       <Drawer
         className="course-meta-drawer"
-        title="课程信息"
+        title={t('课程信息')}
         placement="left"
         open={isCourseMetaOpen}
         width={380}
@@ -524,7 +526,7 @@ export function MediaCourseForm({
             style={{ border: 0, margin: 0, minInlineSize: 0, padding: 0 }}
           >
             <FieldSelect
-              label="内容分类"
+              label={t('内容分类')}
               value={selectedGroupId}
               onValueChange={(value) => {
                 const nextGroup = categoriesByGroup.find(
@@ -536,11 +538,11 @@ export function MediaCourseForm({
                 }))
               }}
               options={groupOptions}
-              placeholder={groupOptions.length === 0 ? '请先创建内容分类' : undefined}
+              placeholder={groupOptions.length === 0 ? t('请先创建内容分类') : undefined}
             />
 
             <FieldSelect
-              label="学习系列"
+              label={t('学习系列')}
               value={String(courseForm.categoryId)}
               onValueChange={(value) =>
                 onCourseFormChange((current) => ({
@@ -549,13 +551,13 @@ export function MediaCourseForm({
                 }))
               }
               options={categoryOptions}
-              placeholder={categoryOptions.length === 0 ? '请先创建学习系列' : undefined}
+              placeholder={categoryOptions.length === 0 ? t('请先创建学习系列') : undefined}
             />
 
             <label className="field">
-              <span>标题</span>
+              <span>{t('标题')}</span>
               <input
-                placeholder="请输入课程标题"
+                placeholder={t('请输入课程标题')}
                 value={courseForm.title}
                 onChange={(event) =>
                   onCourseFormChange((current) => ({
@@ -567,7 +569,7 @@ export function MediaCourseForm({
             </label>
 
             <FieldSelect
-              label="难度"
+              label={t('难度')}
               value={courseForm.difficulty}
               onValueChange={(value) =>
                 onCourseFormChange((current) => ({
@@ -576,16 +578,16 @@ export function MediaCourseForm({
                 }))
               }
               options={[
-                { value: 'beginner', label: '入门' },
-                { value: 'intermediate', label: '进阶' },
-                { value: 'advanced', label: '高阶' },
+                { value: 'beginner', label: t('入门') },
+                { value: 'intermediate', label: t('进阶') },
+                { value: 'advanced', label: t('高阶') },
               ]}
             />
 
             <label className="field">
-              <span>时长</span>
+              <span>{t('时长')}</span>
               <input
-                placeholder="上传媒体后自动读取"
+                placeholder={t('上传媒体后自动读取')}
                 value={courseForm.durationLabel}
                 onChange={(event) =>
                   onCourseFormChange((current) => ({
@@ -597,12 +599,12 @@ export function MediaCourseForm({
             </label>
 
             <div className="field wide media-meta-field">
-              <span>媒体文件</span>
+              <span>{t('媒体文件')}</span>
               {mediaReplaceControl}
             </div>
 
             <FieldSelect
-              label="状态"
+              label={t('状态')}
               value={courseForm.status}
               onValueChange={(value) =>
                 onCourseFormChange((current) => ({
@@ -611,23 +613,23 @@ export function MediaCourseForm({
                 }))
               }
               options={[
-                { value: 'draft', label: '草稿' },
-                ...(courseForm.status === 'proofread' ? [{ value: 'proofread', label: '已校对' }] : []),
-                ...(courseForm.status === 'published' ? [{ value: 'published', label: '已发布' }] : []),
-                ...(courseForm.status === 'archived' ? [{ value: 'archived', label: '已归档' }] : []),
+                { value: 'draft', label: t('草稿') },
+                ...(courseForm.status === 'proofread' ? [{ value: 'proofread', label: t('已校对') }] : []),
+                ...(courseForm.status === 'published' ? [{ value: 'published', label: t('已发布') }] : []),
+                ...(courseForm.status === 'archived' ? [{ value: 'archived', label: t('已归档') }] : []),
               ]}
             />
 
             {isSubtitleContributor && (
               <div className="field wide">
-                <small>“保存校对草稿”只保存给你自己，不影响学习端；确认完成后请点“提交校对”，由超级管理员二次审核。课程元数据与媒体仅由超级管理员维护。</small>
+                <small>{t('“保存校对草稿”只保存给你自己，不影响学习端；确认完成后请点“提交校对”，由超级管理员二次审核。课程元数据与媒体仅由超级管理员维护。')}</small>
               </div>
             )}
 
             <label className="field">
-              <span>来源</span>
+              <span>{t('来源')}</span>
               <input
-                placeholder="默认使用真实媒体导入"
+                placeholder={t('默认使用真实媒体导入')}
                 value={courseForm.source}
                 onChange={(event) =>
                   onCourseFormChange((current) => ({
@@ -639,7 +641,7 @@ export function MediaCourseForm({
             </label>
 
             <label className="field wide">
-              <span>来源链接（可选）</span>
+              <span>{t('来源链接（可选）')}</span>
               <input
                 placeholder="https://example.com/original-material"
                 type="url"
@@ -654,10 +656,10 @@ export function MediaCourseForm({
             </label>
 
             <label className="field wide">
-              <span>摘要</span>
+              <span>{t('摘要')}</span>
               <textarea
                 className="cover-summary-textarea"
-                placeholder="可留空，系统会自动补默认摘要"
+                placeholder={t('可留空，系统会自动补默认摘要')}
                 rows={4}
                 value={courseForm.summary}
                 onChange={(event) =>
@@ -670,7 +672,7 @@ export function MediaCourseForm({
             </label>
 
             <FieldSelect
-              label="本地化内容语言"
+              label={t('本地化内容语言')}
               value={localizationLocale}
               onValueChange={(value) => setLocalizationLocale(value as ContentLocale)}
               options={[
@@ -680,7 +682,7 @@ export function MediaCourseForm({
               ]}
             />
             <div className="field course-localization-ai-action">
-              <span>AI 多语言</span>
+              <span>{t('AI 多语言')}</span>
               <button
                 className="mini-command secondary"
                 disabled={isSaving || isGeneratingLocalizations || !courseForm.title.trim()}
@@ -688,23 +690,23 @@ export function MediaCourseForm({
                 type="button"
               >
                 <Sparkles size={14} aria-hidden="true" />
-                {isGeneratingLocalizations ? '生成中…' : 'AI 填充全部语言'}
+                {isGeneratingLocalizations ? t('生成中…') : t('AI 填充全部语言')}
               </button>
-              <small>以默认中文标题和摘要为翻译源</small>
+              <small>{t('以默认中文标题和摘要为翻译源')}</small>
             </div>
             <label className="field">
-              <span>本地化标题</span>
+              <span>{t('本地化标题')}</span>
               <input
-                placeholder="留空时学习端使用默认标题"
+                placeholder={t('留空时学习端使用默认标题')}
                 value={localizedContent.title ?? ''}
                 onChange={(event) => updateLocalizedContent({ title: event.target.value })}
               />
             </label>
             <label className="field wide">
-              <span>本地化摘要</span>
+              <span>{t('本地化摘要')}</span>
               <textarea
                 className="cover-summary-textarea"
-                placeholder="留空时学习端使用默认摘要"
+                placeholder={t('留空时学习端使用默认摘要')}
                 rows={3}
                 value={localizedContent.summary ?? ''}
                 onChange={(event) => updateLocalizedContent({ summary: event.target.value })}
@@ -712,10 +714,10 @@ export function MediaCourseForm({
             </label>
 
             <label className="field wide">
-              <span>课程封面</span>
+              <span>{t('课程封面')}</span>
               <CoverImageField
                 adminToken={adminToken}
-                label="课程封面"
+                label={t('课程封面')}
                 value={courseForm.coverImageUrl ?? ''}
                 // 视频仅在弹窗内由浏览器解码；截帧图片仍走 CoverImageField 既有的前端压缩上传。
                 videoSourceUrl={courseForm.mediaType === 'video' ? localMediaUrl : undefined}
@@ -738,17 +740,17 @@ export function MediaCourseForm({
         <div className="import-main-toolbar">
           <div className="import-main-title-group">
             <strong className="import-main-title">
-              {courseForm.title.trim() || '未填写标题'}
+              {courseForm.title.trim() || t('未填写标题')}
             </strong>
             <Button
               className="course-meta-trigger"
               icon={<FolderTree size={15} aria-hidden="true" />}
               size="small"
-              title="编辑课程基础信息"
+              title={t('编辑课程基础信息')}
               type="text"
               onClick={() => setIsCourseMetaOpen(true)}
             >
-              基础信息
+              {t('基础信息')}
             </Button>
           </div>
           <div className="import-main-toolbar-actions">
@@ -758,7 +760,7 @@ export function MediaCourseForm({
               type="button"
             >
               <FileText size={16} aria-hidden="true" />
-              字幕导入 / 导出
+              {t('字幕导入 / 导出')}
             </button>
             <button
               className="command-button meta-save-command"
@@ -768,7 +770,7 @@ export function MediaCourseForm({
               type="button"
             >
               <Save size={16} aria-hidden="true" />
-              {isSaving ? '保存中' : isSubtitleContributor ? '保存校对草稿' : '保存'}
+              {isSaving ? t('保存中') : isSubtitleContributor ? t('保存校对草稿') : t('保存')}
             </button>
             {isSubtitleContributor && onSubmitSubtitleDraft && (
               <button
@@ -779,7 +781,7 @@ export function MediaCourseForm({
                 type="button"
               >
                 <Send size={16} aria-hidden="true" />
-                提交校对
+                {t('提交校对')}
               </button>
             )}
           </div>
@@ -787,7 +789,7 @@ export function MediaCourseForm({
 
         <Drawer
           className="subtitle-import-drawer"
-          title="字幕导入 / 导出"
+          title={t('字幕导入 / 导出')}
           placement="right"
           open={isSubtitleImporterOpen}
           width={560}
@@ -845,7 +847,7 @@ export function MediaCourseForm({
                 ))}
             </div>
             <div
-              aria-label="调整视频区与字幕编辑区宽度"
+              aria-label={t('调整视频区与字幕编辑区宽度')}
               aria-orientation="vertical"
               aria-valuemax={78}
               aria-valuemin={28}
@@ -864,7 +866,7 @@ export function MediaCourseForm({
             {subtitleEditor}
           </div>
           <div
-            aria-label="调整上方工作区与波形区高度"
+            aria-label={t('调整上方工作区与波形区高度')}
             aria-orientation="horizontal"
             aria-valuemax={360}
             aria-valuemin={140}
@@ -892,8 +894,8 @@ export function MediaCourseForm({
         className="dltjson-drawer"
         title={
           clipboardPanel.mode === 'copy'
-            ? (clipboardPanel.label ?? '复制 dltjson')
-            : '粘贴 dltjson'
+            ? (clipboardPanel.label ?? t('复制 dltjson'))
+            : t('粘贴 dltjson')
         }
         placement="right"
         open={isClipboardDialogOpen}
@@ -924,17 +926,17 @@ export function MediaCourseForm({
               placeholder={
                 clipboardPanel.mode === 'copy'
                   ? ''
-                  : '把 dltjson 内容粘贴到这里，然后点击“导入粘贴内容”'
+                  : t('把 dltjson 内容粘贴到这里，然后点击“导入粘贴内容”')
               }
             />
 
         <div className="dltjson-dialog-actions">
           {clipboardPanel.mode === 'paste' ? (
             <button className="mini-command" onClick={onManualDltjsonImport} type="button">
-              导入粘贴内容
+              {t('导入粘贴内容')}
             </button>
           ) : (
-            <span className="dltjson-dialog-hint">点击文本框可全选后手动复制</span>
+            <span className="dltjson-dialog-hint">{t('点击文本框可全选后手动复制')}</span>
           )}
         </div>
       </Drawer>

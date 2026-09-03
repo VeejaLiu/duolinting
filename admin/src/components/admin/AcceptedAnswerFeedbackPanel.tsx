@@ -1,6 +1,7 @@
 import { CheckCircle2, Clock3, Filter, MessageSquareWarning, XCircle } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { AcceptedAnswerFeedback, FeedbackStatus } from '@duolinting/shared'
+import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type AcceptedAnswerFeedbackPanelProps = {
   items: AcceptedAnswerFeedback[]
@@ -21,6 +22,7 @@ export function AcceptedAnswerFeedbackPanel({
   isSaving,
   onStatusChange,
 }: AcceptedAnswerFeedbackPanelProps) {
+  const { t, uiLocale } = useAdminLanguage()
   const [selectedStatus, setSelectedStatus] = useState<FeedbackStatus | 'all'>('open')
 
   const filteredItems = useMemo(
@@ -35,35 +37,35 @@ export function AcceptedAnswerFeedbackPanel({
     <section className="admin-section">
       <div className="panel-title">
         <MessageSquareWarning size={17} aria-hidden="true" />
-        <span>答案反馈</span>
+        <span>{t('答案反馈')}</span>
       </div>
 
       <div className="course-toolbar">
         <div className="course-filters">
           <div className="filter-label">
             <Filter size={14} aria-hidden="true" />
-            <span>筛选</span>
+            <span>{t('筛选')}</span>
           </div>
           <label className="field">
-            <span>处理状态</span>
+            <span>{t('处理状态')}</span>
             <select
               value={selectedStatus}
               onChange={(event) =>
                 setSelectedStatus(event.target.value as FeedbackStatus | 'all')
               }
             >
-              <option value="all">全部</option>
-              <option value="open">待处理</option>
-              <option value="reviewed">已处理</option>
-              <option value="dismissed">已忽略</option>
+              <option value="all">{t('全部')}</option>
+              <option value="open">{t('待处理')}</option>
+              <option value="reviewed">{t('已处理')}</option>
+              <option value="dismissed">{t('已忽略')}</option>
             </select>
           </label>
         </div>
       </div>
 
       <div className="course-summary-bar">
-        <span>{filteredItems.length} 条反馈</span>
-        <span>右侧可直接更新处理状态</span>
+        <span>{filteredItems.length} {t('条反馈')}</span>
+        <span>{t('右侧可直接更新处理状态')}</span>
       </div>
 
       <div className="feedback-list">
@@ -73,33 +75,33 @@ export function AcceptedAnswerFeedbackPanel({
               <div className="course-list-head">
                 <strong>{item.exerciseTitle}</strong>
                 <span className={`publish-status ${item.status}`}>
-                  {statusLabels[item.status]}
+                  {t(statusLabels[item.status])}
                 </span>
               </div>
               <div className="course-meta">
-                <span>用户：{item.user.displayName}</span>
+                <span>{t('用户：')}{item.user.displayName}</span>
                 <span>{item.user.email}</span>
-                <span>句子：{item.lineId}</span>
+                <span>{t('句子：')}{item.lineId}</span>
               </div>
               <div className="feedback-block">
-                <span className="feedback-label">原句</span>
+                <span className="feedback-label">{t('原句')}</span>
                 <p>{item.lineText}</p>
               </div>
               <div className="feedback-block">
-                <span className="feedback-label">译文</span>
-                <p>{item.lineTranslation || '无'}</p>
+                <span className="feedback-label">{t('译文')}</span>
+                <p>{item.lineTranslation || t('无')}</p>
               </div>
               <div className="feedback-block">
-                <span className="feedback-label">学员答案</span>
+                <span className="feedback-label">{t('学员答案')}</span>
                 <p>{item.submittedAnswer}</p>
               </div>
               <div className="feedback-block">
-                <span className="feedback-label">当前可接受答案</span>
-                <p>{item.acceptedAnswers.join(' / ') || '无'}</p>
+                <span className="feedback-label">{t('当前可接受答案')}</span>
+                <p>{item.acceptedAnswers.join(' / ') || t('无')}</p>
               </div>
               <div className="course-meta">
                 <span>
-                  <Clock3 size={14} aria-hidden="true" /> {new Date(item.createdAt).toLocaleString()}
+                  <Clock3 size={14} aria-hidden="true" /> {new Date(item.createdAt).toLocaleString(uiLocale)}
                 </span>
               </div>
             </div>
@@ -111,7 +113,7 @@ export function AcceptedAnswerFeedbackPanel({
                 type="button"
               >
                 <CheckCircle2 size={15} aria-hidden="true" />
-                已处理
+                {t('已处理')}
               </button>
               <button
                 className="mini-command secondary"
@@ -120,7 +122,7 @@ export function AcceptedAnswerFeedbackPanel({
                 type="button"
               >
                 <Clock3 size={15} aria-hidden="true" />
-                待处理
+                {t('待处理')}
               </button>
               <button
                 className="mini-command danger"
@@ -129,19 +131,19 @@ export function AcceptedAnswerFeedbackPanel({
                 type="button"
               >
                 <XCircle size={15} aria-hidden="true" />
-                忽略
+                {t('忽略')}
               </button>
             </div>
           </article>
         ))}
         {!isLoading && filteredItems.length === 0 && (
           <div className="admin-empty-state course-empty-state">
-            <p>当前筛选条件下还没有反馈。</p>
+            <p>{t('当前筛选条件下还没有反馈。')}</p>
           </div>
         )}
         {isLoading && (
           <div className="admin-empty-state course-empty-state">
-            <p>反馈加载中...</p>
+            <p>{t('反馈加载中...')}</p>
           </div>
         )}
       </div>

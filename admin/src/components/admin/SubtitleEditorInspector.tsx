@@ -10,6 +10,7 @@ import {
 } from '../../lib/mediaDraftTools'
 import type { ContentLocale } from '@duolinting/domain'
 import { SubtitleList } from './SubtitleList'
+import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type SubtitleEditorInspectorProps = {
   activeLineIndex: number
@@ -29,13 +30,14 @@ export function SubtitleEditorInspector({
   onUpdateLine,
   onTranslateSingle,
 }: SubtitleEditorInspectorProps) {
+  const { t } = useAdminLanguage()
   const [isTranslatingSingle, setIsTranslatingSingle] = useState(false)
   const [activeTab, setActiveTab] = useState<SubtitleInspectorTab>('list')
   const activeLine = draftLines[activeLineIndex]
 
   return (
-    <aside className="subtitle-editor-inspector" aria-label="字幕详细编辑">
-      <div className="subtitle-inspector-tablist" role="tablist" aria-label="字幕编辑视图">
+    <aside className="subtitle-editor-inspector" aria-label={t('字幕详细编辑')}>
+      <div className="subtitle-inspector-tablist" role="tablist" aria-label={t('字幕编辑视图')}>
         <button
           aria-controls="subtitle-list-panel"
           aria-selected={activeTab === 'list'}
@@ -47,7 +49,7 @@ export function SubtitleEditorInspector({
           role="tab"
           type="button"
         >
-          字幕列表（{draftLines.length}）
+          {t('字幕列表')}（{draftLines.length}）
         </button>
         <button
           aria-controls="subtitle-detail-panel"
@@ -60,7 +62,7 @@ export function SubtitleEditorInspector({
           role="tab"
           type="button"
         >
-          当前字幕详情
+          {t('当前字幕详情')}
         </button>
       </div>
       <div
@@ -81,9 +83,9 @@ export function SubtitleEditorInspector({
           />
         ) : activeLine ? (
           <div className="subtitle-detail-tab">
-          <div className="subtitle-time-fields" aria-label="字幕时间范围（毫秒）">
+          <div className="subtitle-time-fields" aria-label={t('字幕时间范围（毫秒）')}>
             <InputNumber
-              aria-label="字幕开始时间（毫秒）"
+              aria-label={t('字幕开始时间（毫秒）')}
               className="subtitle-time-input"
               controls={false}
               min={0}
@@ -98,7 +100,7 @@ export function SubtitleEditorInspector({
             />
             <span className="subtitle-time-separator" aria-hidden="true">→</span>
             <InputNumber
-              aria-label="字幕结束时间（毫秒）"
+              aria-label={t('字幕结束时间（毫秒）')}
               className="subtitle-time-input"
               controls={false}
               min={0}
@@ -115,7 +117,7 @@ export function SubtitleEditorInspector({
           </div>
           <div className="subtitle-text-grid">
             <label className="field wide">
-              <span>英文字幕</span>
+              <span>{t('英文字幕')}</span>
               <Input
                 size="small"
                 value={activeLine.text}
@@ -125,7 +127,7 @@ export function SubtitleEditorInspector({
             </label>
             <div className="field wide">
               <div className="translation-field-head">
-                <span>字幕译文（按语言对照填写）</span>
+                <span>{t('字幕译文（按语言对照填写）')}</span>
                 <Button
                   className="subtitle-editor-button"
                   disabled={!activeLine.text.trim() || isTranslatingSingle || !onTranslateSingle}
@@ -146,12 +148,12 @@ export function SubtitleEditorInspector({
                   }}
                   size="small"
                 >
-                  {isTranslatingSingle ? '翻译中...' : 'AI 翻译本句'}
+                  {isTranslatingSingle ? t('翻译中...') : t('AI 翻译本句')}
                 </Button>
               </div>
               {TRANSLATION_TARGET_LOCALES.map((locale) => (
                 <label className="translation-locale-row" key={locale}>
-                  <span>{TRANSLATION_LOCALE_LABELS[locale]}</span>
+                  <span>{t(TRANSLATION_LOCALE_LABELS[locale])}</span>
                   <Input
                     size="small"
                     value={activeLine.translations[locale] ?? ''}
@@ -162,7 +164,7 @@ export function SubtitleEditorInspector({
               ))}
             </div>
             <div className="field wide answer-field">
-              <span>其他可接受答案</span>
+              <span>{t('其他可接受答案')}</span>
               <div className="answer-input-list">
                 {(activeLine.answers ?? []).map((answer, answerIndex) => (
                   <div className="answer-input-row" key={answerIndex}>
@@ -179,7 +181,7 @@ export function SubtitleEditorInspector({
                         answers[answerIndex] = cleanEnglishAnswerText(event.target.value)
                         onUpdateLine(activeLineIndex, { answers })
                       }}
-                      placeholder="填写另一种可接受答案"
+                      placeholder={t('填写另一种可接受答案')}
                     />
                     <Button
                       className="subtitle-editor-button"
@@ -187,7 +189,7 @@ export function SubtitleEditorInspector({
                       onClick={() => onUpdateLine(activeLineIndex, { answers: (activeLine.answers ?? []).filter((_, index) => index !== answerIndex) })}
                       size="small"
                     >
-                      删除
+                      {t('删除')}
                     </Button>
                   </div>
                 ))}
@@ -198,12 +200,12 @@ export function SubtitleEditorInspector({
                   size="small"
                   type="dashed"
                 >
-                  添加答案
+                  {t('添加答案')}
                 </Button>
               </div>
             </div>
             <label className="field wide">
-              <span>关键词，逗号分隔</span>
+              <span>{t('关键词，逗号分隔')}</span>
               <Input
                 size="small"
                 value={activeLine.keywordsText}
@@ -213,7 +215,7 @@ export function SubtitleEditorInspector({
           </div>
           </div>
         ) : (
-          <div className="subtitle-empty-state">当前没有选中的字幕。</div>
+          <div className="subtitle-empty-state">{t('当前没有选中的字幕。')}</div>
         )}
       </div>
     </aside>

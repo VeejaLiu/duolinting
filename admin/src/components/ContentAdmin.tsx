@@ -39,6 +39,7 @@ import { WorkflowActivityPanel } from './admin/WorkflowActivityPanel'
 import { OpenContentApiDocumentation } from './admin/OpenContentApiDocumentation'
 import { OpenContentApiKeyManager } from './admin/OpenContentApiKeyManager'
 import { apiClient } from '../lib/apiClient'
+import { useAdminLanguage } from '../i18n/AdminLanguageProvider'
 import {
   createAdminOperationId,
   getAdminErrorDetails,
@@ -82,6 +83,7 @@ type ImporterDraft =
   | null
 
 function AccountSettingsPanel({ adminToken, adminUser, onNotify }: { adminToken: string; adminUser: AdminUser; onNotify: (message: string, tone?: AdminNoticeTone) => void }) {
+  const { t, uiLocale } = useAdminLanguage()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
@@ -110,7 +112,7 @@ function AccountSettingsPanel({ adminToken, adminUser, onNotify }: { adminToken:
   const saveName = async () => {
     if (!name.trim() || name.trim() === adminUser.displayName) return
     setChangingName(true)
-    try { await apiClient.changeOwnAdminDisplayName(name.trim(), adminToken); onNotify('显示名称已更新，请刷新页面查看', 'success') } catch (error) { onNotify(error instanceof Error ? error.message : '显示名称修改失败', 'error') } finally { setChangingName(false) }
+    try { await apiClient.changeOwnAdminDisplayName(name.trim(), adminToken); onNotify(t('显示名称已更新，请刷新页面查看'), 'success') } catch (error) { onNotify(error instanceof Error ? error.message : t('显示名称修改失败'), 'error') } finally { setChangingName(false) }
   }
   const bind = async () => {
     if (!email.trim() || !password) return false
@@ -119,24 +121,24 @@ function AccountSettingsPanel({ adminToken, adminUser, onNotify }: { adminToken:
       const updatedUser = await apiClient.bindOwnLearnerAccount({ learnerEmail: email.trim(), learnerPassword: password }, adminToken)
       setBoundLearner({ id: updatedUser.learnerUserId, displayName: updatedUser.learnerDisplayName, email: updatedUser.learnerEmail })
       setPassword('')
-      onNotify('学习端账号绑定成功', 'success')
+      onNotify(t('学习端账号绑定成功'), 'success')
       return true
     } catch (error) {
-      onNotify(error instanceof Error ? error.message : '学习端账号绑定失败', 'error')
+      onNotify(error instanceof Error ? error.message : t('学习端账号绑定失败'), 'error')
       return false
     } finally { setSaving(false) }
   }
   const nameChangeLocked = Boolean(adminUser.nextDisplayNameChangeAt)
   const nextNameChangeAt = adminUser.nextDisplayNameChangeAt
-    ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(adminUser.nextDisplayNameChangeAt))
+    ? new Intl.DateTimeFormat(uiLocale, { dateStyle: 'long', timeStyle: 'short' }).format(new Date(adminUser.nextDisplayNameChangeAt))
     : ''
   // 旧浏览器缓存可能只有 learnerUserId，没有昵称/邮箱；先显示未绑定状态，等待 auth/me 刷新后再展示完整身份。
   const isBound = Boolean(boundLearner.displayName || boundLearner.email)
-  const boundLearnerLabel = boundLearner.displayName || '学习端账号'
+  const boundLearnerLabel = boundLearner.displayName || t('学习端账号')
   const submitBinding = async () => {
     if (await bind()) setIsBindingEditorOpen(false)
   }
-  return <section className="admin-section"><div className="panel-title"><Typography.Title level={3} style={{ margin: 0 }}>我的账号</Typography.Title></div><Space direction="vertical" size={16} style={{ display: 'flex', maxWidth: 640 }}><Card title="公开资料"><Typography.Paragraph type="secondary">当前显示名称：{adminUser.displayName}。该名称会展示在课程贡献者信息中。</Typography.Paragraph>{nameChangeLocked && <Alert description={`你已进入显示名称冷却期，下次可修改时间：${nextNameChangeAt}。`} message="当前无法修改显示名称" showIcon type="warning" style={{ marginBottom: 12 }} />}<Tooltip title={nameChangeLocked ? `冷却期内不可修改；${nextNameChangeAt} 后可再次修改` : undefined}><span><Button disabled={nameChangeLocked} onClick={() => { setName(adminUser.displayName); setIsNameEditorOpen(true) }}>修改显示名称</Button></span></Tooltip></Card><Card title="绑定学习端账号">{isBound ? <Space direction="vertical" size={10}><Alert description="你负责课程的草稿已可在该账号的网页端和 App 中预览。" message="已绑定学习端账号" showIcon type="success" /><Typography.Text strong>学习端账号：{boundLearnerLabel}</Typography.Text>{boundLearner.email && <Typography.Text type="secondary">登录邮箱：{boundLearner.email}</Typography.Text>}<Button onClick={() => { setEmail(''); setPassword(''); setIsBindingEditorOpen(true) }}>更换绑定</Button></Space> : <><Typography.Paragraph type="secondary">绑定后，你负责的课程草稿会在学习端 App 和网页端中提供预览。</Typography.Paragraph><Button type="primary" onClick={() => setIsBindingEditorOpen(true)}>绑定学习端账号</Button></>}</Card></Space><Modal confirmLoading={changingName} okButtonProps={{ disabled: !name.trim() || name.trim() === adminUser.displayName }} okText="确认修改" onCancel={() => setIsNameEditorOpen(false)} onOk={async () => { await saveName(); setIsNameEditorOpen(false) }} open={isNameEditorOpen} title="修改显示名称"><Typography.Paragraph type="secondary">保存后 90 天内不能再次修改。</Typography.Paragraph><Input autoFocus maxLength={120} onChange={(event) => setName(event.target.value)} value={name} /></Modal><Modal confirmLoading={saving} okButtonProps={{ disabled: !email.trim() || !password }} okText={isBound ? '验证并更换' : '验证并绑定'} onCancel={() => setIsBindingEditorOpen(false)} onOk={() => void submitBinding()} open={isBindingEditorOpen} title={isBound ? '更换学习端账号绑定' : '绑定学习端账号'}><Typography.Paragraph type="secondary">请输入学习端登录邮箱和密码完成验证。验证成功后，会{isBound ? '替换当前绑定账号' : '开启课程草稿预览'}。</Typography.Paragraph><Input autoFocus placeholder="学习端登录邮箱" type="email" value={email} onChange={(event) => setEmail(event.target.value)} /><Input.Password placeholder="学习端登录密码" value={password} onChange={(event) => setPassword(event.target.value)} style={{ marginTop: 12 }} /></Modal></section>
+  return <section className="admin-section"><div className="panel-title"><Typography.Title level={3} style={{ margin: 0 }}>{t('我的账号')}</Typography.Title></div><Space direction="vertical" size={16} style={{ display: 'flex', maxWidth: 640 }}><Card title={t('公开资料')}><Typography.Paragraph type="secondary">{t('当前显示名称：{{name}}。该名称会展示在课程贡献者信息中。', { name: adminUser.displayName })}</Typography.Paragraph>{nameChangeLocked && <Alert description={t('你已进入显示名称冷却期，下次可修改时间：{{time}}。', { time: nextNameChangeAt })} message={t('当前无法修改显示名称')} showIcon type="warning" style={{ marginBottom: 12 }} />}<Tooltip title={nameChangeLocked ? t('冷却期内不可修改；{{time}} 后可再次修改', { time: nextNameChangeAt }) : undefined}><span><Button disabled={nameChangeLocked} onClick={() => { setName(adminUser.displayName); setIsNameEditorOpen(true) }}>{t('修改显示名称')}</Button></span></Tooltip></Card><Card title={t('绑定学习端账号')}>{isBound ? <Space direction="vertical" size={10}><Alert description={t('你负责课程的草稿已可在该账号的网页端和 App 中预览。')} message={t('已绑定学习端账号')} showIcon type="success" /><Typography.Text strong>{t('学习端账号：')}{boundLearnerLabel}</Typography.Text>{boundLearner.email && <Typography.Text type="secondary">{t('登录邮箱：')}{boundLearner.email}</Typography.Text>}<Button onClick={() => { setEmail(''); setPassword(''); setIsBindingEditorOpen(true) }}>{t('更换绑定')}</Button></Space> : <><Typography.Paragraph type="secondary">{t('绑定后，你负责的课程草稿会在学习端 App 和网页端中提供预览。')}</Typography.Paragraph><Button type="primary" onClick={() => setIsBindingEditorOpen(true)}>{t('绑定学习端账号')}</Button></>}</Card></Space><Modal confirmLoading={changingName} okButtonProps={{ disabled: !name.trim() || name.trim() === adminUser.displayName }} okText={t('确认修改')} onCancel={() => setIsNameEditorOpen(false)} onOk={async () => { await saveName(); setIsNameEditorOpen(false) }} open={isNameEditorOpen} title={t('修改显示名称')}><Typography.Paragraph type="secondary">{t('保存后 90 天内不能再次修改。')}</Typography.Paragraph><Input autoFocus maxLength={120} onChange={(event) => setName(event.target.value)} value={name} /></Modal><Modal confirmLoading={saving} okButtonProps={{ disabled: !email.trim() || !password }} okText={isBound ? t('验证并更换') : t('验证并绑定')} onCancel={() => setIsBindingEditorOpen(false)} onOk={() => void submitBinding()} open={isBindingEditorOpen} title={isBound ? t('更换学习端账号绑定') : t('绑定学习端账号')}><Typography.Paragraph type="secondary">{t('请输入学习端登录邮箱和密码完成验证。验证成功后，会{{action}}。', { action: isBound ? t('替换当前绑定账号') : t('开启课程草稿预览') })}</Typography.Paragraph><Input autoFocus placeholder={t('学习端登录邮箱')} type="email" value={email} onChange={(event) => setEmail(event.target.value)} /><Input.Password placeholder={t('学习端登录密码')} value={password} onChange={(event) => setPassword(event.target.value)} style={{ marginTop: 12 }} /></Modal></section>
 }
 
 const initialCategoryForm: CreateCategoryRequest = {
@@ -204,6 +206,10 @@ export function ContentAdmin({
   onRequestConfirm,
   onRequestUnsavedLeaveConfirm,
 }: ContentAdminProps) {
+  const { t } = useAdminLanguage()
+  const localizedNotify = useCallback((message: string, tone?: AdminNoticeTone) => {
+    onNotify(t(message), tone)
+  }, [onNotify, t])
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -287,14 +293,14 @@ export function ContentAdmin({
     try {
       await onEnsureCatalog()
     } catch (error) {
-      const message = error instanceof Error ? error.message : '目录数据加载失败'
+      const message = error instanceof Error ? error.message : t('目录数据加载失败')
       setCatalogLoadError(message)
-      onNotify(message, 'error')
+      localizedNotify(message, 'error')
       throw error
     } finally {
       setIsCatalogLoading(false)
     }
-  }, [onEnsureCatalog, onNotify])
+  }, [localizedNotify, onEnsureCatalog, t])
 
   const refreshWorkflowContributors = useCallback(async () => {
     if (adminUser.role !== 'super_admin') {
@@ -306,9 +312,9 @@ export function ContentAdmin({
       // 校对和二次审核都由字幕贡献者承担；超级管理员只在此配置负责人。
       setWorkflowContributors(result.items.filter((member) => member.role === 'subtitle_contributor'))
     } catch (error) {
-      onNotify(error instanceof Error ? error.message : '字幕贡献者加载失败', 'error')
+      localizedNotify(error instanceof Error ? error.message : '字幕贡献者加载失败', 'error')
     }
-  }, [adminToken, adminUser.role, onNotify])
+  }, [adminToken, adminUser.role, localizedNotify])
 
   const refreshWorkflowInbox = useCallback(async () => {
     try {
@@ -321,23 +327,23 @@ export function ContentAdmin({
       setWorkflowNotifications(notifications)
       setWorkflowInbox(inbox)
     } catch (error) {
-      onNotify(error instanceof Error ? error.message : '工作流待办加载失败', 'error')
+      localizedNotify(error instanceof Error ? error.message : '工作流待办加载失败', 'error')
     }
-  }, [adminToken, onNotify])
+  }, [adminToken, localizedNotify])
 
   const openSubtitleReview = useCallback(async (exerciseId: number) => {
     try {
       const detail = await apiClient.getAdminExercise(exerciseId, adminToken)
       if (!detail.subtitleDrafts?.length) {
-        onNotify('这门课程当前没有待二次审核的字幕稿', 'info')
+        localizedNotify('这门课程当前没有待二次审核的字幕稿', 'info')
         return
       }
       setReviewNote('')
       setReviewingExercise(detail)
     } catch (error) {
-      onNotify(error instanceof Error ? error.message : '加载字幕稿失败', 'error')
+      localizedNotify(error instanceof Error ? error.message : '加载字幕稿失败', 'error')
     }
-  }, [adminToken, onNotify])
+  }, [adminToken, localizedNotify])
 
   useEffect(() => {
     // 课程授权要按“内容分类 → 学习系列 → 课程”分级显示，
@@ -357,9 +363,9 @@ export function ContentAdmin({
     }
 
     void onEnsureExercises().catch((error) => {
-      onNotify(error instanceof Error ? error.message : '课程数据加载失败', 'error')
+      localizedNotify(error instanceof Error ? error.message : '课程数据加载失败', 'error')
     })
-  }, [activeSection, exercises.length, onEnsureExercises, onNotify])
+  }, [activeSection, exercises.length, localizedNotify, onEnsureExercises])
 
   useEffect(() => {
     if (activeSection === 'courses' || activeSection === 'pool') {
@@ -564,7 +570,7 @@ export function ContentAdmin({
       await task()
       return true
     } catch (error) {
-      onNotify(error instanceof Error ? error.message : fallbackMessage, 'error')
+      localizedNotify(error instanceof Error ? error.message : fallbackMessage, 'error')
       return false
     } finally {
       setIsSaving(false)
@@ -584,13 +590,13 @@ export function ContentAdmin({
         adminToken,
       )
       await onRefreshCatalog()
-      onNotify('内容分类已保存', 'success')
+      localizedNotify('内容分类已保存', 'success')
     }, '内容分类保存失败')
 
   const saveCategory = () =>
     runAdminTask(async () => {
       if (!categoryForm.groupId) {
-        throw new Error('请先创建内容分类')
+        throw new Error(t('请先创建内容分类'))
       }
 
       const siblingCategories = categories.filter(
@@ -607,21 +613,21 @@ export function ContentAdmin({
         adminToken,
       )
       await onRefreshCatalog()
-      onNotify('学习系列已保存', 'success')
+      localizedNotify('学习系列已保存', 'success')
     }, '学习系列保存失败')
 
   const deleteCategoryGroup = (groupId: number) =>
     void runAdminTask(async () => {
       await apiClient.deleteCategoryGroup(groupId, adminToken)
       await onRefreshCatalog()
-      onNotify('内容分类已删除', 'success')
+      localizedNotify('内容分类已删除', 'success')
     }, '内容分类删除失败')
 
   const deleteCategory = (categoryId: number) =>
     void runAdminTask(async () => {
       await apiClient.deleteCategory(categoryId, adminToken)
       await onRefreshCatalog()
-      onNotify('学习系列已删除', 'success')
+      localizedNotify('学习系列已删除', 'success')
     }, '学习系列删除失败')
 
   const moveCategoryGroup = (
@@ -650,7 +656,7 @@ export function ContentAdmin({
         )
       }
       await onRefreshCatalog()
-      onNotify('内容分类顺序已更新', 'success')
+      localizedNotify('内容分类顺序已更新', 'success')
     }, '内容分类排序失败')
 
   const moveCategory = (
@@ -691,7 +697,7 @@ export function ContentAdmin({
         )
       }
       await onRefreshCatalog()
-      onNotify('学习系列顺序已更新', 'success')
+      localizedNotify('学习系列顺序已更新', 'success')
     }, '学习系列排序失败')
 
   const changeSection = useCallback(async (section: AdminSection) => {
@@ -755,9 +761,9 @@ export function ContentAdmin({
 
   const deleteCourse = async (exercise: CatalogExerciseSummary) => {
     const confirmed = await onRequestConfirm({
-      title: '删除课程',
-      message: `删除课程“${exercise.title}”后，会同时删除课程元数据、字幕、学习进度和对应媒体文件。此操作不可撤销。`,
-      confirmLabel: '确认删除',
+      title: t('删除课程'),
+      message: t('删除课程“{{title}}”后，会同时删除课程元数据、字幕、学习进度和对应媒体文件。此操作不可撤销。', { title: exercise.title }),
+      confirmLabel: t('确认删除'),
       tone: 'danger',
     })
     if (!confirmed) {
@@ -767,7 +773,7 @@ export function ContentAdmin({
     void runAdminTask(async () => {
       await apiClient.deleteExercise(exercise.id, adminToken)
       await onRefreshCatalog()
-      onNotify(`课程已删除：${exercise.title}`, 'success')
+      localizedNotify(`课程已删除：${exercise.title}`, 'success')
     }, '课程删除失败')
   }
 
@@ -924,7 +930,7 @@ export function ContentAdmin({
         await onRefreshCatalog()
         logAdminInfo('CourseSort', 'catalog-refresh-success', { operationId })
         outcome = 'saved'
-        onNotify('课程顺序已更新', 'success')
+        localizedNotify('课程顺序已更新', 'success')
       } catch (error) {
         outcome = 'failed'
         logAdminError('CourseSort', 'move-failed', {
@@ -955,14 +961,14 @@ export function ContentAdmin({
       setFeedbackItems(response.items)
     } catch (error) {
       // 失败最常见的原因是 admin 登录态过期（401），提示里顺带引导重新登录
-      onNotify(
+      localizedNotify(
         `反馈数据加载失败：${error instanceof Error ? error.message : '未知错误'}；若提示未授权，请重新登录管理员账号`,
         'error',
       )
     } finally {
       setFeedbackLoading(false)
     }
-  }, [adminToken, onNotify])
+  }, [adminToken, localizedNotify])
 
   useEffect(() => {
     if (activeSection !== 'feedback') {
@@ -979,14 +985,14 @@ export function ContentAdmin({
       setGrowthReport(response)
     } catch (error) {
       // 失败最常见的原因是 admin 登录态过期（401），提示里顺带引导重新登录
-      onNotify(
+      localizedNotify(
         `增长数据加载失败：${error instanceof Error ? error.message : '未知错误'}；若提示未授权，请重新登录管理员账号`,
         'error',
       )
     } finally {
       setGrowthLoading(false)
     }
-  }, [adminToken, onNotify])
+  }, [adminToken, localizedNotify])
 
   useEffect(() => {
     if (activeSection !== 'users') {
@@ -1018,7 +1024,7 @@ export function ContentAdmin({
             onSectionChange={(section) => void changeSection(section)}
           />
         </Layout.Sider>
-        <Layout.Content className="admin-workspace-content" aria-label="内容管理">
+        <Layout.Content className="admin-workspace-content" aria-label={t('内容管理')}>
 
       {activeSection === 'importer' && (
         <AudioLessonImporter
@@ -1028,7 +1034,7 @@ export function ContentAdmin({
           exercises={exercises}
           draft={importerDraft}
           onRefreshCatalog={onRefreshCatalog}
-          onStatusChange={onNotify}
+          onStatusChange={localizedNotify}
           onDraftConsumed={() => setImporterDraft(null)}
           onUnsavedChangesChange={setImporterHasUnsavedChanges}
           onRegisterSaveBeforeLeave={(handler) => {
@@ -1044,7 +1050,7 @@ export function ContentAdmin({
           categoryGroups={categoryGroups}
           categories={categories}
           exercises={exercises}
-          onNotify={onNotify}
+          onNotify={localizedNotify}
         />
       )}
 
@@ -1056,7 +1062,7 @@ export function ContentAdmin({
           categoryGroupForm={categoryGroupForm}
           categoryForm={categoryForm}
           isSaving={isSaving}
-          onNotify={onNotify}
+          onNotify={localizedNotify}
           onCategoryGroupFormChange={setCategoryGroupForm}
           onCategoryFormChange={setCategoryForm}
           onSaveCategoryGroup={saveCategoryGroup}
@@ -1115,9 +1121,9 @@ export function ContentAdmin({
                 adminToken,
               )
               await onRefreshCatalog()
-              onNotify('课程名称已更新', 'success')
+              localizedNotify('课程名称已更新', 'success')
             } catch (error) {
-              onNotify(error instanceof Error ? error.message : '课程名称更新失败', 'error')
+              localizedNotify(error instanceof Error ? error.message : '课程名称更新失败', 'error')
               throw error
             }
           }}
@@ -1136,19 +1142,19 @@ export function ContentAdmin({
             }))
           }}
           contributors={workflowContributors}
-          onNotify={onNotify}
+          onNotify={localizedNotify}
           onUpdateWorkflowAssignee={async (exercise, workflowRole, adminUserId) => {
             try {
               await apiClient.updateExerciseWorkflowAssignee(exercise.id, workflowRole, adminUserId, adminToken)
               await onRefreshCatalog()
-              onNotify(
+              localizedNotify(
                 adminUserId
                   ? `已更新“${exercise.title}”的${workflowRole === 'proofreader' ? '校对负责人' : '二审负责人'}`
                   : `已取消“${exercise.title}”的${workflowRole === 'proofreader' ? '校对负责人' : '二审负责人'}`,
                 'success',
               )
             } catch (error) {
-              onNotify(error instanceof Error ? error.message : '更新工作流负责人失败', 'error')
+              localizedNotify(error instanceof Error ? error.message : '更新工作流负责人失败', 'error')
               throw error
             }
           }}
@@ -1156,7 +1162,7 @@ export function ContentAdmin({
       )}
 
       {activeSection === 'account-settings' && adminUser.role === 'subtitle_contributor' && (
-        <AccountSettingsPanel adminToken={adminToken} adminUser={adminUser} onNotify={onNotify} />
+        <AccountSettingsPanel adminToken={adminToken} adminUser={adminUser} onNotify={localizedNotify} />
       )}
 
       {activeSection === 'feedback' && (
@@ -1172,7 +1178,7 @@ export function ContentAdmin({
                 adminToken,
               )
               await refreshFeedback('all')
-              onNotify('反馈状态已更新', 'success')
+              localizedNotify('反馈状态已更新', 'success')
             }, '反馈状态更新失败')
           }
         />
@@ -1192,7 +1198,7 @@ export function ContentAdmin({
         <WorkflowActivityPanel
           adminToken={adminToken}
           currentAdminId={adminUser.id}
-          onNotify={onNotify}
+          onNotify={localizedNotify}
         />
       )}
 
@@ -1202,7 +1208,7 @@ export function ContentAdmin({
           adminUser={adminUser}
           categoryGroups={categoryGroups}
           categories={categories}
-          onNotify={onNotify}
+          onNotify={localizedNotify}
           onClaimed={async () => {
             await refreshWorkflowInbox()
             await onRefreshCatalog()
@@ -1230,7 +1236,7 @@ export function ContentAdmin({
           categories={categories}
           exercises={exercises}
           onEnsureExercises={onEnsureExercises}
-          onNotify={onNotify}
+          onNotify={localizedNotify}
         />
       )}
 
@@ -1238,11 +1244,11 @@ export function ContentAdmin({
         isOpenContentDocumentation
           ? <OpenContentApiDocumentation
             onBack={() => navigate('/api-keys')}
-            onNotify={onNotify}
+            onNotify={localizedNotify}
           />
           : <OpenContentApiKeyManager
             adminToken={adminToken}
-            onNotify={onNotify}
+            onNotify={localizedNotify}
             onOpenDocumentation={() => navigate('/api-keys/docs')}
             onRequestConfirm={onRequestConfirm}
           />
@@ -1252,24 +1258,24 @@ export function ContentAdmin({
         footer={null}
         onCancel={() => { setReviewingExercise(null); setReviewNote('') }}
         open={Boolean(reviewingExercise)}
-        title={reviewingExercise ? `二次审核：${reviewingExercise.title}` : '二次审核'}
+        title={reviewingExercise ? t('二次审核：{{title}}', { title: reviewingExercise.title }) : t('二次审核')}
         width={760}
       >
         {reviewingExercise?.subtitleDrafts?.map((subtitleDraft) => (
           <section key={subtitleDraft.id} style={{ borderTop: '1px solid #f0f0f0', marginTop: 16, paddingTop: 16 }}>
             <Space direction="vertical" size={10} style={{ display: 'flex' }}>
-              <Typography.Text><strong>{subtitleDraft.contributorDisplayName}</strong> 提交的校对稿，共 {subtitleDraft.lines.length} 句。</Typography.Text>
+              <Typography.Text><strong>{subtitleDraft.contributorDisplayName}</strong> {t('提交的校对稿，共 {{count}} 句。', { count: subtitleDraft.lines.length })}</Typography.Text>
               <Typography.Paragraph style={{ maxHeight: 230, overflow: 'auto', whiteSpace: 'pre-wrap' }}>
                 {subtitleDraft.lines.map((line) => `[${line.start.toFixed(3)}–${line.end.toFixed(3)}] ${line.text}`).join('\n')}
               </Typography.Paragraph>
               <Input.TextArea
                 onChange={(event) => setReviewNote(event.target.value)}
-                placeholder="退回时请填写修改意见"
+                placeholder={t('退回时请填写修改意见')}
                 rows={3}
                 value={reviewNote}
               />
               <Space>
-                <Typography.Text type="secondary">作为本课程指定的二审负责人，审核通过会替换正式字幕并发布；退回不会影响当前已发布版本。</Typography.Text>
+                <Typography.Text type="secondary">{t('作为本课程指定的二审负责人，审核通过会替换正式字幕并发布；退回不会影响当前已发布版本。')}</Typography.Text>
                 <Space>
                   <button className="ant-btn" disabled={!reviewNote.trim()} onClick={() => {
                     void runAdminTask(async () => {
@@ -1277,18 +1283,18 @@ export function ContentAdmin({
                       setReviewingExercise(null)
                       await onRefreshCatalog()
                       await refreshWorkflowInbox()
-                      onNotify('字幕稿已退回并附上修改意见', 'success')
+                      localizedNotify('字幕稿已退回并附上修改意见', 'success')
                     }, '退回字幕稿失败')
-                  }}>退回修改</button>
+                  }}>{t('退回修改')}</button>
                   <button className="ant-btn ant-btn-primary" onClick={() => {
                     void runAdminTask(async () => {
                       await apiClient.approveSubtitleDraft(subtitleDraft.id, adminToken)
                       setReviewingExercise(null)
                       await onRefreshCatalog()
                       await refreshWorkflowInbox()
-                      onNotify('字幕稿已通过二次审核并发布', 'success')
+                      localizedNotify('字幕稿已通过二次审核并发布', 'success')
                     }, '审核发布失败')
-                  }}>审核通过并发布</button>
+                  }}>{t('审核通过并发布')}</button>
                 </Space>
               </Space>
             </Space>

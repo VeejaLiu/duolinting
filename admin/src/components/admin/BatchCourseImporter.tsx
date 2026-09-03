@@ -33,6 +33,7 @@ import {
   parseSubtitleDraft,
   toTranscriptLines,
 } from '../../lib/mediaDraftTools'
+import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type BatchCourseImporterProps = {
   adminToken: string
@@ -267,6 +268,7 @@ export function BatchCourseImporter({
   onRefreshCatalog,
   onNotify,
 }: BatchCourseImporterProps) {
+  const { t } = useAdminLanguage()
   const [open, setOpen] = useState(false)
   const [categoryId, setCategoryId] = useState<number>(0)
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
@@ -770,9 +772,9 @@ export function BatchCourseImporter({
       elapsedMs: Date.now() - operationStartedAt,
     })
     if (failedCount > 0) {
-      onNotify(`批量上传完成：成功 ${successCount} 门，失败 ${failedCount} 门`, 'error')
+      onNotify(t('批量上传完成：成功 {{success}} 门，失败 {{failed}} 门', { success: successCount, failed: failedCount }), 'error')
     } else {
-      onNotify(`批量上传完成：成功 ${successCount} 门课程`, 'success')
+      onNotify(t('批量上传完成：成功 {{success}} 门课程', { success: successCount }), 'success')
     }
   }
 
@@ -782,7 +784,7 @@ export function BatchCourseImporter({
 
   const columns: ColumnsType<MediaItem> = [
     {
-      title: '课程标题',
+      title: t('课程标题'),
       key: 'title',
       width: 340,
       render: (_, item) => (
@@ -795,7 +797,7 @@ export function BatchCourseImporter({
       ),
     },
     {
-      title: '媒体文件',
+      title: t('媒体文件'),
       dataIndex: 'mediaFile',
       width: 260,
       render: (_, item) => (
@@ -805,13 +807,13 @@ export function BatchCourseImporter({
           </Typography.Text>
           <Typography.Text style={{ fontSize: 12 }} type="secondary">
             {formatFileSize(item.mediaFile.size)}
-            {item.mediaFile.type.startsWith('video/') ? ' · 视频' : ' · 音频'}
+            {item.mediaFile.type.startsWith('video/') ? ` · ${t('视频')}` : ` · ${t('音频')}`}
           </Typography.Text>
         </Space>
       ),
     },
     {
-      title: '匹配字幕',
+      title: t('匹配字幕'),
       dataIndex: 'subtitleFileId',
       width: 220,
       render: (_, item) => (
@@ -825,7 +827,7 @@ export function BatchCourseImporter({
             label: subtitle.file.name,
             value: subtitle.id,
           }))}
-          placeholder="选择字幕（自动匹配）"
+          placeholder={t('选择字幕（自动匹配）')}
           size="small"
           style={{ width: '100%' }}
           value={item.subtitleFileId ?? undefined}
@@ -833,14 +835,14 @@ export function BatchCourseImporter({
       ),
     },
     {
-      title: '状态',
+      title: t('状态'),
       key: 'status',
       width: 200,
       render: (_, item) => {
         const meta = statusMeta[item.status]
         return (
           <Space direction="vertical" size={4} style={{ width: '100%' }}>
-            <Tag color={meta.color}>{meta.label}</Tag>
+            <Tag color={meta.color}>{t(meta.label)}</Tag>
             {item.status === 'uploading-media' && (
               <Progress percent={item.progress?.percent ?? 0} size="small" />
             )}
@@ -858,11 +860,11 @@ export function BatchCourseImporter({
       },
     },
     {
-      title: '操作',
+      title: t('操作'),
       key: 'actions',
       width: 64,
       render: (_, item) => (
-        <Tooltip title="移除该媒体">
+        <Tooltip title={t('移除该媒体')}>
           <Button
             danger
             disabled={isUploading}
@@ -877,9 +879,9 @@ export function BatchCourseImporter({
   ]
 
   const disabledReason = isSaving
-    ? '后台正在保存、删除或调整课程顺序，请等待当前操作完成。'
+    ? t('后台正在保存、删除或调整课程顺序，请等待当前操作完成。')
     : categories.length === 0
-      ? '当前还没有学习系列，请先到“目录结构”中新建学习系列。'
+      ? t('当前还没有学习系列，请先到“目录结构”中新建学习系列。')
       : ''
 
   return (
@@ -891,7 +893,7 @@ export function BatchCourseImporter({
             icon={<Layers size={15} />}
             onClick={openModal}
           >
-            批量上传
+            {t('批量上传')}
           </Button>
         </span>
       </Tooltip>
@@ -900,10 +902,10 @@ export function BatchCourseImporter({
         closable={!isUploading}
         footer={[
           <Button disabled={isUploading} key="clear" onClick={clearAll}>
-            清空列表
+            {t('清空列表')}
           </Button>,
           <Button disabled={isUploading} key="close" onClick={() => setOpen(false)}>
-            关闭
+            {t('关闭')}
           </Button>,
           <Button
             disabled={!canStartUpload}
@@ -912,7 +914,7 @@ export function BatchCourseImporter({
             onClick={() => void startUpload()}
             type="primary"
           >
-            开始上传
+            {t('开始上传')}
           </Button>,
         ]}
         maskClosable={false}
@@ -920,17 +922,17 @@ export function BatchCourseImporter({
           if (!isUploading) setOpen(false)
         }}
         open={open}
-        title="批量上传媒体与字幕"
+        title={t('批量上传媒体与字幕')}
         width={1200}
       >
         <Space className="batch-importer-toolbar" direction="vertical" size={12} style={{ width: '100%' }}>
           <Space wrap>
-            <Typography.Text strong>课程所属系列：</Typography.Text>
+            <Typography.Text strong>{t('课程所属系列：')}</Typography.Text>
             <Select
               disabled={isUploading}
               onChange={(value) => setCategoryId(Number(value))}
               options={categoryOptions}
-              placeholder="选择学习系列"
+              placeholder={t('选择学习系列')}
               style={{ minWidth: 260 }}
               value={categoryId || undefined}
             />
@@ -954,14 +956,14 @@ export function BatchCourseImporter({
               onClick={() => fileInputRef.current?.click()}
               type="primary"
             >
-              选择媒体与字幕文件（可多选）
+              {t('选择媒体与字幕文件（可多选）')}
             </Button>
             <Typography.Text type="secondary">
-              媒体 {mediaItems.length} · 字幕 {subtitleFiles.length} · 已匹配 {matchedCount} · 未匹配 {unmatchedCount}
+              {t('媒体 {{media}} · 字幕 {{subtitles}} · 已匹配 {{matched}} · 未匹配 {{unmatched}}', { media: mediaItems.length, subtitles: subtitleFiles.length, matched: matchedCount, unmatched: unmatchedCount })}
             </Typography.Text>
           </Space>
           <Typography.Text type="secondary">
-            一次性选择所有媒体和字幕文件（先后顺序、是否分次选择均可），系统每次选择后都会按文件名前缀重新自动配对（如 1-01.Muddy.Puddles.mp4 ↔ 1-01.Muddy.Puddles (transcribed on …).srt），可在表格中手动调整。点击「开始上传」后逐个上传媒体并写入字幕。
+            {t('一次性选择所有媒体和字幕文件（先后顺序、是否分次选择均可），系统每次选择后都会按文件名前缀重新自动配对（如 1-01.Muddy.Puddles.mp4 ↔ 1-01.Muddy.Puddles (transcribed on …).srt），可在表格中手动调整。点击「开始上传」后逐个上传媒体并写入字幕。')}
           </Typography.Text>
         </Space>
 
@@ -969,7 +971,7 @@ export function BatchCourseImporter({
           className="batch-importer-table"
           columns={columns}
           dataSource={sortedMediaItems}
-          locale={{ emptyText: '请先选择媒体与字幕文件；系统会按文件名自动配对。' }}
+          locale={{ emptyText: t('请先选择媒体与字幕文件；系统会按文件名自动配对。') }}
           pagination={false}
           rowKey="id"
           scroll={{ x: 1100 }}

@@ -7,6 +7,7 @@ import {
   resolveApiUrl,
   type FileUploadProgress,
 } from '../../lib/apiClient'
+import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type CoverImageFieldProps = {
   adminToken: string
@@ -113,6 +114,7 @@ export function CoverImageField({
   onChange,
   onNotify,
 }: CoverImageFieldProps) {
+  const { t } = useAdminLanguage()
   const [isPreparing, setIsPreparing] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
@@ -319,7 +321,7 @@ export function CoverImageField({
       <div className="cover-url-row">
         <input
           className="cover-url-input"
-          placeholder="粘贴图片 URL"
+          placeholder={t('粘贴图片 URL')}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           disabled={disabled || isBusy}
@@ -329,7 +331,7 @@ export function CoverImageField({
           disabled={disabled || isBusy}
           onClick={importRemoteUrl}
           type="button"
-          title="从 URL 抓取并上传"
+          title={t('从 URL 抓取并上传')}
         >
           {isImporting || isPreparing ? (
             <LoaderCircle size={14} aria-hidden="true" className="spin" />
@@ -346,14 +348,14 @@ export function CoverImageField({
           disabled={disabled || isBusy}
           onClick={() => fileInputRef.current?.click()}
           type="button"
-          title="上传图片"
+          title={t('上传图片')}
         >
           {isPreparing || isUploading ? (
             <LoaderCircle size={14} aria-hidden="true" className="spin" />
           ) : (
             <Upload size={14} aria-hidden="true" />
           )}
-          上传图片
+          {t('上传图片')}
         </button>
       </div>
       {videoSourceUrl && (
@@ -365,7 +367,7 @@ export function CoverImageField({
             type="button"
           >
             <Camera size={14} aria-hidden="true" />
-            采集视频帧
+            {t('采集视频帧')}
           </button>
         </div>
       )}
@@ -374,14 +376,14 @@ export function CoverImageField({
         <div className="cover-upload-progress" aria-live="polite">
           <span>
             {isImporting && !isUploading
-              ? '正在获取远程图片…'
+              ? t('正在获取远程图片…')
               : isPreparing
-                ? '正在压缩封面图片…'
+                ? t('正在压缩封面图片…')
               : uploadProgress?.percent === 100
-                ? '图片已发送，正在等待服务器确认…'
+                ? t('图片已发送，正在等待服务器确认…')
                 : uploadProgress?.percent === null || uploadProgress === null
-                  ? '正在上传图片…'
-                  : `正在上传图片 ${uploadProgress.percent}%`}
+                  ? t('正在上传图片…')
+                  : `${t('正在上传图片')} ${uploadProgress.percent}%`}
           </span>
           {uploadProgress?.total && (
             <span>
@@ -403,12 +405,12 @@ export function CoverImageField({
 
       <p className="cover-field-hint">
         <Clipboard size={12} aria-hidden="true" />
-        支持粘贴图片或截图
+        {t('支持粘贴图片或截图')}
       </p>
 
       {value ? (
         <img
-          alt={`${label}预览`}
+          alt={`${label}${t('预览')}`}
           className={previewClassName}
           src={resolveApiUrl(value)}
         />
@@ -433,11 +435,11 @@ export function CoverImageField({
         footer={null}
         onCancel={closeFrameCapture}
         open={isFrameCaptureOpen}
-        title="从视频采集封面"
+        title={t('从视频采集封面')}
         width={760}
       >
         <div className="cover-frame-capture">
-          <p>仅在当前浏览器读取视频画面。确认后会沿用现有的前端压缩与上传流程。</p>
+          <p>{t('仅在当前浏览器读取视频画面。确认后会沿用现有的前端压缩与上传流程。')}</p>
           <video
             ref={captureVideoRef}
             className="cover-frame-capture-video"
@@ -457,7 +459,7 @@ export function CoverImageField({
             onSeeked={(event) => setCaptureTime(event.currentTarget.currentTime)}
           />
           <label className="cover-frame-capture-timeline">
-            <span>定位画面：{captureTime.toFixed(1)} 秒</span>
+            <span>{t('定位画面：{{time}} 秒', { time: captureTime.toFixed(1) })}</span>
             <input
               disabled={captureDuration <= 0}
               max={captureDuration}
@@ -471,16 +473,16 @@ export function CoverImageField({
           <div className="cover-frame-capture-actions">
             <button className="mini-command secondary" onClick={() => void captureCurrentVideoFrame()} type="button">
               <Camera size={14} aria-hidden="true" />
-              采集当前帧
+              {t('采集当前帧')}
             </button>
             <button className="mini-command" disabled={!capturedFrame || isBusy} onClick={() => void uploadCapturedFrame()} type="button">
-              使用此帧作为封面
+              {t('使用此帧作为封面')}
             </button>
           </div>
           {capturedFrameUrl && (
             <div className="cover-frame-capture-preview">
-              <span>待上传封面（会在浏览器内压缩）</span>
-              <img alt="采集的视频封面预览" src={capturedFrameUrl} />
+              <span>{t('待上传封面（会在浏览器内压缩）')}</span>
+              <img alt={t('采集的视频封面预览')} src={capturedFrameUrl} />
             </div>
           )}
         </div>
