@@ -198,6 +198,8 @@ const catalogExample = [
   '      "categoryId": 21,',
   '      "title": "Muddy Puddles",',
   '      "lineCount": 68,',
+  '      "mediaType": "video",',
+  '      "mediaUrl": "/api/v1/media/objects?key=video/2026/08/19/muddy-puddles.mp4",',
   '      "dltjsonUrl": "/api/v1/open-content/courses/123/dltjson"',
   '    }',
   '  ]',
@@ -322,13 +324,20 @@ export function OpenContentApiDocumentation({
     '  --output "0001-Muddy Puddles.dltjson"',
   ].join('\n')
 
+  const mediaDownloadExample = [
+    'curl --fail --location --show-error \\',
+    '  -H "X-DuolinTing-API-Key: $DUOLINTING_OPEN_CONTENT_API_KEY" \\',
+    '  "$DUOLINTING_API_BASE/api/v1/media/objects?key=video/2026/08/19/muddy-puddles.mp4" \\',
+    '  --output "source-muddy-puddles.mp4"',
+  ].join('\n')
+
   return (
     <main className="open-content-api-documentation">
       <div className="open-content-api-documentation-header">
         <div>
           <Typography.Title level={2}>开放内容 API 文档</Typography.Title>
           <Typography.Paragraph type="secondary">
-            用独立 API Key 将已发布课程的目录和字幕同步到开源仓库。接口不会返回音频、视频、封面或其他媒体字段。
+            用独立 API Key 将已发布课程的目录、源媒体地址和字幕同步到本地工具或开源仓库。接口只提供已发布课程的媒体读取地址，不在服务器执行视频生成。
           </Typography.Paragraph>
         </div>
         <Button icon={<ArrowLeft size={16} />} onClick={onBack}>返回 API Key</Button>
@@ -357,10 +366,10 @@ export function OpenContentApiDocumentation({
       <section className="open-content-api-documentation-section">
         <Typography.Title level={4}><BookOpenText size={18} />2. 读取目录</Typography.Title>
         <Typography.Paragraph>
-          先请求目录，再依据 <Typography.Text code>groupId</Typography.Text> 和 <Typography.Text code>categoryId</Typography.Text> 组织“内容分类 / 学习系列 / 课程”三级目录。每门课程的 <Typography.Text code>dltjsonUrl</Typography.Text> 是下载字幕的唯一入口。
+          先请求目录，再依据 <Typography.Text code>groupId</Typography.Text> 和 <Typography.Text code>categoryId</Typography.Text> 组织“内容分类 / 学习系列 / 课程”三级目录。每门课程还会返回 <Typography.Text code>mediaType</Typography.Text> 和 <Typography.Text code>mediaUrl</Typography.Text>，供本地生成器读取源媒体；字幕仍通过 <Typography.Text code>dltjsonUrl</Typography.Text> 下载。
         </Typography.Paragraph>
         <ApiRequestCard
-          description="返回所有已发布课程的目录和下载地址。"
+          description="返回所有已发布课程的目录、字幕下载地址和源媒体读取地址。"
           headers={apiKeyHeaders}
           method="GET"
           path="/api/v1/open-content/catalog"
@@ -392,7 +401,20 @@ export function OpenContentApiDocumentation({
       <Divider />
 
       <section className="open-content-api-documentation-section">
-        <Typography.Title level={4}>4. 完整同步脚本</Typography.Title>
+        <Typography.Title level={4}><Download size={18} />4. 下载源媒体（本地生成器）</Typography.Title>
+        <Typography.Paragraph>
+          目录中的 <Typography.Text code>mediaUrl</Typography.Text> 是课程已经配置好的源媒体地址。只在本地视频生成任务需要时下载它；服务器只负责读取和传输对象，不参与解码或编码。媒体地址支持 Range 请求，下载工具可以安全地断点续传或利用 CDN 缓存。
+        </Typography.Paragraph>
+        <CodeExample code={mediaDownloadExample} language="shell" onNotify={onNotify} />
+        <Typography.Paragraph type="secondary">
+          <Typography.Text code>mediaType</Typography.Text> 为 <Typography.Text code>audio</Typography.Text> 或 <Typography.Text code>video</Typography.Text>。推荐使用项目中的本地 CLI，它会自动读取这两个字段并把媒体缓存到本机。
+        </Typography.Paragraph>
+      </section>
+
+      <Divider />
+
+      <section className="open-content-api-documentation-section">
+        <Typography.Title level={4}>5. 完整同步脚本</Typography.Title>
         <Typography.Paragraph>
           将下面代码保存为 <Typography.Text code>sync-open-content.mjs</Typography.Text>，使用 Node.js 22 或更高版本执行。它会保存目录快照，并将所有课程写入“内容分类 / 学习系列 / 课程.dltjson”。文件名会自动清理跨平台不支持的字符并保留排序号。
         </Typography.Paragraph>
@@ -407,7 +429,7 @@ export function OpenContentApiDocumentation({
       <Divider />
 
       <section className="open-content-api-documentation-section">
-        <Typography.Title level={4}>5. dltjson 格式</Typography.Title>
+        <Typography.Title level={4}>6. dltjson 格式</Typography.Title>
         <Typography.Paragraph>
           <Typography.Text code>start</Typography.Text> 与 <Typography.Text code>end</Typography.Text> 的单位为秒，且应保持与原课程时间轴一致。同步脚本按原样保存每个文件，不会合成、重排或修改字幕。
         </Typography.Paragraph>
@@ -424,13 +446,13 @@ export function OpenContentApiDocumentation({
       <Divider />
 
       <section className="open-content-api-documentation-section">
-        <Typography.Title level={4}>6. 鉴权与错误处理</Typography.Title>
+        <Typography.Title level={4}>7. 鉴权与错误处理</Typography.Title>
         <Space direction="vertical" size={8} style={{ display: 'flex' }}>
           <Typography.Text><Tag color="blue">请求头兼容</Tag> 新接入使用 <Typography.Text code>X-DuolinTing-API-Key</Typography.Text>；<Typography.Text code>X-API-Key</Typography.Text> 仅为兼容通用命令行工具保留。上面的请求卡片展示的是推荐写法。</Typography.Text>
           <Typography.Text><Tag color="red">401</Tag> 未提供、无效、已过期或已删除的 API Key。请由超级管理员检查 Key 的状态，必要时新建 Key 或调整到期时间。</Typography.Text>
           <Typography.Text><Tag color="orange">404</Tag> 课程不存在，或课程尚未发布，不能导出。</Typography.Text>
           <Typography.Text><Tag color="gold">400</Tag> 课程 ID 不是正整数。</Typography.Text>
-          <Typography.Text type="secondary">接口响应使用 private, no-store 缓存策略。若外部仓库需要版本历史，应由同步任务在自己的仓库中提交版本，而不是依赖接口缓存。</Typography.Text>
+          <Typography.Text type="secondary">目录和字幕接口使用 private, no-store 缓存策略；媒体对象沿用对象级长缓存。视频生成仍由本地任务完成，不会在服务器编码。</Typography.Text>
         </Space>
       </section>
     </main>

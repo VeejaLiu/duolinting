@@ -12,8 +12,8 @@ const dltjsonPath = (courseId: number) =>
     `/api/v1/open-content/courses/${courseId}/dltjson`;
 
 /**
- * 开源目录只输出整理文件所需的元数据。封面、音频、视频与媒体类型均不出现在该响应中，
- * 即使外部 API Key 泄露也不能借此枚举或下载私有媒体对象。
+ * 开放目录输出字幕同步和本地视频生成所需的元数据。媒体地址只指向已经公开的课程素材；
+ * 编码工作始终发生在调用方电脑，不会让后端承担视频处理负载。
  */
 export async function getOpenContentCatalog(): Promise<OpenContentCatalogResponse> {
     const catalog = await listCatalog(false, false);
@@ -53,6 +53,8 @@ export async function getOpenContentCatalog(): Promise<OpenContentCatalogRespons
                 sourceUrl: course.sourceUrl,
                 difficulty: course.difficulty,
                 durationLabel: course.durationLabel,
+                mediaType: course.mediaType,
+                mediaUrl: course.audioUrl,
                 summary: course.summary,
                 sortOrder: course.sortOrder,
                 lineCount: course.lineCount,

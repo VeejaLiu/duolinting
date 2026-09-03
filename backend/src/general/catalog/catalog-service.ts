@@ -1058,8 +1058,8 @@ export async function getExercise(
 }
 
 /**
- * 开放内容导出只读取已发布课程的文本数据。它不复用 getExercise，原因是后者还会检查
- * MinIO 媒体大小并加载协作信息；这些数据既不会导出，也不应成为字幕同步的依赖。
+ * 开放内容导出只读取已发布课程的目录、字幕和媒体读取地址。它不复用 getExercise，
+ * 原因是后者还会检查 MinIO 媒体大小并加载协作信息；这些数据不应成为字幕同步的依赖。
  */
 export async function getPublishedExerciseForOpenContent(exerciseId: number) {
     const rows = await doRawQuery<ExerciseRow>({
@@ -1072,6 +1072,8 @@ export async function getPublishedExerciseForOpenContent(exerciseId: number) {
               source_url,
               difficulty,
               duration_label,
+              media_type,
+              audio_url,
               summary,
               localizations_json,
               transcript_json,
@@ -1095,6 +1097,8 @@ export async function getPublishedExerciseForOpenContent(exerciseId: number) {
         sourceUrl: normalizeSourceUrl(row.source_url) || undefined,
         difficulty: row.difficulty,
         durationLabel: row.duration_label,
+        mediaType: row.media_type ?? 'audio',
+        mediaUrl: toDeliveryMediaUrl(row.audio_url),
         summary: row.summary,
         sortOrder: Number(row.sort_order ?? 0),
         localizations: normalizeExerciseLocalizations(row.localizations_json),

@@ -516,13 +516,16 @@ export type DltjsonFile = {
   lines: TranscriptLine[]
 }
 
-/** 外部仓库同步目录所需的最小公开结构；所有媒体字段均被刻意排除。 */
+/** 开放内容目录：字幕与本地生成器所需的源媒体地址均可通过 API Key 读取。 */
 export type OpenContentCatalogResponse = {
   version: '1.0'
   generatedAt: string
   categoryGroups: Array<Omit<MaterialCategory, 'coverImageUrl'>>
   categories: Array<Omit<ExerciseCategory, 'coverImageUrl'>>
   courses: Array<DltjsonCourse & {
+    /** 本地视频生成器读取源媒体的类型与地址；媒体仍由本地客户端下载和编码。 */
+    mediaType: LessonMediaType
+    mediaUrl: string
     lineCount: number
     dltjsonUrl: string
   }>

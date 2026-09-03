@@ -138,6 +138,14 @@
       "problemMatcher": []
     },
     {
+      // 本地视频生成器是独立的交互式任务，不参与 Start All。
+      "label": "Run: Local Video Generator",
+      "type": "shell",
+      "command": "python3 run.py",
+      "options": { "cwd": "${workspaceFolder}/video-generator" },
+      "problemMatcher": []
+    },
+    {
       // 一键启动：并行拉起全部应用，每个应用在独立终端面板中运行
       "label": "Start All",
       "dependsOrder": "parallel",
