@@ -50,7 +50,15 @@ DUOLINTING_VIDEO_MEDIA_DIR=./media
 ```
 
 `DUOLINTING_API_BASE` 可以填写 Admin 代理地址或后端地址；如果不设置它，也可以使用
-`DUOLINTING_BACKEND_URL`。直接运行 `python run.py` 时程序会主动询问服务端地址。
+`DUOLINTING_BACKEND_URL`。第一次直接运行 `python run.py` 时程序会询问服务端地址和
+API Key，并保存到当前项目的本地 `.env`（文件权限会限制为仅当前用户可读写）；之后
+启动会直接使用已保存的配置，不再重复询问。需要更换地址或 API Key 时，手动执行：
+
+```bash
+python run.py --reset-config
+```
+
+该选项会清除本地保存的地址和 API Key，然后只在这一次重新设置。
 
 API Key 只从环境变量或本地 `.env` 读取，不要把它写进脚本、提交记录或开源仓库。
 

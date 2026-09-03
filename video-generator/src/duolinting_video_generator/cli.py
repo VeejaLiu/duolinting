@@ -36,6 +36,60 @@ def _load_dotenv(path: Path) -> None:
             os.environ[key] = value
 
 
+def _project_directory() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _saved_environment_path() -> Path:
+    return _project_directory() / ".env"
+
+
+def _save_interactive_config(base_url: str, api_key: str) -> None:
+    """Persist first-run settings locally while preserving other .env options."""
+
+    path = _saved_environment_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    existing_lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+    replacements = {
+        "DUOLINTING_API_BASE": base_url,
+        "DUOLINTING_OPEN_CONTENT_API_KEY": api_key,
+    }
+    written_keys: set[str] = set()
+    output_lines: list[str] = []
+    for line in existing_lines:
+        key, separator, _value = line.partition("=")
+        normalized_key = key.strip()
+        if separator and normalized_key in replacements:
+            output_lines.append(f"{normalized_key}={replacements[normalized_key]}")
+            written_keys.add(normalized_key)
+        else:
+            output_lines.append(line)
+    if output_lines and output_lines[-1].strip():
+        output_lines.append("")
+    for key, value in replacements.items():
+        if key not in written_keys:
+            output_lines.append(f"{key}={value}")
+    path.write_text("\n".join(output_lines).rstrip() + "\n", encoding="utf-8")
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
+
+
+def _reset_interactive_config() -> None:
+    path = _saved_environment_path()
+    if path.is_file():
+        retained = [
+            line
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.split("=", 1)[0].strip()
+            not in {"DUOLINTING_API_BASE", "DUOLINTING_BACKEND_URL", "DUOLINTING_OPEN_CONTENT_API_KEY"}
+        ]
+        path.write_text("\n".join(retained).rstrip() + ("\n" if retained else ""), encoding="utf-8")
+    for key in ("DUOLINTING_API_BASE", "DUOLINTING_BACKEND_URL", "DUOLINTING_OPEN_CONTENT_API_KEY"):
+        os.environ.pop(key, None)
+
+
 def _default_font_name() -> str:
     if platform.system() == "Darwin":
         return "PingFang SC"
@@ -447,23 +501,32 @@ def _command_render_all(args: argparse.Namespace) -> int:
     return 0
 
 
-def _interactive() -> int:
+def _interactive(*, reset_config: bool = False) -> int:
     """Run the one-command local workflow for people who do not want CLI flags."""
 
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise RenderError("交互模式需要在终端中运行；脚本环境请使用 sync/list/render 子命令。")
 
     print("DuolinTing 本地视频生成器\n")
+    if reset_config:
+        _reset_interactive_config()
+        print("已清除本地服务端地址和 API Key，请重新设置。\n")
     default_base = (
         os.environ.get("DUOLINTING_API_BASE")
         or os.environ.get("DUOLINTING_BACKEND_URL")
         or "http://127.0.0.1:8102"
     )
-    entered_base = input(f"服务端地址（Admin/Backend）[{default_base}]: ").strip()
-    base_url = entered_base or default_base
+    configured_base = os.environ.get("DUOLINTING_API_BASE") or os.environ.get("DUOLINTING_BACKEND_URL")
+    if configured_base and not reset_config:
+        base_url = configured_base.strip()
+        print(f"已使用保存的服务端地址：{base_url}")
+    else:
+        entered_base = input(f"服务端地址（Admin/Backend）[{default_base}]: ").strip()
+        base_url = entered_base or default_base
     api_key = os.environ.get("DUOLINTING_OPEN_CONTENT_API_KEY", "").strip()
     if not api_key:
         api_key = getpass.getpass("请输入开放内容 API Key（输入不会显示）：").strip()
+    _save_interactive_config(base_url, api_key)
 
     client = OpenContentClient(base_url, api_key)
     print("正在读取课程目录……")
@@ -530,6 +593,11 @@ def _parser() -> argparse.ArgumentParser:
         description="Local DuolinTing dltjson + FFmpeg video generator",
     )
     parser.add_argument("--version", action="version", version="0.1.0")
+    parser.add_argument(
+        "--reset-config",
+        action="store_true",
+        help="清除已保存的服务端地址和 API Key，并重新进入交互设置",
+    )
     subparsers = parser.add_subparsers(dest="command")
 
     sync = subparsers.add_parser("sync", help="Fetch the published catalog and dltjson files")
@@ -567,14 +635,16 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    project_dir = Path(__file__).resolve().parents[2]
+    project_dir = _project_directory()
     # Prefer the directory from which the local command is launched, while keeping
     # editable installs convenient when invoked from the project directory itself.
     _load_dotenv(Path.cwd() / ".env")
     _load_dotenv(project_dir / ".env")
     args = _parser().parse_args()
     try:
-        exit_code = _interactive() if args.command is None else args.handler(args)
+        if args.reset_config and args.command is not None:
+            raise RenderError("--reset-config 只能在交互模式下使用，请不要与子命令一起传入。")
+        exit_code = _interactive(reset_config=args.reset_config) if args.command is None else args.handler(args)
     except KeyboardInterrupt:
         print("\n已取消。", file=sys.stderr)
         exit_code = 130
