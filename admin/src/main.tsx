@@ -10,6 +10,7 @@ import 'antd/dist/reset.css'
 import './index.css'
 import App from './App.tsx'
 import { AdminLanguageProvider, useAdminLanguage } from './i18n/AdminLanguageProvider'
+import { installGlobalMediaDiagnostics, logReactDiagnostic } from './lib/mediaDiagnostics'
 
 function AdminAntdProvider({ children }: { children: ReactNode }) {
   const { uiLocale } = useAdminLanguage()
@@ -17,7 +18,19 @@ function AdminAntdProvider({ children }: { children: ReactNode }) {
   return <ConfigProvider locale={locale} theme={{ token: { colorPrimary: '#1cb0f6' } }}>{children}</ConfigProvider>
 }
 
-createRoot(document.getElementById('root')!).render(
+installGlobalMediaDiagnostics()
+
+createRoot(document.getElementById('root')!, {
+  onCaughtError: (error, errorInfo) => {
+    logReactDiagnostic('react-caught-error', error, errorInfo.componentStack ?? undefined)
+  },
+  onRecoverableError: (error, errorInfo) => {
+    logReactDiagnostic('react-recoverable-error', error, errorInfo.componentStack ?? undefined)
+  },
+  onUncaughtError: (error, errorInfo) => {
+    logReactDiagnostic('react-uncaught-error', error, errorInfo.componentStack ?? undefined)
+  },
+}).render(
   <StrictMode>
     <AdminLanguageProvider>
       <AdminAntdProvider>

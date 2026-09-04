@@ -31,6 +31,11 @@ import type { AdminNoticeTone } from './AdminFeedback'
 import { CoverImageField } from './CoverImageField'
 import { apiClient, type FileUploadProgress } from '../../lib/apiClient'
 import { formatDurationLabel, type DraftLine } from '../../lib/mediaDraftTools'
+import {
+  getMediaSnapshot,
+  logMediaDiagnostic,
+  observeMediaElement,
+} from '../../lib/mediaDiagnostics'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type ClipboardPanelState =
@@ -52,35 +57,6 @@ const formatFileSize = (bytes: number): string => {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   const size = bytes / Math.pow(k, i)
   return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
-}
-
-const MEDIA_LOG_PREFIX = '[DuolinTing Admin Media]'
-
-const getMediaSnapshot = (media: HTMLMediaElement | null) =>
-  media
-    ? {
-        currentSrc: media.currentSrc,
-        currentTime: media.currentTime,
-        duration: media.duration,
-        ended: media.ended,
-        error: media.error
-          ? {
-              code: media.error.code,
-              message: media.error.message,
-            }
-          : null,
-        networkState: media.networkState,
-        paused: media.paused,
-        readyState: media.readyState,
-        tagName: media.tagName,
-      }
-    : null
-
-const logMediaDebug = (event: string, details?: Record<string, unknown>) => {
-  console.info(MEDIA_LOG_PREFIX, event, {
-    at: new Date().toISOString(),
-    ...details,
-  })
 }
 
 type MediaCourseFormProps = {
@@ -202,6 +178,7 @@ export function MediaCourseForm({
   const [activeResizeMode, setActiveResizeMode] = useState<MediaEditorResizeMode | null>(null)
   const mediaEditorUpperRef = useRef<HTMLDivElement | null>(null)
   const mediaEditorWorkspaceRef = useRef<HTMLDivElement | null>(null)
+  const mediaDiagnosticsCleanupRef = useRef<(() => void) | null>(null)
   const resizeModeRef = useRef<MediaEditorResizeMode | null>(null)
   const localizedContent = courseForm.localizations?.[localizationLocale] ?? {}
   const updateLocalizedContent = (patch: { title?: string; summary?: string }) =>
@@ -339,21 +316,31 @@ export function MediaCourseForm({
   const isClipboardDialogOpen = clipboardPanel.mode !== 'hidden'
   const setMediaElement = useCallback(
     (element: HTMLMediaElement | null) => {
-      logMediaDebug(element ? 'media-ref-attached' : 'media-ref-detached', {
+      mediaDiagnosticsCleanupRef.current?.()
+      mediaDiagnosticsCleanupRef.current = null
+      logMediaDiagnostic(element ? 'media-ref-attached' : 'media-ref-detached', {
         media: getMediaSnapshot(element),
       })
       mediaRef.current = element
+      if (element) {
+        mediaDiagnosticsCleanupRef.current = observeMediaElement(element, 'main')
+      }
     },
     [mediaRef],
   )
 
+  useEffect(() => () => {
+    mediaDiagnosticsCleanupRef.current?.()
+    mediaDiagnosticsCleanupRef.current = null
+  }, [])
+
   const handleMediaError = useCallback(
     (event: SyntheticEvent<HTMLMediaElement>) => {
-      logMediaDebug('native-media-error', {
+      logMediaDiagnostic('native-media-error', {
         localMediaUrl,
         media: getMediaSnapshot(event.currentTarget),
         mediaType: courseForm.mediaType,
-      })
+      }, 'error')
     },
     [courseForm.mediaType, localMediaUrl],
   )

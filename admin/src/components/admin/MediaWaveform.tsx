@@ -40,6 +40,13 @@ import {
   TRANSLATION_TARGET_LOCALES,
   type DraftLine,
 } from '../../lib/mediaDraftTools'
+import {
+  getBrowserSnapshot,
+  getMediaSnapshot,
+  getWaveformDomSnapshot,
+  logMediaDiagnostic,
+  observeMediaElement,
+} from '../../lib/mediaDiagnostics'
 import type { ContentLocale } from '@duolinting/domain'
 import { SubtitleList } from './SubtitleList'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
@@ -244,8 +251,6 @@ const applyRegionLaneLayout = (region: { element: HTMLElement | null }) => {
   element.style.setProperty('top', '50%', 'important')
 }
 const ZOOM_STEP = 0.5
-const MEDIA_LOG_PREFIX = '[DuolinTing Admin Media]'
-
 const getPixelsPerSecond = (zoom: number) =>
   Math.round(BASE_PIXELS_PER_SECOND * zoom)
 
@@ -275,31 +280,8 @@ const isResizeHandleTarget = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   target.closest('[part*="region-handle"]') !== null
 
-const getMediaSnapshot = (media: HTMLMediaElement | null) =>
-  media
-    ? {
-        currentSrc: media.currentSrc,
-        currentTime: media.currentTime,
-        duration: media.duration,
-        ended: media.ended,
-        error: media.error
-          ? {
-              code: media.error.code,
-              message: media.error.message,
-            }
-          : null,
-        networkState: media.networkState,
-        paused: media.paused,
-        readyState: media.readyState,
-        tagName: media.tagName,
-      }
-    : null
-
 const logMediaDebug = (event: string, details?: Record<string, unknown>) => {
-  console.info(MEDIA_LOG_PREFIX, event, {
-    at: new Date().toISOString(),
-    ...details,
-  })
+  logMediaDiagnostic(event, details)
 }
 
 export function MediaWaveform({
@@ -329,6 +311,7 @@ export function MediaWaveform({
   const waveSurferRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<RegionsPlugin | null>(null)
   const draftLinesRef = useRef(draftLines)
+  const activeLineIndexRef = useRef(activeLineIndex)
   const onActiveLineChangeRef = useRef(onActiveLineChange)
   const onAddLineRef = useRef(onAddLine)
   const onUpdateLineRef = useRef(onUpdateLine)
@@ -400,6 +383,10 @@ export function MediaWaveform({
   useEffect(() => {
     draftLinesRef.current = draftLines
   }, [draftLines])
+
+  useEffect(() => {
+    activeLineIndexRef.current = activeLineIndex
+  }, [activeLineIndex])
 
   useEffect(() => {
     onActiveLineChangeRef.current = onActiveLineChange
@@ -512,6 +499,7 @@ export function MediaWaveform({
       waveformMedia.muted = true
       waveformMedia.preload = 'auto'
       waveformMedia.src = sourceUrl
+      const stopWaveformMediaDiagnostics = observeMediaElement(waveformMedia, 'waveform-decoder')
 
       const regions = RegionsPlugin.create()
       const wavesurfer = WaveSurfer.create({
@@ -550,6 +538,55 @@ export function MediaWaveform({
       regionByIdRef.current = {}
 
       let waveformFrameId: number | null = null
+      let healthCheckCount = 0
+
+      const captureWaveformHealth = (reason: string) => {
+        const dom = getWaveformDomSnapshot(waveformContainer)
+        const currentActiveLineIndex = activeLineIndexRef.current
+        const currentActiveLine = draftLinesRef.current[currentActiveLineIndex]
+        const visibleCanvases = dom?.canvases.filter((canvas) => canvas.isVisibleInContainer) ?? []
+        const sampledCanvases = visibleCanvases.filter(
+          (canvas) => canvas.nonTransparentProbePixels !== null,
+        )
+        const suspectedBlank =
+          waveformStatusRef.current === 'ready' &&
+          (visibleCanvases.length === 0 ||
+            (sampledCanvases.length > 0 &&
+              sampledCanvases.every((canvas) => canvas.nonTransparentProbePixels === 0)))
+        const details = {
+          activeLine: currentActiveLine
+            ? {
+                end: currentActiveLine.end,
+                id: currentActiveLine.id,
+                index: currentActiveLineIndex,
+                start: currentActiveLine.start,
+              }
+            : null,
+          browser: getBrowserSnapshot(),
+          decoded: Boolean(wavesurfer.getDecodedData()),
+          duration: wavesurfer.getDuration(),
+          mainMedia: getMediaSnapshot(media),
+          regionDragInProgress: isDraggingRegionRef.current,
+          reason,
+          scrollLeft: wavesurfer.getScroll(),
+          suspectedBlank,
+          waveformDom: dom,
+          waveformMedia: getMediaSnapshot(waveformMedia),
+          waveformStatus: waveformStatusRef.current,
+          zoom: zoomRef.current,
+        }
+
+        if (suspectedBlank) {
+          logMediaDiagnostic('waveform-blank-suspected', details, 'error')
+        } else {
+          logMediaDebug('waveform-health', details)
+        }
+      }
+
+      const healthCheckId = window.setInterval(() => {
+        healthCheckCount += 1
+        captureWaveformHealth(`interval-${healthCheckCount}`)
+      }, 5000)
 
       const updateWaveformCursor = (nextTime: number, isPlaying = false) => {
         if (!wavesurfer.getDecodedData()) {
@@ -667,9 +704,44 @@ export function MediaWaveform({
           })
           syncWaveformToMainMedia()
           startWaveformCursorSync()
+          window.requestAnimationFrame(() => captureWaveformHealth('ready-next-frame'))
+        }),
+	        wavesurfer.on('decode', (decodedDuration) => {
+          logMediaDebug('wavesurfer-decode', {
+            decodedDuration,
+            mainMedia: getMediaSnapshot(media),
+            waveformMedia: getMediaSnapshot(waveformMedia),
+          })
+        }),
+	        wavesurfer.on('redrawcomplete', () => {
+          logMediaDebug('wavesurfer-redraw-complete', {
+            waveformDom: getWaveformDomSnapshot(waveformContainer),
+            zoom: zoomRef.current,
+          })
+        }),
+	        wavesurfer.on('scroll', (visibleStartTime, visibleEndTime, scrollLeft, scrollRight) => {
+          logMediaDebug('wavesurfer-scroll', {
+            scrollLeft,
+            scrollRight,
+            visibleEndTime,
+            visibleStartTime,
+            zoom: zoomRef.current,
+          })
+        }),
+	        wavesurfer.on('zoom', (minPxPerSec) => {
+          logMediaDebug('wavesurfer-zoom', {
+            minPxPerSec,
+            waveformDom: getWaveformDomSnapshot(waveformContainer),
+          })
+        }),
+	        wavesurfer.on('resize', () => {
+          logMediaDebug('wavesurfer-resize', {
+            waveformDom: getWaveformDomSnapshot(waveformContainer),
+          })
         }),
 	        wavesurfer.on('error', (error) => {
-          logMediaDebug('wavesurfer-error', {
+          logMediaDiagnostic('wavesurfer-error', {
+            browser: getBrowserSnapshot(),
             draftLineCount: draftLinesRef.current.length,
             error: {
               message: error.message,
@@ -678,8 +750,10 @@ export function MediaWaveform({
             },
             media: getMediaSnapshot(media),
             sourceUrl,
+            waveformDom: getWaveformDomSnapshot(waveformContainer),
+            waveformMedia: getMediaSnapshot(waveformMedia),
             waveformStatus: waveformStatusRef.current,
-          })
+          }, 'error')
           setWaveform({
 	            status: 'error',
             message: t('波形解析失败：{{error}}', { error: error.message }),
@@ -787,6 +861,8 @@ export function MediaWaveform({
           sourceUrl,
         })
 	        cleanups.forEach((c) => c())
+	        window.clearInterval(healthCheckId)
+	        stopWaveformMediaDiagnostics()
 	        disableDragSelection()
 	        regionsRef.current = null
         waveSurferRef.current = null

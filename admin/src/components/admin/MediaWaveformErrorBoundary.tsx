@@ -1,5 +1,6 @@
 import { Component, Fragment, type ErrorInfo, type ReactNode } from 'react'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
+import { logReactDiagnostic } from '../../lib/mediaDiagnostics'
 
 type MediaWaveformErrorBoundaryProps = {
   children: ReactNode
@@ -36,11 +37,12 @@ class MediaWaveformErrorBoundaryInner extends Component<
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
-    console.error('[DuolinTing Admin Media] waveform error boundary', error, info)
+    logReactDiagnostic('waveform-error-boundary', error, info.componentStack ?? undefined)
   }
 
   handleReset = () => {
     // 换 key 强制重挂子树，让 WaveSurfer 重新走一遍初始化流程。
+    logReactDiagnostic('waveform-error-boundary-reset', this.state.errorMessage)
     this.setState((current) => ({
       errorMessage: '',
       hasError: false,
