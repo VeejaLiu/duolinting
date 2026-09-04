@@ -110,8 +110,10 @@ export function AdminWorkspaceNav({
       icon: <UserRound size={17} aria-hidden="true" />,
       key: 'account',
       label: collapsed ? t('后台账号') : `${adminUser.displayName} · ${adminUser.role === 'super_admin' ? t('超级管理员') : t('字幕贡献者')}`,
+      popupClassName: 'admin-account-popup',
       children: [
         {
+          className: 'admin-account-language-item',
           key: 'language',
           label: (
             <div className="admin-account-language" onClick={(event) => event.stopPropagation()}>

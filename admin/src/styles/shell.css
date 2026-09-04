@@ -130,10 +130,54 @@
 
 .admin-account-language {
   cursor: default;
-  display: grid;
-  gap: 4px;
-  min-width: 156px;
-  padding: 4px 0;
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 236px;
+  padding: 0;
+}
+
+.admin-account-popup {
+  padding: 6px 0;
+}
+
+.admin-account-popup .admin-account-language-item {
+  align-items: center;
+  height: auto;
+  line-height: normal;
+  margin: 0 6px 4px;
+  min-height: 48px;
+  padding: 8px 12px !important;
+}
+
+.admin-account-popup .admin-account-language-item:hover {
+  background: transparent;
+}
+
+.admin-account-language .ant-typography {
+  flex: 0 0 auto;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.admin-account-language .ant-select {
+  flex: 0 0 132px;
+  width: 132px;
+}
+
+.admin-account-language .ant-select-single .ant-select-selector {
+  align-items: center;
+  min-height: 32px;
+}
+
+.admin-account-language .ant-select-single .ant-select-selection-item {
+  line-height: 30px;
+}
+
+.admin-account-popup > .ant-menu-item:last-child {
+  margin: 0 6px;
 }
 
 .admin-workspace-content.ant-layout-content {
