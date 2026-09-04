@@ -105,8 +105,8 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET: ${MINIO_BUCKET}
       MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:-}
-      ZHIPU_API_KEY: ${ZHIPU_API_KEY:-}
-      ZHIPU_MODEL: ${ZHIPU_MODEL:-glm-4-flash}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
     logging: *default-logging
     networks:
       - duolinting-network

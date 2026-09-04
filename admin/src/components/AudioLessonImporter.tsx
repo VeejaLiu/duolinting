@@ -81,7 +81,7 @@ const EMPTY_SUBTITLE_ANALYSIS: SubtitleDraftAnalysis = {
   isLikelyBilingual: false,
   suggestedMode: 'single',
 }
-// 与后端翻译接口上限保持一致；智谱免费档并发很低，顺序提交比并发排队更稳定。
+// 与后端翻译接口上限保持一致；按语言顺序提交，避免瞬时并发并保持进度与写回顺序稳定。
 // 批次保持较小（6 行）：大批次更容易触发模型合并/漏行，小批失败重试代价也低。
 const TRANSLATE_REQUEST_BATCH_SIZE = 6
 

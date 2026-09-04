@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto';
 
 const logger = new Logger(__filename);
 
-const ZHIPU_CHAT_COMPLETIONS_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-const DEFAULT_ZHIPU_MODEL = 'glm-4-flash';
+const DEEPSEEK_CHAT_COMPLETIONS_URL = 'https://api.deepseek.com/chat/completions';
+const DEFAULT_DEEPSEEK_MODEL = 'deepseek-v4-flash';
 // 网关会在长连接上超时，因此单个 HTTP 翻译请求只处理一小批字幕。
 // 前端负责把整部课程拆成多个顺序请求，避免一个慢批次阻塞整次翻译。
 // 批次保持较小（6 行）：批越大模型越容易合并/漏行导致整批解析失败，小批重试成本也更低。
@@ -66,19 +66,19 @@ type TranslationJob = {
 const translationJobs = new Map<string, TranslationJob>();
 const TRANSLATION_JOB_TTL_MS = 15 * 60 * 1000;
 
-// 调用智谱 OpenAI 兼容的 chat completions 接口,返回 message.content 文本。
+// 调用 DeepSeek OpenAI 兼容的 chat completions 接口,返回 message.content 文本。
 // 日志中不输出完整 prompt 内容,只记录消息条数和总字符数,避免泄露字幕文本。
-const requestZhipuChatCompletion = async (
+const requestDeepSeekChatCompletion = async (
     messages: ChatCompletionMessage[],
     apiKey: string,
     model: string,
 ): Promise<string> => {
     const totalChars = messages.reduce((sum, message) => sum + message.content.length, 0);
-    logger.info(`智谱请求开始: model=${model}, messages=${messages.length}, totalChars=${totalChars}`);
+    logger.info(`DeepSeek 请求开始: model=${model}, messages=${messages.length}, totalChars=${totalChars}`);
 
     const startedAt = Date.now();
     try {
-        const response = await fetch(ZHIPU_CHAT_COMPLETIONS_URL, {
+        const response = await fetch(DEEPSEEK_CHAT_COMPLETIONS_URL, {
             method: 'POST',
             headers: {
                 'content-type': 'application/json',
@@ -86,6 +86,8 @@ const requestZhipuChatCompletion = async (
             },
             body: JSON.stringify({
                 model,
+                // 翻译是确定性的格式化任务，关闭思考模式可显著降低首字延迟和总耗时。
+                thinking: { type: 'disabled' },
                 temperature: 0.3,
                 messages,
             }),
@@ -95,21 +97,21 @@ const requestZhipuChatCompletion = async (
         if (!response.ok) {
             // 记录响应体前 500 字符，便于定位鉴权失败/限流/参数错误等具体原因。
             const errorBody = await response.text().catch(() => '');
-            throw new Error(`智谱翻译接口请求失败: HTTP ${response.status}, body=${errorBody.slice(0, 500)}`);
+            throw new Error(`DeepSeek 翻译接口请求失败: HTTP ${response.status}, body=${errorBody.slice(0, 500)}`);
         }
 
         const payload = (await response.json()) as ChatCompletionResponse;
         const content = payload.choices?.[0]?.message?.content;
         if (typeof content !== 'string' || !content.trim()) {
             // 记录整个响应结构（截断），帮助判断是模型空返回还是接口字段变更。
-            logger.warn(`智谱响应缺少有效 content: ${JSON.stringify(payload).slice(0, 1000)}`);
-            throw new Error('智谱翻译接口没有返回有效内容');
+            logger.warn(`DeepSeek 响应缺少有效 content: ${JSON.stringify(payload).slice(0, 1000)}`);
+            throw new Error('DeepSeek 翻译接口没有返回有效内容');
         }
 
-        logger.info(`智谱请求成功: model=${model}, 耗时=${Date.now() - startedAt}ms, 返回字符数=${content.length}`);
+        logger.info(`DeepSeek 请求成功: model=${model}, 耗时=${Date.now() - startedAt}ms, 返回字符数=${content.length}`);
         return content;
     } catch (error) {
-        logger.error(`智谱请求失败: model=${model}, 耗时=${Date.now() - startedAt}ms`, error);
+        logger.error(`DeepSeek 请求失败: model=${model}, 耗时=${Date.now() - startedAt}ms`, error);
         throw error;
     }
 };
@@ -168,7 +170,7 @@ const translateBatch = async (
         ];
 
         for (const attempt of attempts) {
-            const content = await requestZhipuChatCompletion(
+            const content = await requestDeepSeekChatCompletion(
                 [
                     { role: 'system', content: attempt.systemPrompt },
                     { role: 'user', content: JSON.stringify(lines) },
@@ -199,11 +201,11 @@ export const translateLines = async (
     sourceLocale = 'en-US',
     targetLocale = 'zh-CN',
 ): Promise<TranslateLinesResult> => {
-    const apiKey = getOsEnvOptional('ZHIPU_API_KEY');
+    const apiKey = getOsEnvOptional('DEEPSEEK_API_KEY');
     if (!apiKey) {
-        throw new TranslateNotConfiguredError('未配置 ZHIPU_API_KEY,AI 翻译服务不可用');
+        throw new TranslateNotConfiguredError('未配置 DEEPSEEK_API_KEY,AI 翻译服务不可用');
     }
-    const model = getOsEnvOptional('ZHIPU_MODEL') || DEFAULT_ZHIPU_MODEL;
+    const model = getOsEnvOptional('DEEPSEEK_MODEL') || DEFAULT_DEEPSEEK_MODEL;
 
     const startedAt = Date.now();
     const totalBatches = Math.ceil(lines.length / TRANSLATE_BATCH_SIZE);
