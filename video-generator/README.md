@@ -16,16 +16,33 @@
 - FFmpeg 6 或更高版本，并且 `ffmpeg`、`ffprobe` 在 PATH 中。成片需要包含
   `subtitles/libass` 滤镜。
 
-macOS 可以使用：
+macOS 的安装方式需要按芯片架构选择：
 
+Apple Silicon（`arm64`）可以使用：
 ```bash
 brew install ffmpeg-full
 export PATH="$(brew --prefix ffmpeg-full)/bin:$PATH"
 ```
 
-如果不想修改 PATH，可以在 `.env` 中填写 `DUOLINTING_FFMPEG_BIN` 和
-`DUOLINTING_FFPROBE_BIN` 的完整路径。Homebrew 的普通 `ffmpeg` 构建可能不带
-字幕滤镜，工具会在开始编码前明确提示这一点。
+Intel（`x86_64`）请不要再使用 Homebrew，改用 MacPorts：
+
+1. 从 [MacPorts 官网](https://www.macports.org/install.php) 安装与你的 macOS 版本匹配的安装包；
+2. 在新的终端窗口执行：
+
+```bash
+sudo port selfupdate
+sudo port install ffmpeg
+```
+
+MacPorts 的 `ffmpeg` 端口包含 `libass` 字幕依赖。如果终端找不到安装后的命令，执行
+`export PATH="/opt/local/bin:$PATH"`，或在 `.env` 中填写
+`DUOLINTING_FFMPEG_BIN=/opt/local/bin/ffmpeg` 和
+`DUOLINTING_FFPROBE_BIN=/opt/local/bin/ffprobe`。工具会在开始编码前检查
+`subtitles/libass` 滤镜并给出对应架构的提示。
+
+如果没有管理员权限，也可以使用项目内的静态 Intel 构建：把 `ffmpeg` 和 `ffprobe`
+可执行文件放入 `video-generator/tools/`。生成器会自动优先使用这两个文件，无需修改
+系统 PATH 或 `.env`。
 
 ## 安装
 
@@ -46,7 +63,6 @@ python run.py --help
 ```dotenv
 DUOLINTING_API_BASE=http://127.0.0.1:8102
 DUOLINTING_OPEN_CONTENT_API_KEY=dltak_replace_with_the_key_shown_once
-DUOLINTING_VIDEO_MEDIA_DIR=./media
 ```
 
 `DUOLINTING_API_BASE` 可以填写 Admin 代理地址或后端地址；如果不设置它，也可以使用
@@ -167,7 +183,9 @@ output/
 4. 视频课程在媒体区播放原始画面；
 5. 竖屏原视频的横向空白使用模糊背景填充；
 6. 外层成片画布使用竖屏 3:4（高度:宽度为 4:3）；
-7. 输出为 H.264/AAC MP4，适合直接发布或继续剪辑。
+7. 顶部品牌栏使用大号圆角正方形 Logo、品牌标语和醒目的 `https://www.duolinting.cn`；
+8. 标题、阶段提示和字幕采用淡入、滑入及轻微缩放动效；英文与翻译字幕使用大号粗体、描边和投影，长句会自动下移换行；
+9. 输出为 H.264/AAC MP4，适合直接发布或继续剪辑。
 
 视频课程会从每句原始时间范围精确截取三次，音频课程会生成带原音频的深色媒体区。每个片段都会包含 300ms 的短暂呼吸间隔，因此字幕和音频时间轴不会依赖浏览器实时播放速度。
 

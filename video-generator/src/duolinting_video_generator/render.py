@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import re
 import subprocess
+import sys
 import tempfile
 import textwrap
 from dataclasses import dataclass
@@ -26,7 +28,8 @@ class RenderOptions:
     width: int = 1080
     height: int = 1440
     media_height: int = 608
-    header_height: int = 150
+    # Leave enough room for a prominent promotional brand panel above the media.
+    header_height: int = 220
     fps: int = 30
     gap_seconds: float = 0.3
     locale: str = "zh-CN"
@@ -40,11 +43,31 @@ class ProbedMedia:
 
 
 def _ffmpeg_binary() -> str:
-    return os.environ.get("DUOLINTING_FFMPEG_BIN", "ffmpeg").strip() or "ffmpeg"
+    configured = os.environ.get("DUOLINTING_FFMPEG_BIN", "").strip()
+    if configured:
+        return configured
+    bundled = Path(__file__).resolve().parents[2] / "tools" / "ffmpeg"
+    return str(bundled) if bundled.is_file() else "ffmpeg"
 
 
 def _ffprobe_binary() -> str:
-    return os.environ.get("DUOLINTING_FFPROBE_BIN", "ffprobe").strip() or "ffprobe"
+    configured = os.environ.get("DUOLINTING_FFPROBE_BIN", "").strip()
+    if configured:
+        return configured
+    bundled = Path(__file__).resolve().parents[2] / "tools" / "ffprobe"
+    return str(bundled) if bundled.is_file() else "ffprobe"
+
+
+def _ffmpeg_install_hint() -> str:
+    if sys.platform == "darwin":
+        if platform.machine().lower() in {"x86_64", "i386"}:
+            return (
+                "Intel macOS 请先安装 MacPorts，再执行 sudo port selfupdate && sudo port install ffmpeg；"
+                "如果命令找不到，可设置 DUOLINTING_FFMPEG_BIN=/opt/local/bin/ffmpeg 和 "
+                "DUOLINTING_FFPROBE_BIN=/opt/local/bin/ffprobe。"
+            )
+        return "Apple Silicon macOS 可执行 brew install ffmpeg-full，或设置 DUOLINTING_FFMPEG_BIN/DUOLINTING_FFPROBE_BIN。"
+    return "请安装包含 libass 的 FFmpeg，或设置 DUOLINTING_FFMPEG_BIN/DUOLINTING_FFPROBE_BIN。"
 
 
 def _run_checked(command: list[str], *, label: str) -> subprocess.CompletedProcess[str]:
@@ -60,7 +83,7 @@ def _run_checked(command: list[str], *, label: str) -> subprocess.CompletedProce
     except FileNotFoundError as error:
         raise RenderError(
             f"找不到可执行文件 {command[0]}（{label}）。请先安装 FFmpeg，"
-            "或设置 DUOLINTING_FFMPEG_BIN/DUOLINTING_FFPROBE_BIN。"
+            f"{_ffmpeg_install_hint()}"
         ) from error
     if result.returncode != 0:
         detail = (result.stderr or result.stdout).strip().splitlines()
@@ -106,8 +129,7 @@ def ensure_subtitle_filter() -> None:
     if not re.search(r"\bsubtitles\b", result.stdout):
         raise RenderError(
             "当前 FFmpeg 没有 subtitles/libass 滤镜，无法把字幕写入成片。"
-            " macOS 可安装包含完整滤镜的版本：brew install ffmpeg-full；"
-            "安装后重新运行本地生成命令。"
+            f" {_ffmpeg_install_hint()} 安装后重新运行本地生成命令。"
         )
 
 
@@ -215,11 +237,15 @@ def _build_ass(
         tagline = "オープンソース・非営利の英語学習アプリ"
     else:
         tagline = "开源非盈利 · 英语学习应用"
+    website = "https://www.duolinting.cn"
 
     events = [
-        f"Dialogue: 0,{_ass_time(0)},{_ass_time(total_duration)},Header,,0,0,0,,{{\\an7\\pos(88,42)}}DuolinTing",
-        f"Dialogue: 0,{_ass_time(0)},{_ass_time(total_duration)},Tagline,,0,0,0,,{{\\an7\\pos(88,92)}}{_ass_escape(tagline)}",
-        f"Dialogue: 0,{_ass_time(0)},{_ass_time(total_duration)},Course,,0,0,0,,{{\\an9\\pos(1020,66)}}{title}",
+        # Header elements use ASS transforms so the exported video keeps a subtle
+        # entrance animation without requiring a browser or a server-side renderer.
+        f"Dialogue: 0,{_ass_time(0)},{_ass_time(total_duration)},Header,,0,0,0,,{{\\an7\\pos(264,-5)\\fscx90\\fscy90\\fad(300,180)\\t(0,450,\\fscx100\\fscy100)}}DuolinTing",
+        f"Dialogue: 0,{_ass_time(0)},{_ass_time(total_duration)},Tagline,,0,0,0,,{{\\an7\\pos(264,64)\\fad(450,180)}}{_ass_escape(tagline)}",
+        f"Dialogue: 0,{_ass_time(0)},{_ass_time(total_duration)},Website,,0,0,0,,{{\\an7\\pos(264,116)\\fsp0.8\\fad(600,180)}}{website}",
+        f"Dialogue: 0,{_ass_time(0)},{_ass_time(total_duration)},Course,,0,0,0,,{{\\an9\\move(1120,96,1020,96,0,500)\\fad(220,180)}}{title}",
     ]
 
     for render_line in render_lines:
@@ -227,19 +253,29 @@ def _build_ass(
         end = _ass_time(render_line.timeline_start + render_line.line.duration)
         phase = _ass_escape(_phase_text(locale, render_line.round_number))
         events.append(
-            f"Dialogue: 0,{start},{end},Phase,,0,0,0,,{{\\an7\\pos(70,790)}}{phase}"
+            f"Dialogue: 0,{start},{end},Phase,,0,0,0,,{{\\an7\\pos(70,850)\\bord2\\shad2\\fad(90,120)\\fscx92\\fscy92\\t(0,180,\\fscx100\\fscy100)}}{phase}"
         )
         if render_line.round_number != 3:
             continue
-        english = _wrap_ass_text(_ass_escape(render_line.line.text), 36)
+        # Keep the larger type inside the 1080px canvas instead of allowing long
+        # sentences to run underneath the side margins.
+        english = _wrap_ass_text(_ass_escape(render_line.line.text), 28)
+        english_line_count = english.count("\\N") + 1
+        # Keep multi-line captions in the black subtitle area below the media.
+        # Extra lines grow downward rather than pushing the first line into the video.
+        english_y = 1010 + max(0, english_line_count - 1) * 20
+        english_start_y = english_y + 40
         events.append(
-            f"Dialogue: 0,{start},{end},English,,0,0,0,,{{\\an5\\pos(540,1015)}}{english}"
+            f"Dialogue: 0,{start},{end},English,,0,0,0,,{{\\an5\\move(540,{english_start_y},540,{english_y},0,220)\\bord4\\shad3\\fad(100,140)\\fscx92\\fscy92\\t(0,220,\\fscx100\\fscy100)}}{english}"
         )
         translated = _translation(render_line.line, locale)
         if translated:
-            translation = _wrap_ass_text(_ass_escape(translated), 34)
+            translation = _wrap_ass_text(_ass_escape(translated), 20)
+            translation_line_count = translation.count("\\N") + 1
+            translation_y = 1190 + max(0, english_line_count - 1) * 30 + max(0, translation_line_count - 2) * 24
+            translation_start_y = translation_y + 65
             events.append(
-                f"Dialogue: 0,{start},{end},Translation,,0,0,0,,{{\\an5\\pos(540,1150)}}{translation}"
+                f"Dialogue: 0,{start},{end},Translation,,0,0,0,,{{\\an5\\move(540,{translation_start_y},540,{translation_y},0,260)\\bord3\\shad2\\fad(120,160)\\fscx94\\fscy94\\t(0,260,\\fscx100\\fscy100)}}{translation}"
             )
 
     content = "\n".join(
@@ -253,12 +289,13 @@ def _build_ass(
             "",
             "[V4+ Styles]",
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-            f"Style: Header,{options.font_name},42,&H00FFFFFF,&H00FFFFFF,&H00101010,&H99000000,-1,0,0,0,100,100,0,0,1,2,1,7,40,40,20,1",
-            f"Style: Tagline,{options.font_name},22,&H00BFEAFF,&H00BFEAFF,&H00101010,&H99000000,-1,0,0,0,100,100,0,0,1,2,1,7,40,40,20,1",
-            f"Style: Course,{options.font_name},24,&H00FFFFFF,&H00FFFFFF,&H00101010,&H99000000,-1,0,0,0,100,100,0,0,1,2,1,9,40,40,20,1",
-            f"Style: Phase,{options.font_name},24,&H00A9E4FF,&H00A9E4FF,&H00101010,&H99000000,-1,0,0,0,100,100,0,0,1,2,1,7,40,40,20,1",
-            f"Style: English,{options.font_name},54,&H00FFFFFF,&H00FFFFFF,&H00101010,&HCC000000,-1,0,0,0,100,100,0,0,1,3,1,5,60,60,20,1",
-            f"Style: Translation,{options.font_name},34,&H00D4D4D4,&H00D4D4D4,&H00101010,&HCC000000,-1,0,0,0,100,100,0,0,1,2,1,5,60,60,20,1",
+            f"Style: Header,{options.font_name},62,&H00FFFFFF,&H00FFFFFF,&H00101010,&H99000000,-1,0,0,0,100,100,0,0,1,2,1,7,40,40,20,1",
+            f"Style: Tagline,{options.font_name},36,&H00BFEAFF,&H00BFEAFF,&H00101010,&H99000000,-1,0,0,0,100,100,0,0,1,2,1,7,40,40,20,1",
+            f"Style: Website,{options.font_name},62,&H00FFD39A,&H00FFD39A,&H00101010,&H99000000,0,0,0,0,100,100,0,0,1,1,1,7,40,40,20,1",
+            f"Style: Course,{options.font_name},34,&H00FFFFFF,&H00FFFFFF,&H00101010,&H99000000,-1,0,0,0,100,100,0,0,1,2,1,9,40,40,20,1",
+            f"Style: Phase,{options.font_name},29,&H00A9E4FF,&H00A9E4FF,&H00303030,&H66000000,-1,0,0,0,100,100,0,0,1,2,2,7,40,40,20,1",
+            f"Style: English,{options.font_name},80,&H00FFFFFF,&H00FFFFFF,&H00000000,&H66000000,-1,0,0,0,100,100,0,0,1,4,3,5,60,60,20,1",
+            f"Style: Translation,{options.font_name},56,&H00E8E8E8,&H00E8E8E8,&H00000000,&H66000000,-1,0,0,0,100,100,0,0,1,3,2,5,60,60,20,1",
             "",
             "[Events]",
             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -353,8 +390,24 @@ def _build_filter_graph(
     video_input = "[concatv]"
     if has_logo:
         parts.append(
-            "[1:v]scale=64:64:force_original_aspect_ratio=decrease[logo];"
-            "[concatv][logo]overlay=45:38:shortest=1[branded]"
+            f"color=c=#263f4d@0.72:s=208x208:r={options.fps},format=rgba,"
+            "geq=r='38':g='63':b='77':"
+            "a='if(lt(X,26)*lt(Y,26)*gt(hypot(26-X,26-Y),26)+"
+            "gt(X,W-26)*lt(Y,26)*gt(hypot(X-(W-26),26-Y),26)+"
+            "lt(X,26)*gt(Y,H-26)*gt(hypot(26-X,Y-(H-26)),26)+"
+            "gt(X,W-26)*gt(Y,H-26)*gt(hypot(X-(W-26),Y-(H-26)),26),0,184)'[logoshadow];"
+            "[concatv][logoshadow]overlay=x=24:y=14:shortest=1[shadowed];"
+            f"color=c=white@1:s=200x200:r={options.fps},format=rgba,"
+            "geq=r='255':g='255':b='255':"
+            "a='if(lt(X,30)*lt(Y,30)*gt(hypot(30-X,30-Y),30)+"
+            "gt(X,W-30)*lt(Y,30)*gt(hypot(X-(W-30),30-Y),30)+"
+            "lt(X,30)*gt(Y,H-30)*gt(hypot(30-X,Y-(H-30)),30)+"
+            "gt(X,W-30)*gt(Y,H-30)*gt(hypot(X-(W-30),Y-(H-30)),30),0,255)'[logobg];"
+            "[shadowed][logobg]overlay=x=28:y=10:shortest=1[carded];"
+            "[carded]drawbox=x=244:y=10:w=3:h=200:color=#7dd8f0@0.86:t=fill,"
+            "drawbox=x=0:y=218:w=1080:h=2:color=#7dd8f0@0.28:t=fill[headerback];"
+            "[1:v]scale=158:158:force_original_aspect_ratio=decrease[logo];"
+            "[headerback][logo]overlay=x=49:y=31:shortest=1[branded]"
         )
         video_input = "[branded]"
     # ASS is applied after concat, so subtitle times follow the generated three-pass timeline.
@@ -404,7 +457,7 @@ def _run_ffmpeg(
                 return_code = process.wait()
         except FileNotFoundError as error:
             raise RenderError(
-                "找不到 ffmpeg。请先安装 FFmpeg，或设置 DUOLINTING_FFMPEG_BIN 指向本地可执行文件。"
+                f"找不到 ffmpeg。{_ffmpeg_install_hint()}"
             ) from error
         if return_code != 0:
             detail = _tail(log_path)
