@@ -219,6 +219,7 @@ export function CoverImageField({
       setIsUploading(true)
       // 进度按实际发送给服务端的压缩文件计算，不再显示原图字节数。
       setUploadProgress({
+        phase: 'sending',
         loaded: 0,
         total: compressedImage.size || null,
         percent: 0,
@@ -275,6 +276,7 @@ export function CoverImageField({
       setIsPreparing(false)
       setIsUploading(true)
       setUploadProgress({
+        phase: 'sending',
         loaded: 0,
         total: compressedImage.size || null,
         percent: 0,
@@ -379,7 +381,7 @@ export function CoverImageField({
               ? t('正在获取远程图片…')
               : isPreparing
                 ? t('正在压缩封面图片…')
-              : uploadProgress?.percent === 100
+              : uploadProgress?.phase === 'confirming'
                 ? t('图片已发送，正在等待服务器确认…')
                 : uploadProgress?.percent === null || uploadProgress === null
                   ? t('正在上传图片…')
@@ -393,12 +395,15 @@ export function CoverImageField({
             </span>
           )}
           {uploadProgress && (
-            <Progress
-              percent={uploadProgress.percent ?? 0}
-              showInfo={false}
-              size="small"
-              status={uploadProgress.percent === 100 ? 'active' : 'normal'}
-            />
+            uploadProgress.phase === 'confirming' ? (
+              <LoaderCircle aria-hidden="true" className="spin" size={16} />
+            ) : (
+              <Progress
+                percent={uploadProgress.percent ?? 0}
+                showInfo={false}
+                size="small"
+              />
+            )
           )}
         </div>
       )}

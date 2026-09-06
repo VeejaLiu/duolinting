@@ -7,6 +7,7 @@ import {
   FileText,
   FileVideo,
   FolderTree,
+  LoaderCircle,
   Save,
   Send,
   Sparkles,
@@ -253,7 +254,7 @@ export function MediaCourseForm({
   const currentMediaSizeLabel =
     typeof mediaSize === 'number' && mediaSize > 0 ? formatFileSize(mediaSize) : t('未知')
   const mediaUploadLabel = mediaUploadProgress
-    ? mediaUploadProgress.percent === 100
+    ? mediaUploadProgress.phase === 'confirming'
       ? t('文件已发送，正在等待服务器确认')
       : mediaUploadProgress.percent === null
         ? t('正在上传媒体')
@@ -376,12 +377,15 @@ export function MediaCourseForm({
           <span className="media-upload-progress" aria-live="polite">
             <span>{mediaUploadLabel}</span>
             {mediaUploadSizeLabel && <span>{mediaUploadSizeLabel}</span>}
-            <Progress
-              percent={mediaUploadProgress.percent ?? 0}
-              showInfo={false}
-              size="small"
-              status={mediaUploadProgress.percent === 100 ? 'active' : 'normal'}
-            />
+            {mediaUploadProgress.phase === 'confirming' ? (
+              <LoaderCircle aria-hidden="true" className="spin" size={16} />
+            ) : (
+              <Progress
+                percent={mediaUploadProgress.percent ?? 0}
+                showInfo={false}
+                size="small"
+              />
+            )}
           </span>
         )}
       </span>

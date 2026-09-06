@@ -696,7 +696,7 @@ export function AudioLessonImporter({
     onStatusChange('正在上传媒体...', 'info')
     localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, adminToken)
     // 先用文件大小建立 0% 状态，即使浏览器尚未触发第一条进度事件，界面也能立即反馈。
-    setMediaUploadProgress({ loaded: 0, total: file.size || null, percent: 0 })
+    setMediaUploadProgress({ phase: 'sending', loaded: 0, total: file.size || null, percent: 0 })
     const result = await apiClient.uploadMedia(file, adminToken, setMediaUploadProgress)
     // 请求完成即代表服务端已确认媒体；后续只是在把媒体地址绑定到课程，不再显示上传进度。
     setMediaUploadProgress(null)
@@ -1284,7 +1284,7 @@ export function AudioLessonImporter({
               <span>
                 {isUploadingMedia
                   ? mediaUploadProgress
-                    ? mediaUploadProgress.percent === 100
+                    ? mediaUploadProgress.phase === 'confirming'
                       ? t('文件已发送，正在等待服务器确认')
                       : `${t('媒体上传中')}${mediaUploadProgress.percent === null ? '' : ` ${mediaUploadProgress.percent}%`}`
                     : t('正在将媒体绑定到课程')

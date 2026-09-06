@@ -1,4 +1,4 @@
-import { Layers, Trash2, Upload } from 'lucide-react'
+import { Layers, LoaderCircle, Trash2, Upload } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
@@ -522,7 +522,7 @@ export function BatchCourseImporter({
         })
         updateItem(item.id, {
           status: 'uploading-media',
-          progress: { loaded: 0, total: item.mediaFile.size || null, percent: 0 },
+          progress: { phase: 'sending', loaded: 0, total: item.mediaFile.size || null, percent: 0 },
           error: undefined,
         })
         logAdminInfo('BatchUpload', 'item-status-requested', {
@@ -864,7 +864,9 @@ export function BatchCourseImporter({
           <Space direction="vertical" size={4} style={{ width: '100%' }}>
             <Tag color={meta.color}>{t(meta.label)}</Tag>
             {item.status === 'uploading-media' && (
-              <Progress percent={item.progress?.percent ?? 0} size="small" />
+              item.progress?.phase === 'confirming'
+                ? <LoaderCircle aria-hidden="true" className="spin" size={16} />
+                : <Progress percent={item.progress?.percent ?? 0} size="small" />
             )}
             {item.status === 'failed' && item.error && (
               <Typography.Text

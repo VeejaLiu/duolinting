@@ -251,6 +251,7 @@ export async function uploadMediaObject({
     buffer: Buffer;
     size: number;
 }) {
+    const uploadStartedAt = process.hrtime.bigint();
     const mediaType = getMediaType(contentType);
     if (!mediaType) {
         throw new Error('Only audio, video, and image files are supported');
@@ -280,7 +281,7 @@ export async function uploadMediaObject({
         'Content-Type': contentType,
     });
     logger.info(
-        `[media] upload complete object=${objectName} mediaType=${mediaType} size=${size}`,
+        `[media] upload complete object=${objectName} mediaType=${mediaType} size=${size} durationMs=${(Number(process.hrtime.bigint() - uploadStartedAt) / 1_000_000).toFixed(1)}`,
     );
 
     return {

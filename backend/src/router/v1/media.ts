@@ -17,13 +17,46 @@ import { Logger } from '../../lib/logger';
 
 const router = express.Router();
 const logger = new Logger(__filename);
+const MAX_MEDIA_FILE_SIZE_BYTES = 120 * 1024 * 1024;
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
-        // 与 nginx 各层代理的 client_max_body_size 200m 对齐
-        fileSize: 200 * 1024 * 1024,
+        // 与 Admin 明示的 120MB 上限一致，避免绕过前端后占用过多 Backend 内存。
+        fileSize: MAX_MEDIA_FILE_SIZE_BYTES,
     },
 });
+
+const elapsedMilliseconds = (startedAt: bigint) =>
+    Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+
+const markMediaUploadArrival: express.RequestHandler = (req, res, next) => {
+    res.locals.mediaUploadStartedAt = process.hrtime.bigint();
+    logger.info(
+        `[media] upload body receiving requestId=${res.locals.requestId ?? '-'} contentLength=${req.headers['content-length'] ?? '-'} contentType=${req.headers['content-type'] ?? '-'}`,
+    );
+    next();
+};
+
+const receiveMediaFile = (fieldName: 'media' | 'audio'): express.RequestHandler =>
+    (req, res, next) => {
+        upload.single(fieldName)(req, res, (error: unknown) => {
+            if (!error) {
+                next();
+                return;
+            }
+            if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+                logger.warn(
+                    `[media] upload rejected requestId=${res.locals.requestId ?? '-'} reason=file-too-large maxBytes=${MAX_MEDIA_FILE_SIZE_BYTES}`,
+                );
+                res.status(413).send({
+                    success: false,
+                    message: 'Media file exceeds the 120MB upload limit',
+                });
+                return;
+            }
+            next(error);
+        });
+    };
 
 const isLoopbackRequest = (req: express.Request) => {
     const address = req.socket.remoteAddress;
@@ -206,6 +239,9 @@ router.post(
 );
 
 const uploadMedia = async (req: express.Request, res: express.Response) => {
+    const requestStartedAt = typeof res.locals.mediaUploadStartedAt === 'bigint'
+        ? res.locals.mediaUploadStartedAt as bigint
+        : process.hrtime.bigint();
     try {
         const file = req.file;
         if (!file) {
@@ -221,14 +257,18 @@ const uploadMedia = async (req: express.Request, res: express.Response) => {
         }
 
         logger.info(
-            `[media] upload request requestId=${res.locals.requestId ?? '-'} file=${file.originalname} contentType=${file.mimetype} size=${file.size}`,
+            `[media] upload body received requestId=${res.locals.requestId ?? '-'} file=${file.originalname} contentType=${file.mimetype} size=${file.size} receiveDurationMs=${elapsedMilliseconds(requestStartedAt).toFixed(1)}`,
         );
+        const storageStartedAt = process.hrtime.bigint();
         const result = await uploadMediaObject({
             fileName: file.originalname,
             contentType: file.mimetype,
             buffer: file.buffer,
             size: file.size,
         });
+        logger.info(
+            `[media] upload storage confirmed requestId=${res.locals.requestId ?? '-'} object=${result.objectName} storageDurationMs=${elapsedMilliseconds(storageStartedAt).toFixed(1)} totalDurationMs=${elapsedMilliseconds(requestStartedAt).toFixed(1)}`,
+        );
         await waitForLocalUploadConfirmation(req);
         res.status(201).send(result);
     } catch (error) {
@@ -242,7 +282,7 @@ const uploadMedia = async (req: express.Request, res: express.Response) => {
     }
 };
 
-router.post('/files', requireAdminToken, requireSuperAdmin, applyLocalUploadThrottle, upload.single('media'), uploadMedia);
-router.post('/audio', requireAdminToken, requireSuperAdmin, applyLocalUploadThrottle, upload.single('audio'), uploadMedia);
+router.post('/files', requireAdminToken, requireSuperAdmin, markMediaUploadArrival, applyLocalUploadThrottle, receiveMediaFile('media'), uploadMedia);
+router.post('/audio', requireAdminToken, requireSuperAdmin, markMediaUploadArrival, applyLocalUploadThrottle, receiveMediaFile('audio'), uploadMedia);
 
 export default router;

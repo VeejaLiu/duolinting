@@ -91,4 +91,3 @@ for (const inputArgument of inputArguments) {
   }
   console.log(`转换完成，可上传：${outputPath}`)
 }
-

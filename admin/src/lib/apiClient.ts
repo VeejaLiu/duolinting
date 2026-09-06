@@ -80,6 +80,8 @@ type ApiErrorBody = {
 }
 
 export type FileUploadProgress = {
+  // sending 表示浏览器仍在发送请求体；confirming 表示请求体已发完、正在等待最终响应。
+  phase: 'sending' | 'confirming'
   // 已经由浏览器发送到服务端的请求体字节数。上传媒体时会略包含 multipart 边界开销。
   loaded: number
   // 浏览器可确定时使用请求体总字节数；否则退回为所选文件大小，供界面持续展示进度。
@@ -178,10 +180,24 @@ const uploadFile = async <T>(
   // XMLHttpRequest 的 upload.onprogress，在不改变接口或 multipart 格式的前提下反馈进度。
   return new Promise<T>((resolve, reject) => {
     const request = new XMLHttpRequest()
+    let confirmationTimeoutId: number | null = null
+    let confirmationTimedOut = false
 
-    const reportProgress = (loaded: number, total: number | null) => {
+    const clearConfirmationTimeout = () => {
+      if (confirmationTimeoutId !== null) {
+        window.clearTimeout(confirmationTimeoutId)
+        confirmationTimeoutId = null
+      }
+    }
+
+    const reportProgress = (
+      loaded: number,
+      total: number | null,
+      phase: FileUploadProgress['phase'],
+    ) => {
       const resolvedTotal = total && total > 0 ? total : file.size || null
       options?.onProgress?.({
+        phase,
         loaded,
         total: resolvedTotal,
         percent:
@@ -195,13 +211,21 @@ const uploadFile = async <T>(
       reportProgress(
         event.loaded,
         event.lengthComputable && event.total > 0 ? event.total : null,
+        'sending',
       )
     }
     request.upload.onload = () => {
       // 请求体已发送完毕，但请求本身尚未完成：服务端仍可能在校验或写入对象存储。
-      reportProgress(file.size, file.size)
+      reportProgress(file.size, file.size, 'confirming')
+      // 网络发送已经完成后只等待服务器确认；设置独立上限，避免对象存储或代理异常时
+      // 页面永久停留在 Pending。慢速上行不受此计时器影响。
+      confirmationTimeoutId = window.setTimeout(() => {
+        confirmationTimedOut = true
+        request.abort()
+      }, 180_000)
     }
     request.onload = () => {
+      clearConfirmationTimeout()
       let body: T | ApiErrorBody | undefined
       try {
         body = request.responseText
@@ -228,8 +252,14 @@ const uploadFile = async <T>(
         ),
       )
     }
-    request.onerror = () => reject(new Error('上传请求失败，请检查网络后重试'))
-    request.onabort = () => reject(new Error('上传已取消'))
+    request.onerror = () => {
+      clearConfirmationTimeout()
+      reject(new Error('上传请求失败，请检查网络后重试'))
+    }
+    request.onabort = () => {
+      clearConfirmationTimeout()
+      reject(new Error(confirmationTimedOut ? '服务器保存文件超时，请稍后重试' : '上传已取消'))
+    }
 
     request.open('POST', apiUrl(path))
     if (options?.adminToken) {
