@@ -45,6 +45,21 @@ export const createEmptyDraftLine = (index = 0): DraftLine => ({
   keywordsText: '',
 })
 
+/**
+ * 按字幕开始时间稳定排序。相同开始时间保持原有相对顺序；内部 id 跟随字幕内容移动，
+ * 不按新序号改写，避免波形 Region、译文和既有学习记录错误绑定到另一条字幕。
+ * 界面序号始终由排序后的数组位置生成，因此会重新连续显示为 1..n。
+ */
+export const sortDraftLinesByStart = (draftLines: DraftLine[]): DraftLine[] =>
+  draftLines
+    .map((line, originalIndex) => ({ line, originalIndex }))
+    .sort((left, right) => {
+      const leftStart = Number.isFinite(left.line.start) ? left.line.start : Number.POSITIVE_INFINITY
+      const rightStart = Number.isFinite(right.line.start) ? right.line.start : Number.POSITIVE_INFINITY
+      return leftStart - rightStart || left.originalIndex - right.originalIndex
+    })
+    .map(({ line }) => line)
+
 // 译文合并的分隔规则：zh-CN / ja-JP 是 CJK 语言，句间直接拼接不加空格；
 // th-TH 虽无空格分词，但两句独立译文之间保留一个空格便于阅读；其他语言一律用空格连接。
 const mergeTranslationText = (locale: string, first: string, second: string) => {

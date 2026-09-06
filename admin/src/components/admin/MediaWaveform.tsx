@@ -84,7 +84,7 @@ type MediaWaveformProps = {
   // 合并第 index 行与相邻的第 index+1 行（时间与文本都会合并，不可撤销）。
   onMergeLine?: (index: number) => void
   onSetPointFromPlayer: (field: 'start' | 'end', lineIndex: number) => void
-  onUpdateLine: (index: number, patch: Partial<DraftLine>) => void
+  onUpdateLine: (index: number, patch: Partial<DraftLine>, lineId?: string) => void
   onBatchAdjustTiming: (deltaMs: number) => void
   onTranslate?: (mode: 'empty' | 'all') => void
   // 单句翻译一次返回全部目标语言的译文（{ locale: 译文 }），由调用方合并到该行的 translations。
@@ -814,7 +814,7 @@ export function MediaWaveform({
 	          onUpdateLineRef.current(index, {
 	            end: roundToMilliseconds(region.end),
 	            start: roundToMilliseconds(region.start),
-	          })
+	          }, region.id)
 	        }),
 	        regions.on('region-updated', (region) => {
           const index = draftLinesRef.current.findIndex(
@@ -828,14 +828,15 @@ export function MediaWaveform({
               media: getMediaSnapshot(mediaRef.current),
               start: roundToMilliseconds(region.start),
             })
+	            // 最终写回前解除拖动态，让这次重排触发 Region 标签同步；否则序号内容
+	            // 会等到下一次无关编辑才刷新。
+	            isDraggingRegionRef.current = false
 	            onUpdateLineRef.current(index, {
 	              end: roundToMilliseconds(region.end),
 	              start: roundToMilliseconds(region.start),
-            })
+            }, region.id)
           }
-          window.setTimeout(() => {
-            isDraggingRegionRef.current = false
-          }, 0)
+          isDraggingRegionRef.current = false
         }),
         regions.on('region-removed', (region) => {
           delete regionByIdRef.current[region.id]

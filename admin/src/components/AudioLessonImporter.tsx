@@ -33,6 +33,7 @@ import {
   draftLinesToSrt,
   mergeDraftLines,
   parseSubtitleDraft,
+  sortDraftLinesByStart,
   TRANSLATION_LOCALE_LABELS,
   TRANSLATION_TARGET_LOCALES,
   type SubtitleDraftAnalysis,
@@ -570,12 +571,30 @@ export function AudioLessonImporter({
     mediaFile,
   ])
 
-  const updateLine = (index: number, patch: Partial<DraftLine>) => {
-    setDraftLines((current) =>
-      current.map((line, lineIndex) =>
-        lineIndex === index ? { ...line, ...patch } : line,
-      ),
-    )
+  const updateLine = (index: number, patch: Partial<DraftLine>, lineId?: string) => {
+    setDraftLines((current) => {
+      // 波形拖动期间数组可能已经因 start 变化而重排，因此优先用稳定 id 找目标；
+      // 详情编辑等普通入口仍可沿用当前数组 index。
+      const targetIndex = lineId
+        ? current.findIndex((line) => line.id === lineId)
+        : index
+      if (targetIndex < 0 || targetIndex >= current.length) return current
+
+      const updated = current.map((line, lineIndex) =>
+        lineIndex === targetIndex ? { ...line, ...patch } : line,
+      )
+      if (!Object.prototype.hasOwnProperty.call(patch, 'start')) return updated
+
+      // Region 拖动以传入的 lineId 为当前目标，可抵抗连续 pointermove 发生在 React
+      // 完成上一轮重排渲染之前的情况；普通时间输入则继续保持当前选中字幕。
+      const activeLineId = lineId ?? current[activeLineIndex]?.id
+      const ordered = sortDraftLinesByStart(updated)
+      if (activeLineId) {
+        const nextActiveIndex = ordered.findIndex((line) => line.id === activeLineId)
+        if (nextActiveIndex >= 0) setActiveLineIndex(nextActiveIndex)
+      }
+      return ordered
+    })
   }
 
   const addLineAfterActive = (range?: { start: number; end: number }) => {
