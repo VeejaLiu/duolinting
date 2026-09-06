@@ -389,7 +389,13 @@ export function MediaCourseForm({
         accept="audio/*,video/*"
         disabled={isSubtitleContributor || isSaving || Boolean(mediaUploadProgress)}
         type="file"
-        onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0] ?? null
+          // 清空原生 input 的选择记录；若文件因 H.265 或大小限制被拒绝，
+          // 用户修复后仍可重新选择同名文件并可靠触发 change。
+          event.currentTarget.value = ''
+          onFileChange(file)
+        }}
       />
     </label>
   )

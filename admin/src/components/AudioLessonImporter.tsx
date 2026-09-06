@@ -26,6 +26,7 @@ import {
 import { ADMIN_TOKEN_STORAGE_KEY } from '../lib/contentTools'
 import { useMediaPlayback } from '../hooks/useMediaPlayback'
 import { useAdminLanguage } from '../i18n/AdminLanguageProvider'
+import { detectMp4VideoCodec } from '../lib/mediaCompatibility'
 import {
   analyzeSubtitleDraft,
   createEmptyDraftLine,
@@ -714,6 +715,16 @@ export function AudioLessonImporter({
     // 选择文件时预检大小：超过后端 120MB 上限直接拒绝，避免上传到最后才失败
     if (file && file.size > MAX_MEDIA_FILE_SIZE) {
       onStatusChange('文件超过 120MB 上传上限，请压缩或拆分后再试', 'error')
+      return
+    }
+
+    // 只读取用户电脑上的 MP4 编码标识，不上传文件。Chrome 的 H.265 解码管线曾在
+    // 课程编辑中随机崩溃并连带清空波形，因此必须在任何网络请求前阻止该格式。
+    if (file && await detectMp4VideoCodec(file) === 'hevc') {
+      onStatusChange(
+        '该视频使用 H.265/HEVC，容易导致课程编辑器白屏或波形消失。请先在本地转换为 H.264 后再上传。',
+        'error',
+      )
       return
     }
 

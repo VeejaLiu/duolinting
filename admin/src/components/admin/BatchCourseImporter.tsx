@@ -34,6 +34,7 @@ import {
   toTranscriptLines,
 } from '../../lib/mediaDraftTools'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
+import { detectMp4VideoCodec } from '../../lib/mediaCompatibility'
 
 type BatchCourseImporterProps = {
   adminToken: string
@@ -355,7 +356,7 @@ export function BatchCourseImporter({
 
   // 一次混选所有文件：先按类型拆成媒体与字幕，去重后合并到现有列表，
   // 再按文件名重新自动匹配（仅补齐尚未匹配的媒体，不覆盖用户已手动调整的结果）。
-  const addFiles = (files: File[]) => {
+  const addFiles = async (files: File[]) => {
     logAdminInfo('BatchUpload', 'files-selected', {
       selectedCount: files.length,
       files: files.slice(0, 50).map((file) => ({
@@ -368,6 +369,7 @@ export function BatchCourseImporter({
     const mediaKeys = new Set(mediaItems.map((item) => `${item.mediaFile.name}:${item.mediaFile.size}`))
     const subtitleKeys = new Set(subtitleFiles.map((subtitle) => `${subtitle.file.name}:${subtitle.file.size}`))
     const skippedOversized: string[] = []
+    const skippedHevc: string[] = []
     const newMediaItems: MediaItem[] = []
     const newSubtitles: SubtitleFile[] = []
 
@@ -381,6 +383,11 @@ export function BatchCourseImporter({
       } else {
         if (file.size > MAX_MEDIA_FILE_SIZE) {
           skippedOversized.push(file.name)
+          continue
+        }
+        // 批量入口与单课程入口使用同一套本地编码预检，确保 H.265 不会绕过拦截。
+        if (await detectMp4VideoCodec(file) === 'hevc') {
+          skippedHevc.push(file.name)
           continue
         }
         if (!mediaKeys.has(key)) {
@@ -404,12 +411,25 @@ export function BatchCourseImporter({
       })
       onNotify(`已跳过超过 120MB 的文件：${skippedOversized.join('、')}`, 'error')
     }
+    if (skippedHevc.length > 0) {
+      logAdminWarn('BatchUpload', 'hevc-files-skipped', {
+        skippedCount: skippedHevc.length,
+        fileNames: skippedHevc,
+      })
+      onNotify(
+        `已跳过 H.265/HEVC 视频，请先在本地转换为 H.264：${skippedHevc.join('、')}`,
+        'error',
+      )
+    }
     if (newMediaItems.length === 0 && newSubtitles.length === 0) {
       logAdminInfo('BatchUpload', 'files-added-none', {
         selectedCount: files.length,
         skippedOversizedCount: skippedOversized.length,
+        skippedHevcCount: skippedHevc.length,
       })
-      if (skippedOversized.length === 0) onNotify('没有新增文件（可能已重复选择）', 'info')
+      if (skippedOversized.length === 0 && skippedHevc.length === 0) {
+        onNotify('没有新增文件（可能已重复选择）', 'info')
+      }
       return
     }
 
@@ -945,7 +965,7 @@ export function BatchCourseImporter({
               multiple
               onChange={(event) => {
                 const files = event.target.files ? Array.from(event.target.files) : []
-                if (files.length > 0) addFiles(files)
+                if (files.length > 0) void addFiles(files)
                 event.target.value = ''
               }}
               type="file"
