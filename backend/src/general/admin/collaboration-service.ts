@@ -838,6 +838,7 @@ type WorkflowActivityEventInput = {
     eventType: AdminWorkflowActivityType;
     actorAdminUserId?: number | null;
     targetAdminUserId?: number | null;
+    secondReviewerAdminUserId?: number | null;
     exerciseId: number;
     subtitleDraftId?: number | null;
     workflowRole?: CourseContributionRole | null;
@@ -854,15 +855,16 @@ async function recordWorkflowActivity(
 ) {
     await sequelize.query(
         `insert into admin_workflow_activity_events
-           (event_type, actor_admin_user_id, target_admin_user_id, exercise_id,
+           (event_type, actor_admin_user_id, target_admin_user_id, second_reviewer_admin_user_id, exercise_id,
             subtitle_draft_id, workflow_role, review_note)
-         values (:eventType, :actorAdminUserId, :targetAdminUserId, :exerciseId,
+         values (:eventType, :actorAdminUserId, :targetAdminUserId, :secondReviewerAdminUserId, :exerciseId,
                  :subtitleDraftId, :workflowRole, :reviewNote)`,
         {
             replacements: {
                 eventType: event.eventType,
                 actorAdminUserId: event.actorAdminUserId ?? null,
                 targetAdminUserId: event.targetAdminUserId ?? null,
+                secondReviewerAdminUserId: event.secondReviewerAdminUserId ?? null,
                 exerciseId: event.exerciseId,
                 subtitleDraftId: event.subtitleDraftId ?? null,
                 workflowRole: event.workflowRole ?? null,
@@ -1972,8 +1974,9 @@ export async function revertPublishedSubtitle({
         const [approvedDraft] = await sequelize.query<{
             id: number | string;
             admin_user_id: number | string;
+            reviewed_by_admin_user_id: number | string | null;
         }>(
-            `select id, admin_user_id from exercise_subtitle_drafts
+            `select id, admin_user_id, reviewed_by_admin_user_id from exercise_subtitle_drafts
              where exercise_id = :exerciseId and status = 'approved'
              order by reviewed_at desc, id desc limit 1`,
             { replacements: { exerciseId }, type: QueryTypes.SELECT, transaction },
@@ -2008,10 +2011,38 @@ export async function revertPublishedSubtitle({
             { replacements: { exerciseId }, transaction },
         );
 
+        const proofreaderId = approvedDraft ? Number(approvedDraft.admin_user_id) : null;
+        const secondReviewerId = approvedDraft?.reviewed_by_admin_user_id
+            ? Number(approvedDraft.reviewed_by_admin_user_id)
+            : null;
+        // 原校对人与原二审人都需要收到持久化站内通知；去重避免异常历史数据产生重复提醒。
+        const notificationRecipientIds = [...new Set([proofreaderId, secondReviewerId].filter(
+            (recipientId): recipientId is number => recipientId !== null,
+        ))];
+        for (const recipientId of notificationRecipientIds) {
+            await sequelize.query(
+                `insert into admin_workflow_notifications
+                   (recipient_admin_user_id, actor_admin_user_id, exercise_id, subtitle_draft_id,
+                    notification_type, review_note)
+                 values (:recipientId, :adminId, :exerciseId, :draftId, 'subtitle_reverted', :reason)`,
+                {
+                    replacements: {
+                        recipientId,
+                        adminId,
+                        exerciseId,
+                        draftId: approvedDraft ? Number(approvedDraft.id) : null,
+                        reason: normalizedReason,
+                    },
+                    transaction,
+                },
+            );
+        }
+
         await recordWorkflowActivity({
             eventType: 'subtitle_reverted',
             actorAdminUserId: adminId,
-            targetAdminUserId: approvedDraft ? Number(approvedDraft.admin_user_id) : null,
+            targetAdminUserId: proofreaderId,
+            secondReviewerAdminUserId: secondReviewerId,
             exerciseId,
             subtitleDraftId: approvedDraft ? Number(approvedDraft.id) : null,
             workflowRole: 'proofreader',
@@ -2248,10 +2279,12 @@ type WorkflowActivityRow = {
     event_type: AdminWorkflowActivityType;
     actor_admin_user_id: number | string | null;
     target_admin_user_id: number | string | null;
+    second_reviewer_admin_user_id: number | string | null;
     exercise_id: number | string;
     exercise_title: string;
     actor_display_name: string | null;
     target_display_name: string | null;
+    second_reviewer_display_name: string | null;
     subtitle_draft_id: number | string | null;
     workflow_role: CourseContributionRole | null;
     review_note: string | null;
@@ -2286,7 +2319,9 @@ export async function listWorkflowActivity({
         offset: (resolvedPage - 1) * resolvedPageSize,
     };
     if (normalizedMemberId) {
-        filters.push('(events.actor_admin_user_id = :memberId or events.target_admin_user_id = :memberId)');
+        filters.push(`(events.actor_admin_user_id = :memberId
+            or events.target_admin_user_id = :memberId
+            or events.second_reviewer_admin_user_id = :memberId)`);
         params.memberId = normalizedMemberId;
     }
     if (eventType) {
@@ -2297,15 +2332,18 @@ export async function listWorkflowActivity({
     const [rows, totalRows] = await Promise.all([
         doRawQuery<WorkflowActivityRow>({
             query: `select events.id, events.event_type, events.actor_admin_user_id, events.target_admin_user_id,
+                           events.second_reviewer_admin_user_id,
                            events.exercise_id,
                            coalesce(exercises.title, concat('已删除课程 #', events.exercise_id)) as exercise_title,
                            actor.display_name as actor_display_name,
                            target.display_name as target_display_name,
+                           second_reviewer.display_name as second_reviewer_display_name,
                            events.subtitle_draft_id, events.workflow_role, events.review_note, events.occurred_at
                     from admin_workflow_activity_events events
                     left join exercises on exercises.id = events.exercise_id
                     left join admin_users actor on actor.id = events.actor_admin_user_id
                     left join admin_users target on target.id = events.target_admin_user_id
+                    left join admin_users second_reviewer on second_reviewer.id = events.second_reviewer_admin_user_id
                     ${whereClause}
                     order by events.occurred_at desc, events.id desc
                     limit :limit offset :offset`,
@@ -2326,8 +2364,12 @@ export async function listWorkflowActivity({
         exerciseTitle: row.exercise_title,
         actorAdminUserId: row.actor_admin_user_id === null ? undefined : Number(row.actor_admin_user_id),
         targetAdminUserId: row.target_admin_user_id === null ? undefined : Number(row.target_admin_user_id),
+        secondReviewerAdminUserId: row.second_reviewer_admin_user_id === null
+            ? undefined
+            : Number(row.second_reviewer_admin_user_id),
         actorDisplayName: row.actor_display_name || undefined,
         targetDisplayName: row.target_display_name || undefined,
+        secondReviewerDisplayName: row.second_reviewer_display_name || undefined,
         workflowRole: row.workflow_role || undefined,
         subtitleDraftId: row.subtitle_draft_id === null ? undefined : Number(row.subtitle_draft_id),
         reviewNote: row.review_note || undefined,

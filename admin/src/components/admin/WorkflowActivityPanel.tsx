@@ -55,6 +55,14 @@ const eventLabel = (event: AdminWorkflowActivity, t: (key: string, values?: Reco
     case 'subtitle_approved':
       return t('{{actor}} 审核通过了 {{target}} 的字幕稿', { actor, target })
     case 'subtitle_reverted':
+      if (event.secondReviewerDisplayName) {
+        return t('{{actor}} 将 {{proofreader}} 校对、{{reviewer}} 二审的已发布字幕回退到草稿{{note}}', {
+          actor,
+          proofreader: target,
+          reviewer: event.secondReviewerDisplayName,
+          note: event.reviewNote ? `：${event.reviewNote}` : '',
+        })
+      }
       return t('{{actor}} 将 {{target}} 的已发布字幕回退到草稿{{note}}', { actor, target, note: event.reviewNote ? `：${event.reviewNote}` : '' })
   }
 }
@@ -136,7 +144,9 @@ export function WorkflowActivityPanel({ adminToken, currentAdminId, onNotify }: 
   }
 
   const isCurrentUserRelated = (event: AdminWorkflowActivity) =>
-    event.actorAdminUserId === currentAdminId || event.targetAdminUserId === currentAdminId
+    event.actorAdminUserId === currentAdminId ||
+    event.targetAdminUserId === currentAdminId ||
+    event.secondReviewerAdminUserId === currentAdminId
 
   const columns: ColumnsType<AdminWorkflowActivity> = [
     {

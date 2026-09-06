@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Bell, BookOpen, Ellipsis, FilePenLine, History, Pencil, PlaySquare, Plus, RefreshCw, RotateCcw, Search, Trash2, Undo2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bell, BookOpen, Copy, Ellipsis, FilePenLine, History, Pencil, PlaySquare, Plus, RefreshCw, RotateCcw, Search, Trash2, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Badge, Button, Card, Dropdown, Empty, Form, Image, Input, Modal, Popover, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -68,10 +68,21 @@ const formatTimestamp = (seconds: number) => {
   return `${minutes}:${rest}`
 }
 
+/** 版本快照按正式 dltjson 2.0 结构输出，完整保留当时提交的每个字幕字段。 */
+const versionToDltjson = (version: ExerciseSubtitleVersion) => JSON.stringify({
+  version: '2.0',
+  type: 'dltjson',
+  lines: version.lines,
+}, null, 2)
+
 const workflowNotificationCopy = (notification: AdminWorkflowNotifications['items'][number], t: (key: string, values?: Record<string, string | number>) => string) => {
   if (notification.type === 'subtitle_submitted') return t('{{name}} 提交了校对稿', { name: notification.actorDisplayName })
   if (notification.type === 'subtitle_returned') return t('{{name}} 退回了稿件', { name: notification.actorDisplayName })
   if (notification.type === 'subtitle_approved') return t('{{name}} 审核通过并发布了稿件', { name: notification.actorDisplayName })
+  if (notification.type === 'subtitle_reverted') return t('{{name}} 将已发布字幕回退到草稿{{note}}', {
+    name: notification.actorDisplayName,
+    note: notification.reviewNote ? `：${notification.reviewNote}` : '',
+  })
   if (notification.type === 'task_claim_expiring') return t('{{title}} 的领取任务即将到期，请尽快保存或提交', { title: notification.exerciseTitle })
   return t('{{title}} 的领取任务已超时，已释放回任务池', { title: notification.exerciseTitle })
 }
@@ -379,7 +390,26 @@ export function CourseManager({
     { title: t('时间'), dataIndex: 'createdAt', key: 'createdAt', width: 150, render: (value: string) => formatSubmittedAt(value, uiLocale) },
     { title: t('理由'), dataIndex: 'note', key: 'note', render: (value?: string) => value ? <Typography.Text type="secondary">{value}</Typography.Text> : '—' },
     { title: t('句数'), dataIndex: 'lines', key: 'lineCount', width: 70, render: (lines: ExerciseSubtitleVersion['lines']) => lines.length },
+    {
+      title: t('操作'),
+      key: 'actions',
+      width: 130,
+      render: (_, version) => (
+        <Button icon={<Copy size={15} />} onClick={() => void copyVersionDltjson(version)} size="small">
+          {t('复制 dltjson')}
+        </Button>
+      ),
+    },
   ]
+
+  const copyVersionDltjson = async (version: ExerciseSubtitleVersion) => {
+    try {
+      await navigator.clipboard.writeText(versionToDltjson(version))
+      onNotify(t('dltjson 已复制到剪切板'), 'success')
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : t('复制 dltjson 失败'), 'error')
+    }
+  }
 
   const updateWorkflowAssignee = async (
     exercise: CatalogExerciseSummary,
@@ -627,20 +657,34 @@ export function CourseManager({
         expandable={{
           expandedRowRender: (version) => (
             <div style={{ padding: '4px 12px 8px' }}>
-              {version.lines.length === 0 ? (
-                <Typography.Text type="secondary">{t('该版本没有字幕行')}</Typography.Text>
-              ) : (
-                <div className="subtitle-version-lines">
-                  {version.lines.map((line) => (
-                    <div className="subtitle-version-line" key={line.id}>
-                      <Typography.Text className="subtitle-version-time" type="secondary">
-                        {formatTimestamp(line.start)} – {formatTimestamp(line.end)}
-                      </Typography.Text>
-                      <Typography.Text>{line.text}</Typography.Text>
-                    </div>
-                  ))}
+              <Space direction="vertical" size={12} style={{ display: 'flex' }}>
+                <div>
+                  <Button icon={<Copy size={15} />} onClick={() => void copyVersionDltjson(version)} size="small">
+                    {t('复制 dltjson')}
+                  </Button>
                 </div>
-              )}
+                <Input.TextArea
+                  aria-label={t('完整 dltjson')}
+                  autoSize={{ minRows: 10, maxRows: 20 }}
+                  onFocus={(event) => event.currentTarget.select()}
+                  readOnly
+                  value={versionToDltjson(version)}
+                />
+                {version.lines.length === 0 ? (
+                  <Typography.Text type="secondary">{t('该版本没有字幕行')}</Typography.Text>
+                ) : (
+                  <div className="subtitle-version-lines">
+                    {version.lines.map((line) => (
+                      <div className="subtitle-version-line" key={line.id}>
+                        <Typography.Text className="subtitle-version-time" type="secondary">
+                          {formatTimestamp(line.start)} – {formatTimestamp(line.end)}
+                        </Typography.Text>
+                        <Typography.Text>{line.text}</Typography.Text>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Space>
             </div>
           ),
         }}

@@ -239,7 +239,7 @@ export type AdminWorkflowNotifications = {
 }
 
 /** 后台工作流通知由服务端保存，重新登录后仍可查阅。 */
-export type AdminWorkflowNotificationType = 'subtitle_submitted' | 'subtitle_returned' | 'subtitle_approved' | 'task_claim_expiring' | 'task_claim_expired'
+export type AdminWorkflowNotificationType = 'subtitle_submitted' | 'subtitle_returned' | 'subtitle_approved' | 'subtitle_reverted' | 'task_claim_expiring' | 'task_claim_expired'
 
 /** 任务来源：两种来源都遵循同一套超时释放规则；该字段用于展示任务来源。 */
 export type CourseWorkflowAssignmentSource = 'admin_assigned' | 'self_claimed'
@@ -333,8 +333,11 @@ export type AdminWorkflowActivity = {
   /** 仅供已登录后台成员判断“是否与我相关”，页面不展示该内部 ID。 */
   actorAdminUserId?: number
   targetAdminUserId?: number
+  /** 回退动态中的原二审人；与 targetAdminUserId（原校对人）一起还原完整责任链。 */
+  secondReviewerAdminUserId?: number
   actorDisplayName?: string
   targetDisplayName?: string
+  secondReviewerDisplayName?: string
   workflowRole?: AdminSubtitleWorkflowTaskRole
   subtitleDraftId?: number
   reviewNote?: string

@@ -124,9 +124,13 @@ const toId = (value: string | string[]) => Number.parseInt(Array.isArray(value) 
 const workflowActivityTypes: AdminWorkflowActivityType[] = [
     'workflow_assigned',
     'workflow_unassigned',
+    'workflow_claimed',
+    'workflow_claim_released',
+    'workflow_claim_expired',
     'subtitle_submitted',
     'subtitle_returned',
     'subtitle_approved',
+    'subtitle_reverted',
 ];
 const toBoundedPositiveInt = (value: unknown, fallback: number, max: number) => {
     const parsed = Number(value);
