@@ -151,11 +151,16 @@ const englishPunctuationMap: Record<string, string> = {
 
 export type SubtitleFormat = 'srt' | 'vtt' | 'ass' | 'lrc' | 'unknown'
 
+// LRC 文件开头经常包含 [ti:]、[ar:]、[al:]、[by:] 等元数据，不能用文件
+// 第一个字符判断格式。只要任意一行以 [分:秒.百分秒] 时间标签开头即可识别为 LRC；
+// 后续 splitSubtitleBlocks 只保留这些时间行，元数据会被安全忽略。
+const LRC_TIMESTAMP_LINE_PATTERN = /^\[\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?\]/m
+
 export const detectSubtitleFormat = (value: string): SubtitleFormat => {
   const trimmed = value.trim()
   if (/^WEBVTT$/im.test(trimmed)) return 'vtt'
   if (/^\[Script Info\]/im.test(trimmed)) return 'ass'
-  if (/^\[[\d:.\]]+/.test(trimmed)) return 'lrc'
+  if (LRC_TIMESTAMP_LINE_PATTERN.test(trimmed)) return 'lrc'
   if (/^\d+\s*\n\s*\d{2}:\d{2}:\d{2}/m.test(trimmed)) return 'srt'
   return 'unknown'
 }

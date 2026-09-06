@@ -388,7 +388,21 @@ export function CourseManager({
     },
     { title: t('操作者'), dataIndex: 'adminDisplayName', key: 'adminDisplayName', width: 120 },
     { title: t('时间'), dataIndex: 'createdAt', key: 'createdAt', width: 150, render: (value: string) => formatSubmittedAt(value, uiLocale) },
-    { title: t('理由'), dataIndex: 'note', key: 'note', render: (value?: string) => value ? <Typography.Text type="secondary">{value}</Typography.Text> : '—' },
+    {
+      title: t('理由'),
+      dataIndex: 'note',
+      key: 'note',
+      width: 240,
+      render: (value?: string) => value ? (
+        <Typography.Paragraph
+          className="subtitle-version-reason"
+          ellipsis={{ rows: 2, tooltip: value }}
+          type="secondary"
+        >
+          {value}
+        </Typography.Paragraph>
+      ) : '—',
+    },
     { title: t('句数'), dataIndex: 'lines', key: 'lineCount', width: 70, render: (lines: ExerciseSubtitleVersion['lines']) => lines.length },
     {
       title: t('操作'),
@@ -649,9 +663,10 @@ export function CourseManager({
       onCancel={() => setVersionsExercise(null)}
       open={Boolean(versionsExercise)}
       title={<Space><History size={16} /><span>{t('字幕版本历史')}</span>{versionsExercise && <Typography.Text type="secondary">{versionsExercise.title}</Typography.Text>}</Space>}
-      width={760}
+      width={1000}
     >
       <Table<ExerciseSubtitleVersion>
+        className="subtitle-version-table"
         columns={versionColumns}
         dataSource={versions}
         expandable={{
@@ -692,6 +707,7 @@ export function CourseManager({
         locale={{ emptyText: <Empty description={t('还没有字幕版本记录。')} /> }}
         pagination={false}
         rowKey="id"
+        scroll={{ x: 930 }}
         size="small"
       />
     </Modal>

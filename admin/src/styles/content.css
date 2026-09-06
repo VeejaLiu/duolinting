@@ -3278,6 +3278,15 @@
 }
 
 /* 字幕版本历史：逐句时间轴 + 文案 */
+.subtitle-version-table .ant-table-cell {
+  vertical-align: top;
+}
+
+.subtitle-version-reason.ant-typography {
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
 .subtitle-version-lines {
   display: grid;
   gap: 4px;
