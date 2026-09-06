@@ -2,6 +2,7 @@ import {
   ArrowDown,
   ArrowUp,
   Edit3,
+  Ellipsis,
   Layers3,
   Plus,
   RefreshCw,
@@ -9,8 +10,9 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
-import { Avatar, Badge, Button, Card, Divider, Empty, Flex, Form, Input, List, Modal, Space, Tag, Tooltip, Typography } from 'antd'
+import { useEffect, useState, type Key } from 'react'
+import { Avatar, Badge, Button, Card, Descriptions, Divider, Dropdown, Empty, Flex, Form, Input, Space, Tag, Tree, Typography } from 'antd'
+import type { DataNode } from 'antd/es/tree'
 import type {
   CreateCategoryGroupRequest,
   CreateCategoryRequest,
@@ -218,26 +220,36 @@ function DirectoryForm({
   )
 }
 
-function ActionButton({ disabled, label, onClick, children, danger = false }: {
-  children: ReactNode
-  danger?: boolean
-  disabled?: boolean
-  label: string
-  onClick: () => void
-}) {
-  const { t } = useAdminLanguage()
-  return <Tooltip title={t(label)}><Button danger={danger} disabled={disabled} icon={children} onClick={onClick} size="small" type="text" /></Tooltip>
-}
-
 export function DirectoryManager(props: DirectoryManagerProps) {
   const {
     adminToken, categoryGroups, categories, categoryGroupForm, categoryForm, isSaving,
     onNotify, onCategoryGroupFormChange, onCategoryFormChange, onSaveCategoryGroup,
     onSaveCategory, onEditCategoryGroup, onEditCategory, onDeleteCategoryGroup,
     onDeleteCategory, onMoveCategoryGroup, onMoveCategory, onRefresh, onRequestConfirm,
-} = props
+  } = props
   const { t } = useAdminLanguage()
   const [activeEditor, setActiveEditor] = useState<ActiveEditor>(null)
+  const [directorySearch, setDirectorySearch] = useState('')
+  const [expandedKeys, setExpandedKeys] = useState<Key[]>([])
+  const [selectedKey, setSelectedKey] = useState<string>()
+
+  // 目录接口返回后默认展开所有一级分类，并选中第一项。后续刷新只补充新分类，
+  // 不覆盖管理员已经手动折叠的节点。
+  useEffect(() => {
+    if (categoryGroups.length === 0) {
+      setSelectedKey(undefined)
+      return
+    }
+    setSelectedKey((current) => {
+      const keyStillExists = current?.startsWith('group:')
+        ? categoryGroups.some((group) => `group:${group.id}` === current)
+        : categories.some((category) => `category:${category.id}` === current)
+      return keyStillExists ? current : `group:${categoryGroups[0].id}`
+    })
+    setExpandedKeys((current) => current.length > 0
+      ? current
+      : categoryGroups.map((group) => `group:${group.id}`))
+  }, [categories, categoryGroups])
 
   // 保存成功后才关闭编辑器；失败（如 400 校验错误，已有 toast 提示）保留当前编辑内容
   const saveGroup = async () => {
@@ -274,6 +286,127 @@ export function DirectoryManager(props: DirectoryManagerProps) {
       onDeleteCategory(category.id)
     }
   }
+
+  const editGroup = (group: MaterialCategory) => {
+    onEditCategoryGroup(group)
+    setSelectedKey(`group:${group.id}`)
+    setActiveEditor({ type: 'edit-group', groupId: group.id })
+  }
+  const createCategory = (group: MaterialCategory) => {
+    onCategoryFormChange(() => ({
+      groupId: group.id,
+      name: '',
+      description: '',
+      accent: group.accent,
+      coverImageUrl: '',
+      sourceUrl: '',
+      sortOrder: 10,
+    }))
+    setSelectedKey(`group:${group.id}`)
+    setExpandedKeys((current) => current.includes(`group:${group.id}`) ? current : [...current, `group:${group.id}`])
+    setActiveEditor({ type: 'create-category', groupId: group.id })
+  }
+  const editCategory = (category: ExerciseCategory) => {
+    onEditCategory(category)
+    setSelectedKey(`category:${category.id}`)
+    setActiveEditor({ type: 'edit-category', categoryId: category.id })
+  }
+
+  const normalizedSearch = directorySearch.trim().toLocaleLowerCase()
+  const visibleGroups = categoryGroups.map((group, groupIndex) => {
+    const groupCategories = categories.filter((category) => category.groupId === group.id)
+    const groupMatches = !normalizedSearch
+      || `${group.name} ${group.description}`.toLocaleLowerCase().includes(normalizedSearch)
+    const visibleCategories = groupMatches
+      ? groupCategories
+      : groupCategories.filter((category) => (
+        `${category.name} ${category.description}`.toLocaleLowerCase().includes(normalizedSearch)
+      ))
+    return { group, groupIndex, groupCategories, visibleCategories, visible: groupMatches || visibleCategories.length > 0 }
+  }).filter((entry) => entry.visible)
+
+  const treeData: DataNode[] = visibleGroups.map(({ group, groupIndex, groupCategories, visibleCategories }) => ({
+    key: `group:${group.id}`,
+    title: (
+      <div className="directory-tree-row directory-tree-group-row">
+        <Avatar
+          shape="square"
+          size={28}
+          src={group.coverImageUrl ? resolveApiUrl(group.coverImageUrl) : undefined}
+          style={{ backgroundColor: group.accent }}
+        />
+        <span className="directory-tree-copy">
+          <Typography.Text ellipsis strong>{group.name}</Typography.Text>
+          <Typography.Text className="directory-tree-description" ellipsis type="secondary">
+            {group.description || t('暂无说明')}
+          </Typography.Text>
+        </span>
+        <Badge count={groupCategories.length} showZero color="#1cb0f6" />
+        <Dropdown
+          menu={{
+            items: [
+              { key: 'edit', icon: <Edit3 size={14} />, label: t('编辑内容分类'), onClick: () => editGroup(group) },
+              { key: 'create', icon: <Plus size={14} />, label: t('新建学习系列'), onClick: () => createCategory(group) },
+              { type: 'divider' },
+              { key: 'up', icon: <ArrowUp size={14} />, label: t('上移内容分类'), disabled: isSaving || groupIndex === 0, onClick: () => onMoveCategoryGroup(group.id, 'up') },
+              { key: 'down', icon: <ArrowDown size={14} />, label: t('下移内容分类'), disabled: isSaving || groupIndex === categoryGroups.length - 1, onClick: () => onMoveCategoryGroup(group.id, 'down') },
+              { type: 'divider' },
+              { key: 'delete', danger: true, icon: <Trash2 size={14} />, label: t('删除内容分类'), disabled: isSaving, onClick: () => void confirmDeleteGroup(group) },
+            ],
+          }}
+          trigger={['click']}
+        >
+          <Button
+            aria-label={t('内容分类操作')}
+            disabled={Boolean(activeEditor)}
+            icon={<Ellipsis size={16} />}
+            onClick={(event) => event.stopPropagation()}
+            size="small"
+            type="text"
+          />
+        </Dropdown>
+      </div>
+    ),
+    children: visibleCategories.map((category) => {
+      const categoryIndex = groupCategories.findIndex((item) => item.id === category.id)
+      return {
+        key: `category:${category.id}`,
+        title: (
+          <div className="directory-tree-row directory-tree-category-row">
+            <Avatar
+              shape="square"
+              size={22}
+              src={category.coverImageUrl ? resolveApiUrl(category.coverImageUrl) : undefined}
+              style={{ backgroundColor: category.accent }}
+            />
+            <Typography.Text className="directory-tree-category-name" ellipsis>{category.name}</Typography.Text>
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'edit', icon: <Edit3 size={14} />, label: t('编辑学习系列'), onClick: () => editCategory(category) },
+                  { type: 'divider' },
+                  { key: 'up', icon: <ArrowUp size={14} />, label: t('上移学习系列'), disabled: isSaving || categoryIndex === 0, onClick: () => onMoveCategory(category.id, 'up') },
+                  { key: 'down', icon: <ArrowDown size={14} />, label: t('下移学习系列'), disabled: isSaving || categoryIndex === groupCategories.length - 1, onClick: () => onMoveCategory(category.id, 'down') },
+                  { type: 'divider' },
+                  { key: 'delete', danger: true, icon: <Trash2 size={14} />, label: t('删除学习系列'), disabled: isSaving, onClick: () => void confirmDeleteCategory(category) },
+                ],
+              }}
+              trigger={['click']}
+            >
+              <Button
+                aria-label={t('学习系列操作')}
+                disabled={Boolean(activeEditor)}
+                icon={<Ellipsis size={15} />}
+                onClick={(event) => event.stopPropagation()}
+                size="small"
+                type="text"
+              />
+            </Dropdown>
+          </div>
+        ),
+      }
+    }),
+  }))
 
   const groupForm = (onSave: () => void) => <DirectoryForm
     adminToken={adminToken} disabled={isSaving} form={categoryGroupForm} kind="group"
@@ -313,6 +446,17 @@ export function DirectoryManager(props: DirectoryManagerProps) {
     }
   }
 
+  const selectedGroup = selectedKey?.startsWith('group:')
+    ? categoryGroups.find((group) => `group:${group.id}` === selectedKey)
+    : undefined
+  const selectedCategory = selectedKey?.startsWith('category:')
+    ? categories.find((category) => `category:${category.id}` === selectedKey)
+    : undefined
+  const selectedCategoryGroup = selectedCategory
+    ? categoryGroups.find((group) => group.id === selectedCategory.groupId)
+    : undefined
+  const selectedLocalizations = selectedGroup?.localizations ?? selectedCategory?.localizations
+
   return (
     <Card
       className="directory-manager"
@@ -325,78 +469,115 @@ export function DirectoryManager(props: DirectoryManagerProps) {
       </Space>}
       title={<Space><Layers3 size={18} /><span>{t('目录结构')}</span></Space>}
     >
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        {categoryGroups.length === 0 ? <Empty description={t('还没有内容分类，请直接在这里新建。')} /> : (
-          <List
-            dataSource={categoryGroups}
-            renderItem={(group, groupIndex) => {
-              const groupCategories = categories.filter((category) => category.groupId === group.id)
-              return <List.Item className="directory-group-item">
-                <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                  <Flex align="center" gap={12} justify="space-between">
-                    <Space size={12}>
-                      <Avatar shape="square" size={32} src={group.coverImageUrl ? resolveApiUrl(group.coverImageUrl) : undefined} style={{ backgroundColor: group.accent }} />
-                      <Space direction="vertical" size={0}>
-                        <Space size={8}><Tag color="blue">{t('内容分类')}</Tag><Typography.Text strong>{group.name}</Typography.Text></Space>
-                        <Typography.Text type="secondary">{group.description}</Typography.Text>
-                      </Space>
-                    </Space>
-                    <Space size={2}>
-                      <ActionButton disabled={isSaving || groupIndex === 0} label="上移内容分类" onClick={() => onMoveCategoryGroup(group.id, 'up')}><ArrowUp size={16} /></ActionButton>
-                      <ActionButton disabled={isSaving || groupIndex === categoryGroups.length - 1} label="下移内容分类" onClick={() => onMoveCategoryGroup(group.id, 'down')}><ArrowDown size={16} /></ActionButton>
-                      <ActionButton label="编辑内容分类" onClick={() => { onEditCategoryGroup(group); setActiveEditor({ type: 'edit-group', groupId: group.id }) }}><Edit3 size={16} /></ActionButton>
-                      <ActionButton danger disabled={isSaving} label="删除内容分类" onClick={() => void confirmDeleteGroup(group)}><Trash2 size={16} /></ActionButton>
-                      <ActionButton disabled={isSaving} label="新建学习系列" onClick={() => { onCategoryFormChange(() => ({ groupId: group.id, name: '', description: '', accent: group.accent, coverImageUrl: '', sourceUrl: '', sortOrder: 10 })); setActiveEditor({ type: 'create-category', groupId: group.id }) }}><Plus size={16} /></ActionButton>
-                    </Space>
-                  </Flex>
-                  <div className="directory-category-area">
-                    <Flex align="center" justify="space-between">
-                      <Typography.Text type="secondary">{t('学习系列')}</Typography.Text>
-                      <Badge count={groupCategories.length} showZero color="#1cb0f6" />
-                    </Flex>
-                    {groupCategories.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('这个内容分类下还没有学习系列')} /> : (
-                      <List
-                        className="directory-category-list"
-                        dataSource={groupCategories}
-                        renderItem={(category, categoryIndex) => {
-                        return <List.Item>
-                          <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                            <Flex align="center" gap={12} justify="space-between">
-                              <Space size={12}>
-                                <Avatar shape="square" size={24} src={category.coverImageUrl ? resolveApiUrl(category.coverImageUrl) : undefined} style={{ backgroundColor: category.accent }} />
-                                <Space direction="vertical" size={0}><Typography.Text>{category.name}</Typography.Text><Typography.Text type="secondary">{category.description}</Typography.Text></Space>
-                              </Space>
-                              <Space size={2}>
-                                <ActionButton disabled={isSaving || categoryIndex === 0} label="上移学习系列" onClick={() => onMoveCategory(category.id, 'up')}><ArrowUp size={16} /></ActionButton>
-                                <ActionButton disabled={isSaving || categoryIndex === groupCategories.length - 1} label="下移学习系列" onClick={() => onMoveCategory(category.id, 'down')}><ArrowDown size={16} /></ActionButton>
-                                <ActionButton label="编辑学习系列" onClick={() => { onEditCategory(category); setActiveEditor({ type: 'edit-category', categoryId: category.id }) }}><Edit3 size={16} /></ActionButton>
-                                <ActionButton danger disabled={isSaving} label="删除学习系列" onClick={() => void confirmDeleteCategory(category)}><Trash2 size={16} /></ActionButton>
-                              </Space>
-                            </Flex>
-                          </Space>
-                        </List.Item>
-                        }}
-                      />
-                    )}
-                  </div>
-                </Space>
-              </List.Item>
+      <div className="directory-workbench">
+        <Card className="directory-tree-panel" size="small">
+          <Input.Search
+            allowClear
+            onChange={(event) => {
+              const value = event.target.value
+              setDirectorySearch(value)
+              if (value.trim()) {
+                setExpandedKeys(categoryGroups.map((group) => `group:${group.id}`))
+              }
             }}
+            placeholder={t('搜索内容分类或学习系列')}
+            value={directorySearch}
           />
-        )}
-      </Space>
-      <Modal
-        className="directory-editor-modal"
-        destroyOnHidden
-        footer={null}
-        onCancel={() => setActiveEditor(null)}
-        open={activeEditor !== null}
-        styles={{ body: { maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' } }}
-        title={activeEditorTitle}
-        width="min(1200px, calc(100vw - 48px))"
-      >
-        {activeEditorContent}
-      </Modal>
+          <div className="directory-tree-scroll">
+            {categoryGroups.length === 0 ? (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('还没有内容分类，请直接在这里新建。')} />
+            ) : treeData.length === 0 ? (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('没有匹配的目录')} />
+            ) : (
+              <Tree
+                blockNode
+                expandedKeys={expandedKeys}
+                onExpand={setExpandedKeys}
+                onSelect={(keys) => {
+                  if (!activeEditor && keys[0]) setSelectedKey(String(keys[0]))
+                }}
+                selectedKeys={selectedKey ? [selectedKey] : []}
+                showLine={{ showLeafIcon: false }}
+                treeData={treeData}
+              />
+            )}
+          </div>
+        </Card>
+
+        <Card
+          className="directory-detail-panel"
+          extra={!activeEditor && (selectedGroup || selectedCategory) ? (
+            <Space>
+              {selectedGroup && (
+                <Button icon={<Plus size={15} />} onClick={() => createCategory(selectedGroup)}>
+                  {t('新建学习系列')}
+                </Button>
+              )}
+              <Button
+                icon={<Edit3 size={15} />}
+                onClick={() => selectedGroup ? editGroup(selectedGroup) : selectedCategory && editCategory(selectedCategory)}
+                type="primary"
+              >
+                {t('编辑')}
+              </Button>
+            </Space>
+          ) : null}
+          size="small"
+          title={activeEditor ? activeEditorTitle : selectedGroup ? t('内容分类详情') : selectedCategory ? t('学习系列详情') : t('目录详情')}
+        >
+          {activeEditor ? activeEditorContent : selectedGroup || selectedCategory ? (
+            <div className="directory-detail-content">
+              <div className="directory-detail-hero">
+                <Avatar
+                  shape="square"
+                  size={64}
+                  src={(selectedGroup?.coverImageUrl || selectedCategory?.coverImageUrl)
+                    ? resolveApiUrl((selectedGroup?.coverImageUrl || selectedCategory?.coverImageUrl) as string)
+                    : undefined}
+                  style={{ backgroundColor: selectedGroup?.accent || selectedCategory?.accent }}
+                />
+                <div>
+                  <Space size={8} wrap>
+                    <Tag color={selectedGroup ? 'blue' : 'cyan'}>{selectedGroup ? t('内容分类') : t('学习系列')}</Tag>
+                    <Typography.Title level={4}>{selectedGroup?.name || selectedCategory?.name}</Typography.Title>
+                  </Space>
+                  <Typography.Paragraph type="secondary">
+                    {selectedGroup?.description || selectedCategory?.description || t('暂无说明')}
+                  </Typography.Paragraph>
+                </div>
+              </div>
+              <Descriptions bordered column={1} size="small">
+                {selectedCategoryGroup && <Descriptions.Item label={t('所属内容分类')}>{selectedCategoryGroup.name}</Descriptions.Item>}
+                {selectedGroup && (
+                  <Descriptions.Item label={t('学习系列数量')}>
+                    {categories.filter((category) => category.groupId === selectedGroup.id).length}
+                  </Descriptions.Item>
+                )}
+                <Descriptions.Item label={t('排序值')}>{selectedGroup?.sortOrder ?? selectedCategory?.sortOrder}</Descriptions.Item>
+                <Descriptions.Item label={t('色值')}>
+                  <Space><span className="directory-accent-swatch" style={{ backgroundColor: selectedGroup?.accent || selectedCategory?.accent }} />{selectedGroup?.accent || selectedCategory?.accent}</Space>
+                </Descriptions.Item>
+                {selectedCategory?.sourceUrl && (
+                  <Descriptions.Item label={t('来源链接')}>
+                    <Typography.Link href={selectedCategory.sourceUrl} rel="noreferrer" target="_blank">{selectedCategory.sourceUrl}</Typography.Link>
+                  </Descriptions.Item>
+                )}
+                <Descriptions.Item label={t('多语言内容')}>
+                  <Space wrap>
+                    {directoryLocalizationLocales.map((locale) => (
+                      <Tag color={selectedLocalizations?.[locale]?.name ? 'green' : 'default'} key={locale}>
+                        {t(directoryLocalizationLabels[locale])} · {selectedLocalizations?.[locale]?.name ? t('已填写') : t('未填写')}
+                      </Tag>
+                    ))}
+                  </Space>
+                </Descriptions.Item>
+              </Descriptions>
+            </div>
+          ) : (
+            <Empty description={t('请从左侧选择内容分类或学习系列')} />
+          )}
+        </Card>
+      </div>
     </Card>
   )
 }

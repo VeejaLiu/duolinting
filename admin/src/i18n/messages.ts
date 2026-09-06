@@ -1546,10 +1546,80 @@ const uiMessages: AdminMessages = {
   },
 }
 
+// 目录工作台的树形导航与详情面板是一组完整交互，四种界面语言
+// 必须同步补齐，避免在英语、泰语或日语后台中出现中英混排。
+const directoryWorkbenchMessages: AdminMessages = {
+  'zh-CN': {
+    '暂无说明': '暂无说明',
+    '搜索内容分类或学习系列': '搜索内容分类或学习系列',
+    '内容分类操作': '内容分类操作',
+    '学习系列操作': '学习系列操作',
+    '没有匹配的目录': '没有匹配的目录',
+    '内容分类详情': '内容分类详情',
+    '学习系列详情': '学习系列详情',
+    '目录详情': '目录详情',
+    '所属内容分类': '所属内容分类',
+    '学习系列数量': '学习系列数量',
+    '排序值': '排序值',
+    '来源链接': '来源链接',
+    '已填写': '已填写',
+    '请从左侧选择内容分类或学习系列': '请从左侧选择内容分类或学习系列',
+  },
+  'en-US': {
+    '暂无说明': 'No description',
+    '搜索内容分类或学习系列': 'Search categories or learning series',
+    '内容分类操作': 'Content category actions',
+    '学习系列操作': 'Learning series actions',
+    '没有匹配的目录': 'No matching directory items',
+    '内容分类详情': 'Content category details',
+    '学习系列详情': 'Learning series details',
+    '目录详情': 'Directory details',
+    '所属内容分类': 'Content category',
+    '学习系列数量': 'Learning series',
+    '排序值': 'Sort order',
+    '来源链接': 'Source link',
+    '已填写': 'Entered',
+    '请从左侧选择内容分类或学习系列': 'Select a content category or learning series on the left',
+  },
+  'th-TH': {
+    '暂无说明': 'ยังไม่มีคำอธิบาย',
+    '搜索内容分类或学习系列': 'ค้นหาหมวดหมู่หรือชุดการเรียนรู้',
+    '内容分类操作': 'การจัดการหมวดหมู่เนื้อหา',
+    '学习系列操作': 'การจัดการชุดการเรียนรู้',
+    '没有匹配的目录': 'ไม่พบรายการที่ตรงกัน',
+    '内容分类详情': 'รายละเอียดหมวดหมู่เนื้อหา',
+    '学习系列详情': 'รายละเอียดชุดการเรียนรู้',
+    '目录详情': 'รายละเอียดไดเรกทอรี',
+    '所属内容分类': 'หมวดหมู่เนื้อหา',
+    '学习系列数量': 'จำนวนชุดการเรียนรู้',
+    '排序值': 'ลำดับ',
+    '来源链接': 'ลิงก์แหล่งที่มา',
+    '已填写': 'กรอกแล้ว',
+    '请从左侧选择内容分类或学习系列': 'เลือกหมวดหมู่เนื้อหาหรือชุดการเรียนรู้ทางซ้าย',
+  },
+  'ja-JP': {
+    '暂无说明': '説明はありません',
+    '搜索内容分类或学习系列': 'カテゴリまたは学習シリーズを検索',
+    '内容分类操作': 'コンテンツカテゴリの操作',
+    '学习系列操作': '学習シリーズの操作',
+    '没有匹配的目录': '一致するディレクトリ項目はありません',
+    '内容分类详情': 'コンテンツカテゴリの詳細',
+    '学习系列详情': '学習シリーズの詳細',
+    '目录详情': 'ディレクトリの詳細',
+    '所属内容分类': 'コンテンツカテゴリ',
+    '学习系列数量': '学習シリーズ数',
+    '排序值': '並び順',
+    '来源链接': 'ソースリンク',
+    '已填写': '入力済み',
+    '请从左侧选择内容分类或学习系列': '左側からコンテンツカテゴリまたは学習シリーズを選択してください',
+  },
+}
+
 for (const locale of Object.keys(adminMessages) as UiLocale[]) {
   Object.assign(adminMessages[locale], supplementalMessages[locale])
   Object.assign(adminMessages[locale], additionalMessages[locale])
   Object.assign(adminMessages[locale], uiMessages[locale])
+  Object.assign(adminMessages[locale], directoryWorkbenchMessages[locale])
 }
 
 export { zhCN }
