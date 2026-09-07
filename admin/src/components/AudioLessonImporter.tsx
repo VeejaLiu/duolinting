@@ -169,24 +169,16 @@ const SEGMENT_EXPERT_PROMPT = `你是一个英语学习视频字幕语义与时�
 const buildSegmentPromptPayload = (draftLines: DraftLine[]): string =>
   `${SEGMENT_EXPERT_PROMPT}\n\n以下是当前字幕（SRT 格式，仅英文）：\n\n${draftLinesToSrt(draftLines)}`
 
-// ChatGPT 翻译交接提示词：强制保留 dltjson 结构和时间轴，只允许修正明显的英文
-// 转写错误并补齐三种译文。返回值可直接粘贴回 Admin，因此禁止 Markdown 包装和解释。
-const CHATGPT_TRANSLATION_PROMPT = `你是多邻听（DuolinTing）的专业字幕校对与本地化译者。
-我会在文末提供一份完整的 dltjson。请校对英文字幕，并将每句翻译成自然地道的简体中文、泰语和日语。
+// ChatGPT 翻译交接提示词：只描述任务和 dltjson 必要的结构约定，
+// 将具体翻译判断交给模型；结果要求作为文件返回，可直接导入 Admin。
+const CHATGPT_TRANSLATION_PROMPT = `请处理下面的完整 dltjson 字幕：
 
-工作要求：
-1. 结合整段上下文理解人物、语气、反讽、玩笑、口语习惯和指代关系，不要逐词硬译。
-2. 简体中文要符合自然口语和中文儿童/教学内容的表达习惯；泰语要像泰语母语者的自然对白；日语要符合角色身份、语气和日语母语表达。
-3. 不要把情绪词译得过重或过轻。优先还原当前剧情中的真实语用含义，而不是字典第一个释义。
-4. 检查 text 中的明显英文语法错误和语音识别错误（例如人名识别错、缺少介词、不可能的句子），只在上下文能够明确判断时修正。不要为了风格而随意改写正确的英文。
-5. 每个 lines 元素的 translations 必须包含 "zh-CN"、"th-TH"、"ja-JP" 三个非空字符串。
-6. translation 是兼容旧客户端的字段，其值必须与同一行的 translations["zh-CN"] 完全一致。
-7. 严格保留 version、type、lines 以及每行的 start、end、answers、keywordsText 和其他未知字段。不得改动时间轴，不得增删、合并、拆分或重排字幕行。
-8. 全片复核一遍，确保术语、人名、称呼和口吻前后一致，三种译文都不缺失。
+1. 将每句英文翻译成简体中文、泰语和日语，分别写入 translations 的 "zh-CN"、"th-TH"、"ja-JP"。translation 与 "zh-CN" 保持一致。
+2. 检查 text 中的明显英文语法错误和语音识别错误（例如人名识别错、缺少介词、不可能的句子），只在上下文能够明确判断时修正。不要为了风格而随意改写正确的英文。
 
-输出要求：
-- 只输出修正后的完整、有效 JSON，不要输出解释、前言、总结或 Markdown 代码块。
-- 输出必须可以直接粘贴回 Admin 的“粘贴 dltjson”面板并成功导入。`
+除 text、translation 和 translations 外，保持 dltjson 的字段、字幕行和时间轴不变。
+
+完成后，请生成并返回一个可下载的 translated-subtitles.dltjson 文件。不要把 JSON 内容直接粘贴在聊天回复中。`
 
 const buildChatGptTranslationPayload = (draftLines: DraftLine[]): string =>
   `${CHATGPT_TRANSLATION_PROMPT}\n\n以下是待校对和翻译的完整 dltjson：\n\n${exportToDltjson(draftLines)}`
@@ -953,7 +945,7 @@ export function AudioLessonImporter({
 
     try {
       await navigator.clipboard.writeText(payload)
-      onStatusChange('ChatGPT 翻译提示词 + 完整 dltjson 已复制，完成后请粘贴回 dltjson 导入面板', 'success')
+      onStatusChange('ChatGPT 翻译任务已复制；完成后请下载 dltjson 文件并导入', 'success')
     } catch (error) {
       onStatusChange(error instanceof Error ? error.message : '复制 ChatGPT 翻译任务失败', 'error')
     }
