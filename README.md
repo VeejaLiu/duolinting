@@ -111,6 +111,11 @@ npm run db:migrate
 npm run dev
 ```
 
+`npm run db:migrate` 迁移的是 Docker Compose 中的 MySQL。若本地后端通过
+`backend/.env` 连接到另一套本机 MySQL，请改用 `npm run db:migrate:backend`；
+该命令会读取后端实际使用的数据库配置，并拒绝连接非本机数据库，防止出现
+“迁移成功但应用数据库仍缺字段”的情况。
+
 根目录的 `npm run dev` 会启动后端、Web 学习端和管理后台；移动端与官方站点需要按下面的方式单独启动。
 
 启动后可以访问：
