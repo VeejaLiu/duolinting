@@ -1,14 +1,9 @@
 import {
   Button,
   InputNumber,
-  Modal,
   Popover,
-  Progress,
   Space,
-  Spin,
-  Tag,
   Tooltip,
-  Typography,
 } from 'antd'
 import {
   ArrowLeftToLine,
@@ -16,7 +11,6 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Clock,
-  Languages,
   ListPlus,
   Merge,
   Minus,
@@ -25,7 +19,6 @@ import {
   StepBack,
   StepForward,
   Trash2,
-  X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
@@ -47,7 +40,6 @@ import {
   logMediaDiagnostic,
   observeMediaElement,
 } from '../../lib/mediaDiagnostics'
-import type { ContentLocale } from '@duolinting/domain'
 import { SubtitleList } from './SubtitleList'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
@@ -56,25 +48,11 @@ type AddLineRange = {
   end: number
 }
 
-export type TranslationProgress = {
-  mode: 'empty' | 'all'
-  status: 'running' | 'success' | 'partial' | 'error'
-  // “翻译条目”是一句字幕在一种目标语言下的一条译文；例如 59 句 × 3 种语言最多为 177 条。
-  total: number
-  completed: number
-  succeeded: number
-  failed: number
-  subtitleCount: number
-  targetLanguageCount: number
-}
-
 type MediaWaveformProps = {
   activeLineIndex: number
   draftLines: DraftLine[]
   mediaRef: React.MutableRefObject<HTMLMediaElement | null>
   sourceUrl: string
-  isTranslating?: boolean
-  translationProgress?: TranslationProgress | null
   showInspector?: boolean
   showSubtitleList?: boolean
   onActiveLineChange: (index: number) => void
@@ -86,12 +64,6 @@ type MediaWaveformProps = {
   onSetPointFromPlayer: (field: 'start' | 'end', lineIndex: number) => void
   onUpdateLine: (index: number, patch: Partial<DraftLine>, lineId?: string) => void
   onBatchAdjustTiming: (deltaMs: number) => void
-  onTranslate?: (mode: 'empty' | 'all') => void
-  // 单句翻译一次返回全部目标语言的译文（{ locale: 译文 }），由调用方合并到该行的 translations。
-  onTranslateSingle?: (text: string) => Promise<Partial<Record<ContentLocale, string>>>
-  // 翻译失败的持久错误信息：非空时在翻译工具栏下方渲染横幅，手动关闭或新一轮翻译开始时清除。
-  translateError?: string | null
-  onDismissTranslateError?: () => void
 }
 
 type WaveformState =
@@ -131,79 +103,6 @@ const WaveformIconButton = ({
     />
   </Tooltip>
 )
-
-type TranslationProgressPopoverProps = {
-  progress: TranslationProgress | null | undefined
-}
-
-const TranslationProgressPopover = ({ progress }: TranslationProgressPopoverProps) => {
-  const { t } = useAdminLanguage()
-  if (!progress) {
-    return (
-      <div className="translation-progress-popover">
-        <Typography.Text strong>{t('正在准备翻译...')}</Typography.Text>
-        <Progress percent={0} showInfo={false} size="small" status="active" />
-      </div>
-    )
-  }
-
-  const percent = progress.total === 0
-    ? 100
-    : Math.round((progress.completed / progress.total) * 100)
-  const remaining = Math.max(0, progress.total - progress.completed)
-  const isRunning = progress.status === 'running'
-  const needsAttention = progress.status === 'partial' || progress.status === 'error'
-  const title = isRunning
-    ? progress.mode === 'all'
-      ? t('正在重新翻译全部译文')
-      : t('正在补齐缺失译文')
-    : progress.total === 0
-      ? t('无需翻译')
-      : progress.status === 'success'
-        ? t('翻译完成')
-        : progress.status === 'partial'
-          ? t('翻译完成，部分条目失败')
-          : t('翻译中断')
-  const progressStatus = needsAttention
-    ? 'exception'
-    : progress.status === 'success'
-      ? 'success'
-      : 'active'
-
-  return (
-    <div className="translation-progress-popover">
-      <div className="translation-progress-heading">
-        <Typography.Text strong>{title}</Typography.Text>
-        <Tag color={isRunning ? 'processing' : needsAttention ? 'error' : 'success'}>
-          {isRunning ? `${percent}%` : progress.status === 'error' ? t('已中断') : needsAttention ? t('需检查') : t('已完成')}
-        </Tag>
-      </div>
-      <Progress
-        percent={percent}
-        showInfo={false}
-        size="small"
-        status={progressStatus}
-      />
-      <div className="translation-progress-metrics">
-        <div>
-          <span>{t('已翻译')}</span>
-          <strong>{progress.succeeded}</strong>
-        </div>
-        <div>
-          <span>{t('剩余')}</span>
-          <strong>{remaining}</strong>
-        </div>
-        <div>
-          <span>{t('失败')}</span>
-          <strong className={progress.failed > 0 ? 'is-error' : undefined}>{progress.failed}</strong>
-        </div>
-      </div>
-      <Typography.Text className="translation-progress-note" type="secondary">
-        {t('本次涉及 {{subtitles}} 句字幕、{{languages}} 种目标语言，按译文条目统计', { subtitles: progress.subtitleCount, languages: progress.targetLanguageCount })}
-      </Typography.Text>
-    </div>
-  )
-}
 
 const formatTimeWithMilliseconds = (seconds: number) => {
   if (!Number.isFinite(seconds)) {
@@ -289,8 +188,6 @@ export function MediaWaveform({
   draftLines,
   mediaRef,
   sourceUrl,
-  isTranslating,
-  translationProgress,
   showInspector = true,
   showSubtitleList = false,
   onActiveLineChange,
@@ -301,10 +198,6 @@ export function MediaWaveform({
   onSetPointFromPlayer,
   onUpdateLine,
   onBatchAdjustTiming,
-  onTranslate,
-  onTranslateSingle,
-  translateError,
-  onDismissTranslateError,
 }: MediaWaveformProps) {
   const { t } = useAdminLanguage()
   const waveformContainerRef = useRef<HTMLDivElement | null>(null)
@@ -333,9 +226,6 @@ export function MediaWaveform({
   const [zoom, setZoom] = useState(1)
   const [batchOffset, setBatchOffset] = useState(0)
   const [isBatchTimingOpen, setIsBatchTimingOpen] = useState(false)
-  const [isTranslationProgressOpen, setIsTranslationProgressOpen] = useState(false)
-  const [translationProgressMode, setTranslationProgressMode] = useState<'empty' | 'all'>('empty')
-  const [isTranslatingSingle, setIsTranslatingSingle] = useState(false)
   // 等待媒体完全加载后再解析波形
   const [isMediaReady, setIsMediaReady] = useState(false)
   const [waveform, setWaveform] = useState<WaveformState>({
@@ -346,12 +236,6 @@ export function MediaWaveform({
   const waveformStatusRef = useRef(waveform.status)
 
   const activeLine = draftLines[activeLineIndex]
-
-  const startTranslation = (mode: 'empty' | 'all') => {
-    setTranslationProgressMode(mode)
-    setIsTranslationProgressOpen(true)
-    onTranslate?.(mode)
-  }
 
   const playAdjacentLine = (direction: -1 | 1) => {
     const nextLineIndex = activeLineIndex + direction
@@ -1108,75 +992,6 @@ export function MediaWaveform({
               icon={<Merge size={15} aria-hidden="true" />}
               onClick={() => onMergeLine?.(activeLineIndex)}
             />
-            <Popover
-              autoAdjustOverflow={false}
-              content={<TranslationProgressPopover progress={translationProgress} />}
-              onOpenChange={(open) => {
-                if (open && isTranslating && translationProgressMode === 'empty') {
-                  setIsTranslationProgressOpen(true)
-                } else if (!open) {
-                  setIsTranslationProgressOpen(false)
-                }
-              }}
-              open={isTranslationProgressOpen && translationProgressMode === 'empty'}
-              placement="top"
-              trigger="click"
-            >
-              <span className="waveform-popover-trigger">
-                <WaveformIconButton
-                  label={isTranslating && translationProgressMode === 'empty' ? t('翻译中...') : t('AI 翻译缺失译文')}
-                  busy={Boolean(isTranslating && translationProgressMode === 'empty')}
-                  disabled={!sourceUrl || !onTranslate || Boolean(isTranslating && translationProgressMode !== 'empty')}
-                  icon={isTranslating && translationProgressMode === 'empty'
-                    ? <Spin aria-hidden="true" size="small" />
-                    : <Languages size={15} aria-hidden="true" />}
-                  onClick={() => {
-                    if (isTranslating) {
-                      return
-                    }
-                    startTranslation('empty')
-                  }}
-                />
-              </span>
-            </Popover>
-            <Popover
-              autoAdjustOverflow={false}
-              content={<TranslationProgressPopover progress={translationProgress} />}
-              onOpenChange={(open) => {
-                if (open && isTranslating && translationProgressMode === 'all') {
-                  setIsTranslationProgressOpen(true)
-                } else if (!open) {
-                  setIsTranslationProgressOpen(false)
-                }
-              }}
-              open={isTranslationProgressOpen && translationProgressMode === 'all'}
-              placement="top"
-              trigger="click"
-            >
-              <span className="waveform-popover-trigger">
-                <WaveformIconButton
-                  label={isTranslating && translationProgressMode === 'all' ? t('翻译中...') : t('全部重译')}
-                  busy={Boolean(isTranslating && translationProgressMode === 'all')}
-                  disabled={!sourceUrl || !onTranslate || Boolean(isTranslating && translationProgressMode !== 'all')}
-                  icon={isTranslating && translationProgressMode === 'all'
-                    ? <Spin aria-hidden="true" size="small" />
-                    : <Languages size={15} aria-hidden="true" />}
-                  onClick={() => {
-                    if (isTranslating) {
-                      return
-                    }
-                    Modal.confirm({
-                      cancelText: t('取消'),
-                      centered: true,
-                      content: t('此操作会覆盖中文、ไทย、日本語中所有已经填写的译文。'),
-                      okText: t('继续重译'),
-                      onOk: () => startTranslation('all'),
-                      title: t('确定全部重译？'),
-                    })
-                  }}
-                />
-              </span>
-            </Popover>
           </div>
 
           <div className="waveform-tool-group waveform-timing-action" role="group" aria-label={t('整体时间偏移')}>
@@ -1255,19 +1070,6 @@ export function MediaWaveform({
             {formatTimeWithMilliseconds(currentTime)} / {formatTimeWithMilliseconds(duration)}
           </div>
         </div>
-        {translateError ? (
-          <div className="translate-error-banner" role="alert">
-            <span className="translate-error-text">{translateError}</span>
-            <button
-              aria-label={t('关闭翻译错误提示')}
-              className="translate-error-dismiss"
-              onClick={onDismissTranslateError}
-              type="button"
-            >
-              <X size={14} aria-hidden="true" />
-            </button>
-          </div>
-        ) : null}
         <div className="waveform-canvas-wrap">
           {waveform.status === 'idle' || waveform.status === 'loading' ? (
             <div className={`waveform-placeholder ${waveform.status}`}>
@@ -1386,30 +1188,6 @@ export function MediaWaveform({
             <div className="field wide">
               <div className="translation-field-head">
                 <span>{t('字幕译文（按语言对照填写）')}</span>
-                <button
-                  className="mini-command secondary"
-                  disabled={!activeLine.text.trim() || isTranslatingSingle || !onTranslateSingle}
-                  onClick={async () => {
-                    if (!onTranslateSingle) return
-                    setIsTranslatingSingle(true)
-                    try {
-                      // 一次生成全部目标语言译文，合并进当前行；缺失的语言保持原值。
-                      const translations = await onTranslateSingle(activeLine.text)
-                      const cleanedTranslations = { ...activeLine.translations }
-                      Object.entries(translations).forEach(([locale, value]) => {
-                        cleanedTranslations[locale as ContentLocale] = cleanSubtitleSpacing(value ?? '')
-                      })
-                      onUpdateLine(activeLineIndex, { translations: cleanedTranslations })
-                    } finally {
-                      setIsTranslatingSingle(false)
-                    }
-                  }}
-                  title={t('为当前这一句生成所有语言的译文')}
-                  type="button"
-                >
-                  <Languages size={14} aria-hidden="true" />
-                  {isTranslatingSingle ? t('翻译中...') : t('AI 翻译本句')}
-                </button>
               </div>
               {TRANSLATION_TARGET_LOCALES.map((locale) => (
                 <label className="translation-locale-row" key={locale}>

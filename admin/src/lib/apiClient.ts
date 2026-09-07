@@ -556,40 +556,6 @@ export const apiClient = {
       },
       { adminToken },
     ),
-  translateLines: (
-    lines: string[],
-    adminToken: string,
-    sourceLocale = 'en-US',
-    targetLocale = 'zh-CN',
-    // 轮询间隔：批量翻译调用多、任务耗时长，默认 10 秒一次足够，
-    // 避免对后端造成不必要的请求压力；单句翻译等短任务可传更小的值。
-    pollIntervalMs = 10_000,
-  ): Promise<{ translations: string[]; failedIndexes: number[] }> =>
-    (async () => {
-      const { jobId } = await fetchApiResult<{ jobId: string }>(
-      '/api/v1/admin/translate',
-      {
-        method: 'POST',
-        body: JSON.stringify({ lines, sourceLocale, targetLocale }),
-      },
-      { adminToken },
-      )
-
-      while (true) {
-        await new Promise((resolve) => window.setTimeout(resolve, pollIntervalMs))
-        const job = await fetchApiResult<{
-          status: 'processing' | 'completed' | 'failed'
-          result?: { translations: string[]; failedIndexes: number[] }
-          message?: string
-        }>(`/api/v1/admin/translate/${encodeURIComponent(jobId)}`, { method: 'GET' }, { adminToken })
-        if (job.status === 'completed' && job.result) {
-          return job.result
-        }
-        if (job.status === 'failed') {
-          throw new Error(job.message ?? 'AI 翻译失败')
-        }
-      }
-    })(),
   deleteExercise: (exerciseId: number, adminToken: string) =>
     fetchJson<AdminContentResponse>(
       `/api/v1/admin/exercises/${exerciseId}`,

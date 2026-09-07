@@ -7,7 +7,6 @@ import {
   Plus,
   RefreshCw,
   Save,
-  Sparkles,
   Trash2,
 } from 'lucide-react'
 import { useEffect, useState, type Key } from 'react'
@@ -21,7 +20,7 @@ import type {
 } from '@duolinting/shared'
 import type { AdminNoticeTone } from './AdminFeedback'
 import { CoverImageField } from './CoverImageField'
-import { apiClient, resolveApiUrl } from '../../lib/apiClient'
+import { resolveApiUrl } from '../../lib/apiClient'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 const directoryLocalizationLocales = ['en-US', 'th-TH', 'ja-JP'] as const
@@ -89,7 +88,6 @@ function DirectoryForm({
 }: DirectoryFormProps) {
   const { t } = useAdminLanguage()
   const entityLabel = kind === 'group' ? t('内容分类') : t('学习系列')
-  const [isGeneratingLocalizations, setIsGeneratingLocalizations] = useState(false)
   const updateLocalized = (
     locale: typeof directoryLocalizationLocales[number],
     patch: { name?: string; description?: string },
@@ -99,44 +97,6 @@ function DirectoryForm({
       ...form.localizations,
       [locale]: { ...localized, ...patch },
     })
-  }
-  const generateLocalizations = async () => {
-    const sourceName = form.name.trim()
-    const sourceDescription = form.description.trim()
-    if (!sourceName) {
-      onNotify(t('请先填写{{entity}}名称', { entity: entityLabel }), 'error')
-      return
-    }
-
-    setIsGeneratingLocalizations(true)
-    try {
-      const nextLocalizations = { ...form.localizations }
-      // 免费模型并发能力有限，三种语言顺序生成；每次把名称和说明作为独立行提交，
-      // 返回结果按相同下标写回，避免名称与说明错位。
-      for (const locale of directoryLocalizationLocales) {
-        const sourceLines = sourceDescription ? [sourceName, sourceDescription] : [sourceName]
-        const result = await apiClient.translateLines(
-          sourceLines,
-          adminToken,
-          'zh-CN',
-          locale,
-          750,
-        )
-        if (result.failedIndexes.length > 0 || !result.translations[0]?.trim()) {
-          throw new Error(`${directoryLocalizationLabels[locale]}生成失败`)
-        }
-        nextLocalizations[locale] = {
-          name: result.translations[0].trim(),
-          description: sourceDescription ? (result.translations[1] ?? '').trim() : '',
-        }
-      }
-      onChange('localizations', nextLocalizations)
-      onNotify(`${entityLabel}的英语、泰语和日语内容已生成`, 'success')
-    } catch (error) {
-      onNotify(error instanceof Error ? error.message : 'AI 多语言生成失败', 'error')
-    } finally {
-      setIsGeneratingLocalizations(false)
-    }
   }
   return (
     <Card className="directory-editor" size="small">
@@ -164,18 +124,7 @@ function DirectoryForm({
           </Form.Item>
         )}
         <Divider style={{ margin: '20px 0 12px' }}>{t('多语言内容')}</Divider>
-        <Flex align="center" justify="space-between" gap={12} style={{ marginBottom: 12 }}>
-          <Typography.Text type="secondary">{t('同时检查和编辑所有语言，中文名称与说明作为 AI 翻译源。')}</Typography.Text>
-          <Button
-            disabled={disabled || isGeneratingLocalizations || !form.name.trim()}
-            icon={<Sparkles size={15} />}
-            loading={isGeneratingLocalizations}
-            onClick={() => void generateLocalizations()}
-            type="primary"
-          >
-            {isGeneratingLocalizations ? t('生成中') : t('AI 填充全部语言')}
-          </Button>
-        </Flex>
+        <Typography.Text type="secondary">{t('同时检查和编辑所有语言。')}</Typography.Text>
         <div className="directory-localization-grid">
           {directoryLocalizationLocales.map((locale) => {
             const localized = form.localizations?.[locale] ?? {}
@@ -184,14 +133,14 @@ function DirectoryForm({
                 <Space direction="vertical" size={12} style={{ width: '100%' }}>
                   <Form.Item label={t('名称')} style={{ marginBottom: 0 }}>
                     <Input
-                      disabled={disabled || isGeneratingLocalizations}
+                      disabled={disabled}
                       value={localized.name ?? ''}
                       onChange={(event) => updateLocalized(locale, { name: event.target.value })}
                     />
                   </Form.Item>
                   <Form.Item label={t('说明')} style={{ marginBottom: 0 }}>
                     <Input
-                      disabled={disabled || isGeneratingLocalizations}
+                      disabled={disabled}
                       value={localized.description ?? ''}
                       onChange={(event) => updateLocalized(locale, { description: event.target.value })}
                     />
@@ -212,8 +161,8 @@ function DirectoryForm({
           />
         </Form.Item>
         <Flex justify="end" gap={8} style={{ marginTop: 16 }}>
-          <Button disabled={disabled || isGeneratingLocalizations} onClick={onCancel}>{t('取消')}</Button>
-          <Button disabled={disabled || isGeneratingLocalizations} icon={<Save size={15} />} onClick={onSave} type="primary">{t('保存')}{entityLabel}</Button>
+          <Button disabled={disabled} onClick={onCancel}>{t('取消')}</Button>
+          <Button disabled={disabled} icon={<Save size={15} />} onClick={onSave} type="primary">{t('保存')}{entityLabel}</Button>
         </Flex>
       </Form>
     </Card>

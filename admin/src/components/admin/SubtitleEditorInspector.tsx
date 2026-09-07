@@ -1,5 +1,5 @@
 import { Button, Input, InputNumber } from 'antd'
-import { Languages, ListPlus } from 'lucide-react'
+import { ListPlus } from 'lucide-react'
 import { useState } from 'react'
 import {
   cleanEnglishAnswerText,
@@ -8,7 +8,6 @@ import {
   TRANSLATION_TARGET_LOCALES,
   type DraftLine,
 } from '../../lib/mediaDraftTools'
-import type { ContentLocale } from '@duolinting/domain'
 import { SubtitleList } from './SubtitleList'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
@@ -17,7 +16,6 @@ type SubtitleEditorInspectorProps = {
   draftLines: DraftLine[]
   onActiveLineChange: (index: number) => void
   onUpdateLine: (index: number, patch: Partial<DraftLine>) => void
-  onTranslateSingle?: (text: string) => Promise<Partial<Record<ContentLocale, string>>>
 }
 
 const millisecondsToSeconds = (milliseconds: number) => Math.round(milliseconds) / 1000
@@ -28,10 +26,8 @@ export function SubtitleEditorInspector({
   draftLines,
   onActiveLineChange,
   onUpdateLine,
-  onTranslateSingle,
 }: SubtitleEditorInspectorProps) {
   const { t } = useAdminLanguage()
-  const [isTranslatingSingle, setIsTranslatingSingle] = useState(false)
   const [activeTab, setActiveTab] = useState<SubtitleInspectorTab>('list')
   const activeLine = draftLines[activeLineIndex]
 
@@ -128,28 +124,6 @@ export function SubtitleEditorInspector({
             <div className="field wide">
               <div className="translation-field-head">
                 <span>{t('字幕译文（按语言对照填写）')}</span>
-                <Button
-                  className="subtitle-editor-button"
-                  disabled={!activeLine.text.trim() || isTranslatingSingle || !onTranslateSingle}
-                  icon={<Languages size={14} aria-hidden="true" />}
-                  onClick={async () => {
-                    if (!onTranslateSingle) return
-                    setIsTranslatingSingle(true)
-                    try {
-                      const translations = await onTranslateSingle(activeLine.text)
-                      const cleanedTranslations = { ...activeLine.translations }
-                      Object.entries(translations).forEach(([locale, value]) => {
-                        cleanedTranslations[locale as ContentLocale] = cleanSubtitleSpacing(value ?? '')
-                      })
-                      onUpdateLine(activeLineIndex, { translations: cleanedTranslations })
-                    } finally {
-                      setIsTranslatingSingle(false)
-                    }
-                  }}
-                  size="small"
-                >
-                  {isTranslatingSingle ? t('翻译中...') : t('AI 翻译本句')}
-                </Button>
               </div>
               {TRANSLATION_TARGET_LOCALES.map((locale) => (
                 <label className="translation-locale-row" key={locale}>

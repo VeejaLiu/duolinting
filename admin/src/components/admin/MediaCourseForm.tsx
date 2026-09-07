@@ -10,7 +10,6 @@ import {
   LoaderCircle,
   Save,
   Send,
-  Sparkles,
 } from 'lucide-react'
 import {
   useCallback,
@@ -30,7 +29,7 @@ import type {
 } from '@duolinting/shared'
 import type { AdminNoticeTone } from './AdminFeedback'
 import { CoverImageField } from './CoverImageField'
-import { apiClient, type FileUploadProgress } from '../../lib/apiClient'
+import type { FileUploadProgress } from '../../lib/apiClient'
 import { formatDurationLabel, type DraftLine } from '../../lib/mediaDraftTools'
 import {
   getMediaSnapshot,
@@ -92,13 +91,6 @@ type MediaCourseFormProps = {
 
 /* ── 通用 Radix Select 封装 ── */
 type SelectOption = { value: string; label: string }
-
-const courseLocalizationLocales = ['en-US', 'th-TH', 'ja-JP'] as const
-const courseLocalizationLabels = {
-  'en-US': '英语',
-  'th-TH': '泰语',
-  'ja-JP': '日语',
-}
 
 function FieldSelect({
   label,
@@ -173,7 +165,6 @@ export function MediaCourseForm({
   const [previewTime, setPreviewTime] = useState(0)
   const [isCourseMetaOpen, setIsCourseMetaOpen] = useState(false)
   const [isSubtitleImporterOpen, setIsSubtitleImporterOpen] = useState(false)
-  const [isGeneratingLocalizations, setIsGeneratingLocalizations] = useState(false)
   const [videoColumnPercent, setVideoColumnPercent] = useState(66)
   const [waveformHeight, setWaveformHeight] = useState(190)
   const [activeResizeMode, setActiveResizeMode] = useState<MediaEditorResizeMode | null>(null)
@@ -194,46 +185,6 @@ export function MediaCourseForm({
       },
     }))
 
-  const generateCourseLocalizations = async () => {
-    const sourceTitle = courseForm.title.trim()
-    const sourceSummary = courseForm.summary.trim()
-    if (!sourceTitle) {
-      onNotify(t('请先填写课程标题'), 'error')
-      return
-    }
-
-    setIsGeneratingLocalizations(true)
-    try {
-      const nextLocalizations = { ...courseForm.localizations }
-      // 与目录多语言生成保持一致：按语言串行请求，标题和摘要在同一批次返回，
-      // 既降低免费模型并发压力，也保证两项内容按原下标对应写回。
-      for (const locale of courseLocalizationLocales) {
-        const sourceLines = sourceSummary ? [sourceTitle, sourceSummary] : [sourceTitle]
-        const result = await apiClient.translateLines(
-          sourceLines,
-          adminToken,
-          'zh-CN',
-          locale,
-          750,
-        )
-        if (result.failedIndexes.length > 0 || !result.translations[0]?.trim()) {
-          throw new Error(`${t(courseLocalizationLabels[locale])}${t('翻译失败')}`)
-        }
-        nextLocalizations[locale] = {
-          ...nextLocalizations[locale],
-          title: result.translations[0].trim(),
-          // 默认摘要可留空；只有填写后才请求并覆盖该语言的摘要。
-          ...(sourceSummary ? { summary: (result.translations[1] ?? '').trim() } : {}),
-        }
-      }
-      onCourseFormChange((current) => ({ ...current, localizations: nextLocalizations }))
-      onNotify(t('已生成英语、泰语和日语的课程标题与摘要'), 'success')
-    } catch (error) {
-      onNotify(error instanceof Error ? error.message : t('AI 多语言生成失败'), 'error')
-    } finally {
-      setIsGeneratingLocalizations(false)
-    }
-  }
   const currentMediaName = mediaFile?.name ||
     (courseForm.audioUrl ? courseForm.source.trim() || t('已加载媒体') : t('尚未选择媒体'))
   const currentMediaAddress = courseForm.audioUrl
@@ -678,19 +629,6 @@ export function MediaCourseForm({
                 { value: 'ja-JP', label: '日本語' },
               ]}
             />
-            <div className="field course-localization-ai-action">
-              <span>{t('AI 多语言')}</span>
-              <button
-                className="mini-command secondary"
-                disabled={isSaving || isGeneratingLocalizations || !courseForm.title.trim()}
-                onClick={() => void generateCourseLocalizations()}
-                type="button"
-              >
-                <Sparkles size={14} aria-hidden="true" />
-                {isGeneratingLocalizations ? t('生成中…') : t('AI 填充全部语言')}
-              </button>
-              <small>{t('以默认中文标题和摘要为翻译源')}</small>
-            </div>
             <label className="field">
               <span>{t('本地化标题')}</span>
               <input

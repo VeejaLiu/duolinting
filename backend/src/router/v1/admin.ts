@@ -67,9 +67,7 @@ import {
     listOpenContentApiKeys,
     updateOpenContentApiKey,
 } from '../../general/open-content/open-content-api-key-service';
-import { createTranslationJob, getTranslationJob } from '../../general/translate/translate-service';
 import { validateErrorCheck } from '../../lib/express-validator/express-validator-middleware';
-import { Logger } from '../../lib/logger';
 import { doRawQuery } from '../../models';
 import { authenticationRateLimitKeys, createRateLimit } from '../../lib/rate-limit';
 
@@ -118,7 +116,6 @@ const isExternalHttpUrl = (value: unknown) => {
 const isOptionalExternalHttpUrl = (value: unknown) =>
     typeof value === 'string' &&
     (!value.trim() || isExternalHttpUrl(value));
-const logger = new Logger(__filename);
 // Express 5 route params may be typed as string arrays for repeated parameters; IDs use the first value.
 const toId = (value: string | string[]) => Number.parseInt(Array.isArray(value) ? value[0] : value, 10);
 const workflowActivityTypes: AdminWorkflowActivityType[] = [
@@ -654,31 +651,6 @@ router.post('/exercises/:exerciseId/subtitle-drafts/submit', async (req: any, re
         }
         throw error;
     }
-});
-
-router.post(
-    '/translate',
-    // 前端将整课字幕拆分为小批次；限制单请求规模，确保模型调用不会拖到网关超时。
-    body('lines').isArray({ min: 1, max: 12 }),
-    body('lines.*').isString().isLength({ min: 1, max: 1000 }),
-    body('sourceLocale').optional().isIn(['zh-CN', 'en-US', 'th-TH', 'ja-JP']),
-    body('targetLocale').optional().isIn(['zh-CN', 'en-US', 'th-TH', 'ja-JP']),
-    validateErrorCheck,
-    async (req: any, res) => {
-        const lines: string[] = req.body.lines;
-        logger.info(`AI 翻译请求: lines=${lines.length}, adminId=${(req as any).admin?.id ?? '-'}`);
-        const jobId = createTranslationJob(lines, req.body.sourceLocale, req.body.targetLocale);
-        res.status(202).send({ success: true, data: { jobId } });
-    },
-);
-
-router.get('/translate/:jobId', async (req, res) => {
-    const job = getTranslationJob(req.params.jobId);
-    if (!job) {
-        return res.status(404).send({ success: false, message: '翻译任务不存在或已过期' });
-    }
-
-    res.status(200).send({ success: true, data: job });
 });
 
 router.get('/feedback/accepted-answer', requireSuperAdmin, async (req, res) => {

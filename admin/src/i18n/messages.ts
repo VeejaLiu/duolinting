@@ -1615,11 +1615,45 @@ const directoryWorkbenchMessages: AdminMessages = {
   },
 }
 
+// ChatGPT 字幕交接工作流：提示词和 dltjson 在浏览器内组装，
+// Admin 不再调用任何付费翻译服务。
+const chatGptTranslationMessages: AdminMessages = {
+  'zh-CN': {
+    'ChatGPT 校对与翻译': 'ChatGPT 校对与翻译',
+    '校准英文后复制任务，将 ChatGPT 返回的 dltjson 粘贴导回': '校准英文后复制任务，将 ChatGPT 返回的 dltjson 粘贴导回',
+    '复制翻译提示词和当前完整 dltjson，可直接粘贴给 ChatGPT': '复制翻译提示词和当前完整 dltjson，可直接粘贴给 ChatGPT',
+    '复制 ChatGPT 翻译任务': '复制 ChatGPT 翻译任务',
+    '同时检查和编辑所有语言。': '同时检查和编辑所有语言。',
+  },
+  'en-US': {
+    'ChatGPT 校对与翻译': 'Proofread and translate with ChatGPT',
+    '校准英文后复制任务，将 ChatGPT 返回的 dltjson 粘贴导回': 'After calibrating the English, copy the task and paste the dltjson returned by ChatGPT back here.',
+    '复制翻译提示词和当前完整 dltjson，可直接粘贴给 ChatGPT': 'Copy the translation prompt and complete current dltjson to paste directly into ChatGPT',
+    '复制 ChatGPT 翻译任务': 'Copy ChatGPT translation task',
+    '同时检查和编辑所有语言。': 'Review and edit all languages.',
+  },
+  'th-TH': {
+    'ChatGPT 校对与翻译': 'ตรวจทานและแปลด้วย ChatGPT',
+    '校准英文后复制任务，将 ChatGPT 返回的 dltjson 粘贴导回': 'หลังปรับคำบรรยายภาษาอังกฤษแล้ว ให้คัดลอกงานและนำ dltjson ที่ ChatGPT ส่งกลับมาวางนำเข้า',
+    '复制翻译提示词和当前完整 dltjson，可直接粘贴给 ChatGPT': 'คัดลอกพรอมป์แปลและ dltjson ฉบับเต็มเพื่อวางใน ChatGPT',
+    '复制 ChatGPT 翻译任务': 'คัดลอกงานแปลสำหรับ ChatGPT',
+    '同时检查和编辑所有语言。': 'ตรวจทานและแก้ไขทุกภาษา',
+  },
+  'ja-JP': {
+    'ChatGPT 校对与翻译': 'ChatGPTで校正・翻訳',
+    '校准英文后复制任务，将 ChatGPT 返回的 dltjson 粘贴导回': '英語を調整後にタスクをコピーし、ChatGPTが返したdltjsonを貼り付けて読み込みます。',
+    '复制翻译提示词和当前完整 dltjson，可直接粘贴给 ChatGPT': '翻訳プロンプトと現在の完全なdltjsonをコピーし、ChatGPTに貼り付けます',
+    '复制 ChatGPT 翻译任务': 'ChatGPT翻訳タスクをコピー',
+    '同时检查和编辑所有语言。': 'すべての言語を確認・編集できます。',
+  },
+}
+
 for (const locale of Object.keys(adminMessages) as UiLocale[]) {
   Object.assign(adminMessages[locale], supplementalMessages[locale])
   Object.assign(adminMessages[locale], additionalMessages[locale])
   Object.assign(adminMessages[locale], uiMessages[locale])
   Object.assign(adminMessages[locale], directoryWorkbenchMessages[locale])
+  Object.assign(adminMessages[locale], chatGptTranslationMessages[locale])
 }
 
 export { zhCN }

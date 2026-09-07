@@ -11,10 +11,7 @@ import type {
 } from '@duolinting/shared'
 import type { AdminNoticeTone } from './admin/AdminFeedback'
 import { MediaCourseForm } from './admin/MediaCourseForm'
-import {
-  MediaWaveform,
-  type TranslationProgress,
-} from './admin/MediaWaveform'
+import { MediaWaveform } from './admin/MediaWaveform'
 import { MediaWaveformErrorBoundary } from './admin/MediaWaveformErrorBoundary'
 import { SubtitleImporter } from './admin/SubtitleImporter'
 import { SubtitleEditorInspector } from './admin/SubtitleEditorInspector'
@@ -34,8 +31,6 @@ import {
   mergeDraftLines,
   parseSubtitleDraft,
   sortDraftLinesByStart,
-  TRANSLATION_LOCALE_LABELS,
-  TRANSLATION_TARGET_LOCALES,
   type SubtitleDraftAnalysis,
   type SubtitleImportMode,
   toTranscriptLines,
@@ -83,10 +78,6 @@ const EMPTY_SUBTITLE_ANALYSIS: SubtitleDraftAnalysis = {
   isLikelyBilingual: false,
   suggestedMode: 'single',
 }
-// 与后端翻译接口上限保持一致；按语言顺序提交，避免瞬时并发并保持进度与写回顺序稳定。
-// 批次保持较小（6 行）：大批次更容易触发模型合并/漏行，小批失败重试代价也低。
-const TRANSLATE_REQUEST_BATCH_SIZE = 6
-
 const createImporterSnapshot = (
   courseForm: CreateExerciseRequest,
   draftLines: DraftLine[],
@@ -178,6 +169,28 @@ const SEGMENT_EXPERT_PROMPT = `你是一个英语学习视频字幕语义与时�
 const buildSegmentPromptPayload = (draftLines: DraftLine[]): string =>
   `${SEGMENT_EXPERT_PROMPT}\n\n以下是当前字幕（SRT 格式，仅英文）：\n\n${draftLinesToSrt(draftLines)}`
 
+// ChatGPT 翻译交接提示词：强制保留 dltjson 结构和时间轴，只允许修正明显的英文
+// 转写错误并补齐三种译文。返回值可直接粘贴回 Admin，因此禁止 Markdown 包装和解释。
+const CHATGPT_TRANSLATION_PROMPT = `你是多邻听（DuolinTing）的专业字幕校对与本地化译者。
+我会在文末提供一份完整的 dltjson。请校对英文字幕，并将每句翻译成自然地道的简体中文、泰语和日语。
+
+工作要求：
+1. 结合整段上下文理解人物、语气、反讽、玩笑、口语习惯和指代关系，不要逐词硬译。
+2. 简体中文要符合自然口语和中文儿童/教学内容的表达习惯；泰语要像泰语母语者的自然对白；日语要符合角色身份、语气和日语母语表达。
+3. 不要把情绪词译得过重或过轻。优先还原当前剧情中的真实语用含义，而不是字典第一个释义。
+4. 检查 text 中的明显英文语法错误和语音识别错误（例如人名识别错、缺少介词、不可能的句子），只在上下文能够明确判断时修正。不要为了风格而随意改写正确的英文。
+5. 每个 lines 元素的 translations 必须包含 "zh-CN"、"th-TH"、"ja-JP" 三个非空字符串。
+6. translation 是兼容旧客户端的字段，其值必须与同一行的 translations["zh-CN"] 完全一致。
+7. 严格保留 version、type、lines 以及每行的 start、end、answers、keywordsText 和其他未知字段。不得改动时间轴，不得增删、合并、拆分或重排字幕行。
+8. 全片复核一遍，确保术语、人名、称呼和口吻前后一致，三种译文都不缺失。
+
+输出要求：
+- 只输出修正后的完整、有效 JSON，不要输出解释、前言、总结或 Markdown 代码块。
+- 输出必须可以直接粘贴回 Admin 的“粘贴 dltjson”面板并成功导入。`
+
+const buildChatGptTranslationPayload = (draftLines: DraftLine[]): string =>
+  `${CHATGPT_TRANSLATION_PROMPT}\n\n以下是待校对和翻译的完整 dltjson：\n\n${exportToDltjson(draftLines)}`
+
 type DltjsonV2 = {
   version: '2.0'
   type: 'dltjson' | 'htjson'
@@ -201,7 +214,11 @@ type DltjsonV2 = {
 // - lines 数组：每个元素包含 start、end（秒）、text、translation 等字段
 
 const importFromDltjson = (content: string): { lines: DltjsonV2['lines'] } => {
-  const parsed = JSON.parse(content)
+  // 提示词要求返回纯 JSON，但外部对话模型偶尔仍会自动加 Markdown 代码块。
+  // 只剥离包住整份内容的单层代码块，不会宽松接受夹带解释的不确定输出。
+  const trimmed = content.trim()
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
+  const parsed = JSON.parse(fenced ? fenced[1] : trimmed)
   // 新文件统一使用 dltjson；兼容历史 htjson，避免旧字幕文件无法继续使用。
   if (parsed.type !== 'dltjson' && parsed.type !== 'htjson') {
     throw new Error('无效的 dltjson 格式')
@@ -272,12 +289,6 @@ export function AudioLessonImporter({
   const [isUploadingMedia, setIsUploadingMedia] = useState(false)
   const [mediaUploadProgress, setMediaUploadProgress] =
     useState<FileUploadProgress | null>(null)
-  const [isTranslating, setIsTranslating] = useState(false)
-  const [translationProgress, setTranslationProgress] =
-    useState<TranslationProgress | null>(null)
-  // AI 翻译失败的持久错误信息（渲染为 MediaWaveform 内的横幅，不自动消失，可手动关闭；
-  // 每次开始新一轮翻译时清除）。成功/无内容的轻提示仍走 onStatusChange。
-  const [translateError, setTranslateError] = useState<string | null>(null)
   const [loadedExercise, setLoadedExercise] = useState<ListeningExercise | null>(null)
   const [clipboardPanel, setClipboardPanel] = useState<ClipboardPanelState>({
     mode: 'hidden',
@@ -824,164 +835,6 @@ export function AudioLessonImporter({
     onStatusChange(`已导入 ${parsed.length} 句字幕草稿`, 'success')
   }
 
-  const handleTranslateLines = async (mode: 'empty' | 'all') => {
-    setTranslateError(null)
-    setIsTranslating(true)
-    try {
-      // 按目标语言串行执行（每种语言内部仍按批处理），避免对翻译服务造成并发压力。
-      // 每种语言只写回自己的 translations[locale] 键，因此跨语言共用调用开始时的 draftLines 快照是安全的。
-      const tasksByLocale = TRANSLATION_TARGET_LOCALES.map((targetLocale) => ({
-        targetLocale,
-        candidates: draftLines
-          .map((line, index) => ({ index, line }))
-          .filter(({ line }) => line.text.trim())
-          .filter(({ line }) => mode === 'all' || !(line.translations[targetLocale] ?? '').trim()),
-      }))
-      const totalTranslationCount = tasksByLocale.reduce(
-        (total, { candidates }) => total + candidates.length,
-        0,
-      )
-      const subtitleCount = new Set(
-        tasksByLocale.flatMap(({ candidates }) => candidates.map(({ index }) => index)),
-      ).size
-      let completedTranslationCount = 0
-      let succeededTranslationCount = 0
-      let failedTranslationCount = 0
-
-      setTranslationProgress({
-        completed: 0,
-        failed: 0,
-        mode,
-        status: 'running',
-        subtitleCount,
-        succeeded: 0,
-        targetLanguageCount: TRANSLATION_TARGET_LOCALES.length,
-        total: totalTranslationCount,
-      })
-
-      const failedByLocale: { label: string; lineNumbers: number[] }[] = []
-
-      for (const { targetLocale, candidates } of tasksByLocale) {
-        if (candidates.length === 0) {
-          continue
-        }
-
-        const failedLineNumbers: number[] = []
-        for (let start = 0; start < candidates.length; start += TRANSLATE_REQUEST_BATCH_SIZE) {
-          const batch = candidates.slice(start, start + TRANSLATE_REQUEST_BATCH_SIZE)
-          let batchFailedCount = 0
-          try {
-            const result = await apiClient.translateLines(
-              batch.map(({ line }) => line.text),
-              adminToken,
-              'en-US',
-              targetLocale,
-            )
-            setDraftLines((current) => {
-              const next = [...current]
-              batch.forEach(({ index }, batchIndex) => {
-                if (!result.failedIndexes.includes(batchIndex)) {
-                  next[index] = {
-                    ...next[index],
-                    translations: {
-                      ...next[index].translations,
-                      [targetLocale]: result.translations[batchIndex] ?? '',
-                    },
-                  }
-                }
-              })
-              return next
-            })
-            result.failedIndexes.forEach((failedIndex) => {
-              failedLineNumbers.push(batch[failedIndex].index + 1)
-            })
-            batchFailedCount = result.failedIndexes.length
-          } catch {
-            // 单批网络或网关失败不阻断后续字幕，最后统一提示人工处理的行号。
-            batch.forEach(({ index }) => failedLineNumbers.push(index + 1))
-            batchFailedCount = batch.length
-          }
-
-          completedTranslationCount += batch.length
-          failedTranslationCount += batchFailedCount
-          succeededTranslationCount += batch.length - batchFailedCount
-          setTranslationProgress((current) => current
-            ? {
-                ...current,
-                completed: completedTranslationCount,
-                failed: failedTranslationCount,
-                succeeded: succeededTranslationCount,
-              }
-            : current)
-        }
-
-        if (failedLineNumbers.length > 0) {
-          failedByLocale.push({
-            label: TRANSLATION_LOCALE_LABELS[targetLocale],
-            lineNumbers: failedLineNumbers,
-          })
-        }
-      }
-
-      if (totalTranslationCount === 0) {
-        setTranslationProgress((current) => current
-          ? { ...current, status: 'success' }
-          : current)
-        onStatusChange(
-          mode === 'all' ? '没有可翻译的字幕' : '所有语言的译文均已填写，无需补齐',
-          'info',
-        )
-      } else if (failedByLocale.length > 0) {
-        setTranslationProgress((current) => current
-          ? { ...current, status: 'partial' }
-          : current)
-        const failureSummary = failedByLocale
-          .map(({ label, lineNumbers }) => `${label}：第 ${lineNumbers.join(', ')} 行`)
-          .join('；')
-        setTranslateError(`批量翻译未全部成功，${failureSummary} 失败，请人工检查这些行后重试。`)
-      } else {
-        setTranslationProgress((current) => current
-          ? { ...current, status: 'success' }
-          : current)
-        onStatusChange(`成功生成 ${totalTranslationCount} 条译文（中文/ไทย/日本語）`, 'success')
-      }
-    } catch (error) {
-      setTranslationProgress((current) => current
-        ? { ...current, status: 'error' }
-        : current)
-      setTranslateError(error instanceof Error ? error.message : 'AI 翻译失败，请稍后重试')
-    } finally {
-      setIsTranslating(false)
-    }
-  }
-
-  // 单句 AI 翻译：为该句一次性生成全部目标语言译文，返回 { locale: 译文 } 供调用方整体合并。
-  // 各语言顺序请求，任一语言失败时跳过该语言（对应译文保持原值），其余语言照常返回。
-  const handleTranslateSingleLine = async (
-    text: string,
-  ): Promise<Partial<Record<ContentLocale, string>>> => {
-    setTranslateError(null)
-    const translations: Partial<Record<ContentLocale, string>> = {}
-    const failedLabels: string[] = []
-    for (const targetLocale of TRANSLATION_TARGET_LOCALES) {
-      try {
-        // 单句翻译任务很快（通常几秒内完成），用 2 秒轮询避免界面长时间无反馈。
-        const result = await apiClient.translateLines([text], adminToken, 'en-US', targetLocale, 2_000)
-        if (!result.failedIndexes.includes(0) && result.translations[0]) {
-          translations[targetLocale] = result.translations[0]
-        } else {
-          failedLabels.push(TRANSLATION_LOCALE_LABELS[targetLocale])
-        }
-      } catch {
-        failedLabels.push(TRANSLATION_LOCALE_LABELS[targetLocale])
-      }
-    }
-    if (failedLabels.length > 0) {
-      setTranslateError(`单句翻译部分语言失败（${failedLabels.join('、')}），对应译文未更新，请人工检查。`)
-    }
-    return translations
-  }
-
   const importSubtitleFile = async (file: File) => {
     try {
       const text = await file.text()
@@ -1082,6 +935,27 @@ export function AudioLessonImporter({
       onStatusChange('dltjson 已复制到剪切板', 'success')
     } catch (error) {
       onStatusChange(error instanceof Error ? error.message : '复制 dltjson 失败', 'error')
+    }
+  }
+
+  const handleCopyChatGptTranslation = async () => {
+    if (!draftLines.some((line) => line.text.trim())) {
+      onStatusChange('当前没有可校对和翻译的英文字幕', 'error')
+      return
+    }
+
+    const payload = buildChatGptTranslationPayload(draftLines)
+    if (!canWriteClipboard) {
+      setClipboardPanel({ mode: 'copy', label: '复制 ChatGPT 翻译任务', content: payload })
+      onStatusChange('当前环境不支持直接写入剪切板，请在面板中手动复制', 'info')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(payload)
+      onStatusChange('ChatGPT 翻译提示词 + 完整 dltjson 已复制，完成后请粘贴回 dltjson 导入面板', 'success')
+    } catch (error) {
+      onStatusChange(error instanceof Error ? error.message : '复制 ChatGPT 翻译任务失败', 'error')
     }
   }
 
@@ -1331,7 +1205,6 @@ export function AudioLessonImporter({
               activeLineIndex={activeLineIndex}
               draftLines={draftLines}
               onActiveLineChange={setActiveLineIndex}
-              onTranslateSingle={handleTranslateSingleLine}
               onUpdateLine={updateLine}
             />
           }
@@ -1350,6 +1223,8 @@ export function AudioLessonImporter({
               onTimeOffsetChange={setSubtitleTimeOffset}
               onCopySegmentPrompt={() => void handleCopySegmentPrompt()}
               copySegmentPromptDisabled={!draftLines.some((line) => line.text.trim())}
+              onCopyChatGptTranslation={() => void handleCopyChatGptTranslation()}
+              copyChatGptTranslationDisabled={!draftLines.some((line) => line.text.trim())}
               onDltjsonCopy={handleDltjsonCopyToClipboard}
               onDltjsonExport={handleDltjsonExport}
               onDltjsonImport={(file) => {
@@ -1369,8 +1244,6 @@ export function AudioLessonImporter({
                 showInspector={false}
                 onActiveLineChange={setActiveLineIndex}
                 onAddLine={addLineAfterActive}
-                isTranslating={isTranslating}
-                translationProgress={translationProgress}
                 onBatchAdjustTiming={(deltaMs) => {
                   const deltaSeconds = deltaMs / 1000
                   setDraftLines((lines) =>
@@ -1385,10 +1258,6 @@ export function AudioLessonImporter({
                 onRemoveLine={removeLine}
                 onMergeLine={mergeLineWithNext}
                 onSetPointFromPlayer={setPointFromPlayer}
-                onTranslate={handleTranslateLines}
-                onTranslateSingle={handleTranslateSingleLine}
-                translateError={translateError}
-                onDismissTranslateError={() => setTranslateError(null)}
                 onUpdateLine={updateLine}
               />
             </MediaWaveformErrorBoundary>

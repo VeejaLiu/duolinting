@@ -1830,13 +1830,6 @@
   object-fit: contain;
 }
 
-.course-localization-ai-action small {
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.35;
-}
-
 .cover-upload-progress {
   background: #f8fafc;
   border: 1px solid #dbe3ee;
@@ -2179,10 +2172,6 @@
   flex: 0 0 auto;
 }
 
-.waveform-popover-trigger {
-  display: inline-flex;
-}
-
 .waveform-line-actions,
 .waveform-timing-action {
   flex: 0 0 auto;
@@ -2220,100 +2209,6 @@
   padding-inline: 0;
 }
 
-.translation-progress-popover {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 292px;
-}
-
-.translation-progress-heading {
-  align-items: center;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-}
-
-.translation-progress-heading .ant-tag {
-  margin-inline-end: 0;
-}
-
-.translation-progress-popover .ant-progress {
-  line-height: 1;
-  margin: 0;
-}
-
-.translation-progress-metrics {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.translation-progress-metrics > div {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 7px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 7px 9px;
-}
-
-.translation-progress-metrics span {
-  color: #64748b;
-  font-size: 11px;
-}
-
-.translation-progress-metrics strong {
-  color: #0f172a;
-  font-size: 16px;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-
-.translation-progress-metrics strong.is-error {
-  color: #b42318;
-}
-
-.translation-progress-note.ant-typography {
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-/* AI 翻译失败的持久横幅：浅红警示底，文字可换行，右侧关闭按钮 */
-.translate-error-banner {
-  align-items: flex-start;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  color: #b42318;
-  display: flex;
-  gap: 10px;
-  justify-content: space-between;
-  padding: 8px 12px;
-}
-
-.translate-error-text {
-  font-size: 12px;
-  line-height: 1.5;
-  min-width: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.translate-error-dismiss {
-  align-items: center;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: #b42318;
-  cursor: pointer;
-  display: inline-flex;
-  flex-shrink: 0;
-  justify-content: center;
-  padding: 2px;
-}
-
 .waveform-time-readout {
   color: #475569;
   flex: 0 0 auto;
@@ -2323,11 +2218,6 @@
   margin-left: auto;
   padding-left: 8px;
   white-space: nowrap;
-}
-
-.translate-error-dismiss:hover {
-  border-color: #1cb0f6;
-  color: #1cb0f6;
 }
 
 .waveform-canvas-wrap {
