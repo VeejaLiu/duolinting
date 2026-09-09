@@ -1656,12 +1656,60 @@ const chatGptTranslationMessages: AdminMessages = {
   },
 }
 
+const courseReadonlyMessages: AdminMessages = {
+  "zh-CN": {
+    "课程信息由超级管理员维护，你可以编辑字幕和时间轴。": "课程信息由超级管理员维护，你可以编辑字幕和时间轴。",
+    "保存草稿后，提交校对交由超级管理员审核。": "保存草稿后，提交校对交由超级管理员审核。",
+    "更多课程信息": "更多课程信息",
+    "未填写": "未填写",
+    "课程状态": "课程状态",
+    "我的校对": "我的校对",
+    "待审核": "待审核",
+    "已通过": "已通过",
+    "已退回": "已退回"
+  },
+  "en-US": {
+    "课程信息由超级管理员维护，你可以编辑字幕和时间轴。": "Course information is maintained by super administrators. You can edit subtitles and timing.",
+    "保存草稿后，提交校对交由超级管理员审核。": "Save your draft, then submit it for super administrator review.",
+    "更多课程信息": "More course information",
+    "未填写": "Not provided",
+    "课程状态": "Course status",
+    "我的校对": "My proofreading",
+    "待审核": "Pending review",
+    "已通过": "Approved",
+    "已退回": "Returned"
+  },
+  "th-TH": {
+    "课程信息由超级管理员维护，你可以编辑字幕和时间轴。": "ข้อมูลหลักสูตรดูแลโดยผู้ดูแลระบบสูงสุด คุณแก้ไขคำบรรยายและเวลาได้",
+    "保存草稿后，提交校对交由超级管理员审核。": "บันทึกร่างแล้วส่งให้ผู้ดูแลระบบสูงสุดตรวจสอบ",
+    "更多课程信息": "ข้อมูลหลักสูตรเพิ่มเติม",
+    "未填写": "ไม่ได้ระบุ",
+    "课程状态": "สถานะหลักสูตร",
+    "我的校对": "งานตรวจทานของฉัน",
+    "待审核": "รอตรวจสอบ",
+    "已通过": "อนุมัติแล้ว",
+    "已退回": "ส่งกลับแล้ว"
+  },
+  "ja-JP": {
+    "课程信息由超级管理员维护，你可以编辑字幕和时间轴。": "コース情報はスーパー管理者が管理します。字幕とタイミングを編集できます。",
+    "保存草稿后，提交校对交由超级管理员审核。": "下書きを保存し、校正を提出してスーパー管理者の確認を受けてください。",
+    "更多课程信息": "その他のコース情報",
+    "未填写": "未入力",
+    "课程状态": "コースの状態",
+    "我的校对": "自分の校正",
+    "待审核": "確認待ち",
+    "已通过": "承認済み",
+    "已退回": "差し戻し済み"
+  }
+}
+
 for (const locale of Object.keys(adminMessages) as UiLocale[]) {
   Object.assign(adminMessages[locale], supplementalMessages[locale])
   Object.assign(adminMessages[locale], additionalMessages[locale])
   Object.assign(adminMessages[locale], uiMessages[locale])
   Object.assign(adminMessages[locale], directoryWorkbenchMessages[locale])
   Object.assign(adminMessages[locale], chatGptTranslationMessages[locale])
+  Object.assign(adminMessages[locale], courseReadonlyMessages[locale])
 }
 
 export { zhCN }

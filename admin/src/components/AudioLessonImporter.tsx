@@ -1155,6 +1155,7 @@ export function AudioLessonImporter({
           courseForm={courseForm}
           isSaving={isSaving || isSubmittingSubtitleDraft}
           isSubtitleContributor={adminRole === 'subtitle_contributor'}
+          proofreadingStatus={ownSubtitleDraft?.status}
           saveDisabledReason={saveDisabledReason}
           localMediaUrl={localMediaUrl}
           mediaSize={mediaSize}

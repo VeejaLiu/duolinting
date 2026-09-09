@@ -1,5 +1,5 @@
 import * as Select from '@radix-ui/react-select'
-import { Button, Drawer, Progress } from 'antd'
+import { Button, Drawer, Progress, Tag } from 'antd'
 import {
   Check,
   ChevronDown,
@@ -68,6 +68,7 @@ type MediaCourseFormProps = {
   courseForm: CreateExerciseRequest
   isSaving: boolean
   isSubtitleContributor?: boolean
+  proofreadingStatus?: string
   saveDisabledReason?: string
   localMediaUrl: string
   mediaSize: number | null
@@ -140,6 +141,7 @@ export function MediaCourseForm({
   courseForm,
   isSaving,
   isSubtitleContributor = false,
+  proofreadingStatus,
   saveDisabledReason,
   localMediaUrl,
   mediaSize,
@@ -468,6 +470,38 @@ export function MediaCourseForm({
         onClose={() => setIsCourseMetaOpen(false)}
       >
         <section className="course-meta-panel">
+          {/* 贡献者只挂载资料视图，避免上传、封面和自定义下拉框留下编辑入口。 */}
+          {isSubtitleContributor ? (
+            <div className="course-readonly-info">
+              <p className="course-readonly-notice">{t('课程信息由超级管理员维护，你可以编辑字幕和时间轴。')}</p>
+              <dl>
+                <dt>{t('内容分类')}</dt><dd>{categoriesByGroup.find(({ categories }) => categories.some((category) => category.id === courseForm.categoryId))?.group.name || t('未填写')}</dd>
+                <dt>{t('学习系列')}</dt><dd>{visibleCategories.find((category) => category.id === courseForm.categoryId)?.name || t('未填写')}</dd>
+                <dt>{t('标题')}</dt><dd>{courseForm.title || t('未填写')}</dd>
+                <dt>{t('难度')}</dt><dd>{t(({ beginner: '入门', intermediate: '进阶', advanced: '高阶' })[courseForm.difficulty])}</dd>
+                <dt>{t('时长')}</dt><dd>{courseForm.durationLabel || t('未知')}</dd>
+                <dt>{t('媒体文件')}</dt><dd>{courseForm.audioUrl ? `${currentMediaTypeLabel} · ${currentMediaSizeLabel}` : t('尚未选择媒体')}</dd>
+                <dt>{t('课程状态')}</dt><dd><Tag>{t(({ draft: '草稿', proofread: '已校对', published: '已发布', archived: '已归档' })[courseForm.status])}</Tag></dd>
+                <dt>{t('我的校对')}</dt><dd><Tag>{t(proofreadingStatus === 'submitted' ? '待审核' : proofreadingStatus === 'approved' ? '已通过' : proofreadingStatus === 'returned' ? '已退回' : '进行中')}</Tag></dd>
+              </dl>
+              <p className="course-readonly-help">{t('保存草稿后，提交校对交由超级管理员审核。')}</p>
+              <details>
+                <summary>{t('更多课程信息')}</summary>
+                <dl>
+                  <dt>{t('来源')}</dt><dd>{courseForm.source || t('未填写')}</dd>
+                  <dt>{t('来源链接（可选）')}</dt><dd>{courseForm.sourceUrl || t('未填写')}</dd>
+                  <dt>{t('摘要')}</dt><dd>{courseForm.summary || t('未填写')}</dd>
+                </dl>
+                <FieldSelect label={t('本地化内容语言')} value={localizationLocale} onValueChange={(value) => setLocalizationLocale(value as ContentLocale)} options={[
+                  { value: 'en-US', label: 'English' }, { value: 'th-TH', label: 'ไทย' }, { value: 'ja-JP', label: '日本語' },
+                ]} />
+                <dl>
+                  <dt>{t('本地化标题')}</dt><dd>{localizedContent.title || t('未填写')}</dd>
+                  <dt>{t('本地化摘要')}</dt><dd>{localizedContent.summary || t('未填写')}</dd>
+                </dl>
+              </details>
+            </div>
+          ) : (
           <fieldset
             className="form-grid compact-form-grid"
             disabled={isSubtitleContributor}
@@ -568,11 +602,7 @@ export function MediaCourseForm({
               ]}
             />
 
-            {isSubtitleContributor && (
-              <div className="field wide">
-                <small>{t('“保存校对草稿”只保存给你自己，不影响学习端；确认完成后请点“提交校对”，由超级管理员二次审核。课程元数据与媒体仅由超级管理员维护。')}</small>
-              </div>
-            )}
+
 
             <label className="field">
               <span>{t('来源')}</span>
@@ -667,6 +697,7 @@ export function MediaCourseForm({
               />
             </label>
           </fieldset>
+          )}
         </section>
       </Drawer>
 
@@ -681,7 +712,7 @@ export function MediaCourseForm({
               className="course-meta-trigger"
               icon={<FolderTree size={15} aria-hidden="true" />}
               size="small"
-              title={t('编辑课程基础信息')}
+              title={t(isSubtitleContributor ? '课程信息' : '编辑课程基础信息')}
               type="text"
               onClick={() => setIsCourseMetaOpen(true)}
             >
