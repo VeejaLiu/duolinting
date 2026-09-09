@@ -423,6 +423,10 @@ export function MediaWaveform({
 
       let waveformFrameId: number | null = null
       let healthCheckCount = 0
+      let blankCheckCount = 0
+      let recoveryAttempts = 0
+      let recoveryPending = false
+      let lastRedrawAt = 0
 
       const captureWaveformHealth = (reason: string) => {
         const dom = getWaveformDomSnapshot(waveformContainer)
@@ -437,6 +441,14 @@ export function MediaWaveform({
           (visibleCanvases.length === 0 ||
             (sampledCanvases.length > 0 &&
               sampledCanvases.every((canvas) => canvas.nonTransparentProbePixels === 0)))
+        // 隐藏页面、拖动过程和刚开始重绘时不做恢复。两次定时检查均确认
+        // 完整画布为空才重绘，避免抽样落在柱间空隙或短暂渲染造成误触发。
+        const canCheck = document.visibilityState === 'visible' &&
+          Boolean(dom?.container.connected && dom.container.width > 0 && dom.container.height > 0) &&
+          waveformStatusRef.current === 'ready' && Boolean(wavesurfer.getDecodedData()) &&
+          !isDraggingRegionRef.current && Date.now() - lastRedrawAt > 1500
+        const confirmedBlank = visibleCanvases.length === 0 ||
+          visibleCanvases.every((canvas) => canvas.blankConfirmed || canvas.contextLost)
         const details = {
           activeLine: currentActiveLine
             ? {
@@ -454,6 +466,8 @@ export function MediaWaveform({
           reason,
           scrollLeft: wavesurfer.getScroll(),
           suspectedBlank,
+          confirmedBlank,
+          recoveryAttempts,
           waveformDom: dom,
           waveformMedia: getMediaSnapshot(waveformMedia),
           waveformStatus: waveformStatusRef.current,
@@ -464,6 +478,36 @@ export function MediaWaveform({
           logMediaDiagnostic('waveform-blank-suspected', details, 'error')
         } else {
           logMediaDebug('waveform-health', details)
+        }
+        if (!reason.startsWith('interval-')) return
+        if (!canCheck) {
+          blankCheckCount = 0
+          return
+        }
+        if (recoveryPending) {
+          logMediaDiagnostic('waveform-recovery-result', {
+            ...details, recovered: !confirmedBlank && sampledCanvases.some(
+              (canvas) => !canvas.blankConfirmed && !canvas.contextLost && !canvas.probeError,
+            ),
+          }, confirmedBlank ? 'error' : 'info')
+          recoveryPending = false
+        }
+        blankCheckCount = confirmedBlank ? blankCheckCount + 1 : 0
+        if (blankCheckCount < 2 || recoveryAttempts >= 3) return
+        blankCheckCount = 0
+        recoveryAttempts += 1
+        logMediaDiagnostic('waveform-recovery-start', { ...details, recoveryAttempts }, 'info')
+        try {
+          // 使用已经解码的音频重建绘图画布，不重新加载媒体或重建字幕区域。
+          // 保留滚动位置，主视频时间和所有未保存的字幕均由现有状态继续管理。
+          const scrollLeft = wavesurfer.getScroll()
+          wavesurfer.setOptions({})
+          wavesurfer.setScroll(scrollLeft)
+          recoveryPending = true
+        } catch (error) {
+          logMediaDiagnostic('waveform-recovery-failed', {
+            recoveryAttempts, message: error instanceof Error ? error.message : String(error),
+          }, 'error')
         }
       }
 
@@ -596,6 +640,10 @@ export function MediaWaveform({
             mainMedia: getMediaSnapshot(media),
             waveformMedia: getMediaSnapshot(waveformMedia),
           })
+        }),
+        wavesurfer.on('redraw', () => {
+          lastRedrawAt = Date.now()
+          logMediaDebug('wavesurfer-redraw-start', { recoveryAttempts, scrollLeft: wavesurfer.getScroll() })
         }),
 	        wavesurfer.on('redrawcomplete', () => {
           logMediaDebug('wavesurfer-redraw-complete', {

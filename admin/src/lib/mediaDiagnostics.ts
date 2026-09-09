@@ -208,11 +208,14 @@ export const getWaveformDomSnapshot = (container: HTMLElement | null) => {
       const style = window.getComputedStyle(canvas)
       let nonTransparentProbePixels: number | null = null
       let probeError = ''
+      let blankConfirmed = false
+      let contextLost = false
 
       if (isVisibleInContainer && canvas.width > 0 && canvas.height > 0) {
         try {
           const context = canvas.getContext('2d')
           if (context) {
+            contextLost = context.isContextLost?.() ?? false
             let visiblePixels = 0
             // 只读取少量竖线，足以区分“仍有波形绘制”和“canvas 被完全清空”，
             // 又不会像读取整张超宽 canvas 那样制造额外内存压力。
@@ -224,8 +227,26 @@ export const getWaveformDomSnapshot = (container: HTMLElement | null) => {
               }
             }
             nonTransparentProbePixels = visiblePixels
+            // 等距竖线可能全部落入柱状波形的间隙。只有抽样为空时才分块检查
+            // 完整画布；每次最多读取 128 列，避免一次分配超宽画布的像素数组。
+            if (visiblePixels === 0 && !contextLost) {
+              blankConfirmed = true
+              for (let x = 0; x < canvas.width; x += 128) {
+                const pixels = context.getImageData(
+                  x, 0, Math.min(128, canvas.width - x), canvas.height,
+                ).data
+                for (let offset = 3; offset < pixels.length; offset += 4) {
+                  if (pixels[offset] > 0) {
+                    blankConfirmed = false
+                    break
+                  }
+                }
+                if (!blankConfirmed) break
+              }
+            }
           }
         } catch (error) {
+          blankConfirmed = false
           probeError = getErrorSnapshot(error).message
         }
       }
@@ -239,6 +260,8 @@ export const getWaveformDomSnapshot = (container: HTMLElement | null) => {
         display: style.display,
         isVisibleInContainer,
         nonTransparentProbePixels,
+        blankConfirmed,
+        contextLost,
         opacity: style.opacity,
         probeError,
         visibility: style.visibility,
