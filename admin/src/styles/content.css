@@ -3314,3 +3314,37 @@
 .course-readonly-info summary { cursor: pointer; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; }
 .course-readonly-info summary:hover { border-color: #1cb0f6; }
 .course-readonly-info summary:focus-visible { outline: 2px solid #1cb0f6; outline-offset: 2px; }
+
+.subtitle-history-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.subtitle-history-controls .ant-btn:not(:disabled):hover,
+.subtitle-history-panel .ant-btn:not(:disabled):hover {
+  border-color: #1cb0f6;
+}
+
+.subtitle-history-panel {
+  width: min(320px, calc(100vw - 48px));
+}
+
+.subtitle-history-panel p {
+  margin: 0 0 10px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.subtitle-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.subtitle-history-list .ant-btn {
+  justify-content: flex-start;
+}

@@ -1703,7 +1703,87 @@ const courseReadonlyMessages: AdminMessages = {
   }
 }
 
+const subtitleHistoryMessages: AdminMessages = {
+  "zh-CN": {
+    "字幕编辑历史": "字幕编辑历史",
+    "撤销": "撤销",
+    "重做": "重做",
+    "历史": "历史",
+    "暂无编辑历史": "暂无编辑历史",
+    "可重做": "可重做",
+    "可撤销（最近优先）": "可撤销（最近优先）",
+    "重做到此步": "重做到此步",
+    "撤销至此步之前": "撤销至此步之前",
+    "保留本次编辑最近 {{count}} 步字幕操作；保存后仍可撤销，刷新或切换课程后清空。": "保留本次编辑最近 {{count}} 步字幕操作；保存后仍可撤销，刷新或切换课程后清空。",
+    "拖动字幕时间": "拖动字幕时间",
+    "编辑字幕": "编辑字幕",
+    "添加字幕": "添加字幕",
+    "删除字幕": "删除字幕",
+    "合并字幕": "合并字幕",
+    "导入字幕": "导入字幕",
+    "批量调整时间": "批量调整时间"
+  },
+  "en-US": {
+    "字幕编辑历史": "Subtitle edit history",
+    "撤销": "Undo",
+    "重做": "Redo",
+    "历史": "History",
+    "暂无编辑历史": "No edits yet",
+    "可重做": "Available to redo",
+    "可撤销（最近优先）": "Available to undo (newest first)",
+    "重做到此步": "Redo through this step",
+    "撤销至此步之前": "Undo through this step",
+    "保留本次编辑最近 {{count}} 步字幕操作；保存后仍可撤销，刷新或切换课程后清空。": "Keeps the latest {{count}} subtitle edits in this session. Saving keeps history; reloading or switching courses clears it.",
+    "拖动字幕时间": "Drag subtitle timing",
+    "编辑字幕": "Edit subtitle",
+    "添加字幕": "Add subtitle",
+    "删除字幕": "Delete subtitle",
+    "合并字幕": "Merge subtitles",
+    "导入字幕": "Import subtitles",
+    "批量调整时间": "Adjust all timings"
+  },
+  "th-TH": {
+    "字幕编辑历史": "ประวัติการแก้ไขคำบรรยาย",
+    "撤销": "เลิกทำ",
+    "重做": "ทำซ้ำ",
+    "历史": "ประวัติ",
+    "暂无编辑历史": "ยังไม่มีประวัติการแก้ไข",
+    "可重做": "รายการที่ทำซ้ำได้",
+    "可撤销（最近优先）": "รายการที่เลิกทำได้ (ล่าสุดก่อน)",
+    "重做到此步": "ทำซ้ำถึงขั้นตอนนี้",
+    "撤销至此步之前": "เลิกทำถึงก่อนขั้นตอนนี้",
+    "保留本次编辑最近 {{count}} 步字幕操作；保存后仍可撤销，刷新或切换课程后清空。": "เก็บการแก้ไขคำบรรยายล่าสุด {{count}} ขั้นตอนในครั้งนี้ บันทึกแล้วยังเลิกทำได้ ประวัติจะถูกล้างเมื่อรีเฟรชหรือเปลี่ยนบทเรียน",
+    "拖动字幕时间": "ลากเวลาคำบรรยาย",
+    "编辑字幕": "แก้ไขคำบรรยาย",
+    "添加字幕": "เพิ่มคำบรรยาย",
+    "删除字幕": "ลบคำบรรยาย",
+    "合并字幕": "รวมคำบรรยาย",
+    "导入字幕": "นำเข้าคำบรรยาย",
+    "批量调整时间": "ปรับเวลาทั้งหมด"
+  },
+  "ja-JP": {
+    "字幕编辑历史": "字幕の編集履歴",
+    "撤销": "元に戻す",
+    "重做": "やり直す",
+    "历史": "履歴",
+    "暂无编辑历史": "編集履歴はありません",
+    "可重做": "やり直せる操作",
+    "可撤销（最近优先）": "元に戻せる操作（新しい順）",
+    "重做到此步": "この操作までやり直す",
+    "撤销至此步之前": "この操作の前まで戻す",
+    "保留本次编辑最近 {{count}} 步字幕操作；保存后仍可撤销，刷新或切换课程后清空。": "今回の字幕編集を直近 {{count}} 操作まで保持します。保存後も元に戻せますが、再読み込みやコースの切り替えで消去されます。",
+    "拖动字幕时间": "字幕の時間をドラッグ",
+    "编辑字幕": "字幕を編集",
+    "添加字幕": "字幕を追加",
+    "删除字幕": "字幕を削除",
+    "合并字幕": "字幕を結合",
+    "导入字幕": "字幕をインポート",
+    "批量调整时间": "時間を一括調整"
+  }
+}
+
 for (const locale of Object.keys(adminMessages) as UiLocale[]) {
+  Object.assign(adminMessages[locale], subtitleHistoryMessages[locale])
   Object.assign(adminMessages[locale], supplementalMessages[locale])
   Object.assign(adminMessages[locale], additionalMessages[locale])
   Object.assign(adminMessages[locale], uiMessages[locale])

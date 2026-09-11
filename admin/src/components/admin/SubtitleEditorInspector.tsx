@@ -32,7 +32,7 @@ export function SubtitleEditorInspector({
   const activeLine = draftLines[activeLineIndex]
 
   return (
-    <aside className="subtitle-editor-inspector" aria-label={t('字幕详细编辑')}>
+    <aside data-subtitle-history className="subtitle-editor-inspector" aria-label={t('字幕详细编辑')}>
       <div className="subtitle-inspector-tablist" role="tablist" aria-label={t('字幕编辑视图')}>
         <button
           aria-controls="subtitle-list-panel"

@@ -59,10 +59,12 @@ type MediaWaveformProps = {
   onAddLine: (range?: AddLineRange) => void
   onPlayLine: (line: DraftLine) => void
   onRemoveLine: (index: number) => void
-  // 合并第 index 行与相邻的第 index+1 行（时间与文本都会合并，不可撤销）。
+  // 合并第 index 行与相邻的第 index+1 行（时间与文本都会合并，由父级记录撤销历史）。
   onMergeLine?: (index: number) => void
   onSetPointFromPlayer: (field: 'start' | 'end', lineIndex: number) => void
   onUpdateLine: (index: number, patch: Partial<DraftLine>, lineId?: string) => void
+  onEditEnd?: () => void
+  batchOffset: number
   onBatchAdjustTiming: (deltaMs: number) => void
 }
 
@@ -197,7 +199,9 @@ export function MediaWaveform({
   onMergeLine,
   onSetPointFromPlayer,
   onUpdateLine,
+  batchOffset,
   onBatchAdjustTiming,
+  onEditEnd,
 }: MediaWaveformProps) {
   const { t } = useAdminLanguage()
   const waveformContainerRef = useRef<HTMLDivElement | null>(null)
@@ -208,6 +212,7 @@ export function MediaWaveform({
   const onActiveLineChangeRef = useRef(onActiveLineChange)
   const onAddLineRef = useRef(onAddLine)
   const onUpdateLineRef = useRef(onUpdateLine)
+  const onEditEndRef = useRef(onEditEnd)
   const isSyncingRegionsRef = useRef(false)
   const isDraggingRegionRef = useRef(false)
   const timeoutCleanupRef = useRef<(() => void) | null>(null)
@@ -224,7 +229,6 @@ export function MediaWaveform({
   }>>({})
   const [currentTime, setCurrentTime] = useState(0)
   const [zoom, setZoom] = useState(1)
-  const [batchOffset, setBatchOffset] = useState(0)
   const [isBatchTimingOpen, setIsBatchTimingOpen] = useState(false)
   // 等待媒体完全加载后再解析波形
   const [isMediaReady, setIsMediaReady] = useState(false)
@@ -252,7 +256,6 @@ export function MediaWaveform({
     const delta = normalizedOffset - batchOffset
     if (delta === 0) return
 
-    setBatchOffset(normalizedOffset)
     onBatchAdjustTiming(delta)
   }
 
@@ -276,7 +279,8 @@ export function MediaWaveform({
     onActiveLineChangeRef.current = onActiveLineChange
     onAddLineRef.current = onAddLine
     onUpdateLineRef.current = onUpdateLine
-  }, [onActiveLineChange, onAddLine, onUpdateLine])
+    onEditEndRef.current = onEditEnd
+  }, [onActiveLineChange, onAddLine, onUpdateLine, onEditEnd])
 
 	  // Reset media ready state when source changes
 	  useEffect(() => {
@@ -769,6 +773,7 @@ export function MediaWaveform({
             }, region.id)
           }
           isDraggingRegionRef.current = false
+          onEditEndRef.current?.()
         }),
         regions.on('region-removed', (region) => {
           delete regionByIdRef.current[region.id]

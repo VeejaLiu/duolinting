@@ -76,6 +76,7 @@ type MediaCourseFormProps = {
   mediaUploadProgress: FileUploadProgress | null
   mediaRef: React.MutableRefObject<HTMLMediaElement | null>
   previewLines?: DraftLine[]
+  historyControls?: ReactNode
   statusBar?: ReactNode
   subtitleEditor?: ReactNode
   subtitleImporter?: ReactNode
@@ -149,6 +150,7 @@ export function MediaCourseForm({
   mediaUploadProgress,
   mediaRef,
   previewLines = [],
+  historyControls,
   statusBar,
   subtitleEditor,
   subtitleImporter,
@@ -720,6 +722,7 @@ export function MediaCourseForm({
             </Button>
           </div>
           <div className="import-main-toolbar-actions">
+            {historyControls}
             <button
               className="command-button secondary subtitle-import-trigger"
               onClick={() => setIsSubtitleImporterOpen(true)}

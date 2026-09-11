@@ -21,6 +21,8 @@ import {
   type FileUploadProgress,
 } from '../lib/apiClient'
 import { ADMIN_TOKEN_STORAGE_KEY } from '../lib/contentTools'
+import { useSubtitleHistory } from '../hooks/useSubtitleHistory'
+import { SubtitleHistoryControls } from './admin/SubtitleHistoryControls'
 import { useMediaPlayback } from '../hooks/useMediaPlayback'
 import { useAdminLanguage } from '../i18n/AdminLanguageProvider'
 import { detectMp4VideoCodec } from '../lib/mediaCompatibility'
@@ -266,11 +268,11 @@ export function AudioLessonImporter({
     typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function'
   const navigate = useNavigate()
   const mediaRef = useRef<HTMLMediaElement | null>(null)
+  const workbenchRef = useRef<HTMLElement | null>(null)
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [localMediaUrl, setLocalMediaUrl] = useState('')
   const [uploadedMediaUrl, setUploadedMediaUrl] = useState('')
   const [mediaSize, setMediaSize] = useState<number | null>(null)
-  const [activeLineIndex, setActiveLineIndex] = useState(0)
   const [subtitleDraft, setSubtitleDraft] = useState('')
   const [subtitleAnalysis, setSubtitleAnalysis] =
     useState<SubtitleDraftAnalysis>(EMPTY_SUBTITLE_ANALYSIS)
@@ -299,9 +301,9 @@ export function AudioLessonImporter({
     sortOrder: getNextExerciseSortOrder(exercises, categories[0]?.id ?? 0),
     status: 'draft',
   })
-  const [draftLines, setDraftLines] = useState<DraftLine[]>([
-    createEmptyDraftLine(),
-  ])
+  const { history, edit: editSubtitles, reset: resetSubtitles, select: setActiveLineIndex, breakGroup, undo, redo } =
+    useSubtitleHistory([createEmptyDraftLine()])
+  const { lines: draftLines, activeLineIndex } = history.present
   const currentImporterSnapshot = useMemo(
     () => createImporterSnapshot(courseForm, draftLines, subtitleDraft),
     [courseForm, draftLines, subtitleDraft],
@@ -442,7 +444,7 @@ export function AudioLessonImporter({
       setSubtitleAnalysis(EMPTY_SUBTITLE_ANALYSIS)
       setSubtitleImportMode('single')
       setActiveLineIndex(0)
-      setDraftLines(nextDraftLines)
+      resetSubtitles(nextDraftLines)
       setCourseForm(nextCourseForm)
       setSavedImporterSnapshot(
         createImporterSnapshot(nextCourseForm, nextDraftLines, ''),
@@ -462,7 +464,7 @@ export function AudioLessonImporter({
         onDraftConsumed()
       }
     })()
-  }, [adminToken, categories, draft, exercises, onDraftConsumed, onStatusChange])
+  }, [adminToken, categories, draft, exercises, onDraftConsumed, onStatusChange, resetSubtitles, setActiveLineIndex])
 
   useEffect(() => {
     if (!draft || draft.mode !== 'edit' || !loadedExercise) {
@@ -514,7 +516,7 @@ export function AudioLessonImporter({
     setSubtitleAnalysis(EMPTY_SUBTITLE_ANALYSIS)
     setSubtitleImportMode('single')
     setActiveLineIndex(0)
-    setDraftLines(nextDraftLines)
+    resetSubtitles(nextDraftLines)
     setCourseForm(nextCourseForm)
     setSavedImporterSnapshot(
       createImporterSnapshot(nextCourseForm, nextDraftLines, ''),
@@ -524,7 +526,7 @@ export function AudioLessonImporter({
       : ''
     onStatusChange(`已载入课程：${exercise.title}${returnedNote}`, 'success')
     onDraftConsumed()
-  }, [adminRole, draft, loadedExercise, onDraftConsumed, onStatusChange])
+  }, [adminRole, draft, loadedExercise, onDraftConsumed, onStatusChange, resetSubtitles, setActiveLineIndex])
 
   const activeLine = draftLines[activeLineIndex] ?? draftLines[0]
   const validLineCount = useMemo(() => {
@@ -575,93 +577,70 @@ export function AudioLessonImporter({
   ])
 
   const updateLine = (index: number, patch: Partial<DraftLine>, lineId?: string) => {
-    setDraftLines((current) => {
-      // 波形拖动期间数组可能已经因 start 变化而重排，因此优先用稳定 id 找目标；
-      // 详情编辑等普通入口仍可沿用当前数组 index。
-      const targetIndex = lineId
-        ? current.findIndex((line) => line.id === lineId)
-        : index
-      if (targetIndex < 0 || targetIndex >= current.length) return current
-
+    const targetId = lineId ?? draftLines[index]?.id
+    const fields = Object.keys(patch).sort().join(',')
+    editSubtitles(lineId ? '拖动字幕时间' : '编辑字幕', (snapshot) => {
+      const current = snapshot.lines
+      const targetIndex = current.findIndex((line) => line.id === targetId)
+      if (targetIndex < 0) return snapshot
       const updated = current.map((line, lineIndex) =>
         lineIndex === targetIndex ? { ...line, ...patch } : line,
       )
-      if (!Object.prototype.hasOwnProperty.call(patch, 'start')) return updated
-
-      // Region 拖动以传入的 lineId 为当前目标，可抵抗连续 pointermove 发生在 React
-      // 完成上一轮重排渲染之前的情况；普通时间输入则继续保持当前选中字幕。
-      const activeLineId = lineId ?? current[activeLineIndex]?.id
-      const ordered = sortDraftLinesByStart(updated)
-      if (activeLineId) {
-        const nextActiveIndex = ordered.findIndex((line) => line.id === activeLineId)
-        if (nextActiveIndex >= 0) setActiveLineIndex(nextActiveIndex)
-      }
-      return ordered
-    })
+      const ordered = Object.prototype.hasOwnProperty.call(patch, 'start')
+        ? sortDraftLinesByStart(updated) : updated
+      // 字幕和选中行在同一个历史事务内重排，撤销后连同原始顺序、ID 和选中句恢复。
+      return { ...snapshot, lines: ordered, activeLineIndex: ordered.findIndex((line) => line.id === targetId) }
+    }, { group: `${lineId ? 'drag' : 'field'}:${targetId}:${fields}`, continuous: Boolean(lineId) })
   }
 
   const addLineAfterActive = (range?: { start: number; end: number }) => {
     const currentTime = roundToMilliseconds(
       range?.start ?? mediaRef.current?.currentTime ?? activeLine?.end ?? 0,
     )
-    const nextLine: DraftLine = {
-      ...createEmptyDraftLine(draftLines.length),
-      start: currentTime,
-      end: roundToMilliseconds(range?.end ?? currentTime + 5),
-    }
-
-    setDraftLines((current) => {
-      const next = [...current]
-      if (range) {
-        const insertIndex = next.findIndex((line) => line.start > nextLine.start)
-        next.splice(insertIndex >= 0 ? insertIndex : next.length, 0, nextLine)
-      } else {
-        next.splice(activeLineIndex + 1, 0, nextLine)
+    editSubtitles('添加字幕', (snapshot) => {
+      const { lines, activeLineIndex: selected } = snapshot
+      const nextLine: DraftLine = {
+        ...createEmptyDraftLine(lines.length), start: currentTime,
+        end: roundToMilliseconds(range?.end ?? currentTime + 5),
       }
-
-      const indexedLines = next.map((line, index) => ({
-        ...line,
-        id: `l${index + 1}`,
-      }))
-      const insertedIndex = indexedLines.findIndex(
-        (line) => line.start === nextLine.start && line.end === nextLine.end,
-      )
-      setActiveLineIndex(insertedIndex >= 0 ? insertedIndex : activeLineIndex + 1)
-      return indexedLines
+      const next = [...lines]
+      const laterIndex = range ? next.findIndex((line) => line.start > nextLine.start) : -1
+      const insertIndex = range ? (laterIndex >= 0 ? laterIndex : next.length) : Math.min(selected + 1, next.length)
+      next.splice(insertIndex, 0, nextLine)
+      return { ...snapshot, lines: next.map((line, i) => ({ ...line, id: `l${i + 1}` })), activeLineIndex: insertIndex }
     })
   }
 
   const removeLine = (index: number) => {
-    setDraftLines((current) => {
-      const next = current
-        .filter((_, lineIndex) => lineIndex !== index)
-        .map((line, lineIndex) => ({ ...line, id: `l${lineIndex + 1}` }))
-      return next.length ? next : [createEmptyDraftLine()]
+    editSubtitles('删除字幕', (snapshot) => {
+      if (!snapshot.lines[index]) return snapshot
+      const next = snapshot.lines.filter((_, i) => i !== index)
+        .map((line, i) => ({ ...line, id: `l${i + 1}` }))
+      return {
+        ...snapshot,
+        lines: next.length ? next : [createEmptyDraftLine()],
+        activeLineIndex: Math.max(0, Math.min(index, next.length - 1)),
+      }
     })
-    setActiveLineIndex((current) => Math.max(0, current - 1))
   }
 
-  // 合并第 index 行与第 index+1 行：合并结果保留前一行 id（mergeDraftLines 内实现），
-  // 之后与 removeLine 一样整体重排 id，保持 id 始终为 l1..ln（addLineAfterActive 依赖该约定生成新 id）。
-  // activeLineIndex 指向合并后的行；若当前正编辑被合并的第二行，也会回落到合并后的行，不留悬空状态。
   const mergeLineWithNext = (index: number) => {
-    setDraftLines((current) => {
-      if (index < 0 || index + 1 >= current.length) {
-        return current
-      }
+    editSubtitles('合并字幕', (snapshot) => {
+      const current = snapshot.lines
+      if (index < 0 || index + 1 >= current.length) return snapshot
       const merged = mergeDraftLines(current[index], current[index + 1])
-      const next = current
-        .map((line, lineIndex) => (lineIndex === index ? merged : line))
-        .filter((_, lineIndex) => lineIndex !== index + 1)
-        .map((line, lineIndex) => ({ ...line, id: `l${lineIndex + 1}` }))
-      return next
+      const lines = current.map((line, i) => i === index ? merged : line)
+        .filter((_, i) => i !== index + 1)
+        .map((line, i) => ({ ...line, id: `l${i + 1}` }))
+      return { ...snapshot, lines, activeLineIndex: index }
     })
-    setActiveLineIndex(index)
   }
 
   const setPointFromPlayer = (field: 'start' | 'end', lineIndex = activeLineIndex) => {
     const currentTime = roundToMilliseconds(mediaRef.current?.currentTime ?? 0)
+    breakGroup()
     updateLine(lineIndex, { [field]: currentTime })
+    breakGroup()
   }
 
   const playLine = async (line: DraftLine) => {
@@ -822,8 +801,7 @@ export function AudioLessonImporter({
           end: Math.max(0, line.end + offsetSeconds),
         }))
       : parsed
-    setDraftLines(adjusted)
-    setActiveLineIndex(0)
+    editSubtitles('导入字幕', () => ({ lines: adjusted, activeLineIndex: 0, batchOffset: 0 }))
     onStatusChange(`已导入 ${parsed.length} 句字幕草稿`, 'success')
   }
 
@@ -840,8 +818,7 @@ export function AudioLessonImporter({
       }
 
       const parsed = parseSubtitleDraft(text, 'single')
-      setDraftLines(parsed)
-      setActiveLineIndex(0)
+      editSubtitles('导入字幕', () => ({ lines: parsed, activeLineIndex: 0, batchOffset: 0 }))
       onStatusChange(`已从文件导入 ${parsed.length} 句字幕`, 'success')
     } catch (error) {
       onStatusChange(
@@ -897,8 +874,7 @@ export function AudioLessonImporter({
       keywordsText: line.keywordsText ?? (line.keywords ?? []).join(', '),
     }))
 
-    setDraftLines(nextDraftLines)
-    setActiveLineIndex(0)
+    editSubtitles('导入字幕', () => ({ lines: nextDraftLines, activeLineIndex: 0, batchOffset: 0 }))
     return imported.lines.length
   }
 
@@ -1007,6 +983,7 @@ export function AudioLessonImporter({
   }
 
   const saveImportedLesson = useCallback(async () => {
+    breakGroup()
     setIsSaving(true)
     try {
       if (saveDisabledReason) {
@@ -1095,6 +1072,7 @@ export function AudioLessonImporter({
   }, [
     adminToken,
     adminRole,
+    breakGroup,
     courseForm,
     draftLines,
     exercises,
@@ -1144,8 +1122,30 @@ export function AudioLessonImporter({
     return () => onRegisterSaveBeforeLeave(null)
   }, [onRegisterSaveBeforeLeave, saveImportedLesson])
 
+  useEffect(() => {
+    const handleHistoryShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.isComposing || event.defaultPrevented) return
+      const key = event.key.toLowerCase()
+      if (key !== 'z' && !(key === 'y' && !event.shiftKey)) return
+      const target = event.target
+      if (!(target instanceof HTMLElement)) return
+      // 波形不一定获得键盘焦点，因此也处理 body 上的快捷键；侧栏和其他弹窗不接管。
+      if (target !== document.body && !workbenchRef.current?.contains(target)) return
+      if (isTypingTarget(target) && !target.closest('[data-subtitle-history]')) return
+      if (target.closest('[role="dialog"]')) return
+      event.preventDefault()
+      event.stopPropagation()
+      if (isSaving || isSubmittingSubtitleDraft || isSubmittedSubtitleDraft || isApprovedSubtitleDraft || draft) return
+      stopPlayback()
+      if (key === 'y' || event.shiftKey) redo()
+      else undo()
+    }
+    window.addEventListener('keydown', handleHistoryShortcut)
+    return () => window.removeEventListener('keydown', handleHistoryShortcut)
+  }, [draft, isSaving, isSubmittingSubtitleDraft, isSubmittedSubtitleDraft, isApprovedSubtitleDraft, redo, stopPlayback, undo])
+
   return (
-    <section className="admin-section import-workbench">
+    <section ref={workbenchRef} className="admin-section import-workbench" onBlurCapture={breakGroup}>
       <div
         className="import-layout"
       >
@@ -1164,6 +1164,14 @@ export function AudioLessonImporter({
           mediaRef={mediaRef}
           previewLines={draftLines}
           onNotify={onStatusChange}
+          historyControls={
+            <SubtitleHistoryControls
+              history={history}
+              disabled={isSaving || isSubmittingSubtitleDraft || isSubmittedSubtitleDraft || isApprovedSubtitleDraft || Boolean(draft)}
+              onUndo={(steps) => { stopPlayback(); undo(steps) }}
+              onRedo={(steps) => { stopPlayback(); redo(steps) }}
+            />
+          }
           statusBar={
             <div className="admin-footer media-workbench-status">
               <span>{t('{{count}} 句可保存', { count: validLineCount })}</span>
@@ -1237,21 +1245,25 @@ export function AudioLessonImporter({
                 showInspector={false}
                 onActiveLineChange={setActiveLineIndex}
                 onAddLine={addLineAfterActive}
+                batchOffset={history.present.batchOffset}
                 onBatchAdjustTiming={(deltaMs) => {
                   const deltaSeconds = deltaMs / 1000
-                  setDraftLines((lines) =>
-                    lines.map((line) => ({
+                  editSubtitles('批量调整时间', (snapshot) => ({
+                    ...snapshot,
+                    batchOffset: snapshot.batchOffset + deltaMs,
+                    lines: snapshot.lines.map((line) => ({
                       ...line,
                       start: Math.max(0, line.start + deltaSeconds),
                       end: Math.max(0, line.end + deltaSeconds),
                     })),
-                  )
+                  }))
                 }}
                 onPlayLine={playLine}
                 onRemoveLine={removeLine}
                 onMergeLine={mergeLineWithNext}
                 onSetPointFromPlayer={setPointFromPlayer}
                 onUpdateLine={updateLine}
+                onEditEnd={breakGroup}
               />
             </MediaWaveformErrorBoundary>
           }
