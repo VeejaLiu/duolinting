@@ -7,12 +7,13 @@ import re
 import subprocess
 import sys
 import tempfile
-import textwrap
-from dataclasses import dataclass
+import unicodedata
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
 from .models import Course, RenderLine, TranscriptLine
+from .theme import VideoTheme
 
 ProgressCallback = Callable[[float], None]
 
@@ -25,15 +26,21 @@ class RenderError(RuntimeError):
 class RenderOptions:
     """Stable output settings shared by every locally generated course video."""
 
-    width: int = 1080
-    height: int = 1440
-    media_height: int = 608
-    # Leave enough room for a prominent promotional brand panel above the media.
-    header_height: int = 220
+    theme: VideoTheme = field(default_factory=VideoTheme)
     fps: int = 30
     gap_seconds: float = 0.3
     locale: str = "zh-CN"
     font_name: str = "PingFang SC"
+    # One-based valid sentence index; None renders the complete course.
+    preview_line: int | None = None
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.gap_seconds < 60:
+            raise RenderError("句间隔必须在 0 到 60 秒之间")
+        if self.fps < 1:
+            raise RenderError("帧率必须为正数")
+        if not self.font_name.strip() or any(c in self.font_name for c in ",\r\n"):
+            raise RenderError("字体名称不能为空或包含逗号/换行")
 
 
 @dataclass(frozen=True)
@@ -190,13 +197,108 @@ def _ass_escape(value: str) -> str:
     )
 
 
-def _wrap_ass_text(value: str, width: int) -> str:
-    # textwrap works for CJK too (it counts Unicode code points), while preserving
-    # existing words for English sentences.
-    chunks: list[str] = []
-    for paragraph in value.splitlines() or [value]:
-        chunks.extend(textwrap.wrap(paragraph, width=width, break_long_words=True, break_on_hyphens=False) or [""])
-    return "\\N".join(chunks)
+def _text_width(value: str, size: int) -> float:
+    # Approximate proportional Latin glyph widths instead of treating all letters
+    # as wide capitals. CJK remains one em and combining marks add no width.
+    # This is deliberately font-independent; preview remains the final check.
+    def advance(char: str) -> float:
+        if unicodedata.category(char).startswith("M"):
+            return 0
+        if unicodedata.east_asian_width(char) in {"W", "F"}:
+            return 1.05
+        if char.isspace():
+            return 0.32
+        if char in "ilI.,!':;|":
+            return 0.3
+        if char in "MW@%mw":
+            return 0.9
+        if char.isascii():
+            return 0.7 if char.isupper() else 0.58
+        return 0.7
+    return sum(advance(char) for char in value) * size
+
+
+def _wrap_text(value: str, size: int, width: int) -> list[str]:
+    rows: list[str] = []
+    for paragraph in value.splitlines() or [""]:
+        current = ""
+        # Preserve English words where possible; split oversized words/CJK at
+        # Unicode characters, keeping combining marks attached to their base.
+        for token in re.findall(r"\s+|[^\s]+", paragraph):
+            if current and _text_width(current + token, size) > width:
+                rows.append(current.rstrip())
+                current = ""
+            for char in token.lstrip() if not current else token:
+                if current and _text_width(current + char, size) > width:
+                    rows.append(current.rstrip())
+                    current = ""
+                current += char
+        rows.append(current.rstrip())
+    return rows
+
+
+def _wrap_english(value: str, size: int, width: int) -> list[str]:
+    rows: list[str] = []
+    for paragraph in value.splitlines() or [""]:
+        words = paragraph.split()
+        greedy = _wrap_text(paragraph, size, width)
+        # Keep explicit paragraphs and oversized tokens intact through the normal
+        # wrapper. Bound optimization work for exceptionally long imported text.
+        if len(words) > 80 or len(greedy) < 2 or any(_text_width(word, size) > width for word in words):
+            rows.extend(greedy)
+            continue
+        count = len(words)
+        costs = [float("inf")] * (count + 1)
+        breaks = [count] * (count + 1)
+        costs[count] = 0
+        # Minimize uneven line lengths across the whole sentence. Penalize a
+        # one-word final line and dangling articles/prepositions at line endings.
+        for start in range(count - 1, -1, -1):
+            for end in range(start + 1, count + 1):
+                line_width = _text_width(" ".join(words[start:end]), size)
+                if line_width > width:
+                    break
+                penalty = (width - line_width) ** 2
+                if end == count and end - start == 1:
+                    penalty += width ** 2 * 4
+                if end < count and words[end - 1].lower() in {"a", "an", "the", "to", "into", "of", "with"}:
+                    penalty += width ** 2 * .2
+                score = penalty + costs[end]
+                if score < costs[start]:
+                    costs[start], breaks[start] = score, end
+        start = 0
+        while start < count:
+            end = breaks[start]
+            rows.append(" ".join(words[start:end]))
+            start = end
+    return rows
+
+
+def _fit_single(value: str, size: int, width: int, minimum: int) -> tuple[str, int]:
+    value = " ".join(value.split())
+    while size > minimum and _text_width(value, size) > width:
+        size -= 1
+    if _text_width(value, size) > width:
+        while value and _text_width(value + "…", size) > width:
+            value = value[:-1]
+        value += "…"
+    return _ass_escape(value), size
+
+
+def _caption_layout(english: str, translation: str, theme: VideoTheme) -> tuple[list[str], int, list[str], int]:
+    en_size, tr_size = theme.english_size, theme.translation_size
+    available = theme.caption_bottom - theme.caption_top
+    while True:
+        en_rows = _wrap_english(english, en_size, theme.caption_width)
+        tr_rows = _wrap_text(translation, tr_size, theme.caption_width) if translation else []
+        used = (len(en_rows) * en_size + len(tr_rows) * tr_size) * theme.line_height
+        used += theme.caption_gap if tr_rows else 0
+        if used <= available:
+            return en_rows, en_size, tr_rows, tr_size
+        if en_size <= theme.min_caption_size and (not tr_rows or tr_size <= theme.min_caption_size):
+            raise RenderError("字幕过长，最小字号仍放不下；请拆分该句或增加主题字幕区域")
+        en_size = max(theme.min_caption_size, en_size - 2)
+        tr_size = max(theme.min_caption_size, tr_size - 2)
 
 
 def _translation(line: TranscriptLine, locale: str) -> str:
@@ -218,6 +320,42 @@ def _phase_text(locale: str, round_number: int) -> str:
     return values.get(locale, values["zh-CN"]).get(round_number, values["zh-CN"][1])
 
 
+def _website_urls(locale: str) -> tuple[str, str]:
+    labels = {"zh-CN": ("网页端", "移动端"), "en-US": ("Web", "Mobile"),
+              "ja-JP": ("Web版", "モバイル版"), "th-TH": ("เว็บ", "มือถือ")}
+    web_label, mobile_label = labels.get(locale, labels["zh-CN"])
+    return (f"{web_label} · https://app.duolinting.cn",
+            f"{mobile_label} · https://mobile.duolinting.cn")
+
+
+def _website_events(locale: str, x: int, y: int, width: int, size: int,
+                    height: int, duration: float, cycle_seconds: float) -> list[str]:
+    urls = _website_urls(locale)
+    result: list[str] = []
+    # Match the recorder's six-second vertical ticker: hold web to 38%, slide
+    # to mobile by 47%, hold to 88%, then slide back to web by 100%. Clip the
+    # single-row viewport so moving text cannot cross into the tagline/title.
+    segments = ((0, .38, ((0, 0, 0),)),
+                (.38, .47, ((0, 0, -1), (1, 1, 0))),
+                (.47, .88, ((1, 0, 0),)),
+                (.88, 1, ((1, 0, -1), (0, 1, 0))))
+    cycle_start = 0.0
+    while cycle_start < duration:
+        for begin, finish, entries in segments:
+            start = cycle_start + begin * cycle_seconds
+            end = min(duration, cycle_start + finish * cycle_seconds)
+            if start >= end:
+                continue
+            # Keep the full segment's speed even if the video ends mid-scroll.
+            milliseconds = round((finish - begin) * cycle_seconds * 1000)
+            for index, offset_from, offset_to in entries:
+                tags = (f"{{\\an7\\fs{size}\\clip({x},{y},{x + width},{y + height})"
+                        f"\\move({x},{y + offset_from * height},{x},{y + offset_to * height},0,{milliseconds})}}")
+                result.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Website,,0,0,0,,{tags}{_ass_escape(urls[index])}")
+        cycle_start += cycle_seconds
+    return result
+
+
 def _build_ass(
     *,
     course: Course,
@@ -228,7 +366,6 @@ def _build_ass(
 ) -> None:
     total_duration = render_lines[-1].timeline_end if render_lines else 0
     locale = options.locale
-    title = _ass_escape(course.title)
     if locale == "en-US":
         tagline = "Open-source, non-profit English learning"
     elif locale == "th-TH":
@@ -237,72 +374,95 @@ def _build_ass(
         tagline = "オープンソース・非営利の英語学習アプリ"
     else:
         tagline = "开源非盈利 · 英语学习应用"
-    website = "https://www.duolinting.cn"
+    # Size the ticker to the longer URL so both addresses remain fully visible.
+    website = max(_website_urls(locale), key=lambda text: _text_width(text, options.theme.website_size))
 
-    events = [
-        # Header elements use ASS transforms so the exported video keeps a subtle
-        # entrance animation without requiring a browser or a server-side renderer.
-        f"Dialogue: 0,{_ass_time(0)},{_ass_time(total_duration)},Header,,0,0,0,,{{\\an7\\pos(264,-5)\\fscx90\\fscy90\\fad(300,180)\\t(0,450,\\fscx100\\fscy100)}}DuolinTing",
-        f"Dialogue: 0,{_ass_time(0)},{_ass_time(total_duration)},Tagline,,0,0,0,,{{\\an7\\pos(264,64)\\fad(450,180)}}{_ass_escape(tagline)}",
-        f"Dialogue: 0,{_ass_time(0)},{_ass_time(total_duration)},Website,,0,0,0,,{{\\an7\\pos(264,116)\\fsp0.8\\fad(600,180)}}{website}",
-        f"Dialogue: 0,{_ass_time(0)},{_ass_time(total_duration)},Course,,0,0,0,,{{\\an9\\move(1120,96,1020,96,0,500)\\fad(220,180)}}{title}",
-    ]
+    theme = options.theme
+    events: list[str] = []
 
+    def event(style: str, text: str, x: int, y: int, size: int,
+              start: float = 0, end: float = total_duration, animate: bool = False, alignment: int = 8) -> None:
+        # Captions use top-center anchors; the brand block uses top-left anchors.
+        # X/Y scaling always stays equal so letter shapes cannot be distorted.
+        length_ms = max(0, int((end - start) * 1000))
+        fade_in = min(theme.fade_in_ms, length_ms // 3)
+        fade_out = min(theme.fade_out_ms, length_ms // 3)
+        motion = (f"\\move({x},{y + theme.slide_distance},{x},{y},0,{min(theme.slide_ms, length_ms)})"
+                  f"\\fscx{theme.entrance_scale}\\fscy{theme.entrance_scale}"
+                  f"\\t(0,{min(theme.slide_ms, length_ms)},\\fscx100\\fscy100)" if animate and theme.slide_ms else f"\\pos({x},{y})")
+        tags = f"{{\\an{alignment}\\fs{size}{motion}\\fad({fade_in},{fade_out})}}"
+        events.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},{style},,0,0,0,,{tags}{text}")
+
+    brand_left = theme.margin + theme.logo_size + theme.logo_gap
+    brand_width = theme.width - theme.margin - brand_left - theme.title_width - theme.section_gap
+    brand_rows = []
+    for style, value, size in (
+        ("Header", "DuolinTing", theme.brand_size),
+        ("Tagline", tagline, theme.tagline_size),
+        ("Website", website, theme.website_size),
+    ):
+        row_width = theme.width - theme.margin - brand_left if style == "Website" else brand_width
+        text, size = _fit_single(value, size, row_width, 12)
+        brand_rows.append((style, text, size))
+    # Center the compact block as a whole alongside the logo, instead of spacing
+    # three independently centered lines over the entire header.
+    brand_height = sum(size * theme.brand_line_height for _, _, size in brand_rows) + 2 * theme.brand_row_gap
+    brand_y = (theme.header_height - brand_height) / 2
+    for style, text, size in brand_rows:
+        if style == "Website":
+            events.extend(_website_events(locale, brand_left, round(brand_y),
+                                          theme.width - theme.margin - brand_left, size,
+                                          round(size * theme.brand_line_height), total_duration,
+                                          theme.url_cycle_seconds))
+        else:
+            event(style, text, brand_left, round(brand_y), size, alignment=7)
+        brand_y += size * theme.brand_line_height + theme.brand_row_gap
+
+    title, title_size = _fit_single(course.title, theme.title_size, theme.title_width, 16)
+    # Reserve a separate right-hand header column so long titles never overlap
+    # the brand. ASS an9 anchors the text to the top-right safe margin.
+    event("Course", title, theme.width - theme.margin, theme.title_top, title_size, alignment=9)
+    phase_y = theme.header_height + theme.media_height + theme.section_gap
     for render_line in render_lines:
-        start = _ass_time(render_line.timeline_start)
-        end = _ass_time(render_line.timeline_start + render_line.line.duration)
-        phase = _ass_escape(_phase_text(locale, render_line.round_number))
-        events.append(
-            f"Dialogue: 0,{start},{end},Phase,,0,0,0,,{{\\an7\\pos(70,850)\\bord2\\shad2\\fad(90,120)\\fscx92\\fscy92\\t(0,180,\\fscx100\\fscy100)}}{phase}"
-        )
+        start = render_line.timeline_start
+        end = start + render_line.line.duration
+        phase, phase_size = _fit_single(_phase_text(locale, render_line.round_number), theme.phase_size, theme.caption_width, 12)
+        event("Phase", phase, theme.width // 2, phase_y, phase_size, start, end)
         if render_line.round_number != 3:
             continue
-        # Keep the larger type inside the 1080px canvas instead of allowing long
-        # sentences to run underneath the side margins.
-        english = _wrap_ass_text(_ass_escape(render_line.line.text), 28)
-        english_line_count = english.count("\\N") + 1
-        # Keep multi-line captions in the black subtitle area below the media.
-        # Extra lines grow downward rather than pushing the first line into the video.
-        english_y = 1010 + max(0, english_line_count - 1) * 20
-        english_start_y = english_y + 40
-        events.append(
-            f"Dialogue: 0,{start},{end},English,,0,0,0,,{{\\an5\\move(540,{english_start_y},540,{english_y},0,220)\\bord4\\shad3\\fad(100,140)\\fscx92\\fscy92\\t(0,220,\\fscx100\\fscy100)}}{english}"
-        )
-        translated = _translation(render_line.line, locale)
-        if translated:
-            translation = _wrap_ass_text(_ass_escape(translated), 20)
-            translation_line_count = translation.count("\\N") + 1
-            translation_y = 1190 + max(0, english_line_count - 1) * 30 + max(0, translation_line_count - 2) * 24
-            translation_start_y = translation_y + 65
-            events.append(
-                f"Dialogue: 0,{start},{end},Translation,,0,0,0,,{{\\an5\\move(540,{translation_start_y},540,{translation_y},0,260)\\bord3\\shad2\\fad(120,160)\\fscx94\\fscy94\\t(0,260,\\fscx100\\fscy100)}}{translation}"
-            )
+        en_rows, en_size, tr_rows, tr_size = _caption_layout(render_line.line.text, _translation(render_line.line, locale), theme)
+        y = theme.caption_top
+        for style, rows, size in (("English", en_rows, en_size), ("Translation", tr_rows, tr_size)):
+            for row in rows:
+                event(style, _ass_escape(row), theme.width // 2, round(y), size, start, end, True)
+                y += size * theme.line_height
+            y += theme.caption_gap
 
-    content = "\n".join(
-        [
-            "[Script Info]",
-            "ScriptType: v4.00+",
-            "PlayResX: 1080",
-            "PlayResY: 1440",
-            "WrapStyle: 2",
-            "ScaledBorderAndShadow: yes",
-            "",
-            "[V4+ Styles]",
-            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-            f"Style: Header,{options.font_name},62,&H00FFFFFF,&H00FFFFFF,&H00101010,&H99000000,-1,0,0,0,100,100,0,0,1,2,1,7,40,40,20,1",
-            f"Style: Tagline,{options.font_name},36,&H00BFEAFF,&H00BFEAFF,&H00101010,&H99000000,-1,0,0,0,100,100,0,0,1,2,1,7,40,40,20,1",
-            f"Style: Website,{options.font_name},62,&H00FFD39A,&H00FFD39A,&H00101010,&H99000000,0,0,0,0,100,100,0,0,1,1,1,7,40,40,20,1",
-            f"Style: Course,{options.font_name},34,&H00FFFFFF,&H00FFFFFF,&H00101010,&H99000000,-1,0,0,0,100,100,0,0,1,2,1,9,40,40,20,1",
-            f"Style: Phase,{options.font_name},29,&H00A9E4FF,&H00A9E4FF,&H00303030,&H66000000,-1,0,0,0,100,100,0,0,1,2,2,7,40,40,20,1",
-            f"Style: English,{options.font_name},80,&H00FFFFFF,&H00FFFFFF,&H00000000,&H66000000,-1,0,0,0,100,100,0,0,1,4,3,5,60,60,20,1",
-            f"Style: Translation,{options.font_name},56,&H00E8E8E8,&H00E8E8E8,&H00000000,&H66000000,-1,0,0,0,100,100,0,0,1,3,2,5,60,60,20,1",
-            "",
-            "[Events]",
-            "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
-            *events,
-            "",
-        ]
-    )
+    def color(value: str) -> str:
+        # ASS colors are AABBGGRR; theme files use familiar RGB notation.
+        return "&H00" + value[5:7] + value[3:5] + value[1:3]
+
+    styles = []
+    for name, foreground in (("Header", theme.foreground), ("Tagline", theme.muted_color),
+                             ("Website", theme.accent), ("Course", theme.foreground),
+                             ("Phase", theme.accent), ("English", theme.foreground),
+                             ("Translation", theme.translation_color)):
+        # Brand text sits on a solid panel: removing caption outlines/shadows
+        # keeps small lettering crisp. Only the brand name needs bold weight.
+        is_brand = name in {"Header", "Tagline", "Website", "Course"}
+        outline = 0 if is_brand else theme.outline
+        shadow = 0 if is_brand else theme.shadow
+        bold = 0 if name in {"Tagline", "Website"} else -1
+        styles.append(f"Style: {name},{options.font_name},40,{color(foreground)},{color(foreground)},{color(theme.outline_color)},&H66000000,{bold},0,0,0,100,100,0,0,1,{outline},{shadow},8,0,0,0,1")
+    content = "\n".join([
+        "[Script Info]", "ScriptType: v4.00+",
+        f"PlayResX: {theme.width}", f"PlayResY: {theme.height}",
+        "WrapStyle: 2", "ScaledBorderAndShadow: yes", "", "[V4+ Styles]",
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+        *styles, "", "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+        *events, "",
+    ])
     path.write_text(content, encoding="utf-8")
 
 
@@ -324,6 +484,7 @@ def _build_filter_graph(
     ass_path: Path,
     has_logo: bool,
 ) -> tuple[str, list[RenderLine]]:
+    theme = options.theme
     render_lines: list[RenderLine] = []
     cursor = 0.0
     for line in lines:
@@ -345,7 +506,9 @@ def _build_filter_graph(
     audio_labels: list[str] = []
     if media.has_video:
         source_labels = "".join(f"[vsrc{i}]" for i in range(segment_count))
-        parts.append(f"[0:v]split={segment_count}{source_labels}")
+        # Respect anamorphic source display aspect BEFORE discarding its SAR.
+        # Otherwise all later overlays inherit stretched pixels from the source.
+        parts.append(f"[0:v]scale=w='max(2,round(iw*if(gt(sar,0),sar,1)/2)*2)':h=ih,setsar=1,split={segment_count}{source_labels}")
     if media.has_audio:
         source_labels = "".join(f"[asrc{i}]" for i in range(segment_count))
         parts.append(f"[0:a]asplit={segment_count}{source_labels}")
@@ -358,16 +521,16 @@ def _build_filter_graph(
             parts.extend(
                 [
                     f"[vsrc{index}]trim=start={start}:end={end},setpts=PTS-STARTPTS,fps={options.fps},split=2[vfg{index}][vbg{index}]",
-                    f"[vbg{index}]scale={options.width}:{options.media_height}:force_original_aspect_ratio=increase,crop={options.width}:{options.media_height},boxblur=20:2[blur{index}]",
-                    f"[vfg{index}]scale={options.width}:{options.media_height}:force_original_aspect_ratio=decrease[fit{index}]",
+                    f"[vbg{index}]scale={theme.width}:{theme.media_height}:force_original_aspect_ratio=increase,crop={theme.width}:{theme.media_height},setsar=1,boxblur={theme.blur_radius}:2[blur{index}]",
+                    f"[vfg{index}]scale={theme.width}:{theme.media_height}:force_original_aspect_ratio=decrease,setsar=1[fit{index}]",
                     f"[blur{index}][fit{index}]overlay=(W-w)/2:(H-h)/2:shortest=1[media{index}]",
-                    f"[media{index}]pad={options.width}:{options.height}:0:{options.header_height}:color=#050505,tpad=stop_mode=clone:stop_duration={_decimal(options.gap_seconds)}[v{index}]",
+                    f"[media{index}]pad={theme.width}:{theme.height}:0:{theme.header_height}:color={theme.background},tpad=stop_mode=clone:stop_duration={_decimal(options.gap_seconds)}[v{index}]",
                 ]
             )
         else:
             parts.append(
-                f"color=c=#102c42:s={options.width}x{options.media_height}:r={options.fps}:d={_decimal(render_line.line.duration)},"
-                f"pad={options.width}:{options.height}:0:{options.header_height}:color=#050505,tpad=stop_mode=clone:stop_duration={_decimal(options.gap_seconds)}[v{index}]"
+                f"color=c={theme.audio_background}:s={theme.width}x{theme.media_height}:r={options.fps}:d={_decimal(render_line.line.duration)},"
+                f"pad={theme.width}:{theme.height}:0:{theme.header_height}:color={theme.background},tpad=stop_mode=clone:stop_duration={_decimal(options.gap_seconds)}[v{index}]"
             )
         video_labels.append(f"[v{index}]")
 
@@ -387,31 +550,31 @@ def _build_filter_graph(
     parts.append(
         f"{concat_inputs}concat=n={segment_count}:v=1:a=1[concatv][concata]"
     )
-    video_input = "[concatv]"
+    parts.append(f"[concatv]drawbox=x=0:y=0:w=iw:h={theme.header_height}:color={theme.header_background}:t=fill[headerpanel]")
+    video_input = "[headerpanel]"
     if has_logo:
-        parts.append(
-            f"color=c=#263f4d@0.72:s=208x208:r={options.fps},format=rgba,"
-            "geq=r='38':g='63':b='77':"
-            "a='if(lt(X,26)*lt(Y,26)*gt(hypot(26-X,26-Y),26)+"
-            "gt(X,W-26)*lt(Y,26)*gt(hypot(X-(W-26),26-Y),26)+"
-            "lt(X,26)*gt(Y,H-26)*gt(hypot(26-X,Y-(H-26)),26)+"
-            "gt(X,W-26)*gt(Y,H-26)*gt(hypot(X-(W-26),Y-(H-26)),26),0,184)'[logoshadow];"
-            "[concatv][logoshadow]overlay=x=24:y=14:shortest=1[shadowed];"
-            f"color=c=white@1:s=200x200:r={options.fps},format=rgba,"
-            "geq=r='255':g='255':b='255':"
-            "a='if(lt(X,30)*lt(Y,30)*gt(hypot(30-X,30-Y),30)+"
-            "gt(X,W-30)*lt(Y,30)*gt(hypot(X-(W-30),30-Y),30)+"
-            "lt(X,30)*gt(Y,H-30)*gt(hypot(30-X,Y-(H-30)),30)+"
-            "gt(X,W-30)*gt(Y,H-30)*gt(hypot(X-(W-30),Y-(H-30)),30),0,255)'[logobg];"
-            "[shadowed][logobg]overlay=x=28:y=10:shortest=1[carded];"
-            "[carded]drawbox=x=244:y=10:w=3:h=200:color=#7dd8f0@0.86:t=fill,"
-            "drawbox=x=0:y=218:w=1080:h=2:color=#7dd8f0@0.28:t=fill[headerback];"
-            "[1:v]scale=158:158:force_original_aspect_ratio=decrease[logo];"
-            "[headerback][logo]overlay=x=49:y=31:shortest=1[branded]"
-        )
+        size = theme.logo_size
+        radius = theme.logo_radius
+        x, y = theme.margin, (theme.header_height - size) // 2
+
+        def rounded_card(label: str, fill: str, opacity: float) -> str:
+            red, green, blue = (int(fill[i:i + 2], 16) for i in (1, 3, 5))
+            # Clamp to the inner rectangle and measure distance to create rounded
+            # corners. Alpha is an 8-bit opacity, independent of the RGB color.
+            alpha = f"if(lte(hypot(X-clip(X,{radius},W-1-{radius}),Y-clip(Y,{radius},H-1-{radius})),{radius}),{round(opacity * 255)},0)"
+            return (f"color=c={fill}:s={size}x{size}:r={options.fps},format=rgba,"
+                    f"geq=r='{red}':g='{green}':b='{blue}':a='{alpha}'[{label}]")
+
+        parts.append(rounded_card("logoshadow", theme.logo_shadow, theme.logo_shadow_opacity))
+        parts.append(f"[headerpanel][logoshadow]overlay=x={x + theme.logo_shadow_offset}:y={y + theme.logo_shadow_offset}:shortest=1[shadowed]")
+        parts.append(rounded_card("logobg", theme.logo_background, 1))
+        parts.append(f"[shadowed][logobg]overlay=x={x}:y={y}:shortest=1[carded]")
+        inner = size - 2 * theme.logo_padding
+        parts.append(f"[1:v]scale=w='max(2,round(iw*if(gt(sar,0),sar,1)/2)*2)':h=ih,setsar=1,scale={inner}:{inner}:force_original_aspect_ratio=decrease,setsar=1[logo]")
+        parts.append(f"[carded][logo]overlay=x='{x}+({size}-w)/2':y='{y}+({size}-h)/2':shortest=1[branded]")
         video_input = "[branded]"
     # ASS is applied after concat, so subtitle times follow the generated three-pass timeline.
-    parts.append(f"{video_input}subtitles=filename='{_filter_value(ass_path.as_posix())}'[outv]")
+    parts.append(f"{video_input}setsar=1,subtitles=filename='{_filter_value(ass_path.as_posix())}',setsar=1[outv]")
     return ";".join(parts), render_lines
 
 
@@ -454,6 +617,7 @@ def _run_ffmpeg(
                         continue
                     if on_progress:
                         on_progress(min(99.9, max(0.0, current_seconds / max(duration, 0.001) * 100)))
+                process.stdout.close()
                 return_code = process.wait()
         except FileNotFoundError as error:
             raise RenderError(
@@ -495,6 +659,10 @@ def render_course(
         raise RenderError(f"Logo 文件不存在：{logo_path}")
 
     lines = load_renderable_lines(dltjson)
+    if options.preview_line is not None:
+        if not 1 <= options.preview_line <= len(lines):
+            raise RenderError(f"预览句号必须在 1 到 {len(lines)} 之间")
+        lines = [lines[options.preview_line - 1]]
     ensure_subtitle_filter()
     media = probe_media(media_path)
     total_duration = sum(line.duration + options.gap_seconds for line in lines) * 3

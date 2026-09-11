@@ -18,6 +18,7 @@ from .media import (
 )
 from .models import Course
 from .render import RenderError, RenderOptions, render_course
+from .theme import load_theme
 
 
 def _load_dotenv(path: Path) -> None:
@@ -417,6 +418,8 @@ def _render_options(args: argparse.Namespace) -> RenderOptions:
         locale=args.locale,
         font_name=args.font_name,
         gap_seconds=args.gap_seconds,
+        theme=load_theme(Path(args.theme).expanduser() if args.theme else None),
+        preview_line=getattr(args, "preview_line", None),
     )
 
 
@@ -463,7 +466,7 @@ def _command_render(args: argparse.Namespace) -> int:
     output_path = (
         Path(args.output).expanduser().resolve()
         if args.output
-        else Path(args.output_dir).expanduser().resolve() / f"{course.id}-{_safe_name(course.title)}.mp4"
+        else Path(args.output_dir).expanduser().resolve() / f"{course.id}-{_safe_name(course.title)}{'-preview-' + str(args.preview_line) if args.preview_line else ''}.mp4"
     )
     _render_one(args=args, course=course, dltjson=dltjson, catalog=catalog, output_path=output_path)
     print(f"Generated {output_path}")
@@ -571,7 +574,9 @@ def _interactive(*, reset_config: bool = False) -> int:
         if replace not in {"y", "yes"}:
             raise RenderError("已取消，未覆盖原有视频。")
 
-    options = RenderOptions(locale=locale, font_name=_default_font_name())
+    theme_path = os.environ.get("DUOLINTING_VIDEO_THEME", "").strip()
+    options = RenderOptions(locale=locale, font_name=_default_font_name(),
+                            theme=load_theme(Path(theme_path).expanduser() if theme_path else None))
     last_reported = -1
 
     def report(value: float) -> None:
@@ -626,6 +631,7 @@ def _parser() -> argparse.ArgumentParser:
         command.add_argument("--media-dir", default=_default_storage_path("DUOLINTING_VIDEO_MEDIA_DIR", "media"))
         command.add_argument("--manifest", default=str(_project_directory() / "media-manifest.json"))
         command.add_argument("--locale", choices=("en-US", "zh-CN", "th-TH", "ja-JP"), default="zh-CN")
+        command.add_argument("--theme", default=os.environ.get("DUOLINTING_VIDEO_THEME", ""), help="Local TOML theme file")
         command.add_argument("--font-name", default=_default_font_name())
         command.add_argument("--gap-seconds", type=float, default=0.3)
         command.add_argument("--logo", help="Optional local logo PNG, for example ../admin/public/duolinting-logo-ear.png")
@@ -633,6 +639,7 @@ def _parser() -> argparse.ArgumentParser:
 
     render = subparsers.add_parser("render", help="Render one cached course locally")
     render.add_argument("--course-id", type=int, required=True)
+    render.add_argument("--preview-line", type=int, help="Render only this valid sentence (1-based), including all three passes")
     render.add_argument("--output", help="Exact output MP4 path")
     add_render_arguments(render)
     render.set_defaults(handler=_command_render)
@@ -657,7 +664,7 @@ def main() -> None:
     except KeyboardInterrupt:
         print("\n已取消。", file=sys.stderr)
         exit_code = 130
-    except (OpenContentApiError, RenderError, ValueError) as error:
+    except (OpenContentApiError, RenderError, ValueError, OSError) as error:
         print(f"Error: {error}", file=sys.stderr)
         exit_code = 1
     raise SystemExit(exit_code)

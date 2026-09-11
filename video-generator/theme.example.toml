@@ -1,0 +1,81 @@
+# DuolinTing 视频主题；可复制后用 --theme 指定。未填写的字段沿用默认值。
+
+# 画布宽高：正方形像素，必须为偶数。改变画幅时同时检查媒体与字幕可用高度。
+width = 1080
+height = 1440
+
+# 品牌区高度、媒体高度、左右安全边距。标题在右上角，阶段/字幕在媒体下方。
+header_height = 168
+media_height = 608
+margin = 48
+
+# 颜色统一用 #RRGGBB，不需要手写 ASS 颜色格式。
+background = "#050505"
+audio_background = "#102c42"
+accent = "#9ad3ff"
+foreground = "#ffffff"
+translation_color = "#e8e8e8"
+outline_color = "#000000"
+
+# Logo 底板边长、内边距、圆角半径，单位像素。图片始终等比缩放并居中。
+logo_size = 112
+logo_padding = 12
+logo_radius = 24
+logo_background = "#ffffff"
+logo_shadow = "#263f4d"
+
+# 阴影透明度 0–1；偏移量单位像素。
+logo_shadow_opacity = 0.72
+logo_shadow_offset = 0
+
+# 各类文字首选字号，单位像素。品牌和标题过长会缩小，仍放不下时省略。
+brand_size = 44
+tagline_size = 26
+website_size = 24
+title_size = 30
+phase_size = 29
+english_size = 72
+translation_size = 44
+
+# 字幕缩小下限；仍放不下就明确报错，不截掉学习内容。
+min_caption_size = 24
+
+# 文字描边和阴影，单位像素。
+outline = 3
+shadow = 2
+
+# 行高倍数。当前按 Unicode 字符估算宽度，不是字体引擎精确测量；建议预览长句。
+line_height = 1.2
+
+# 英文与译文间距、区域间距，单位像素。
+caption_gap = 18
+section_gap = 20
+
+# 视频留白模糊半径，单位像素。
+blur_radius = 20
+
+# 动画时长单位毫秒；slide_distance 单位像素；entrance_scale 为等比缩放百分比。
+fade_in_ms = 120
+fade_out_ms = 140
+slide_ms = 240
+slide_distance = 32
+entrance_scale = 94
+
+# 品牌栏独立底色、辅助文字颜色；品牌行高为倍数，行距与 Logo 间距为像素。
+header_background = "#111c27"
+
+muted_color = "#b6c2ce"
+
+brand_line_height = 1.1
+
+brand_row_gap = 6
+
+logo_gap = 24
+
+# 标题占安全区宽度的比例；顶部位置为像素。过长的标题缩小并省略，避免覆盖品牌。
+title_width_ratio = 0.38
+
+title_top = 28
+
+# 网页端/移动端网址上下轮播的完整周期，单位秒，沿用录制工作台的默认节奏。
+url_cycle_seconds = 6.0
