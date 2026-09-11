@@ -40,6 +40,7 @@ import {
   logMediaDiagnostic,
   observeMediaElement,
 } from '../../lib/mediaDiagnostics'
+import { getSubtitleLaneLayout } from '../../lib/subtitleLanes'
 import { SubtitleList } from './SubtitleList'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
@@ -138,18 +139,17 @@ const INACTIVE_REGION_COLOR = 'rgba(96, 165, 250, 0.68)'
 // 时间对比容差（秒）：start/end 用毫秒级浮点存储，diff 时允许微小误差。
 const REGION_TIME_EPSILON = 0.0005
 
-// WaveSurfer 会根据声道给区域写入内联 top/height；制课工作台只需要一条字幕轨，
-// 因此每次区域创建或同步时都强制放到波形下半区，避免区域随声道数量发生纵向下溢。
-const applyRegionLaneLayout = (region: { element: HTMLElement | null }) => {
+// 上半区保留波形，下半区按重叠情况分轨。内联布局覆盖 WaveSurfer 的声道布局，
+// 每条轨道留 3px 间隔；字幕多时通过容器滚动保持手柄可点击，不压成细线。
+const applyRegionLaneLayout = (region: { element: HTMLElement | null }, lane = 0, count = 1) => {
   const element = region.element
   if (!element) return
-
   element.style.setProperty('bottom', 'auto', 'important')
-  element.style.setProperty('height', '50%', 'important')
-  element.style.setProperty('max-height', '50%', 'important')
+  element.style.setProperty('height', `calc(${50 / count}% - 3px)`, 'important')
+  element.style.setProperty('max-height', 'none', 'important')
   element.style.setProperty('min-height', '0', 'important')
   element.style.setProperty('overflow', 'hidden', 'important')
-  element.style.setProperty('top', '50%', 'important')
+  element.style.setProperty('top', `${50 + lane * 50 / count}%`, 'important')
 }
 const ZOOM_STEP = 0.5
 const getPixelsPerSecond = (zoom: number) =>
@@ -229,6 +229,8 @@ export function MediaWaveform({
   }>>({})
   const [currentTime, setCurrentTime] = useState(0)
   const [zoom, setZoom] = useState(1)
+  const [laneCount, setLaneCount] = useState(1)
+  const [finishedDrag, setFinishedDrag] = useState(0)
   const [isBatchTimingOpen, setIsBatchTimingOpen] = useState(false)
   // 等待媒体完全加载后再解析波形
   const [isMediaReady, setIsMediaReady] = useState(false)
@@ -774,6 +776,9 @@ export function MediaWaveform({
           }
           isDraggingRegionRef.current = false
           onEditEndRef.current?.()
+          // 历史会忽略拖动结束的重复值；仍需强制完成布局同步，避免最后一帧
+          // 已渲染时 effect 因字幕引用未变而跳过分轨、区域标签和排序更新。
+          setFinishedDrag((value) => value + 1)
         }),
         regions.on('region-removed', (region) => {
           delete regionByIdRef.current[region.id]
@@ -849,6 +854,8 @@ export function MediaWaveform({
       return
     }
 
+    const layout = getSubtitleLaneLayout(draftLines, duration)
+    setLaneCount(layout.count)
     isSyncingRegionsRef.current = true
     const nextIds = new Set(draftLines.map((line) => line.id))
     let addedRegionCount = 0
@@ -891,7 +898,7 @@ export function MediaWaveform({
           resizeStart: true,
           start,
         })
-        applyRegionLaneLayout(nextRegion)
+        applyRegionLaneLayout(nextRegion, layout.lanes.get(line.id), layout.count)
         regionByIdRef.current[line.id] = nextRegion
         regionPropsRef.current[line.id] = { color, end, index, start, text: line.text }
         addedRegionCount += 1
@@ -910,6 +917,8 @@ export function MediaWaveform({
         Math.abs(previousProps.end - end) >= REGION_TIME_EPSILON
       const indexChanged = !previousProps || previousProps.index !== index
 
+      // 即使本句时间没改，相邻句的调整也可能改变它的轨道；布局独立于内容 diff。
+      applyRegionLaneLayout(region, layout.lanes.get(line.id), layout.count)
       if (!textChanged && !timingChanged && !indexChanged) {
         return
       }
@@ -920,7 +929,7 @@ export function MediaWaveform({
         end,
         start,
       })
-      applyRegionLaneLayout(region)
+      applyRegionLaneLayout(region, layout.lanes.get(line.id), layout.count)
       regionPropsRef.current[line.id] = { color, end, index, start, text: line.text }
       updatedRegionCount += 1
     })
@@ -939,7 +948,7 @@ export function MediaWaveform({
     }
 
     isSyncingRegionsRef.current = false
-  }, [activeLineIndex, draftLines, duration, mediaRef, t, waveform.status])
+  }, [activeLineIndex, draftLines, duration, finishedDrag, mediaRef, t, waveform.status])
 
   // 选中字幕时，若该行起点不在当前可视范围内，把波形滚动到该行（补偿 autoScroll 关闭后
   // 试听/跳转时光标可能跑到视野外）。仅在越界时滚动一次，不再依赖 renderProgress 逐帧滚动。
@@ -1132,7 +1141,11 @@ export function MediaWaveform({
           <div
             className={waveform.status === 'ready' ? 'wavesurfer-shell ready' : 'wavesurfer-shell'}
           >
-            <div ref={waveformContainerRef} className="wavesurfer-view" />
+            <div
+              ref={waveformContainerRef}
+              className="wavesurfer-view"
+              style={{ minHeight: Math.max(112, laneCount * 72) }}
+            />
           </div>
           {waveform.status === 'error' ? (
             <div className={`waveform-placeholder ${waveform.status}`}>

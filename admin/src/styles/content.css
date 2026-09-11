@@ -2299,12 +2299,11 @@
     0 1px 4px rgba(30, 64, 175, 0.18);
   box-sizing: border-box !important;
   bottom: auto !important;
-  height: 50% !important;
-  max-height: 50% !important;
+
   min-width: 0;
   min-height: 0 !important;
   overflow: hidden;
-  top: 50% !important;
+
 }
 
 .wavesurfer-view ::part(region-content) {
@@ -3347,4 +3346,17 @@
 
 .subtitle-history-list .ant-btn {
   justify-content: flex-start;
+}
+
+/* 重叠字幕自动分轨；轨道增多时纵向滚动，保持每轨至少 33px 的操作高度。 */
+.wavesurfer-shell.ready {
+  overflow-y: auto;
+}
+
+.wavesurfer-view {
+  flex-shrink: 0;
+}
+
+.wavesurfer-view ::part(region):hover {
+  border-color: #1cb0f6;
 }
