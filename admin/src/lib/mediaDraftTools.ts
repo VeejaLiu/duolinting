@@ -184,7 +184,14 @@ export const cleanEnglishAnswerText = (value: string) =>
     .replace(/\s+([,.;:!?)\]%}\]>])/g, '$1')
     .replace(/([,;!?])([A-Za-z0-9"'([])/g, '$1 $2')
     .replace(/:([A-Za-z"'([])/g, ': $1')
-    .replace(/([.])([A-Za-z"'([])/g, '$1 $2')
+    .replace(/([.])([A-Za-z"'([])/g, (match, _period, next: string, offset: number, text: string) => {
+      // 称谓缩写的点不作为句末标点处理：保留 Mr.Dinosaur / Mrs.Pig 等原始写法。
+      // 仅匹配完整称谓（忽略大小写），避免把单词末尾恰好含 mr 等字母也误判为缩写。
+      // 已有空格的 Mr. Dinosaur 不会匹配此规则，同样保持原样。
+      const isTitle = /(?:^|[^A-Za-z])(?:Mr|Mrs|Ms|Mx|Dr|Prof|Sr|Jr|Mme|Mlle)\.$/i
+        .test(text.slice(0, offset + 1))
+      return isTitle && /^[A-Za-z]$/.test(next) ? match : `. ${next}`
+    })
 
 export const formatDurationLabel = (seconds: number) => {
   const safeSeconds = Number.isFinite(seconds) ? Math.max(seconds, 0) : 0

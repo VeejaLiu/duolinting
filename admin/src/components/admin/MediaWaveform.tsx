@@ -140,7 +140,7 @@ const INACTIVE_REGION_COLOR = 'rgba(96, 165, 250, 0.68)'
 const REGION_TIME_EPSILON = 0.0005
 
 // 上半区保留波形，下半区按重叠情况分轨。内联布局覆盖 WaveSurfer 的声道布局，
-// 每条轨道留 3px 间隔；字幕多时通过容器滚动保持手柄可点击，不压成细线。
+// 每条轨道留 3px 间隔，轨道高度随编辑区一起缩放。
 const applyRegionLaneLayout = (region: { element: HTMLElement | null }, lane = 0, count = 1) => {
   const element = region.element
   if (!element) return
@@ -229,7 +229,6 @@ export function MediaWaveform({
   }>>({})
   const [currentTime, setCurrentTime] = useState(0)
   const [zoom, setZoom] = useState(1)
-  const [laneCount, setLaneCount] = useState(1)
   const [finishedDrag, setFinishedDrag] = useState(0)
   const [isBatchTimingOpen, setIsBatchTimingOpen] = useState(false)
   // 等待媒体完全加载后再解析波形
@@ -408,8 +407,9 @@ export function MediaWaveform({
         cursorWidth: 2,
         dragToSeek: false,
         fillParent: true,
-        // 使用容器实际高度，让 WaveSurfer 的区域百分比始终相对于当前波形高度计算。
-        height: 'auto',
+        // 使用明确像素高度，后续由外层容器的 ResizeObserver 同步。
+        // 不使用 auto：内部旧 canvas 的高度可能干扰回缩时的测量。
+        height: Math.max(1, waveformContainer.clientHeight),
         hideScrollbar: false,
         interact: true,
         minPxPerSec: getPixelsPerSecond(zoomRef.current),
@@ -849,13 +849,38 @@ export function MediaWaveform({
   }, [waveform.status, zoom])
 
   useEffect(() => {
+    const container = waveformContainerRef.current
+    const wavesurfer = waveSurferRef.current
+    if (!container || !wavesurfer || waveform.status !== 'ready') return
+    let frame = 0
+    let previousHeight = 0
+    const syncHeight = () => {
+      // 仅测量布局已约束的外层高度，不测 canvas 或 scrollHeight。
+      // 放大和缩小走同一路径；隐藏时不写入 0，相同尺寸不重复触发解码/重绘。
+      const height = container.clientHeight
+      if (height <= 0 || height === previousHeight) return
+      previousHeight = height
+      wavesurfer.setOptions({ height })
+    }
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(syncHeight)
+    })
+    observer.observe(container)
+    syncHeight()
+    return () => {
+      observer.disconnect()
+      cancelAnimationFrame(frame)
+    }
+  }, [waveform.status])
+
+  useEffect(() => {
     const regions = regionsRef.current
     if (!regions || waveform.status !== 'ready' || isDraggingRegionRef.current) {
       return
     }
 
     const layout = getSubtitleLaneLayout(draftLines, duration)
-    setLaneCount(layout.count)
     isSyncingRegionsRef.current = true
     const nextIds = new Set(draftLines.map((line) => line.id))
     let addedRegionCount = 0
@@ -1144,7 +1169,6 @@ export function MediaWaveform({
             <div
               ref={waveformContainerRef}
               className="wavesurfer-view"
-              style={{ minHeight: Math.max(112, laneCount * 72) }}
             />
           </div>
           {waveform.status === 'error' ? (

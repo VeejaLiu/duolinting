@@ -2230,6 +2230,9 @@
 }
 
 .wavesurfer-shell {
+  /* 脱离内容尺寸计算：画布重绘和滚动条不能改变可视区的 flex 基准高度。 */
+  position: absolute;
+  inset: 0;
   display: none;
   flex-direction: column;
   height: 100%;
@@ -2242,9 +2245,10 @@
 }
 
 .wavesurfer-view {
-  flex: 1 1 auto;
-  height: auto;
-  min-height: 112px;
+  flex: 0 0 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   min-width: 0;
 }
 
@@ -3346,15 +3350,6 @@
 
 .subtitle-history-list .ant-btn {
   justify-content: flex-start;
-}
-
-/* 重叠字幕自动分轨；轨道增多时纵向滚动，保持每轨至少 33px 的操作高度。 */
-.wavesurfer-shell.ready {
-  overflow-y: auto;
-}
-
-.wavesurfer-view {
-  flex-shrink: 0;
 }
 
 .wavesurfer-view ::part(region):hover {
