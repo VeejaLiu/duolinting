@@ -33,3 +33,4 @@ deployment-runbook.local.md
 # Local Expo build metadata and signed store artifacts stay on the developer machine.
 /app.json
 /mobile-app/temp/
+output/brand/duolinting-avatar-circle-safe.png
