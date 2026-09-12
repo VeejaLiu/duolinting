@@ -46,6 +46,28 @@ export const createEmptyDraftLine = (index = 0): DraftLine => ({
 })
 
 /**
+ * API 工作稿/导入文件可能只保存 translations，省略旧版 translation 和空数组。
+ * 在进入编辑器时补齐字段；中文以 translations 为准，同时兼容只有旧版译文的稿件。
+ * 时间轴按原值转为数字，不在这里取整，以免改变句子播放范围。
+ */
+export const toDraftLine = (
+  line: Partial<DraftLine> & { keywords?: string[] },
+  index = 0,
+): DraftLine => {
+  const translation = line.translations?.['zh-CN'] ?? line.translation ?? ''
+  return {
+    id: line.id || `l${index + 1}`,
+    start: Number(line.start ?? 0),
+    end: Number(line.end ?? 5),
+    text: line.text ?? '',
+    translation,
+    translations: { ...line.translations, ...(translation ? { 'zh-CN': translation } : {}) },
+    answers: line.answers ?? [],
+    keywordsText: line.keywordsText ?? (line.keywords ?? []).join(', '),
+  }
+}
+
+/**
  * 按字幕开始时间稳定排序。相同开始时间保持原有相对顺序；内部 id 跟随字幕内容移动，
  * 不按新序号改写，避免波形 Region、译文和既有学习记录错误绑定到另一条字幕。
  * 界面序号始终由排序后的数组位置生成，因此会重新连续显示为 1..n。
@@ -86,7 +108,10 @@ const mergeUniqueOrdered = (first: string[], second: string[]) => {
 // 原文（en-US）用单个空格连接后统一清理空白；translations 按语言分别合并（分位规则见上）；
 // legacy translation 镜像 zh-CN 的合并规则；answers 与 keywords（逗号分隔文本）取并集去重。
 // 返回值保留 first 的 id，调用方负责从列表中移除 second。
-export const mergeDraftLines = (first: DraftLine, second: DraftLine): DraftLine => {
+export const mergeDraftLines = (firstInput: DraftLine, secondInput: DraftLine): DraftLine => {
+  // 兼容载入前已存在的旧编辑快照；不能让缺失的旧版译文在历史 reducer 中抛错并卸载页面。
+  const first = toDraftLine(firstInput)
+  const second = toDraftLine(secondInput)
   const translationLocales = new Set([
     ...Object.keys(first.translations ?? {}),
     ...Object.keys(second.translations ?? {}),
@@ -556,7 +581,8 @@ export const parseSubtitleDraft = (
 export const toTranscriptLines = (
   draftLines: DraftLine[],
 ): CreateTranscriptLineRequest[] =>
-  draftLines.map((line, index) => ({
+  // 保存/提交也独立规范化，兼容尚未重新载入的编辑快照，避免缺译文时在请求前抛错。
+  draftLines.map(toDraftLine).map((line, index) => ({
     id: line.id || `l${index + 1}`,
     start: Number(line.start),
     end: Number(line.end),

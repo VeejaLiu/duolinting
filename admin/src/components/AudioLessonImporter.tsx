@@ -36,6 +36,7 @@ import {
   type SubtitleDraftAnalysis,
   type SubtitleImportMode,
   toTranscriptLines,
+  toDraftLine,
   type DraftLine,
 } from '../lib/mediaDraftTools'
 
@@ -479,16 +480,7 @@ export function AudioLessonImporter({
       : exercise.lines
     const nextDraftLines =
       editableLines.length > 0
-        ? editableLines.map((line, index) => ({
-            id: line.id || `l${index + 1}`,
-            start: Number(line.start),
-            end: Number(line.end),
-            text: line.text,
-            translation: line.translation,
-            translations: line.translations ?? (line.translation ? { 'zh-CN': line.translation } : {}),
-            answers: line.answers ?? [],
-            keywordsText: line.keywords.join(', '),
-          }))
+        ? editableLines.map(toDraftLine)
         : [createEmptyDraftLine()]
     const nextCourseForm: CreateExerciseRequest = {
       id: exercise.id,
@@ -862,17 +854,7 @@ export function AudioLessonImporter({
 
   const applyImportedDltjson = (content: string) => {
     const imported = importFromDltjson(content)
-    const nextDraftLines = imported.lines.map((line, index) => ({
-      ...createEmptyDraftLine(index),
-      ...(line.id ? { id: line.id } : {}),
-      start: line.start,
-      end: line.end,
-      text: line.text,
-      translation: line.translation,
-      translations: line.translations ?? (line.translation ? { 'zh-CN': line.translation } : {}),
-      answers: line.answers ?? [],
-      keywordsText: line.keywordsText ?? (line.keywords ?? []).join(', '),
-    }))
+    const nextDraftLines = imported.lines.map(toDraftLine)
 
     editSubtitles('导入字幕', () => ({ lines: nextDraftLines, activeLineIndex: 0, batchOffset: 0 }))
     return imported.lines.length
