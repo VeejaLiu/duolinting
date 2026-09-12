@@ -433,8 +433,33 @@ export function MediaWaveform({
       let recoveryAttempts = 0
       let recoveryPending = false
       let lastRedrawAt = 0
+      let healthTimeoutId: number | undefined
+      let disposed = false
+      let canvasSequence = 0
+      const canvasIds = new WeakMap<HTMLCanvasElement, number>()
+      const canvasEvents: Record<string, unknown>[] = []
+      // 记录最近的画布生命周期，不读取像素；避免诊断本身在滚动期间造成卡顿。
+      // 将这段历史附在告警上，即使控制台早期日志被截断也能保留触发线索。
+      const recordCanvasEvent = (event: string, canvas: HTMLCanvasElement, extra = {}) => {
+        if (!canvasIds.has(canvas)) canvasIds.set(canvas, ++canvasSequence)
+        const detail = {
+          at: new Date().toISOString(), event, canvasId: canvasIds.get(canvas),
+          connected: canvas.isConnected, width: canvas.width, height: canvas.height,
+          scrollLeft: wavesurfer.getScroll(), ...extra,
+        }
+        canvasEvents.push(detail)
+        if (canvasEvents.length > 40) canvasEvents.shift()
+        logMediaDebug('waveform-canvas-lifecycle', detail)
+      }
+      const scheduleHealth = (reason: string, delay = 350) => {
+        window.clearTimeout(healthTimeoutId)
+        healthTimeoutId = window.setTimeout(() => {
+          if (!disposed) captureWaveformHealth(reason)
+        }, delay)
+      }
 
       const captureWaveformHealth = (reason: string) => {
+        if (disposed) return
         const dom = getWaveformDomSnapshot(waveformContainer)
         const currentActiveLineIndex = activeLineIndexRef.current
         const currentActiveLine = draftLinesRef.current[currentActiveLineIndex]
@@ -474,6 +499,10 @@ export function MediaWaveform({
           suspectedBlank,
           confirmedBlank,
           recoveryAttempts,
+          blankCheckCount,
+          canCheck,
+          redrawAgeMs: lastRedrawAt ? Date.now() - lastRedrawAt : null,
+          canvasEvents: [...canvasEvents],
           waveformDom: dom,
           waveformMedia: getMediaSnapshot(waveformMedia),
           waveformStatus: waveformStatusRef.current,
@@ -485,9 +514,12 @@ export function MediaWaveform({
         } else {
           logMediaDebug('waveform-health', details)
         }
-        if (!reason.startsWith('interval-')) return
         if (!canCheck) {
-          blankCheckCount = 0
+          // 切走页面不丢弃已发现的空白；返回时立即复核。重绘宽限期结束后
+          // 再检查，防止返回页面或重绘后又等待两个五秒周期。
+          if (document.visibilityState === 'visible' && Date.now() - lastRedrawAt <= 1500) {
+            scheduleHealth('redraw-settled', 1600)
+          }
           return
         }
         if (recoveryPending) {
@@ -499,6 +531,10 @@ export function MediaWaveform({
           recoveryPending = false
         }
         blankCheckCount = confirmedBlank ? blankCheckCount + 1 : 0
+        if (blankCheckCount === 1) {
+          scheduleHealth('blank-recheck')
+          return
+        }
         if (blankCheckCount < 2 || recoveryAttempts >= 3) return
         blankCheckCount = 0
         recoveryAttempts += 1
@@ -510,6 +546,7 @@ export function MediaWaveform({
           wavesurfer.setOptions({})
           wavesurfer.setScroll(scrollLeft)
           recoveryPending = true
+          scheduleHealth('recovery-verification', 1800)
         } catch (error) {
           logMediaDiagnostic('waveform-recovery-failed', {
             recoveryAttempts, message: error instanceof Error ? error.message : String(error),
@@ -521,6 +558,45 @@ export function MediaWaveform({
         healthCheckCount += 1
         captureWaveformHealth(`interval-${healthCheckCount}`)
       }, 5000)
+
+      const shadowRoot = waveformContainer.firstElementChild?.shadowRoot
+      const onContextEvent = (event: Event) => {
+        if (!(event.target instanceof HTMLCanvasElement)) return
+        recordCanvasEvent(event.type, event.target)
+        // 不 preventDefault：保留浏览器默认恢复流程，随后复核像素。
+        scheduleHealth(`canvas-${event.type}`)
+      }
+      const observer = new MutationObserver((records) => {
+        for (const record of records) {
+          if (record.type === 'attributes' && record.target instanceof HTMLCanvasElement) {
+            recordCanvasEvent('attribute-changed', record.target, {
+              attribute: record.attributeName, previousValue: record.oldValue,
+            })
+          }
+          for (const [event, nodes] of [
+            ['added', record.addedNodes], ['removed', record.removedNodes],
+          ] as const) {
+            for (const node of nodes) {
+              if (!(node instanceof Element)) continue
+              const canvases = node instanceof HTMLCanvasElement ? [node] : node.querySelectorAll('canvas')
+              for (const canvas of canvases) recordCanvasEvent(event, canvas)
+            }
+          }
+        }
+      })
+      if (shadowRoot) {
+        shadowRoot.querySelectorAll('canvas').forEach((canvas) => recordCanvasEvent('initial', canvas))
+        observer.observe(shadowRoot, {
+          subtree: true, childList: true, attributes: true,
+          attributeFilter: ['width', 'height'], attributeOldValue: true,
+        })
+        shadowRoot.addEventListener('contextlost', onContextEvent, true)
+        shadowRoot.addEventListener('contextrestored', onContextEvent, true)
+      }
+      const onVisibilityChange = () => {
+        if (document.visibilityState === 'visible') captureWaveformHealth('page-visible')
+      }
+      document.addEventListener('visibilitychange', onVisibilityChange)
 
       const updateWaveformCursor = (nextTime: number, isPlaying = false) => {
         if (!wavesurfer.getDecodedData()) {
@@ -798,6 +874,12 @@ export function MediaWaveform({
 
       // Store cleanup functions to be called when timeout is cleared or component unmounts
 	      const cleanup = () => {
+        disposed = true
+        window.clearTimeout(healthTimeoutId)
+        observer.disconnect()
+        document.removeEventListener('visibilitychange', onVisibilityChange)
+        shadowRoot?.removeEventListener('contextlost', onContextEvent, true)
+        shadowRoot?.removeEventListener('contextrestored', onContextEvent, true)
         logMediaDebug('wavesurfer-destroy', {
           media: getMediaSnapshot(media),
           regionCount: Object.keys(regionByIdRef.current).length,
