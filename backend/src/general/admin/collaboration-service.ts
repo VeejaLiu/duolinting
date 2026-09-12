@@ -29,6 +29,7 @@ import { doRawQuery, doRawUpdate } from '../../models';
 import { sequelize } from '../../models/db-config-mysql';
 import { AdminUserModel } from '../../models/schema/AdminUserDB';
 import { UserModel } from '../../models/schema/UserDB';
+import { reopenApprovedSubtitleDraft } from './subtitle-draft-reopening';
 
 export type AdminActor = {
     id: number;
@@ -393,6 +394,7 @@ export async function claimWorkflowTask(exerciseId: number, adminId: number) {
              on duplicate key update admin_user_id = values(admin_user_id)`,
             { replacements: { exerciseId, adminId }, transaction },
         );
+        await reopenApprovedSubtitleDraft(exerciseId, adminId, transaction);
         await recordWorkflowActivity({
             eventType: 'workflow_claimed',
             actorAdminUserId: adminId,
@@ -951,6 +953,10 @@ export async function replaceContributorAssignments(
         // 课程授权与当前简化工作流保持一致：同一位贡献者自动承担校对和二次审核，
         // 这样分配课程后即可直接开始校对，提交时也一定有明确的审核接收人。
         if (exerciseIds.length > 0) {
+            // 与自助领取一致，旧的已通过稿不能阻塞重新指派后的校对。
+            for (const exerciseId of [...exerciseIds].sort((left, right) => left - right)) {
+                await reopenApprovedSubtitleDraft(exerciseId, contributorId, transaction);
+            }
             // 当前简化模式一门课程只保留一位字幕贡献者；重新分配时替换旧的课程授权。
             await sequelize.query(
                 `delete from exercise_contributor_assignments
@@ -1040,6 +1046,7 @@ export async function updateExerciseWorkflowAssignee({
             { replacements: { exerciseId }, transaction },
         );
         if (adminUserId !== null) {
+            await reopenApprovedSubtitleDraft(exerciseId, adminUserId, transaction);
             await sequelize.query(
                 `insert into exercise_workflow_assignees
                    (exercise_id, workflow_role, assignment_source, admin_user_id, claimed_at, claim_expires_at, expiring_notified_at)
