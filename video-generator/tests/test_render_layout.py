@@ -81,8 +81,56 @@ class LayoutTests(unittest.TestCase):
             self.assertEqual(theme.english_size, 72)
             self.assertEqual(theme.width, 1080)
 
+    def test_watermark_covers_gaps_and_blind_passes_hide_transcript(self):
+        line = TranscriptLine(0, 1, "Secret sentence", translations={"zh-CN": "隐藏原句"})
+        passes = [RenderLine(line, i + 1, i * 1.3, (i + 1) * 1.3) for i in range(3)]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sample.ass"
+            _build_ass(course=Course(0, 0, "Test", "", 1, ""), lines=[line],
+                       render_lines=passes, options=RenderOptions(), path=path)
+            events = [r for r in path.read_text().splitlines() if r.startswith("Dialogue:")]
+            watermarks = [r for r in events if ",Watermark," in r]
+            for mark in range(3):
+                route = [r for r in watermarks if f",wm{mark}," in r]
+                self.assertIn("0:00:00.00,0:00:00.50", route[0])
+                self.assertIn("0:00:03.50,0:00:03.90", route[-1])
+                self.assertTrue(all(r"\move(" in r for r in route))
+            captions = [r for r in events if "Secret sentence" in r or "隐藏原句" in r]
+            self.assertEqual(len(captions), 2)
+            self.assertTrue(all("0:00:02.60,0:00:03.60" in r for r in captions))
+
+    def test_watermark_rejects_invalid_opacity(self):
+        with self.assertRaises(ValueError):
+            VideoTheme(watermark_opacity=1.1)
+
 
 class AspectRatioTests(unittest.TestCase):
+    def test_illustrated_frame_preserves_media_and_duration(self):
+        ffmpeg, ffprobe = _ffmpeg_binary(), _ffprobe_binary()
+        with tempfile.TemporaryDirectory() as directory:
+            source, frame, output = [Path(directory) / name for name in ("source.mp4", "frame.png", "result.mp4")]
+            subprocess.run([ffmpeg, "-v", "error", "-f", "lavfi", "-i", "color=blue:s=320x240:r=30:d=0.3",
+                            "-c:v", "libx264", str(source)], check=True)
+            subprocess.run([ffmpeg, "-v", "error", "-f", "lavfi", "-i", "color=red:s=720x1280",
+                            "-frames:v", "1", str(frame)], check=True)
+            theme = replace(VideoTheme(), width=720, height=1280, media_height=406, watermark_opacity=0)
+            render_course(course=Course(0, 0, "Frame", "", 1, ""),
+                          dltjson={"lines": [{"start": 0, "end": .2, "text": "Test"}]},
+                          media_path=source, output_path=output, logo_path=frame,
+                          options=RenderOptions(theme=theme, frame_image=frame, gap_seconds=.1))
+            duration = float(subprocess.check_output([ffprobe, "-v", "error", "-show_entries", "format=duration",
+                                                    "-of", "default=nw=1:nk=1", str(output)]))
+            self.assertAlmostEqual(duration, .9, delta=.15)
+            pixels = subprocess.check_output([ffmpeg, "-v", "error", "-i", str(output), "-frames:v", "1",
+                                              "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+            def pixel(x, y):
+                start = (y * 720 + x) * 3
+                return pixels[start:start+3]
+            # The frame survives outside the video window, while the blue source
+            # replaces its red interior. This also exercises logo/frame input order.
+            self.assertGreater(pixel(10, 10)[0], 200)
+            self.assertGreater(pixel(360, 350)[2], 200)
+
     def test_anamorphic_input_does_not_stretch_composite(self):
         ffmpeg, ffprobe = _ffmpeg_binary(), _ffprobe_binary()
         if not shutil.which(ffmpeg) or not shutil.which(ffprobe):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import platform
 import re
@@ -8,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Callable
 
@@ -33,6 +34,8 @@ class RenderOptions:
     font_name: str = "PingFang SC"
     # One-based valid sentence index; None renders the complete course.
     preview_line: int | None = None
+    # Static illustrated frame; real media and all lesson text remain separate.
+    frame_image: Path | None = None
 
     def __post_init__(self) -> None:
         if not 0 <= self.gap_seconds < 60:
@@ -356,6 +359,38 @@ def _website_events(locale: str, x: int, y: int, width: int, size: int,
     return result
 
 
+def _watermark_events(theme: VideoTheme, duration: float) -> list[str]:
+    """Continuous, staggered paths on the final timeline, including breathing gaps."""
+    alpha = round((1 - theme.watermark_opacity) * 255)
+    # Each mark owns a separate media band, so marks cannot collide or cover the
+    # learning captions. Position bounds include estimated glyph width and height.
+    size = min(theme.watermark_size, max(12, theme.media_height // (theme.watermark_count * 3)))
+    text_width = math.ceil(_text_width("DuolinTing", size) * 1.2)
+    x_min, x_max = 24, max(24, theme.width - text_width - 24)
+    band = theme.media_height / theme.watermark_count
+    result = []
+    for mark in range(theme.watermark_count):
+        period = theme.watermark_cycle_seconds + mark * 7
+
+        def position(t: float) -> tuple[int, int]:
+            phase = t * 2 * math.pi / period + mark * 2.1
+            x = x_min + (x_max - x_min) * (0.5 + 0.5 * math.sin(phase))
+            free = max(0, band - size * 1.5 - 16)
+            y = theme.header_height + mark * band + 8 + free * (0.5 + 0.5 * math.sin(phase * 0.73))
+            return round(x), round(y)
+
+        # Half-second linear segments approximate smooth paths with shared exact
+        # endpoints. No fades or per-sentence reset: coverage persists throughout.
+        for index in range(math.ceil(duration * 2)):
+            start, end = index / 2, min(duration, (index + 1) / 2)
+            x1, y1 = position(start)
+            x2, y2 = position(end)
+            tags = (f"{{\\an7\\fs{size}\\alpha&H{alpha:02X}&\\bord0.7\\shad0"
+                    f"\\move({x1},{y1},{x2},{y2})}}")
+            result.append(f"Dialogue: 1,{_ass_time(start)},{_ass_time(end)},Watermark,wm{mark},0,0,0,,{tags}DuolinTing")
+    return result
+
+
 def _build_ass(
     *,
     course: Course,
@@ -380,8 +415,26 @@ def _build_ass(
     theme = options.theme
     events: list[str] = []
 
+    def rgb(value: str) -> str:
+        return value[5:7] + value[3:5] + value[1:3]
+
+    def panel(x: int, y: int, width: int, height: int, fill: str,
+              start: float = 0, end: float = total_duration, radius: int = 0,
+              animation: str = "") -> None:
+        # ASS vector paths share the square-pixel canvas. Layer -1 puts decoration
+        # behind text while keeping it above the composed source video.
+        r = min(radius, width // 2, height // 2)
+        w, h = width, height
+        k = round(r * 0.5523)
+        drawing = (f"m {r} 0 l {w-r} 0 b {w-r+k} 0 {w} {r-k} {w} {r} l {w} {h-r} "
+                   f"b {w} {h-r+k} {w-r+k} {h} {w-r} {h} l {r} {h} "
+                   f"b {r-k} {h} 0 {h-r+k} 0 {h-r} l 0 {r} b 0 {r-k} {r-k} 0 {r} 0")
+        tags = f"{{\\an7\\pos({x},{y})\\bord0\\shad0\\1c&H{rgb(fill)}&{animation}\\p1}}"
+        events.append(f"Dialogue: -1,{_ass_time(start)},{_ass_time(end)},Phase,,0,0,0,,{tags}{drawing}")
+
     def event(style: str, text: str, x: int, y: int, size: int,
-              start: float = 0, end: float = total_duration, animate: bool = False, alignment: int = 8) -> None:
+              start: float = 0, end: float = total_duration, animate: bool = False, alignment: int = 8,
+              extra: str = "") -> None:
         # Captions use top-center anchors; the brand block uses top-left anchors.
         # X/Y scaling always stays equal so letter shapes cannot be distorted.
         length_ms = max(0, int((end - start) * 1000))
@@ -390,7 +443,7 @@ def _build_ass(
         motion = (f"\\move({x},{y + theme.slide_distance},{x},{y},0,{min(theme.slide_ms, length_ms)})"
                   f"\\fscx{theme.entrance_scale}\\fscy{theme.entrance_scale}"
                   f"\\t(0,{min(theme.slide_ms, length_ms)},\\fscx100\\fscy100)" if animate and theme.slide_ms else f"\\pos({x},{y})")
-        tags = f"{{\\an{alignment}\\fs{size}{motion}\\fad({fade_in},{fade_out})}}"
+        tags = f"{{\\an{alignment}\\fs{size}{motion}\\fad({fade_in},{fade_out}){extra}}}"
         events.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},{style},,0,0,0,,{tags}{text}")
 
     brand_left = theme.margin + theme.logo_size + theme.logo_gap
@@ -409,6 +462,19 @@ def _build_ass(
     brand_height = sum(size * theme.brand_line_height for _, _, size in brand_rows) + 2 * theme.brand_row_gap
     brand_y = (theme.header_height - brand_height) / 2
     for style, text, size in brand_rows:
+        if options.frame_image is not None:
+            # The illustrated frame's blank areas use normalized 1080x1440
+            # coordinates, so replacement text can also support scaled output.
+            if style == "Website":
+                events.extend(_website_events(locale, theme.margin, round(theme.height * 0.092),
+                              theme.width - 2 * theme.margin, size, round(size * 1.1),
+                              total_duration, theme.url_cycle_seconds))
+            else:
+                text, size = _fit_single("DuolinTing" if style == "Header" else tagline,
+                                        size, round(theme.width * 0.31), 12)
+                event(style, text, round(theme.width * 0.145),
+                      round(theme.height * (0.034 if style == "Header" else 0.066)), size, alignment=7)
+            continue
         if style == "Website":
             events.extend(_website_events(locale, brand_left, round(brand_y),
                                           theme.width - theme.margin - brand_left, size,
@@ -421,17 +487,108 @@ def _build_ass(
     title, title_size = _fit_single(course.title, theme.title_size, theme.title_width, 16)
     # Reserve a separate right-hand header column so long titles never overlap
     # the brand. ASS an9 anchors the text to the top-right safe margin.
-    event("Course", title, theme.width - theme.margin, theme.title_top, title_size, alignment=9)
-    phase_y = theme.header_height + theme.media_height + theme.section_gap
-    for render_line in render_lines:
+    if options.frame_image is None:
+        panel(theme.width - theme.margin - theme.title_width - 14, theme.title_top - 8,
+              theme.title_width + 28, round(title_size * 1.4) + 16, theme.highlight_color, radius=28)
+    title_x = round(theme.width * 0.88) if options.frame_image else theme.width - theme.margin
+    title_y = round(theme.height * 0.041) if options.frame_image else theme.title_top
+    if options.frame_image:
+        title, title_size = _fit_single(course.title, theme.title_size, round(theme.width * 0.25), 12)
+    event("Course", title, title_x, title_y, title_size, alignment=9,
+          extra="\\1c&HFFFFFF&")
+    phase_y = round(theme.height * 0.585) if options.frame_image else theme.header_height + theme.media_height + theme.section_gap
+    # In the illustrated frame, reserve symmetric interior padding rather than
+    # centering against the lower edge of the entire canvas. The extra side inset
+    # also keeps long lines away from the decorative star.
+    caption_theme = replace(theme, section_gap=45, margin=theme.margin + 24) if options.frame_image else theme
+    card_y = theme.caption_top - 12
+    if options.frame_image is None:
+        # Code-native decorations keep the generated mockup's cloud/grass palette
+        # without baking any lesson text or media into a reusable bitmap.
+        panel(0, theme.header_height + theme.media_height, theme.width, 94, theme.header_background)
+        for cloud_x, cloud_y in ((theme.width - 190, 110), (theme.width // 2 + 20, 72)):
+            panel(cloud_x, cloud_y, 82, 30, "#ffffff", radius=15)
+            panel(cloud_x + 12, cloud_y - 15, 40, 40, "#ffffff", radius=20)
+            panel(cloud_x + 42, cloud_y - 5, 30, 30, "#ffffff", radius=15)
+        for side in (0, theme.width - 48):
+            for leaf in range(3):
+                panel(side + leaf * 12 - 12, theme.height - 94 + leaf * 12,
+                      24, 74, "#319d62", radius=12)
+            flower_x = 14 if side == 0 else theme.width - 28
+            for dx, dy in ((0, -10), (-10, 0), (10, 0), (0, 10)):
+                panel(flower_x + dx, theme.height - 42 + dy, 14, 14, "#ffffff", radius=7)
+            panel(flower_x + 2, theme.height - 40, 10, 10, theme.trim_color, radius=5)
+        panel(theme.margin // 2 - 5, card_y - 5, theme.width - theme.margin + 10,
+              theme.caption_bottom - card_y + 34, theme.trim_color, radius=40)
+        panel(theme.margin // 2, card_y, theme.width - theme.margin,
+              theme.caption_bottom - card_y + 24, theme.panel_background, radius=36)
+        # A tiny four-point sparkle stays in the padding, outside caption bounds.
+        event("Phase", "✦", theme.width - 46, card_y + 4, 28,
+              extra=f"\\1c&H{rgb(theme.trim_color)}&")
+    # Burn the watermark into the media region, not just the removable header.
+    # ASS alpha is transparency (0 opaque, 255 invisible), inverse of opacity.
+    events.extend(_watermark_events(theme, total_duration))
+    hint_texts = {
+        "zh-CN": ("先听声音，试着抓住关键词", "再听一遍，把意思连起来"),
+        "en-US": ("Listen for the key words", "Listen again and connect the meaning"),
+        "th-TH": ("ลองฟังและจับคำสำคัญ", "ฟังอีกครั้งแล้วจับใจความ"),
+        "ja-JP": ("キーワードを聞き取ろう", "もう一度聞いて意味をつかもう"),
+    }
+    footer_y = round(theme.height * 0.94) if options.frame_image else theme.height - theme.margin - 20
+    track_y = footer_y + (14 if options.frame_image else 36)
+    for pass_index, render_line in enumerate(render_lines):
         start = render_line.timeline_start
         end = start + render_line.line.duration
-        phase, phase_size = _fit_single(_phase_text(locale, render_line.round_number), theme.phase_size, theme.caption_width, 12)
-        event("Phase", phase, theme.width // 2, phase_y, phase_size, start, end)
+        labels = {"zh-CN": ("盲听", "再听", "看字幕"),
+                  "en-US": ("Listen", "Repeat", "Subtitles"),
+                  "th-TH": ("ฟัง", "ฟังซ้ำ", "ดูคำบรรยาย"),
+                  "ja-JP": ("聞く", "もう一度", "字幕")}.get(locale, ("Listen", "Repeat", "Subtitles"))
+        pill_gap = 20
+        pill_width = (theme.width - 2 * theme.margin - 2 * pill_gap) // 3
+        for step, label in enumerate(labels, start=1):
+            active = step == render_line.round_number
+            x = theme.margin + (step - 1) * (pill_width + pill_gap)
+            if options.frame_image is None:
+                panel(x, phase_y - 4, pill_width, 58, theme.highlight_color if active else theme.panel_background,
+                      start, render_line.timeline_end, radius=29)
+            text, size = _fit_single(f"{step}  {label}", theme.phase_size, pill_width - 24, 12)
+            step_x = round(theme.width * (0.215, 0.50, 0.783)[step-1]) if options.frame_image else x + pill_width // 2
+            event("Phase", text, step_x, phase_y + 7, size, start, render_line.timeline_end,
+                  extra=f"\\1c&H{rgb((theme.highlight_color if options.frame_image else '#ffffff') if active else theme.foreground)}&")
+        # A full-width track represents sentence completion. The active segment
+        # grows linearly through each of the three passes, including its gap.
+        count = max(1, len(render_lines))
+        track_width = round(theme.width * 0.5) if options.frame_image else theme.width - 2 * theme.margin
+        left = round(theme.width * 0.25) if options.frame_image else theme.margin
+        panel(left, track_y, track_width, 4, theme.panel_background, start, render_line.timeline_end)
+        initial = round(track_width * pass_index / count)
+        final = round(track_width * (pass_index + 1) / count)
+        duration_ms = round((render_line.timeline_end - start) * 1000)
+        panel(left, track_y, track_width, 4, theme.accent, start, render_line.timeline_end,
+              animation=f"\\clip({left},{track_y},{left+initial},{track_y+4})"
+                        f"\\t(0,{duration_ms},\\clip({left},{track_y},{left+final},{track_y+4}))")
+        event("Tagline", f"{pass_index // 3 + 1:02d} / {len(lines):02d}", round(theme.width * .13) if options.frame_image else left, footer_y, 22,
+              start, render_line.timeline_end, alignment=7)
+        event("Header", "DuolinTing", round(theme.width * .90) if options.frame_image else theme.width-left, footer_y, 24,
+              start, render_line.timeline_end, alignment=9)
         if render_line.round_number != 3:
+            center_y = (caption_theme.caption_top + caption_theme.caption_bottom) // 2
+            # Decorative listening bars pulse gently; these are an activity cue,
+            # not an audio-amplitude measurement. No transcript appears in blind passes.
+            for bar in range(9):
+                height = (20, 36, 58, 80, 96, 80, 58, 36, 20)[bar]
+                panel(theme.width // 2 - 116 + bar * 28, center_y - 72 - height // 2,
+                      8, height, theme.accent, start, end, radius=4,
+                      animation="\\alpha&H40&\\fad(200,200)\\t(0,700,\\alpha&H00&)"
+                                "\\t(700,1400,\\alpha&H70&)\\t(1400,2100,\\alpha&H00&)")
+            hint = hint_texts.get(locale, hint_texts["zh-CN"])[render_line.round_number - 1]
+            hint, hint_size = _fit_single(hint, 34, theme.caption_width, 18)
+            event("Translation", hint, theme.width // 2, center_y + 18, hint_size, start, end)
             continue
-        en_rows, en_size, tr_rows, tr_size = _caption_layout(render_line.line.text, _translation(render_line.line, locale), theme)
-        y = theme.caption_top
+        en_rows, en_size, tr_rows, tr_size = _caption_layout(render_line.line.text, _translation(render_line.line, locale), caption_theme)
+        used = (len(en_rows) * en_size + len(tr_rows) * tr_size) * theme.line_height
+        used += theme.caption_gap if tr_rows else 0
+        y = caption_theme.caption_top + max(0, (caption_theme.caption_bottom - caption_theme.caption_top - used) / 2)
         for style, rows, size in (("English", en_rows, en_size), ("Translation", tr_rows, tr_size)):
             for row in rows:
                 event(style, _ass_escape(row), theme.width // 2, round(y), size, start, end, True)
@@ -446,14 +603,23 @@ def _build_ass(
     for name, foreground in (("Header", theme.foreground), ("Tagline", theme.muted_color),
                              ("Website", theme.accent), ("Course", theme.foreground),
                              ("Phase", theme.accent), ("English", theme.foreground),
-                             ("Translation", theme.translation_color)):
+                             ("Translation", theme.translation_color), ("Watermark", "#ffffff")):
         # Brand text sits on a solid panel: removing caption outlines/shadows
         # keeps small lettering crisp. Only the brand name needs bold weight.
         is_brand = name in {"Header", "Tagline", "Website", "Course"}
         outline = 0 if is_brand else theme.outline
         shadow = 0 if is_brand else theme.shadow
         bold = 0 if name in {"Tagline", "Website"} else -1
-        styles.append(f"Style: {name},{options.font_name},40,{color(foreground)},{color(foreground)},{color(theme.outline_color)},&H66000000,{bold},0,0,0,100,100,0,0,1,{outline},{shadow},8,0,0,0,1")
+        font = options.font_name
+        if options.frame_image is not None:
+            # Rounded display faces are limited to prominent text; small utility
+            # labels retain the selected reading font for legibility.
+            if name in {"English", "Header", "Course", "Watermark"}:
+                font = "Arial Rounded MT Bold"
+            elif name in {"Phase", "Translation"} and locale == "zh-CN":
+                font = "ZCOOL KuaiLe"
+                bold = 0  # Use its drawn weight, avoiding synthesized bold blobs.
+        styles.append(f"Style: {name},{font},40,{color(foreground)},{color(foreground)},{color(theme.outline_color)},&H66000000,{bold},0,0,0,100,100,0,0,1,{outline},{shadow},8,0,0,0,1")
     content = "\n".join([
         "[Script Info]", "ScriptType: v4.00+",
         f"PlayResX: {theme.width}", f"PlayResY: {theme.height}",
@@ -550,7 +716,16 @@ def _build_filter_graph(
     parts.append(
         f"{concat_inputs}concat=n={segment_count}:v=1:a=1[concatv][concata]"
     )
-    parts.append(f"[concatv]drawbox=x=0:y=0:w=iw:h={theme.header_height}:color={theme.header_background}:t=fill[headerpanel]")
+    if options.frame_image is not None:
+        # Input order is source, optional logo, optional frame. Replace only the
+        # media rectangle: the template's illustrated border stays untouched.
+        frame_index = 2 if has_logo else 1
+        parts.append(f"[concatv]crop={theme.width}:{theme.media_height}:0:{theme.header_height}[framemedia]")
+        parts.append(f"[{frame_index}:v]scale={theme.width}:{theme.height}:force_original_aspect_ratio=increase,"
+                     f"crop={theme.width}:{theme.height},setsar=1[framebase]")
+        parts.append(f"[framebase][framemedia]overlay=0:{theme.header_height}:shortest=1[headerpanel]")
+    else:
+        parts.append(f"[concatv]drawbox=x=0:y=0:w=iw:h={theme.header_height}:color={theme.header_background}:t=fill[headerpanel]")
     video_input = "[headerpanel]"
     if has_logo:
         size = theme.logo_size
@@ -574,7 +749,9 @@ def _build_filter_graph(
         parts.append(f"[carded][logo]overlay=x='{x}+({size}-w)/2':y='{y}+({size}-h)/2':shortest=1[branded]")
         video_input = "[branded]"
     # ASS is applied after concat, so subtitle times follow the generated three-pass timeline.
-    parts.append(f"{video_input}setsar=1,subtitles=filename='{_filter_value(ass_path.as_posix())}',setsar=1[outv]")
+    fonts_dir = Path(__file__).resolve().parents[2] / "assets" / "fonts"
+    fonts_option = f":fontsdir='{_filter_value(fonts_dir.as_posix())}'" if options.frame_image else ""
+    parts.append(f"{video_input}setsar=1,subtitles=filename='{_filter_value(ass_path.as_posix())}'{fonts_option},setsar=1[outv]")
     return ";".join(parts), render_lines
 
 
@@ -657,6 +834,8 @@ def render_course(
         raise RenderError("输出文件不能覆盖源媒体文件")
     if logo_path is not None and not logo_path.is_file():
         raise RenderError(f"Logo 文件不存在：{logo_path}")
+    if options.frame_image is not None and not options.frame_image.is_file():
+        raise RenderError(f"背景模板不存在：{options.frame_image}")
 
     lines = load_renderable_lines(dltjson)
     if options.preview_line is not None:
@@ -699,6 +878,8 @@ def render_course(
         ]
         if logo_path is not None:
             command.extend(["-loop", "1", "-i", str(logo_path)])
+        if options.frame_image is not None:
+            command.extend(["-loop", "1", "-i", str(options.frame_image)])
         command.extend(
             [
                 # FFmpeg 9 removed the old -filter_complex_script option. Pass the

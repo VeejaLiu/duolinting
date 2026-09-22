@@ -10,11 +10,11 @@ media_height = 608
 margin = 48
 
 # 颜色统一用 #RRGGBB，不需要手写 ASS 颜色格式。
-background = "#050505"
+background = "#85d665"
 audio_background = "#102c42"
-accent = "#9ad3ff"
-foreground = "#ffffff"
-translation_color = "#e8e8e8"
+accent = "#087aba"
+foreground = "#08274e"
+translation_color = "#28476b"
 outline_color = "#000000"
 
 # Logo 底板边长、内边距、圆角半径，单位像素。图片始终等比缩放并居中。
@@ -41,8 +41,8 @@ translation_size = 44
 min_caption_size = 24
 
 # 文字描边和阴影，单位像素。
-outline = 3
-shadow = 2
+outline = 0
+shadow = 0
 
 # 行高倍数。当前按 Unicode 字符估算宽度，不是字体引擎精确测量；建议预览长句。
 line_height = 1.2
@@ -62,9 +62,9 @@ slide_distance = 32
 entrance_scale = 94
 
 # 品牌栏独立底色、辅助文字颜色；品牌行高为倍数，行距与 Logo 间距为像素。
-header_background = "#111c27"
+header_background = "#55c8f6"
 
-muted_color = "#b6c2ce"
+muted_color = "#284c6b"
 
 brand_line_height = 1.1
 
@@ -79,3 +79,15 @@ title_top = 28
 
 # 网页端/移动端网址上下轮播的完整周期，单位秒，沿用录制工作台的默认节奏。
 url_cycle_seconds = 6.0
+
+# 字幕卡片底色；画面内水印透明度为 0–1（0 隐藏、1 不透明），字号为像素。
+panel_background = "#fffdeb"
+watermark_opacity = 0.28
+watermark_size = 26
+
+# 卡通阶段标签和字幕框描边色。
+highlight_color = "#ff5974"
+trim_color = "#ffdb45"
+# 媒体区水印数量 1–5；首条路线周期（秒），后续路线错开速度和相位。
+watermark_count = 3
+watermark_cycle_seconds = 23.0

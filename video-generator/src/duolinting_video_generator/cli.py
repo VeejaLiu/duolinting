@@ -420,6 +420,7 @@ def _render_options(args: argparse.Namespace) -> RenderOptions:
         gap_seconds=args.gap_seconds,
         theme=load_theme(Path(args.theme).expanduser() if args.theme else None),
         preview_line=getattr(args, "preview_line", None),
+        frame_image=Path(args.frame_image).expanduser().resolve() if getattr(args, "frame_image", None) else None,
     )
 
 
@@ -632,6 +633,7 @@ def _parser() -> argparse.ArgumentParser:
         command.add_argument("--manifest", default=str(_project_directory() / "media-manifest.json"))
         command.add_argument("--locale", choices=("en-US", "zh-CN", "th-TH", "ja-JP"), default="zh-CN")
         command.add_argument("--theme", default=os.environ.get("DUOLINTING_VIDEO_THEME", ""), help="Local TOML theme file")
+        command.add_argument("--frame-image", help="Illustrated blank background template; video and text are overlaid separately")
         command.add_argument("--font-name", default=_default_font_name())
         command.add_argument("--gap-seconds", type=float, default=0.3)
         command.add_argument("--logo", help="Optional local logo PNG, for example ../admin/public/duolinting-logo-ear.png")

@@ -15,16 +15,23 @@ class VideoTheme:
     header_height: int = 168
     media_height: int = 608
     margin: int = 48
-    background: str = "#050505"
-    header_background: str = "#111c27"
-    muted_color: str = "#b6c2ce"
+    background: str = "#85d665"
+    header_background: str = "#55c8f6"
+    panel_background: str = "#fffdeb"
+    highlight_color: str = "#ff5974"
+    trim_color: str = "#ffdb45"
+    watermark_opacity: float = 0.28
+    watermark_size: int = 26
+    watermark_count: int = 3
+    watermark_cycle_seconds: float = 23.0
+    muted_color: str = "#284c6b"
     brand_line_height: float = 1.1
     brand_row_gap: int = 6
     logo_gap: int = 24
     audio_background: str = "#102c42"
-    accent: str = "#9ad3ff"
-    foreground: str = "#ffffff"
-    translation_color: str = "#e8e8e8"
+    accent: str = "#087aba"
+    foreground: str = "#08274e"
+    translation_color: str = "#28476b"
     outline_color: str = "#000000"
     logo_size: int = 112
     logo_padding: int = 12
@@ -44,8 +51,8 @@ class VideoTheme:
     english_size: int = 72
     translation_size: int = 44
     min_caption_size: int = 24
-    outline: int = 3
-    shadow: int = 2
+    outline: int = 0
+    shadow: int = 0
     line_height: float = 1.2
     caption_gap: int = 18
     section_gap: int = 20
@@ -76,6 +83,10 @@ class VideoTheme:
             raise ValueError("顶部空间或 Logo 内边距不合适")
         if self.logo_radius > self.logo_size / 2 or self.logo_shadow_opacity > 1:
             raise ValueError("Logo 圆角或阴影透明度超出范围")
+        if self.watermark_opacity > 1 or not 12 <= self.watermark_size <= 60:
+            raise ValueError("水印透明度必须为 0–1，字号必须为 12–60")
+        if not 1 <= self.watermark_count <= 5 or not 8 <= self.watermark_cycle_seconds <= 120:
+            raise ValueError("水印数量必须为 1–5，移动周期为 8–120 秒")
         if self.width - self.logo_size - 2 * self.margin - self.logo_gap < 160:
             raise ValueError("品牌文字区域太窄")
         if not 0.2 <= self.title_width_ratio <= 0.5 or self.title_top + self.title_size * self.line_height > self.header_height:
@@ -99,7 +110,7 @@ class VideoTheme:
 
     @property
     def caption_width(self) -> int:
-        return self.width - 2 * self.margin
+        return self.width - 2 * self.margin - 32
 
     @property
     def title_width(self) -> int:
@@ -108,11 +119,12 @@ class VideoTheme:
     @property
     def caption_top(self) -> int:
         # Only the phase stays below media; the course title lives in the header.
-        return round(self.header_height + self.media_height + 2 * self.section_gap + self.phase_size * self.line_height)
+        return round(self.header_height + self.media_height + 2 * self.section_gap + self.phase_size * self.line_height + 40)
 
     @property
     def caption_bottom(self) -> int:
-        return self.height - self.margin - self.slide_distance
+        # Reserve the bottom strip for sentence progress, outside the caption card.
+        return self.height - self.margin - self.slide_distance - 64
 
 
 def load_theme(path: Path | None) -> VideoTheme:

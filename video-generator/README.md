@@ -263,3 +263,42 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 `https://mobile.duolinting.cn`。两者在品牌栏同一行上下滚动轮播，默认每 6 秒一轮，
 由 `url_cycle_seconds` 调整。滚动区域有裁切，完整地址按同一字号适配可用宽度；
 不会滚进品牌标语或右上角标题。轮播使用成片时间轴，跨句子连续播放。
+
+### 卡片布局与画面水印
+
+默认天蓝页眉、草地绿背景搭配金色边框的奶油色字幕卡片，字幕在卡片内垂直居中。盲听两遍分别显示提示与轻微脉动的装饰音柱，不显示原句或译文；音柱不是实际音量测量。底部显示本次渲染的句数及三遍播放进度，单句预览计为 1/1。
+
+媒体区默认叠加三个半透明 DuolinTing 水印，在不同高度独立移动，包含句间停顿，不进入字幕区。水印沿最终成片时间轴连续移动，不随每句重置。`watermark_opacity` 控制不透明度（0–1），`watermark_size` 控制字号（12–60 像素），`watermark_count` 控制数量（1–5），`watermark_cycle_seconds` 控制首条路线周期（8–120 秒，其他路线错开速度），`panel_background` 控制字幕卡片颜色。水印为品牌标识，不表示原素材版权归属。
+
+### 使用插画背景模板
+
+`--frame-image` 将无字插画作为背景，真实视频覆盖媒体矩形，字幕、品牌文字、标题、网址、阶段标签、进度与移动水印均由程序单独生成。PNG 不包含固定课程内容，不需要每集重新画图。
+
+```bash
+python3 video-generator/run.py render --course-id 10 --locale zh-CN \
+  --theme video-generator/cartoon-frame.toml \
+  --frame-image video-generator/assets/cartoon-listening-frame.png \
+  --logo admin/public/duolinting-logo-ear.png --preview-line 2 \
+  --output video-generator/output/S1E3-Best-Friend/Peppa-Pig-S1E3-Best-Friend-插画模板样片.mp4
+```
+
+当前插画布局配套 `cartoon-frame.toml` 的 1080×1440 画布。模板实际为 1086×1448（同为 3:4），生成时等比缩放。媒体窗口在 y=168，宽1080、高628；生成图的占位区域只是留白提示，实际视频边界由主题控制。其他插画若留白位置不同，需一并调整布局，不能仅替换图片路径。插画生成提示词保存在 `assets/cartoon-listening-frame.prompt.md`。
+
+插画模板的大字使用 Arial Rounded MT Bold（当前 macOS 本机字体），中文阶段提示与译文使用随项目保存的站酷快乐体。字体来自 https://github.com/googlefonts/zcool-kuaile ，授权随 assets/fonts/OFL-ZCOOL-KuaiLe.txt 保存。生成器仅通过 libass 的 fontsdir 加载，不安装或修改系统字体。其他系统如缺少 Arial Rounded MT Bold 会使用字体回退，效果可能不同。
+
+### 抖音波形视觉版本
+
+对于已生成的 1080×1440 卡通画框中文成片，可以完整替换原片媒体窗口，
+保留原音频、字幕时间轴和外围排版，并增加已确认的彩色圆头音柱、圆角卡片、耳机笑脸及三处移动水印。
+此独立转换工具需要 Pillow 和 NumPy（`python3 -m pip install Pillow numpy`）：
+
+```bash
+python3 video-generator/tools/make_waveform_variant.py \
+  'video-generator/output/S1E3-Best-Friend/Peppa-Pig-S1E3-Best-Friend-精听完整版.mp4' \
+  'video-generator/output/S1E3-Best-Friend/Peppa-Pig-S1E3-Best-Friend-抖音波形版.mp4'
+```
+
+命令从仓库根目录运行，可加 `--preview-seconds 22` 生成短预览。
+只适用于媒体窗口 y=168、高628 的现有卡通画框布局；不覆盖源文件或已有输出。
+音轨直接复制，不刷新课程字幕。字幕有更新时，应先重新生成基础成片。
+替换画面不代表原音频获得授权，也不保证平台审核结果。

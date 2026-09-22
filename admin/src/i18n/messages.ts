@@ -1793,3 +1793,50 @@ for (const locale of Object.keys(adminMessages) as UiLocale[]) {
 }
 
 export { zhCN }
+
+const directoryJsonMessages: AdminMessages = {
+  "zh-CN": {
+    "复制提示词": "复制提示词",
+    "提示词已复制": "提示词已复制",
+    "粘贴 JSON 导入": "粘贴 JSON 导入",
+    "填入表单": "填入表单",
+    "JSON 已填入表单，请检查后保存": "JSON 已填入表单，请检查后保存",
+    "JSON 无效或字段不符合要求：{{field}}": "JSON 无效或字段不符合要求：{{field}}",
+    "先填写名称，复制提示词给 ChatGPT，再粘贴生成的 JSON。": "先填写名称，复制提示词给 ChatGPT，再粘贴生成的 JSON。",
+    "导入会覆盖表单中的名称、描述、翻译和设置，检查后点击保存。": "导入会覆盖表单中的名称、描述、翻译和设置，检查后点击保存。"
+  },
+  "en-US": {
+    "复制提示词": "Copy prompt",
+    "提示词已复制": "Prompt copied",
+    "粘贴 JSON 导入": "Paste JSON to import",
+    "填入表单": "Fill form",
+    "JSON 已填入表单，请检查后保存": "JSON applied. Review the form and save.",
+    "JSON 无效或字段不符合要求：{{field}}": "Invalid JSON or field: {{field}}",
+    "先填写名称，复制提示词给 ChatGPT，再粘贴生成的 JSON。": "Enter a name, copy the prompt to ChatGPT, then paste the generated JSON.",
+    "导入会覆盖表单中的名称、描述、翻译和设置，检查后点击保存。": "Import replaces the name, description, translations and settings in this form. Review and save."
+  },
+  "th-TH": {
+    "复制提示词": "คัดลอกพรอมต์",
+    "提示词已复制": "คัดลอกพรอมต์แล้ว",
+    "粘贴 JSON 导入": "วาง JSON เพื่อนำเข้า",
+    "填入表单": "กรอกลงในฟอร์ม",
+    "JSON 已填入表单，请检查后保存": "กรอก JSON ลงในฟอร์มแล้ว โปรดตรวจสอบและบันทึก",
+    "JSON 无效或字段不符合要求：{{field}}": "JSON หรือฟิลด์ไม่ถูกต้อง: {{field}}",
+    "先填写名称，复制提示词给 ChatGPT，再粘贴生成的 JSON。": "กรอกชื่อ คัดลอกพรอมต์ไปยัง ChatGPT แล้ววาง JSON ที่สร้างขึ้น",
+    "导入会覆盖表单中的名称、描述、翻译和设置，检查后点击保存。": "การนำเข้าจะแทนที่ชื่อ คำอธิบาย คำแปล และการตั้งค่าในฟอร์ม โปรดตรวจสอบและบันทึก"
+  },
+  "ja-JP": {
+    "复制提示词": "プロンプトをコピー",
+    "提示词已复制": "プロンプトをコピーしました",
+    "粘贴 JSON 导入": "JSON を貼り付けてインポート",
+    "填入表单": "フォームに入力",
+    "JSON 已填入表单，请检查后保存": "JSON を反映しました。確認して保存してください。",
+    "JSON 无效或字段不符合要求：{{field}}": "JSON またはフィールドが無効です：{{field}}",
+    "先填写名称，复制提示词给 ChatGPT，再粘贴生成的 JSON。": "名前を入力し、プロンプトを ChatGPT にコピーして、生成された JSON を貼り付けてください。",
+    "导入会覆盖表单中的名称、描述、翻译和设置，检查后点击保存。": "インポートするとフォームの名前、説明、翻訳、設定が上書きされます。確認して保存してください。"
+  }
+}
+
+for (const locale of Object.keys(adminMessages) as UiLocale[]) {
+  Object.assign(adminMessages[locale], directoryJsonMessages[locale])
+}

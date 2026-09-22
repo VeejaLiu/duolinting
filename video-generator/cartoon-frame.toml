@@ -1,0 +1,22 @@
+# 配合 assets/cartoon-listening-frame.png；视频窗口从 y=168 开始，628 像素高。
+width = 1080
+height = 1440
+header_height = 168
+media_height = 628
+logo_size = 80
+logo_padding = 8
+logo_radius = 20
+logo_gap = 16
+brand_size = 46
+tagline_size = 24
+website_size = 24
+title_size = 36
+phase_size = 40
+english_size = 72
+translation_size = 42
+watermark_count = 3
+watermark_opacity = 0.28
+
+# 留白与文字组：缩短中英文间隔，减少入场位移。
+caption_gap = 10
+slide_distance = 16

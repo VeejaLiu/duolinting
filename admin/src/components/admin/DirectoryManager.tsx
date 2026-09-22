@@ -7,10 +7,11 @@ import {
   Plus,
   RefreshCw,
   Save,
+  Sparkles,
   Trash2,
 } from 'lucide-react'
 import { useEffect, useState, type Key } from 'react'
-import { Avatar, Badge, Button, Card, Descriptions, Divider, Dropdown, Empty, Flex, Form, Input, Space, Tag, Tree, Typography } from 'antd'
+import { Alert, Avatar, Badge, Button, Card, Descriptions, Divider, Dropdown, Empty, Flex, Form, Input, InputNumber, Modal, Space, Tag, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import type {
   CreateCategoryGroupRequest,
@@ -22,6 +23,8 @@ import type { AdminNoticeTone } from './AdminFeedback'
 import { CoverImageField } from './CoverImageField'
 import { resolveApiUrl } from '../../lib/apiClient'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
+
+import { buildDirectoryPrompt, parseDirectoryJson, type DirectoryJsonData } from '../../lib/directoryJson'
 
 const directoryLocalizationLocales = ['en-US', 'th-TH', 'ja-JP'] as const
 const directoryLocalizationLabels = {
@@ -71,7 +74,8 @@ type DirectoryFormProps = {
   form: CreateCategoryGroupRequest | CreateCategoryRequest
   kind: 'group' | 'category'
   onCancel: () => void
-  onChange: (key: 'name' | 'accent' | 'description' | 'coverImageUrl' | 'sourceUrl' | 'localizations', value: string | Record<string, unknown>) => void
+  onImport: (data: DirectoryJsonData) => void
+  onChange: (key: 'sortOrder' | 'name' | 'accent' | 'description' | 'coverImageUrl' | 'sourceUrl' | 'localizations', value: string | number | Record<string, unknown>) => void
   onNotify: (message: string, tone?: AdminNoticeTone) => void
   onSave: () => void
 }
@@ -82,11 +86,37 @@ function DirectoryForm({
   form,
   kind,
   onCancel,
+  onImport,
   onChange,
   onNotify,
   onSave,
 }: DirectoryFormProps) {
   const { t } = useAdminLanguage()
+  const [jsonOpen, setJsonOpen] = useState(false)
+  const [jsonText, setJsonText] = useState('')
+  const [jsonError, setJsonError] = useState('')
+  const [manualPrompt, setManualPrompt] = useState('')
+  const copyPrompt = async () => {
+    const prompt = buildDirectoryPrompt(form, kind)
+    try {
+      await navigator.clipboard.writeText(prompt)
+      onNotify(t('提示词已复制'), 'success')
+    } catch { setManualPrompt(prompt) }
+  }
+  const importJson = () => {
+    if (disabled) return
+    try {
+      const data = parseDirectoryJson(jsonText, kind)
+      // Apply one validated patch atomically, preserving identity and parent from the current form.
+      onImport(data)
+      setJsonOpen(false)
+      setJsonText('')
+      setJsonError('')
+      onNotify(t('JSON 已填入表单，请检查后保存'), 'success')
+    } catch (error) {
+      setJsonError(t('JSON 无效或字段不符合要求：{{field}}', { field: error instanceof Error ? error.message : 'JSON' }))
+    }
+  }
   const entityLabel = kind === 'group' ? t('内容分类') : t('学习系列')
   const updateLocalized = (
     locale: typeof directoryLocalizationLocales[number],
@@ -100,6 +130,22 @@ function DirectoryForm({
   }
   return (
     <Card className="directory-editor" size="small">
+      <Space wrap style={{ marginBottom: 16 }}>
+        <Button className="ai-action-button" icon={<Sparkles size={15} aria-hidden="true" />} disabled={disabled} onClick={() => void copyPrompt()}>{t('复制提示词')}</Button>
+        <Button className="ai-action-button" icon={<Sparkles size={15} aria-hidden="true" />} disabled={disabled} onClick={() => setJsonOpen(true)}>{t('粘贴 JSON 导入')}</Button>
+        <Typography.Text type="secondary">{t('先填写名称，复制提示词给 ChatGPT，再粘贴生成的 JSON。')}</Typography.Text>
+      </Space>
+      <Modal title={t('粘贴 JSON 导入')} open={jsonOpen} onCancel={() => setJsonOpen(false)} onOk={importJson}
+        okText={t('填入表单')} cancelText={t('取消')} okButtonProps={{ disabled: disabled || !jsonText.trim() }}>
+        <Typography.Paragraph>{t('导入会覆盖表单中的名称、描述、翻译和设置，检查后点击保存。')}</Typography.Paragraph>
+        <Input.TextArea aria-label={t('粘贴 JSON 导入')} rows={14} value={jsonText} disabled={disabled}
+          onChange={(event) => { setJsonText(event.target.value); setJsonError('') }} />
+        {jsonError && <Alert style={{ marginTop: 12 }} type="error" title={jsonError} showIcon />}
+      </Modal>
+      <Modal title={t('复制提示词')} open={Boolean(manualPrompt)} onCancel={() => setManualPrompt('')} footer={null}>
+        <Typography.Paragraph>{t('点击文本框可全选后手动复制')}</Typography.Paragraph>
+        <Input.TextArea aria-label={t('复制提示词')} rows={14} readOnly value={manualPrompt} onClick={(event) => event.currentTarget.select()} />
+      </Modal>
       <Form layout="vertical">
         <Flex gap={16} wrap>
           <Form.Item label={t('名称')} required style={{ flex: '1 1 260px', marginBottom: 0 }}>
@@ -109,6 +155,10 @@ function DirectoryForm({
             <Input disabled={disabled} value={form.accent} onChange={(event) => onChange('accent', event.target.value)} />
           </Form.Item>
         </Flex>
+        <Form.Item label={t('排序值')} style={{ marginTop: 16, marginBottom: 0 }}>
+          <InputNumber min={0} precision={0} disabled={disabled} value={form.sortOrder}
+            onChange={(value) => { if (value !== null) onChange('sortOrder', value) }} />
+        </Form.Item>
         <Form.Item label={kind === 'group' ? t('说明') : t('描述')} style={{ marginTop: 16, marginBottom: 0 }}>
           <Input disabled={disabled} value={form.description} onChange={(event) => onChange('description', event.target.value)} />
         </Form.Item>
@@ -360,11 +410,13 @@ export function DirectoryManager(props: DirectoryManagerProps) {
   const groupForm = (onSave: () => void) => <DirectoryForm
     adminToken={adminToken} disabled={isSaving} form={categoryGroupForm} kind="group"
     onCancel={() => setActiveEditor(null)} onNotify={onNotify} onSave={onSave}
+    onImport={(data) => onCategoryGroupFormChange((current) => ({ ...current, ...data }))}
     onChange={(key, value) => onCategoryGroupFormChange((current) => ({ ...current, [key]: value }))}
   />
   const categoryEditor = (onSave: () => void) => <DirectoryForm
     adminToken={adminToken} disabled={isSaving} form={categoryForm} kind="category"
     onCancel={() => setActiveEditor(null)} onNotify={onNotify} onSave={onSave}
+    onImport={(data) => onCategoryFormChange((current) => ({ ...current, ...data }))}
     onChange={(key, value) => onCategoryFormChange((current) => ({ ...current, [key]: value }))}
   />
   const activeCategoryGroup = activeEditor?.type === 'create-category'
