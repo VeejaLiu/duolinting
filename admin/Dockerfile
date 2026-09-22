@@ -10,8 +10,9 @@ COPY packages/app-config/package.json packages/app-config/package.json
 COPY packages/ui-tokens/package.json packages/ui-tokens/package.json
 COPY packages/api-client/package.json packages/api-client/package.json
 COPY packages/shared/package.json packages/shared/package.json
+# Bound npm heap under the production builder limit; audit runs separately from image builds.
 RUN --mount=type=cache,id=duolinting-npm,target=/root/.npm,sharing=locked \
-    npm ci --workspaces --include-workspace-root
+    NODE_OPTIONS=--max-old-space-size=512 npm ci --workspaces --include-workspace-root --no-audit --no-fund
 COPY packages/domain packages/domain
 COPY packages/app-config packages/app-config
 COPY packages/ui-tokens packages/ui-tokens
