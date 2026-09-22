@@ -31,7 +31,8 @@ export type AdminAuthResult = {
 };
 
 const plainAdmin = (admin: any) => (typeof admin.get === 'function' ? admin.get({ plain: true }) : admin);
-const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+// 会话有效期按毫秒计算：登录后固定 7 天过期，后续请求不延长到期时间。
+const ADMIN_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 // 贡献会公开署名在课程中，90 天的间隔避免名称频繁变动而难以追溯历史贡献。
 const DISPLAY_NAME_CHANGE_COOLDOWN_MS = 90 * 24 * 60 * 60 * 1000;
 const hashAdminToken = (token: string) => crypto.createHash('sha256').update(token).digest('hex');
