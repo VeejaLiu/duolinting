@@ -1,6 +1,6 @@
 # DuolinTing iOS：Xcode 本地商店发布流程
 
-> 状态：正式流程。最后复核：2026-09-02。
+> 状态：正式流程。最后复核：2026-09-12。
 >
 > DuolinTing 的 iOS 商店包统一使用本机 Xcode 原生归档、验证和上传。EAS 云构建或自动提交不是正式发布路径；任何例外都必须先重新确认成品和目标应用。
 
@@ -15,14 +15,14 @@
 | iOS Bundle Identifier | `com.duolinting.app` | `mobile-app/app.json` |
 | 版本号 / 构建号 | 以 `mobile-app/app.json` 当前值为准 | `expo.version` / `expo.ios.buildNumber` |
 
-当前配置保留 `supportsTablet: true`。成品继续同时支持 iPhone 和 iPad；本轮产品决定不准备 iPad 商店截图，但这不等于关闭 iPad 支持。仍需在 iPad 上完成核心流程冒烟测试。若 App Store Connect 对当前设备支持提出截图阻断，应补齐截图，不能通过删除平板支持来绕过。
+当前配置保留 `supportsTablet: true`。成品继续同时支持 iPhone 和 iPad。按照 Apple 当前截图要求，只要 App 可在 iPad 上运行，就必须准备符合规格的 iPad 截图；本轮至少准备 1 张 iPad 13 英寸截图，同时完成 iPad 核心流程冒烟测试，不能通过删除平板支持来绕过。
 
 ## 2. 发布前准备
 
 ### 2.1 代码和版本
 
 - 确认工作区只包含本次发布需要的改动，并完成发布提交。
-- 在 `mobile-app/app.json` 中更新 `expo.version`（产品版本变化时）和 `expo.ios.buildNumber`（每次上传都必须递增）。当前配置为 `0.1.0 (10)`。
+- 在 `mobile-app/app.json` 中更新 `expo.version`（产品版本变化时）和 `expo.ios.buildNumber`（每次上传都必须递增）。当前配置为 `1.0 (11)`。
 - 不复用旧 Archive 或旧 IPA。每次上传都要从本次发布提交重新生成并核验。
 - 生成的 `mobile-app/ios` 原生工程是本地 Xcode 发布入口。若 `app.json` 的原生配置或 Expo 插件有变化，先同步原生工程，再打开工作区：
 
@@ -47,7 +47,7 @@
 
 - 名称、副标题、描述、关键词、分类、版权和支持联系方式。
 - 年龄分级问卷、App Privacy 数据收集问卷和公开隐私政策链接。
-- iPhone 商店截图。本轮不准备 iPad 商店截图，但保留 iPad 支持并完成 iPad 冒烟测试。
+- iPhone 商店截图，以及至少 1 张符合 Apple 规格的 iPad 13 英寸截图；截图必须来自本次可提交成品，并完成 iPhone 与 iPad 冒烟测试。
 - App Review 审核账号、审核备注和联系人信息。
 - 课程音频、视频、字幕、封面及翻译的发布权确认；当前版权字段为 `2026 Veeja Liu`。
 
@@ -75,7 +75,7 @@
 - 成品访问正式 HTTPS API，没有本机、局域网或测试接口地址。
 - App Store Connect 的年龄分级、隐私问卷、版权声明、审核信息和截图均对应本次版本。
 
-由于应用保留 iPad 支持，至少在一台 iPad 或对应的稳定模拟环境完成上述核心流程的冒烟测试；测试结果需要记录，但本轮不额外制作 iPad 商店截图。iPhone 截图仍是本次提交资料的一部分，必须来自非调试状态且不包含个人信息。
+由于应用保留 iPad 支持，至少在一台 iPad 或对应的稳定模拟环境完成上述核心流程的冒烟测试，并准备至少 1 张 iPad 13 英寸商店截图。iPhone 和 iPad 截图都必须来自非调试状态且不包含个人信息。
 
 ## 5. App Store Connect 提交流程
 
@@ -83,7 +83,7 @@
 
 - 本次 Xcode 上传的构建已完成 Processing，并已选到当前 iOS 版本。
 - 名称、副标题、描述、关键词、分类、版权、年龄分级和隐私问卷已完成。
-- iPhone 截图、支持链接、隐私政策链接和内容版权声明已完成。
+- iPhone 与 iPad 截图、支持链接、隐私政策链接和内容版权声明已完成。
 - 审核账号能够从干净安装进入核心学习流程；审核备注写明登录入口和测试路径。
 - 审核联系人信息已填写；账号密码只存在于 App Store Connect 的受保护字段中。
 - 本次版本在 TestFlight 或真机上完成 iPhone 验收，且完成 iPad 冒烟测试。
@@ -95,7 +95,7 @@
 - 不使用 EAS 云构建产物作为默认商店发布包，不使用自动提交绕过 Xcode 验证流程。
 - 不把 Build 9 或其他历史 IPA 当作当前发布包；上传前必须核验本次构建号。
 - 不把测试账号、密码、证书、私钥、生产 API 地址或审核联系人隐私信息写进 Git 跟踪文件。
-- 不因本轮不准备 iPad 截图而删除 `supportsTablet` 或改变设备支持范围。
+- 不为规避 iPad 截图要求而删除 `supportsTablet` 或改变设备支持范围。
 - 不在未确认目标 Apple ID 的情况下点击 Upload、选择构建或提交审核。
 
 ## 7. 发布记录模板
@@ -118,3 +118,16 @@ iPad 冒烟测试：
 商店资料 / 隐私 / 年龄分级 / 审核信息复核人：
 备注：
 ```
+
+## 8. 当前 `1.0 (11)` 执行记录
+
+截至 2026-09-13：
+
+- 已从 Expo 配置重新生成 iOS 原生工程，并核对 `com.duolinting.app`、`1.0 (11)`、iPhone+iPad 设备族、麦克风权限和非豁免加密声明。
+- 已使用正式 HTTPS API 配置完成 iPhone 17 Pro Max 与 iPad Pro 13 英寸 Release 模拟器启动验证；未复现白屏。
+- 已通过本地 Xcode `Archive` 与本地 App Store IPA 导出，使用 Apple Distribution 身份和 DuolinTing App Store profile。
+- 已核对 Archive/IPA 的版本、构建号、Bundle Identifier、设备族和签名；构建中未写入当前本地 `.env` 的 API 地址。
+- 已完成：登录后的 iPhone/iPad Release 模拟器验证；iPhone 5 张与 iPad 1 张商店截图已上传至正确的 DuolinTing iOS 1.0 版本页面。
+- 已在 App Store Connect 保存商店文案、版权、分类、审核信息和年龄分级，并发布 App Privacy。
+- `1.0 (11)` 通过命令行调用 Xcode 上传时提示当前 Xcode 没有可用于团队 `N5U2XLM3LW` 的 App Store Connect 账号；需先在 Xcode 的 Accounts 设置中重新登录，再按本文 Organizer 流程上传。
+- 待完成：Xcode 账号恢复、Build 11 上传与 Processing、价格和销售地区设置、选择构建，以及最终提交审核。

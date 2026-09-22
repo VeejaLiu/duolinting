@@ -2,7 +2,7 @@
   "expo": {
     "name": "DuolinTing",
     "slug": "duolinting-mobile-app",
-    "version": "0.1.0",
+    "version": "1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -29,7 +29,7 @@
     ],
     "ios": {
       "bundleIdentifier": "com.duolinting.app",
-      "buildNumber": "10",
+      "buildNumber": "11",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
