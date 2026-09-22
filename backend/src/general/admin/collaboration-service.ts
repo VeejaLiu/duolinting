@@ -1,3 +1,4 @@
+import { parseWorkflowLocalizations } from './workflow-localizations';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { Op } from 'sequelize';
@@ -610,13 +611,14 @@ export async function listClaimableWorkflowTasks({
             exercise_id: number | string;
             category_id: number | string;
             exercise_title: string;
+    exercise_localizations: unknown;
             category_name: string;
             difficulty: string;
             media_type: string;
             line_count: number | string;
             claim_release_count: number | string;
         }>({
-            query: `select e.id as exercise_id, e.category_id, e.title as exercise_title, c.name as category_name,
+            query: `select e.id as exercise_id, e.category_id, e.title as exercise_title, e.localizations_json as exercise_localizations, c.name as category_name,
                            e.difficulty, e.media_type,
                            json_length(coalesce(e.transcript_json, json_array())) as line_count,
                            (
@@ -648,6 +650,7 @@ export async function listClaimableWorkflowTasks({
         items: rows.map((row) => ({
             exerciseId: Number(row.exercise_id),
             exerciseTitle: row.exercise_title,
+            exerciseLocalizations: parseWorkflowLocalizations(row.exercise_localizations),
             categoryId: Number(row.category_id),
             categoryName: row.category_name,
             difficulty: row.difficulty as ClaimableWorkflowTaskPage['items'][number]['difficulty'],
@@ -715,12 +718,13 @@ export async function getWorkflowOverview(): Promise<AdminWorkflowOverview> {
         doRawQuery<{
             exercise_id: number | string;
             exercise_title: string;
+    exercise_localizations: unknown;
             contributor_display_name: string;
             assignment_source: CourseWorkflowAssignmentSource;
             draft_status: SubtitleDraftStatus | null;
             claim_expires_at: Date | string;
         }>({
-            query: `select assignees.exercise_id, exercises.title as exercise_title,
+            query: `select assignees.exercise_id, exercises.title as exercise_title, exercises.localizations_json as exercise_localizations,
                            admins.display_name as contributor_display_name,
                            assignees.assignment_source,
                            coalesce(drafts.status, 'editing') as draft_status,
@@ -808,6 +812,7 @@ export async function getWorkflowOverview(): Promise<AdminWorkflowOverview> {
             return {
                 exerciseId: Number(row.exercise_id),
                 exerciseTitle: row.exercise_title,
+            exerciseLocalizations: parseWorkflowLocalizations(row.exercise_localizations),
                 contributorDisplayName: row.contributor_display_name,
                 source: row.assignment_source,
                 stage: row.draft_status === 'returned' ? 'returned' : 'proofreading',
@@ -1473,6 +1478,7 @@ type WorkflowNotificationRow = {
     notification_type: AdminWorkflowNotificationType;
     exercise_id: number | string;
     exercise_title: string;
+    exercise_localizations: unknown;
     actor_display_name: string | null;
     review_note: string | null;
     is_read: boolean | number;
@@ -2101,10 +2107,11 @@ export async function listMySubtitleReviewTasks(adminId: number): Promise<AdminR
         draft_id: number | string;
         exercise_id: number | string;
         exercise_title: string;
+    exercise_localizations: unknown;
         contributor_display_name: string;
         submitted_at: Date | string;
     }>({
-        query: `select drafts.id as draft_id, drafts.exercise_id, exercises.title as exercise_title,
+        query: `select drafts.id as draft_id, drafts.exercise_id, exercises.title as exercise_title, exercises.localizations_json as exercise_localizations,
                        contributors.display_name as contributor_display_name, drafts.submitted_at
                 from exercise_subtitle_drafts drafts
                 inner join exercises on exercises.id = drafts.exercise_id
@@ -2117,6 +2124,7 @@ export async function listMySubtitleReviewTasks(adminId: number): Promise<AdminR
         draftId: Number(row.draft_id),
         exerciseId: Number(row.exercise_id),
         exerciseTitle: row.exercise_title,
+            exerciseLocalizations: parseWorkflowLocalizations(row.exercise_localizations),
         contributorDisplayName: row.contributor_display_name,
         submittedAt: new Date(row.submitted_at).toISOString(),
     }));
@@ -2128,6 +2136,7 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
         draft_id: number | string;
         exercise_id: number | string;
         exercise_title: string;
+    exercise_localizations: unknown;
         contributor_display_name: string;
         proofreader_id: number | string | null;
         proofreader_source: CourseWorkflowAssignmentSource | null;
@@ -2140,7 +2149,7 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
         updated_at: Date | string | null;
         review_note: string | null;
     }>({
-        query: `select drafts.id as draft_id, drafts.exercise_id, exercises.title as exercise_title,
+        query: `select drafts.id as draft_id, drafts.exercise_id, exercises.title as exercise_title, exercises.localizations_json as exercise_localizations,
                        contributors.display_name as contributor_display_name,
                        proofreader.admin_user_id as proofreader_id,
                        proofreader.assignment_source as proofreader_source,
@@ -2169,6 +2178,7 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
     for (const row of rows) {
         const base = {
             draftId: Number(row.draft_id), exerciseId: Number(row.exercise_id), exerciseTitle: row.exercise_title,
+            exerciseLocalizations: parseWorkflowLocalizations(row.exercise_localizations),
             contributorDisplayName: row.contributor_display_name,
             submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : undefined,
             updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : undefined,
@@ -2199,10 +2209,11 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
     const unstartedRows = await doRawQuery<{
         exercise_id: number | string;
         exercise_title: string;
+    exercise_localizations: unknown;
         assignment_source: CourseWorkflowAssignmentSource;
         claim_expires_at: Date | string | null;
     }>({
-        query: `select assignees.exercise_id, exercises.title as exercise_title,
+        query: `select assignees.exercise_id, exercises.title as exercise_title, exercises.localizations_json as exercise_localizations,
                        assignees.assignment_source, assignees.claim_expires_at
                 from exercise_workflow_assignees assignees
                 inner join exercises on exercises.id = assignees.exercise_id
@@ -2223,6 +2234,7 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
             draftId: 0,
             exerciseId: Number(row.exercise_id),
             exerciseTitle: row.exercise_title,
+            exerciseLocalizations: parseWorkflowLocalizations(row.exercise_localizations),
             contributorDisplayName: '尚未创建校对稿',
             role: 'proofreader',
             stage: 'proofreading',
@@ -2246,7 +2258,7 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
 export async function listMyWorkflowNotifications(adminId: number): Promise<AdminWorkflowNotifications> {
     const rows = await doRawQuery<WorkflowNotificationRow>({
         query: `select notifications.id, notifications.notification_type, notifications.exercise_id,
-                       exercises.title as exercise_title, actors.display_name as actor_display_name,
+                       exercises.title as exercise_title, exercises.localizations_json as exercise_localizations, actors.display_name as actor_display_name,
                        notifications.review_note, notifications.is_read, notifications.created_at
                 from admin_workflow_notifications notifications
                 inner join exercises on exercises.id = notifications.exercise_id
@@ -2266,6 +2278,7 @@ export async function listMyWorkflowNotifications(adminId: number): Promise<Admi
         items: rows.map((row) => ({
             id: Number(row.id), type: row.notification_type,
             exerciseId: Number(row.exercise_id), exerciseTitle: row.exercise_title,
+            exerciseLocalizations: parseWorkflowLocalizations(row.exercise_localizations),
             actorDisplayName: row.actor_display_name || '系统', reviewNote: row.review_note || undefined,
             isRead: Boolean(row.is_read), createdAt: new Date(row.created_at).toISOString(),
         })),
@@ -2289,6 +2302,7 @@ type WorkflowActivityRow = {
     second_reviewer_admin_user_id: number | string | null;
     exercise_id: number | string;
     exercise_title: string;
+    exercise_localizations: unknown;
     actor_display_name: string | null;
     target_display_name: string | null;
     second_reviewer_display_name: string | null;
@@ -2342,6 +2356,7 @@ export async function listWorkflowActivity({
                            events.second_reviewer_admin_user_id,
                            events.exercise_id,
                            coalesce(exercises.title, concat('已删除课程 #', events.exercise_id)) as exercise_title,
+                           exercises.localizations_json as exercise_localizations,
                            actor.display_name as actor_display_name,
                            target.display_name as target_display_name,
                            second_reviewer.display_name as second_reviewer_display_name,
@@ -2369,6 +2384,7 @@ export async function listWorkflowActivity({
         type: row.event_type,
         exerciseId: Number(row.exercise_id),
         exerciseTitle: row.exercise_title,
+            exerciseLocalizations: parseWorkflowLocalizations(row.exercise_localizations),
         actorAdminUserId: row.actor_admin_user_id === null ? undefined : Number(row.actor_admin_user_id),
         targetAdminUserId: row.target_admin_user_id === null ? undefined : Number(row.target_admin_user_id),
         secondReviewerAdminUserId: row.second_reviewer_admin_user_id === null

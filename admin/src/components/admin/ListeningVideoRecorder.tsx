@@ -1,3 +1,4 @@
+import { directoryName, courseTitle } from '../../lib/localizedContent'
 import { Expand, Minimize2, Play, RotateCcw, Square } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -137,7 +138,7 @@ export function ListeningVideoRecorder({
   exercises,
   onNotify,
 }: ListeningVideoRecorderProps) {
-  const { t } = useAdminLanguage()
+  const { t, uiLocale } = useAdminLanguage()
   const [searchParams] = useSearchParams()
   // 音频、视频共用同一个时间轴控制器。视频必须由 video 元素实际渲染，
   // 不能再把 mp4 放进 audio 元素，否则录屏只有声音与封面、没有原始画面。
@@ -174,20 +175,20 @@ export function ListeningVideoRecorder({
   )
   // 分类、系列、课程是一条完整路径，使用 Cascader 避免三个横向下拉框在窄屏相互挤压。
   const courseCascaderOptions = useMemo(() => availableCategoryGroups.map((group) => ({
-    label: group.name,
+    label: directoryName(group, uiLocale),
     value: `group-${group.id}`,
     children: availableCategories
       .filter((category) => category.groupId === group.id)
       .map((category) => ({
-        label: category.name,
+        label: directoryName(category, uiLocale),
         value: `category-${category.id}`,
         children: exercises
           .filter((item) => item.categoryId === category.id)
           .sort((left, right) => left.sortOrder - right.sortOrder)
-          .map((item) => ({ label: item.title, value: String(item.id) })),
+          .map((item) => ({ label: courseTitle(item, uiLocale), value: String(item.id) })),
       }))
       .filter((category) => category.children.length > 0),
-  })).filter((group) => group.children.length > 0), [availableCategories, availableCategoryGroups, exercises])
+  })).filter((group) => group.children.length > 0), [availableCategories, availableCategoryGroups, exercises, uiLocale])
   const selectedCoursePath = useMemo(() => {
     const item = exercises.find((candidate) => candidate.id === Number(selectedExerciseId))
     const category = availableCategories.find((candidate) => candidate.id === item?.categoryId)
@@ -661,7 +662,7 @@ export function ListeningVideoRecorder({
               {phase === 'countdown' && <p className="recorder-stage-copy">{messages.countdown}</p>}
               {phase === 'idle' && (
                 <>
-                  <p className="recorder-course-title">{exercise?.title ?? t('请选择一节课程')}</p>
+                  <p className="recorder-course-title">{courseTitle(exercise ?? undefined, contentLocale) || t('请选择一节课程')}</p>
                   <p className="recorder-stage-copy">{messages.idleDescription}</p>
                 </>
               )}

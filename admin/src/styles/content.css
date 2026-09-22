@@ -1345,7 +1345,7 @@
 }
 
 .course-meta-drawer {
-  max-width: min(380px, 92vw);
+  max-width: min(560px, 92vw);
 }
 
 .course-meta-drawer .course-meta-panel {
@@ -3447,4 +3447,14 @@
   .directory-edit-layout {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+.course-metadata-ai-tools {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
 }

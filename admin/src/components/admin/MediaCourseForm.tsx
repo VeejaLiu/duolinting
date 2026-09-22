@@ -1,3 +1,4 @@
+import { directoryName, courseTitle } from '../../lib/localizedContent'
 import * as Select from '@radix-ui/react-select'
 import { Button, Drawer, Progress, Tag } from 'antd'
 import {
@@ -28,6 +29,7 @@ import type {
   ContentLocale,
 } from '@duolinting/shared'
 import type { AdminNoticeTone } from './AdminFeedback'
+import { CourseMetadataAiTools } from './CourseMetadataAiTools'
 import { CoverImageField } from './CoverImageField'
 import type { FileUploadProgress } from '../../lib/apiClient'
 import { formatDurationLabel, type DraftLine } from '../../lib/mediaDraftTools'
@@ -164,7 +166,7 @@ export function MediaCourseForm({
   onSaveLesson,
   onSubmitSubtitleDraft,
 }: MediaCourseFormProps) {
-  const { t } = useAdminLanguage()
+  const { t, uiLocale } = useAdminLanguage()
   const [localizationLocale, setLocalizationLocale] = useState<ContentLocale>('zh-CN')
   const [previewTime, setPreviewTime] = useState(0)
   const [isCourseMetaOpen, setIsCourseMetaOpen] = useState(false)
@@ -256,18 +258,18 @@ export function MediaCourseForm({
     () =>
       categoriesByGroup.map(({ group }) => ({
         value: String(group.id),
-        label: group.name,
+        label: directoryName(group, uiLocale),
       })),
-    [categoriesByGroup],
+    [categoriesByGroup, uiLocale],
   )
 
   const categoryOptions: SelectOption[] = useMemo(
     () =>
       visibleCategories.map((cat) => ({
         value: String(cat.id),
-        label: cat.name,
+        label: directoryName(cat, uiLocale),
       })),
-    [visibleCategories],
+    [visibleCategories, uiLocale],
   )
   const isClipboardDialogOpen = clipboardPanel.mode !== 'hidden'
   const setMediaElement = useCallback(
@@ -468,7 +470,7 @@ export function MediaCourseForm({
         title={t('课程信息')}
         placement="left"
         open={isCourseMetaOpen}
-        width={380}
+        width={560}
         onClose={() => setIsCourseMetaOpen(false)}
       >
         <section className="course-meta-panel">
@@ -477,9 +479,9 @@ export function MediaCourseForm({
             <div className="course-readonly-info">
               <p className="course-readonly-notice">{t('课程信息由超级管理员维护，你可以编辑字幕和时间轴。')}</p>
               <dl>
-                <dt>{t('内容分类')}</dt><dd>{categoriesByGroup.find(({ categories }) => categories.some((category) => category.id === courseForm.categoryId))?.group.name || t('未填写')}</dd>
-                <dt>{t('学习系列')}</dt><dd>{visibleCategories.find((category) => category.id === courseForm.categoryId)?.name || t('未填写')}</dd>
-                <dt>{t('标题')}</dt><dd>{courseForm.title || t('未填写')}</dd>
+                <dt>{t('内容分类')}</dt><dd>{directoryName(categoriesByGroup.find(({ categories }) => categories.some((category) => category.id === courseForm.categoryId))?.group, uiLocale) || t('未填写')}</dd>
+                <dt>{t('学习系列')}</dt><dd>{directoryName(visibleCategories.find((category) => category.id === courseForm.categoryId), uiLocale) || t('未填写')}</dd>
+                <dt>{t('标题')}</dt><dd>{courseTitle(courseForm, uiLocale) || t('未填写')}</dd>
                 <dt>{t('难度')}</dt><dd>{t(({ beginner: '入门', intermediate: '进阶', advanced: '高阶' })[courseForm.difficulty])}</dd>
                 <dt>{t('时长')}</dt><dd>{courseForm.durationLabel || t('未知')}</dd>
                 <dt>{t('媒体文件')}</dt><dd>{courseForm.audioUrl ? `${currentMediaTypeLabel} · ${currentMediaSizeLabel}` : t('尚未选择媒体')}</dd>
@@ -510,6 +512,13 @@ export function MediaCourseForm({
             disabled={isSubtitleContributor}
             style={{ border: 0, margin: 0, minInlineSize: 0, padding: 0 }}
           >
+            <CourseMetadataAiTools
+              key={courseForm.id ?? 'new'}
+              form={courseForm}
+              disabled={isSaving}
+              onNotify={onNotify}
+              onApply={(metadata) => onCourseFormChange((current) => ({ ...current, ...metadata }))}
+            />
             <FieldSelect
               label={t('内容分类')}
               value={selectedGroupId}
@@ -710,7 +719,7 @@ export function MediaCourseForm({
         <div className="import-main-toolbar">
           <div className="import-main-title-group">
             <strong className="import-main-title">
-              {courseForm.title.trim() || t('未填写标题')}
+              {courseTitle(courseForm, uiLocale) || t('未填写标题')}
             </strong>
             <Button
               className="course-meta-trigger"
@@ -737,7 +746,7 @@ export function MediaCourseForm({
               className="command-button meta-save-command"
               disabled={isSaving || Boolean(saveDisabledReason)}
               onClick={onSaveLesson}
-              title={saveDisabledReason}
+              title={saveDisabledReason ? t(saveDisabledReason) : undefined}
               type="button"
             >
               <Save size={16} aria-hidden="true" />
@@ -748,7 +757,7 @@ export function MediaCourseForm({
                 className="command-button meta-save-command"
                 disabled={isSaving || Boolean(saveDisabledReason)}
                 onClick={onSubmitSubtitleDraft}
-                title={saveDisabledReason}
+                title={saveDisabledReason ? t(saveDisabledReason) : undefined}
                 type="button"
               >
                 <Send size={16} aria-hidden="true" />

@@ -1,3 +1,4 @@
+import { directoryName } from '../../lib/localizedContent'
 import { Layers, LoaderCircle, Trash2, Upload } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -269,7 +270,7 @@ export function BatchCourseImporter({
   onRefreshCatalog,
   onNotify,
 }: BatchCourseImporterProps) {
-  const { t } = useAdminLanguage()
+  const { t, uiLocale } = useAdminLanguage()
   const [open, setOpen] = useState(false)
   const [categoryId, setCategoryId] = useState<number>(0)
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
@@ -287,12 +288,12 @@ export function BatchCourseImporter({
   const categoryOptions = useMemo(
     () =>
       categoryGroups.map((group) => ({
-        label: group.name,
+        label: directoryName(group, uiLocale),
         options: categories
           .filter((category) => category.groupId === group.id)
-          .map((category) => ({ label: category.name, value: category.id })),
+          .map((category) => ({ label: directoryName(category, uiLocale), value: category.id })),
       })),
-    [categories, categoryGroups],
+    [categories, categoryGroups, uiLocale],
   )
 
   // 列表与上传顺序都按媒体文件名自然排序；排序是派生的，不写回原始状态，

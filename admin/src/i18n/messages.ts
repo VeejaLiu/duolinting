@@ -1,3 +1,5 @@
+import thSupplement from './supplement-th-TH'
+import jaSupplement from './supplement-ja-JP'
 import frFR from './fr-FR'
 import esES from './es-ES'
 import type { UiLocale } from '@duolinting/domain'
@@ -2191,4 +2193,246 @@ const localeExpansionMessages: Partial<Record<UiLocale, Record<string, string>>>
 }
 for (const locale of Object.keys(localeExpansionMessages) as UiLocale[]) {
   Object.assign(adminMessages[locale], localeExpansionMessages[locale])
+}
+
+const courseMetadataAiMessages: Record<UiLocale, Record<string, string>> = {
+  "zh-CN": {
+    "复制课程标题与简介的翻译任务，粘贴 JSON 后检查并保存。": "复制课程标题与简介的翻译任务，粘贴 JSON 后检查并保存。",
+    "仅更新课程标题、简介和对应译文，检查后使用原有保存按钮保存。": "仅更新课程标题、简介和对应译文，检查后使用原有保存按钮保存。",
+    "提交校对": "提交校对",
+    "该字幕稿已提交审核，等待审核结果后才能继续修改或重新提交": "该字幕稿已提交审核，等待审核结果后才能继续修改或重新提交",
+    "该字幕稿已审核通过并发布，不能再次修改或提交": "该字幕稿已审核通过并发布，不能再次修改或提交",
+    "媒体上传中，请稍候": "媒体上传中，请稍候",
+    "请先选择音频或视频文件": "请先选择音频或视频文件"
+  },
+  "en-US": {
+    "复制课程标题与简介的翻译任务，粘贴 JSON 后检查并保存。": "Copy the course title and summary translation task, then paste the JSON, review and save.",
+    "仅更新课程标题、简介和对应译文，检查后使用原有保存按钮保存。": "Only the course title, summary and their translations will change. Review and use the existing Save button.",
+    "提交校对": "Submit proofreading",
+    "该字幕稿已提交审核，等待审核结果后才能继续修改或重新提交": "This draft is under review. Wait for the result before editing or submitting again.",
+    "该字幕稿已审核通过并发布，不能再次修改或提交": "This draft has been approved and published. It cannot be edited or submitted again.",
+    "媒体上传中，请稍候": "Media upload in progress. Please wait.",
+    "请先选择音频或视频文件": "Select an audio or video file first."
+  },
+  "fr-FR": {
+    "复制课程标题与简介的翻译任务，粘贴 JSON 后检查并保存。": "Copiez la tâche de traduction du titre et du résumé, puis collez le JSON, vérifiez et enregistrez.",
+    "仅更新课程标题、简介和对应译文，检查后使用原有保存按钮保存。": "Seuls le titre, le résumé et leurs traductions seront modifiés. Vérifiez et utilisez le bouton Enregistrer.",
+    "提交校对": "Soumettre la correction",
+    "该字幕稿已提交审核，等待审核结果后才能继续修改或重新提交": "Ce brouillon est en révision. Attendez le résultat avant de le modifier ou de le soumettre à nouveau.",
+    "该字幕稿已审核通过并发布，不能再次修改或提交": "Ce brouillon est approuvé et publié. Il ne peut plus être modifié ni soumis.",
+    "媒体上传中，请稍候": "Envoi du média en cours. Veuillez patienter.",
+    "请先选择音频或视频文件": "Sélectionnez d’abord un fichier audio ou vidéo."
+  },
+  "es-ES": {
+    "复制课程标题与简介的翻译任务，粘贴 JSON 后检查并保存。": "Copia la tarea de traducción del título y resumen; pega el JSON, revisa y guarda.",
+    "仅更新课程标题、简介和对应译文，检查后使用原有保存按钮保存。": "Solo se actualizarán el título, el resumen y sus traducciones. Revisa y usa el botón Guardar.",
+    "提交校对": "Enviar corrección",
+    "该字幕稿已提交审核，等待审核结果后才能继续修改或重新提交": "Este borrador está en revisión. Espera el resultado antes de editarlo o enviarlo de nuevo.",
+    "该字幕稿已审核通过并发布，不能再次修改或提交": "Este borrador está aprobado y publicado. No se puede editar ni enviar de nuevo.",
+    "媒体上传中，请稍候": "Se está subiendo el archivo multimedia. Espera un momento.",
+    "请先选择音频或视频文件": "Selecciona primero un archivo de audio o vídeo."
+  },
+  "th-TH": {
+    "复制课程标题与简介的翻译任务，粘贴 JSON 后检查并保存。": "คัดลอกงานแปลชื่อและสรุปหลักสูตร แล้ววาง JSON ตรวจสอบและบันทึก",
+    "仅更新课程标题、简介和对应译文，检查后使用原有保存按钮保存。": "อัปเดตเฉพาะชื่อ สรุปหลักสูตร และคำแปล ตรวจสอบแล้วใช้ปุ่มบันทึกเดิม",
+    "提交校对": "ส่งงานตรวจทาน",
+    "该字幕稿已提交审核，等待审核结果后才能继续修改或重新提交": "ร่างนี้อยู่ระหว่างการตรวจสอบ กรุณารอผลก่อนแก้ไขหรือส่งใหม่",
+    "该字幕稿已审核通过并发布，不能再次修改或提交": "ร่างนี้ได้รับอนุมัติและเผยแพร่แล้ว ไม่สามารถแก้ไขหรือส่งซ้ำได้",
+    "媒体上传中，请稍候": "กำลังอัปโหลดสื่อ กรุณารอสักครู่",
+    "请先选择音频或视频文件": "กรุณาเลือกไฟล์เสียงหรือวิดีโอก่อน"
+  },
+  "ja-JP": {
+    "复制课程标题与简介的翻译任务，粘贴 JSON 后检查并保存。": "コースのタイトルと概要の翻訳タスクをコピーし、JSON を貼り付けて確認・保存してください。",
+    "仅更新课程标题、简介和对应译文，检查后使用原有保存按钮保存。": "タイトル、概要とその翻訳のみを更新します。確認後、既存の保存ボタンで保存してください。",
+    "提交校对": "校正を提出",
+    "该字幕稿已提交审核，等待审核结果后才能继续修改或重新提交": "この下書きは審査中です。結果が出てから編集または再提出してください。",
+    "该字幕稿已审核通过并发布，不能再次修改或提交": "この下書きは承認・公開済みのため、編集や再提出はできません。",
+    "媒体上传中，请稍候": "メディアをアップロード中です。お待ちください。",
+    "请先选择音频或视频文件": "先に音声または動画ファイルを選択してください。"
+  }
+}
+for (const locale of Object.keys(courseMetadataAiMessages) as UiLocale[]) {
+  Object.assign(adminMessages[locale], courseMetadataAiMessages[locale])
+}
+
+Object.assign(adminMessages['th-TH'], thSupplement)
+Object.assign(adminMessages['ja-JP'], jaSupplement)
+// Chinese source keys are the canonical Chinese copy, including dynamically selected action labels.
+// Populate missing entries explicitly so English defaults do not override a chosen Chinese interface.
+for (const key of Object.keys(adminMessages['en-US'])) {
+  adminMessages['zh-CN'][key] ??= key
+}
+
+const workflowUiMessages: Record<UiLocale, Record<string, string>> = {
+  "zh-CN": {
+    "待上传": "待上传",
+    "准备课程信息": "准备课程信息",
+    "创建课程": "创建课程",
+    "写入字幕": "写入字幕",
+    "高级": "高级",
+    "分配任务": "分配任务",
+    "取消分配": "取消分配",
+    "任务超时释放": "任务超时释放",
+    "提交字幕": "提交字幕",
+    "审核通过": "审核通过",
+    "回退课程": "回退课程",
+    "二审": "二审",
+    "校对": "校对",
+    "已分配": "已分配",
+    "已取消": "已取消",
+    "已领取": "已领取",
+    "已放弃": "已放弃",
+    "已超时释放": "已超时释放",
+    "已回退": "已回退",
+    "课程草稿": "课程草稿",
+    "字幕校对": "字幕校对",
+    "请先创建并选择学习系列": "请先创建并选择学习系列",
+    "已保存校对草稿：{{title}}": "已保存校对草稿：{{title}}",
+    "已提交二次审核：{{title}}": "已提交二次审核：{{title}}",
+    "字幕稿提交失败": "字幕稿提交失败",
+    "协作动态加载失败：{{error}}": "协作动态加载失败：{{error}}"
+  },
+  "en-US": {
+    "待上传": "Pending upload",
+    "准备课程信息": "Prepare course information",
+    "创建课程": "Create course",
+    "写入字幕": "Save subtitles",
+    "高级": "Advanced",
+    "分配任务": "Assign task",
+    "取消分配": "Unassign",
+    "任务超时释放": "Task released after expiry",
+    "提交字幕": "Submit subtitles",
+    "审核通过": "Review approved",
+    "回退课程": "Revert course",
+    "二审": "Second review",
+    "校对": "Proofreading",
+    "已分配": "Assigned",
+    "已取消": "Cancelled",
+    "已领取": "Claimed",
+    "已放弃": "Released",
+    "已超时释放": "Released after expiry",
+    "已回退": "Reverted",
+    "课程草稿": "Course draft",
+    "字幕校对": "Subtitle proofreading",
+    "请先创建并选择学习系列": "Create and select a learning series first",
+    "已保存校对草稿：{{title}}": "Proofreading draft saved: {{title}}",
+    "已提交二次审核：{{title}}": "Submitted for second review: {{title}}",
+    "字幕稿提交失败": "Failed to submit subtitle draft",
+    "协作动态加载失败：{{error}}": "Failed to load team activity: {{error}}"
+  },
+  "fr-FR": {
+    "待上传": "En attente d’envoi",
+    "准备课程信息": "Préparer les informations du cours",
+    "创建课程": "Créer un cours",
+    "写入字幕": "Enregistrer les sous-titres",
+    "高级": "Avancé",
+    "分配任务": "Attribuer la tâche",
+    "取消分配": "Annuler l’attribution",
+    "任务超时释放": "Tâche libérée après expiration",
+    "提交字幕": "Soumettre les sous-titres",
+    "审核通过": "Révision approuvée",
+    "回退课程": "Remettre le cours en brouillon",
+    "二审": "Seconde révision",
+    "校对": "Correction",
+    "已分配": "Attribué",
+    "已取消": "Annulé",
+    "已领取": "Pris en charge",
+    "已放弃": "Libéré",
+    "已超时释放": "Libéré après expiration",
+    "已回退": "Remis en brouillon",
+    "课程草稿": "Brouillon du cours",
+    "字幕校对": "Correction des sous-titres",
+    "请先创建并选择学习系列": "Créez et sélectionnez d’abord une série",
+    "已保存校对草稿：{{title}}": "Brouillon de correction enregistré : {{title}}",
+    "已提交二次审核：{{title}}": "Soumis à la seconde révision : {{title}}",
+    "字幕稿提交失败": "Échec de l’envoi du brouillon",
+    "协作动态加载失败：{{error}}": "Échec du chargement de l’activité : {{error}}"
+  },
+  "es-ES": {
+    "待上传": "Pendiente de subida",
+    "准备课程信息": "Preparar información del curso",
+    "创建课程": "Crear curso",
+    "写入字幕": "Guardar subtítulos",
+    "高级": "Avanzado",
+    "分配任务": "Asignar tarea",
+    "取消分配": "Quitar asignación",
+    "任务超时释放": "Tarea liberada por caducidad",
+    "提交字幕": "Enviar subtítulos",
+    "审核通过": "Revisión aprobada",
+    "回退课程": "Revertir curso",
+    "二审": "Segunda revisión",
+    "校对": "Corrección",
+    "已分配": "Asignado",
+    "已取消": "Cancelado",
+    "已领取": "Reservado",
+    "已放弃": "Liberado",
+    "已超时释放": "Liberado por caducidad",
+    "已回退": "Revertido",
+    "课程草稿": "Borrador del curso",
+    "字幕校对": "Corrección de subtítulos",
+    "请先创建并选择学习系列": "Crea y selecciona primero una serie",
+    "已保存校对草稿：{{title}}": "Borrador de corrección guardado: {{title}}",
+    "已提交二次审核：{{title}}": "Enviado a segunda revisión: {{title}}",
+    "字幕稿提交失败": "No se pudo enviar el borrador",
+    "协作动态加载失败：{{error}}": "No se pudo cargar la actividad: {{error}}"
+  },
+  "th-TH": {
+    "待上传": "รออัปโหลด",
+    "准备课程信息": "เตรียมข้อมูลหลักสูตร",
+    "创建课程": "สร้างหลักสูตร",
+    "写入字幕": "บันทึกคำบรรยาย",
+    "高级": "ขั้นสูง",
+    "分配任务": "มอบหมายงาน",
+    "取消分配": "ยกเลิกการมอบหมาย",
+    "任务超时释放": "คืนงานเมื่อหมดเวลา",
+    "提交字幕": "ส่งคำบรรยาย",
+    "审核通过": "ตรวจผ่านแล้ว",
+    "回退课程": "คืนหลักสูตรเป็นร่าง",
+    "二审": "ตรวจรอบสอง",
+    "校对": "ตรวจทาน",
+    "已分配": "มอบหมายแล้ว",
+    "已取消": "ยกเลิกแล้ว",
+    "已领取": "รับงานแล้ว",
+    "已放弃": "คืนงานแล้ว",
+    "已超时释放": "คืนงานหลังหมดเวลา",
+    "已回退": "คืนเป็นร่างแล้ว",
+    "课程草稿": "ร่างหลักสูตร",
+    "字幕校对": "ตรวจทานคำบรรยาย",
+    "请先创建并选择学习系列": "กรุณาสร้างและเลือกชุดการเรียนก่อน",
+    "已保存校对草稿：{{title}}": "บันทึกร่างตรวจทานแล้ว: {{title}}",
+    "已提交二次审核：{{title}}": "ส่งตรวจรอบสองแล้ว: {{title}}",
+    "字幕稿提交失败": "ส่งร่างคำบรรยายไม่สำเร็จ",
+    "协作动态加载失败：{{error}}": "โหลดกิจกรรมทีมไม่สำเร็จ: {{error}}"
+  },
+  "ja-JP": {
+    "待上传": "アップロード待ち",
+    "准备课程信息": "コース情報を準備",
+    "创建课程": "コースを作成",
+    "写入字幕": "字幕を保存",
+    "高级": "上級",
+    "分配任务": "タスクを割り当て",
+    "取消分配": "割り当てを解除",
+    "任务超时释放": "期限切れで返却",
+    "提交字幕": "字幕を提出",
+    "审核通过": "審査承認",
+    "回退课程": "コースを差し戻す",
+    "二审": "二次審査",
+    "校对": "校正",
+    "已分配": "割り当て済み",
+    "已取消": "取り消し済み",
+    "已领取": "受領済み",
+    "已放弃": "返却済み",
+    "已超时释放": "期限切れで返却済み",
+    "已回退": "差し戻し済み",
+    "课程草稿": "コース下書き",
+    "字幕校对": "字幕校正",
+    "请先创建并选择学习系列": "先に学習シリーズを作成して選択してください",
+    "已保存校对草稿：{{title}}": "校正下書きを保存しました：{{title}}",
+    "已提交二次审核：{{title}}": "二次審査に提出しました：{{title}}",
+    "字幕稿提交失败": "字幕下書きを提出できませんでした",
+    "协作动态加载失败：{{error}}": "チームの活動を読み込めませんでした：{{error}}"
+  }
+}
+for (const locale of Object.keys(workflowUiMessages) as UiLocale[]) {
+  Object.assign(adminMessages[locale], workflowUiMessages[locale])
 }

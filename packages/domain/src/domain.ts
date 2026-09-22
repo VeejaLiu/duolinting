@@ -188,6 +188,8 @@ export type AdminReviewTask = {
   draftId: number
   exerciseId: number
   exerciseTitle: string
+  /** Existing title translations for display only; the base title remains English. */
+  exerciseLocalizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>
   contributorDisplayName: string
   submittedAt: string
 }
@@ -199,6 +201,8 @@ export type AdminSubtitleWorkflowTask = {
   draftId: number
   exerciseId: number
   exerciseTitle: string
+  /** Existing title translations for display only; the base title remains English. */
+  exerciseLocalizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>
   contributorDisplayName: string
   role: AdminSubtitleWorkflowTaskRole
   stage: AdminSubtitleWorkflowTaskStage
@@ -227,6 +231,8 @@ export type AdminWorkflowNotification = {
   type: AdminWorkflowNotificationType
   exerciseId: number
   exerciseTitle: string
+  /** Existing title translations for display only; the base title remains English. */
+  exerciseLocalizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>
   actorDisplayName: string
   reviewNote?: string
   isRead: boolean
@@ -248,6 +254,8 @@ export type CourseWorkflowAssignmentSource = 'admin_assigned' | 'self_claimed'
 export type ClaimableWorkflowTask = {
   exerciseId: number
   exerciseTitle: string
+  /** Existing title translations for display only; the base title remains English. */
+  exerciseLocalizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>
   categoryId: number
   categoryName: string
   difficulty: Difficulty
@@ -278,6 +286,8 @@ export type AdminTaskClaimPolicy = {
 export type AdminWorkflowOverdueTask = {
   exerciseId: number
   exerciseTitle: string
+  /** Existing title translations for display only; the base title remains English. */
+  exerciseLocalizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>
   contributorDisplayName: string
   source: CourseWorkflowAssignmentSource
   stage: 'proofreading' | 'returned'
@@ -330,6 +340,8 @@ export type AdminWorkflowActivity = {
   type: AdminWorkflowActivityType
   exerciseId: number
   exerciseTitle: string
+  /** Existing title translations for display only; the base title remains English. */
+  exerciseLocalizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>
   /** 仅供已登录后台成员判断“是否与我相关”，页面不展示该内部 ID。 */
   actorAdminUserId?: number
   targetAdminUserId?: number

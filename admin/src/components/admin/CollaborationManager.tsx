@@ -1,3 +1,4 @@
+import { directoryName, courseTitle } from '../../lib/localizedContent'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button, Card, Checkbox, Dropdown, Form, Input, List, Modal, Radio, Select, Space, Tag, Typography } from 'antd'
 import { ArrowLeft, MoreHorizontal, UserPlus, UsersRound } from 'lucide-react'
@@ -436,7 +437,7 @@ export function CollaborationManager({
                         indeterminate={isSomeCourseSelected(groupCourseIds)}
                         onChange={(event) => event.target.checked ? addCourseIds(groupCourseIds) : removeCourseIds(groupCourseIds)}
                       >
-                        <Typography.Text strong>{group.name}</Typography.Text>
+                        <Typography.Text strong>{directoryName(group, uiLocale)}</Typography.Text>
                         <Typography.Text type="secondary"> · {t('{{count}} 门课程', { count: groupCourseIds.length })}</Typography.Text>
                       </Checkbox>
 
@@ -450,7 +451,7 @@ export function CollaborationManager({
                               indeterminate={isSomeCourseSelected(categoryCourseIds)}
                               onChange={(event) => event.target.checked ? addCourseIds(categoryCourseIds) : removeCourseIds(categoryCourseIds)}
                             >
-                              <Typography.Text strong>{category.name}</Typography.Text>
+                              <Typography.Text strong>{directoryName(category, uiLocale)}</Typography.Text>
                               <Typography.Text type="secondary"> · {t('{{count}} 门课程', { count: categoryCourseIds.length })}</Typography.Text>
                             </Checkbox>
                             {categoryCourses.length === 0 ? (
@@ -463,7 +464,7 @@ export function CollaborationManager({
                                     key={exercise.id}
                                     onChange={(event) => event.target.checked ? addCourseIds([exercise.id]) : removeCourseIds([exercise.id])}
                                   >
-                                    {exercise.title} <Typography.Text type="secondary">· {statusLabel(exercise.status)}</Typography.Text>
+                                    {courseTitle(exercise, uiLocale)} <Typography.Text type="secondary">· {statusLabel(exercise.status)}</Typography.Text>
                                   </Checkbox>
                                 ))}
                               </Space>

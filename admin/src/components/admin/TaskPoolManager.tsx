@@ -1,3 +1,4 @@
+import { directoryName, workflowCourseTitle } from '../../lib/localizedContent'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -140,9 +141,9 @@ export function TaskPoolManager({
   const categoryOptions = useMemo(
     () => categories
       .filter((category) => !selectedGroupId || category.groupId === selectedGroupId)
-      .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'zh-CN'))
-      .map((category) => ({ label: category.name, value: category.id })),
-    [categories, selectedGroupId],
+      .sort((left, right) => left.sortOrder - right.sortOrder || directoryName(left, uiLocale).localeCompare(directoryName(right, uiLocale), uiLocale))
+      .map((category) => ({ label: directoryName(category, uiLocale), value: category.id })),
+    [categories, selectedGroupId, uiLocale],
   )
 
   const refresh = useCallback(async () => {
@@ -239,8 +240,8 @@ export function TaskPoolManager({
           }}
           options={categoryGroups
             .slice()
-            .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'zh-CN'))
-            .map((group) => ({ label: group.name, value: group.id }))}
+            .sort((left, right) => left.sortOrder - right.sortOrder || directoryName(left, uiLocale).localeCompare(directoryName(right, uiLocale), uiLocale))
+            .map((group) => ({ label: directoryName(group, uiLocale), value: group.id }))}
           placeholder={t('全部分类')}
           showSearch
           optionFilterProp="label"
@@ -287,11 +288,11 @@ export function TaskPoolManager({
           pool.map((task) => (
             <div className="task-pool-item" key={task.exerciseId}>
               <div className="task-pool-item-main">
-                <Typography.Text className="task-pool-item-title">{task.exerciseTitle}</Typography.Text>
+                <Typography.Text className="task-pool-item-title">{workflowCourseTitle(task, uiLocale)}</Typography.Text>
                 <Space size={6} wrap>
                   {difficultyTag(task, t)}
                   <Tag variant="outlined">{t(task.mediaType === 'video' ? '视频' : '音频')}</Tag>
-                  <Tag>{task.categoryName}</Tag>
+                  <Tag>{directoryName(categories.find((category) => category.id === task.categoryId), uiLocale) || task.categoryName}</Tag>
                   <Tag variant="outlined">{t('{{count}} 句字幕', { count: task.lineCount })}</Tag>
                   {task.claimReleaseCount > 0 && <Tag color="gold" variant="outlined">{t('曾释放 {{count}} 次', { count: task.claimReleaseCount })}</Tag>}
                 </Space>
@@ -352,7 +353,7 @@ export function TaskPoolManager({
             {reviewTasks.map((task) => (
               <div className="review-task-item" key={task.draftId}>
                 <div>
-                  <Typography.Text strong>{task.exerciseTitle}</Typography.Text>
+                  <Typography.Text strong>{workflowCourseTitle(task, uiLocale)}</Typography.Text>
                   <Typography.Text type="secondary">{t('{{name}} 提交 · {{time}}', { name: task.contributorDisplayName, time: formatDateTime(task.submittedAt, uiLocale) })}</Typography.Text>
                 </div>
                 <Button onClick={() => onReviewSubtitleDraft?.(task.exerciseId)} size="small" type="primary">{t('开始审核')}</Button>
@@ -382,7 +383,7 @@ export function TaskPoolManager({
           {workflowInbox.items.filter((task) => task.stage !== 'completed' && task.stage !== 'awaiting_review').map((task) => (
             <div className="my-task-item" key={`${task.exerciseId}-${task.draftId}-${task.role}-${task.stage}`}>
               <div className="my-task-item-main">
-                <Typography.Text className="my-task-item-title">{task.exerciseTitle}</Typography.Text>
+                <Typography.Text className="my-task-item-title">{workflowCourseTitle(task, uiLocale)}</Typography.Text>
                 <Typography.Text type="secondary">
                   {t('校对 · {{name}} · {{status}}', { name: task.contributorDisplayName, status: task.stage === 'returned' ? `${t('退回修改')}${task.reviewNote ? `：${task.reviewNote}` : ''}` : t('校对中') })}
                 </Typography.Text>
@@ -423,7 +424,7 @@ export function TaskPoolManager({
               <div className="my-task-item-main">
                 <Typography.Text className="my-task-item-title">
                   <CheckCircle2 size={14} style={{ marginRight: 6, verticalAlign: '-2px' }} />
-                  {task.exerciseTitle}
+                  {workflowCourseTitle(task, uiLocale)}
                 </Typography.Text>
                 <Typography.Text type="secondary">
                   {task.role === 'second_reviewer' ? t('已完成二次审核') : t('已完成字幕校对')}{task.updatedAt ? ` · ${formatDateTime(task.updatedAt, uiLocale)}` : ''}
@@ -462,7 +463,7 @@ export function TaskPoolManager({
           size="small"
           locale={{ emptyText: t('没有超期任务。') }}
           columns={[
-            { title: t('课程'), dataIndex: 'exerciseTitle', key: 'exerciseTitle' },
+            { title: t('课程'), dataIndex: 'exerciseTitle', key: 'exerciseTitle', render: (_, task) => workflowCourseTitle(task, uiLocale) },
             { title: t('负责人'), dataIndex: 'contributorDisplayName', key: 'contributorDisplayName' },
             {
               title: t('来源'),

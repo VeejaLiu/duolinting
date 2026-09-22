@@ -982,7 +982,7 @@ export function AudioLessonImporter({
         setSavedImporterSnapshot(
           createImporterSnapshot(courseForm, draftLines, subtitleDraft),
         )
-        onStatusChange(`已保存校对草稿：${courseForm.title}`, 'success')
+        onStatusChange(t('已保存校对草稿：{{title}}', { title: courseForm.title }), 'success')
         return true
       }
 
@@ -1054,6 +1054,7 @@ export function AudioLessonImporter({
     subtitleDraft,
     uploadMediaFile,
     uploadedMediaUrl,
+    t,
   ])
 
   const submitSubtitleDraftForReview = useCallback(async () => {
@@ -1078,14 +1079,14 @@ export function AudioLessonImporter({
       setSavedImporterSnapshot(
         createImporterSnapshot(courseForm, draftLines, subtitleDraft),
       )
-      onStatusChange(`已提交二次审核：${courseForm.title}`, 'success')
+      onStatusChange(t('已提交二次审核：{{title}}', { title: courseForm.title }), 'success')
       await onRefreshCatalog()
     } catch (error) {
       onStatusChange(error instanceof Error ? error.message : '字幕稿提交失败', 'error')
     } finally {
       setIsSubmittingSubtitleDraft(false)
     }
-  }, [adminRole, adminToken, courseForm, draftLines, onRefreshCatalog, onStatusChange, saveDisabledReason, subtitleDraft])
+  }, [adminRole, adminToken, courseForm, draftLines, onRefreshCatalog, onStatusChange, saveDisabledReason, subtitleDraft, t])
 
   useEffect(() => {
     onRegisterSaveBeforeLeave(saveImportedLesson)

@@ -1,3 +1,4 @@
+import { directoryName, directoryDescription } from '../../lib/localizedContent'
 import {
   ArrowDown,
   ArrowUp,
@@ -247,7 +248,7 @@ export function DirectoryManager(props: DirectoryManagerProps) {
     onSaveCategory, onEditCategoryGroup, onEditCategory, onDeleteCategoryGroup,
     onDeleteCategory, onMoveCategoryGroup, onMoveCategory, onRefresh, onRequestConfirm,
   } = props
-  const { t } = useAdminLanguage()
+  const { t, uiLocale } = useAdminLanguage()
   const [activeEditor, setActiveEditor] = useState<ActiveEditor>(null)
   const [directorySearch, setDirectorySearch] = useState('')
   const [expandedKeys, setExpandedKeys] = useState<Key[]>([])
@@ -336,11 +337,11 @@ export function DirectoryManager(props: DirectoryManagerProps) {
   const visibleGroups = categoryGroups.map((group, groupIndex) => {
     const groupCategories = categories.filter((category) => category.groupId === group.id)
     const groupMatches = !normalizedSearch
-      || `${group.name} ${group.description}`.toLocaleLowerCase().includes(normalizedSearch)
+      || `${directoryName(group, uiLocale)} ${directoryDescription(group, uiLocale)} ${group.name}`.toLocaleLowerCase().includes(normalizedSearch)
     const visibleCategories = groupMatches
       ? groupCategories
       : groupCategories.filter((category) => (
-        `${category.name} ${category.description}`.toLocaleLowerCase().includes(normalizedSearch)
+        `${directoryName(category, uiLocale)} ${directoryDescription(category, uiLocale)} ${category.name}`.toLocaleLowerCase().includes(normalizedSearch)
       ))
     return { group, groupIndex, groupCategories, visibleCategories, visible: groupMatches || visibleCategories.length > 0 }
   }).filter((entry) => entry.visible)
@@ -356,9 +357,9 @@ export function DirectoryManager(props: DirectoryManagerProps) {
           style={{ backgroundColor: group.accent }}
         />
         <span className="directory-tree-copy">
-          <Typography.Text ellipsis strong>{group.name}</Typography.Text>
+          <Typography.Text ellipsis strong>{directoryName(group, uiLocale)}</Typography.Text>
           <Typography.Text className="directory-tree-description" ellipsis type="secondary">
-            {group.description || t('暂无说明')}
+            {directoryDescription(group, uiLocale) || t('暂无说明')}
           </Typography.Text>
         </span>
         <Badge count={groupCategories.length} showZero color="#1cb0f6" />
@@ -399,7 +400,7 @@ export function DirectoryManager(props: DirectoryManagerProps) {
               src={category.coverImageUrl ? resolveApiUrl(category.coverImageUrl) : undefined}
               style={{ backgroundColor: category.accent }}
             />
-            <Typography.Text className="directory-tree-category-name" ellipsis>{category.name}</Typography.Text>
+            <Typography.Text className="directory-tree-category-name" ellipsis>{directoryName(category, uiLocale)}</Typography.Text>
             <Dropdown
               menu={{
                 items: [
@@ -447,7 +448,7 @@ export function DirectoryManager(props: DirectoryManagerProps) {
     if (activeEditor?.type === 'create-group') return t('新建内容分类')
     if (activeEditor?.type === 'edit-group') return t('编辑内容分类')
     if (activeEditor?.type === 'create-category') {
-      return `${t('新建学习系列')}${activeCategoryGroup ? ` · ${activeCategoryGroup.name}` : ''}`
+      return `${t('新建学习系列')}${activeCategoryGroup ? ` · ${directoryName(activeCategoryGroup, uiLocale)}` : ''}`
     }
     if (activeEditor?.type === 'edit-category') return t('编辑学习系列')
     return ''
@@ -561,15 +562,15 @@ export function DirectoryManager(props: DirectoryManagerProps) {
                 <div>
                   <Space size={8} wrap>
                     <Tag color={selectedGroup ? 'blue' : 'cyan'}>{selectedGroup ? t('内容分类') : t('学习系列')}</Tag>
-                    <Typography.Title level={4}>{selectedGroup?.name || selectedCategory?.name}</Typography.Title>
+                    <Typography.Title level={4}>{directoryName(selectedGroup ?? selectedCategory, uiLocale)}</Typography.Title>
                   </Space>
                   <Typography.Paragraph type="secondary">
-                    {selectedGroup?.description || selectedCategory?.description || t('暂无说明')}
+                    {directoryDescription(selectedGroup ?? selectedCategory, uiLocale) || t('暂无说明')}
                   </Typography.Paragraph>
                 </div>
               </div>
               <Descriptions bordered column={1} size="small">
-                {selectedCategoryGroup && <Descriptions.Item label={t('所属内容分类')}>{selectedCategoryGroup.name}</Descriptions.Item>}
+                {selectedCategoryGroup && <Descriptions.Item label={t('所属内容分类')}>{directoryName(selectedCategoryGroup, uiLocale)}</Descriptions.Item>}
                 {selectedGroup && (
                   <Descriptions.Item label={t('学习系列数量')}>
                     {categories.filter((category) => category.groupId === selectedGroup.id).length}

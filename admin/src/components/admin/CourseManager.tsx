@@ -1,8 +1,9 @@
+import { directoryName, courseTitle, workflowCourseTitle } from '../../lib/localizedContent'
 import { ArrowDown, ArrowUp, Bell, BookOpen, Copy, Ellipsis, FilePenLine, History, Pencil, PlaySquare, Plus, RefreshCw, RotateCcw, Search, Trash2, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Badge, Button, Card, Dropdown, Empty, Form, Image, Input, Modal, Popover, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import type { AdminMember, AdminReviewTask, AdminWorkflowNotifications, CatalogExerciseSummary, ExerciseCategory, ExerciseSubtitleVersion, MaterialCategory } from '@duolinting/shared'
+import type { AdminMember, AdminReviewTask, AdminWorkflowNotifications, UiLocale, CatalogExerciseSummary, ExerciseCategory, ExerciseSubtitleVersion, MaterialCategory } from '@duolinting/shared'
 import { apiClient, resolveApiUrl } from '../../lib/apiClient'
 import type { AdminNoticeTone } from './AdminFeedback'
 import { BatchCourseImporter } from './BatchCourseImporter'
@@ -75,7 +76,7 @@ const versionToDltjson = (version: ExerciseSubtitleVersion) => JSON.stringify({
   lines: version.lines,
 }, null, 2)
 
-const workflowNotificationCopy = (notification: AdminWorkflowNotifications['items'][number], t: (key: string, values?: Record<string, string | number>) => string) => {
+const workflowNotificationCopy = (notification: AdminWorkflowNotifications['items'][number], t: (key: string, values?: Record<string, string | number>) => string, locale: UiLocale) => {
   if (notification.type === 'subtitle_submitted') return t('{{name}} 提交了校对稿', { name: notification.actorDisplayName })
   if (notification.type === 'subtitle_returned') return t('{{name}} 退回了稿件', { name: notification.actorDisplayName })
   if (notification.type === 'subtitle_approved') return t('{{name}} 审核通过并发布了稿件', { name: notification.actorDisplayName })
@@ -83,8 +84,8 @@ const workflowNotificationCopy = (notification: AdminWorkflowNotifications['item
     name: notification.actorDisplayName,
     note: notification.reviewNote ? `：${notification.reviewNote}` : '',
   })
-  if (notification.type === 'task_claim_expiring') return t('{{title}} 的领取任务即将到期，请尽快保存或提交', { title: notification.exerciseTitle })
-  return t('{{title}} 的领取任务已超时，已释放回任务池', { title: notification.exerciseTitle })
+  if (notification.type === 'task_claim_expiring') return t('{{title}} 的领取任务即将到期，请尽快保存或提交', { title: workflowCourseTitle(notification, locale) })
+  return t('{{title}} 的领取任务已超时，已释放回任务池', { title: workflowCourseTitle(notification, locale) })
 }
 
 function CourseWorkflow({
@@ -458,7 +459,7 @@ export function CourseManager({
       render: (_, exercise) => <Space align="start" size={8}>
         {exercise.coverImageUrl ? <Image alt={`${exercise.title} ${t('封面')}`} height={40} preview={false} src={resolveApiUrl(exercise.coverImageUrl)} width={56} style={{ borderRadius: 4, objectFit: 'cover' }} /> : <div className="course-table-cover">{exercise.mediaType === 'video' ? 'V' : 'A'}</div>}
         <Space direction="vertical" size={2}>
-          <Space size={4}><Typography.Text strong>{exercise.title}</Typography.Text>{canManageCourses && <Tooltip title={t('快速修改名称')}><Button icon={<Pencil size={13} />} onClick={() => openRenameDialog(exercise)} size="small" type="text" /></Tooltip>}</Space>
+          <Space size={4}><Typography.Text strong>{courseTitle(exercise, uiLocale)}</Typography.Text>{canManageCourses && <Tooltip title={t('快速修改名称')}><Button icon={<Pencil size={13} />} onClick={() => openRenameDialog(exercise)} size="small" type="text" /></Tooltip>}</Space>
           <Typography.Text ellipsis={{ tooltip: exercise.summary }} type="secondary" style={{ maxWidth: 170 }}>{exercise.summary || exercise.source}</Typography.Text>
         </Space>
       </Space>,
@@ -546,8 +547,8 @@ export function CourseManager({
         content={<div className="workflow-notification-list">
           {workflowNotifications.items.length === 0 ? <Typography.Text type="secondary">{t('暂时没有工作流通知')}</Typography.Text> : workflowNotifications.items.map((notification) => (
             <div className={notification.isRead ? 'workflow-notification-item' : 'workflow-notification-item is-unread'} key={notification.id}>
-              <Typography.Text>{workflowNotificationCopy(notification, t)}</Typography.Text>
-              <Typography.Text type="secondary">{notification.exerciseTitle} · {formatSubmittedAt(notification.createdAt, uiLocale)}</Typography.Text>
+              <Typography.Text>{workflowNotificationCopy(notification, t, uiLocale)}</Typography.Text>
+              <Typography.Text type="secondary">{workflowCourseTitle(notification, uiLocale)} · {formatSubmittedAt(notification.createdAt, uiLocale)}</Typography.Text>
               {notification.reviewNote && <Typography.Text type="secondary">{t('意见：')}{notification.reviewNote}</Typography.Text>}
             </div>
           ))}
@@ -593,8 +594,8 @@ export function CourseManager({
       />
     )}
     <Form className="course-filter-form" layout="inline">
-    <Form.Item label={t('内容分类')}><Select value={selectedGroupId || undefined} placeholder={t('选择内容分类')} onChange={(value) => changeGroup(Number(value))} options={categoryGroups.map((item) => ({ label: item.name, value: item.id }))} /></Form.Item>
-      <Form.Item label={t('学习系列')}><Select value={selectedCategoryId || undefined} placeholder={t('选择学习系列')} onChange={(value) => changeCategory(Number(value))} options={visibleCategories.map((item) => ({ label: item.name, value: item.id }))} /></Form.Item>
+    <Form.Item label={t('内容分类')}><Select value={selectedGroupId || undefined} placeholder={t('选择内容分类')} onChange={(value) => changeGroup(Number(value))} options={categoryGroups.map((item) => ({ label: directoryName(item, uiLocale), value: item.id }))} /></Form.Item>
+      <Form.Item label={t('学习系列')}><Select value={selectedCategoryId || undefined} placeholder={t('选择学习系列')} onChange={(value) => changeCategory(Number(value))} options={visibleCategories.map((item) => ({ label: directoryName(item, uiLocale), value: item.id }))} /></Form.Item>
       <Form.Item label={t('发布状态')}><Select value={selectedStatus} onChange={(value) => setSelectedStatus(value as CourseStatus)} options={[{ label: t('全部状态'), value: 'all' }, { label: t('草稿'), value: 'draft' }, { label: t('已校对'), value: 'proofread' }, { label: t('已发布'), value: 'published' }, { label: t('已归档'), value: 'archived' }]} /></Form.Item>
       <Form.Item><Input allowClear prefix={<Search size={15} />} placeholder={t('搜索课程标题、来源或摘要')} value={searchText} onChange={(event) => { setSearchText(event.target.value); setPage(1) }} /></Form.Item>
       <Button onClick={resetFilters} type="link">{t('重置筛选')}</Button>

@@ -35,6 +35,7 @@
     "deploy:sync-sources": "bash scripts/sync-production-sources.sh",
     "build": "npm run build --workspace @duolinting/domain && npm run build --workspace @duolinting/app-config && npm run build --workspace @duolinting/ui-tokens && npm run build --workspace @duolinting/api-client && npm run build --workspace @duolinting/shared && npm run build --workspace @duolinting/backend && npm run build --workspace @duolinting/web-app && npm run build --workspace @duolinting/admin",
     "lint": "eslint .",
+    "check:admin-i18n": "node --import tsx scripts/check-admin-i18n.mjs",
     "preview:web-app": "npm run preview --workspace @duolinting/web-app",
     "preview:app": "npm run preview:web-app",
     "preview:admin": "npm run preview --workspace @duolinting/admin",

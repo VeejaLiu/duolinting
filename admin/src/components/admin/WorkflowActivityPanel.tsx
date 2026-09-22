@@ -1,3 +1,4 @@
+import { workflowCourseTitle } from '../../lib/localizedContent'
 import { ReloadOutlined } from '@ant-design/icons'
 import { Button, Card, Empty, Select, Space, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -116,7 +117,7 @@ export function WorkflowActivityPanel({ adminToken, currentAdminId, onNotify }: 
     } catch (error) {
       if (requestVersion === requestVersionRef.current) {
         onNotify(
-          `协作动态加载失败：${error instanceof Error ? error.message : '未知错误'}`,
+          t('协作动态加载失败：{{error}}', { error: error instanceof Error ? error.message : t('未知错误') }),
           'error',
         )
       }
@@ -125,7 +126,7 @@ export function WorkflowActivityPanel({ adminToken, currentAdminId, onNotify }: 
         setIsLoading(false)
       }
     }
-  }, [adminToken, eventType, onNotify, page])
+  }, [adminToken, eventType, onNotify, page, t])
 
   useEffect(() => {
     // 延后到浏览器下一轮任务再开始请求，避免在 effect 同步阶段切换 loading 状态。
@@ -170,9 +171,9 @@ export function WorkflowActivityPanel({ adminToken, currentAdminId, onNotify }: 
       dataIndex: 'exerciseTitle',
       key: 'exerciseTitle',
       width: 260,
-      render: (title: string, event) => (
+      render: (_: string, event) => (
         <Space direction="vertical" size={0}>
-          <Typography.Text strong ellipsis={{ tooltip: title }}>{title}</Typography.Text>
+          <Typography.Text strong ellipsis={{ tooltip: workflowCourseTitle(event, uiLocale) }}>{workflowCourseTitle(event, uiLocale)}</Typography.Text>
           <Typography.Text type="secondary">{t('课程 #{{id}}', { id: event.exerciseId })}</Typography.Text>
         </Space>
       ),
