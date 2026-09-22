@@ -1,195 +1,26 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
-import { Alert, Button, Card, ConfigProvider, Input, Layout, Modal, Space, Tooltip, Typography } from 'antd'
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import type {
-  AcceptedAnswerFeedback,
-  AdminGrowthReport,
-  CatalogExerciseSummary,
-  CreateCategoryGroupRequest,
-  CreateCategoryRequest,
-  ExerciseCategory,
-  FeedbackStatus,
-  MaterialCategory,
-  AdminUser,
-  AdminMember,
-  AdminReviewTask,
-  AdminSubtitleWorkflowTaskInbox,
-  AdminWorkflowNotifications,
-} from '@duolinting/shared'
+import type { CatalogExerciseSummary } from '@duolinting/shared'
+import { ConfigProvider, Input, Layout, Modal, Space, Typography } from 'antd'
+import { useCallback, useState } from 'react'
+import { useCatalogActions } from '../hooks/content-workspace/useCatalogActions'
+import { useImporterNavigation } from '../hooks/content-workspace/useImporterNavigation'
+import { useWorkspaceData } from '../hooks/content-workspace/useWorkspaceData'
+import { useAdminLanguage } from '../i18n/AdminLanguageProvider'
+import { apiClient } from '../lib/apiClient'
 import { AudioLessonImporter } from './AudioLessonImporter'
-import type { AdminNoticeTone } from './admin/AdminFeedback'
 import { AcceptedAnswerFeedbackPanel } from './admin/AcceptedAnswerFeedbackPanel'
-import { UserActivityPanel } from './admin/UserActivityPanel'
-import {
-  AdminWorkspaceNav,
-  type AdminSection,
-} from './admin/AdminWorkspaceNav'
+import { AccountSettingsPanel } from './admin/AccountSettingsPanel'
+import type { AdminNoticeTone } from './admin/AdminFeedback'
+import { AdminWorkspaceNav } from './admin/AdminWorkspaceNav'
+import { CollaborationManager } from './admin/CollaborationManager'
 import { CourseManager } from './admin/CourseManager'
 import { DirectoryManager } from './admin/DirectoryManager'
 import { ListeningVideoRecorder } from './admin/ListeningVideoRecorder'
-import { CollaborationManager } from './admin/CollaborationManager'
-import { TaskPoolManager } from './admin/TaskPoolManager'
-import { WorkflowActivityPanel } from './admin/WorkflowActivityPanel'
 import { OpenContentApiDocumentation } from './admin/OpenContentApiDocumentation'
 import { OpenContentApiKeyManager } from './admin/OpenContentApiKeyManager'
-import { apiClient } from '../lib/apiClient'
-import { useAdminLanguage } from '../i18n/AdminLanguageProvider'
-import {
-  createAdminOperationId,
-  getAdminErrorDetails,
-  logAdminError,
-  logAdminInfo,
-  logAdminWarn,
-} from '../lib/adminLogger'
-
-type ContentAdminProps = {
-  adminToken: string
-  categoryGroups: MaterialCategory[]
-  categories: ExerciseCategory[]
-  exercises: CatalogExerciseSummary[]
-  onRefreshCatalog: () => Promise<void>
-  onEnsureCatalog: () => Promise<void>
-  onEnsureExercises: () => Promise<CatalogExerciseSummary[]>
-  onNotify: (message: string, tone?: AdminNoticeTone) => void
-  adminUser: AdminUser
-  onLogout: () => void
-  // 注册退出登录前的确认钩子（复用制课工作台的保存确认），null 表示注销
-  onRegisterBeforeLogout?: (handler: (() => Promise<boolean>) | null) => void
-  onRequestConfirm: (options: {
-    title: string
-    message: string
-    confirmLabel?: string
-    cancelLabel?: string
-    tone?: 'danger' | 'default'
-  }) => Promise<boolean>
-  onRequestUnsavedLeaveConfirm: () => Promise<'save' | 'discard' | 'cancel'>
-}
-
-type ImporterDraft =
-  | {
-      mode: 'create'
-      categoryId: number
-    }
-  | {
-      mode: 'edit'
-      exercise: CatalogExerciseSummary
-    }
-  | null
-
-function AccountSettingsPanel({ adminToken, adminUser, onNotify }: { adminToken: string; adminUser: AdminUser; onNotify: (message: string, tone?: AdminNoticeTone) => void }) {
-  const { t, uiLocale } = useAdminLanguage()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [name, setName] = useState(adminUser.displayName)
-  const [changingName, setChangingName] = useState(false)
-  const [isNameEditorOpen, setIsNameEditorOpen] = useState(false)
-  const [isBindingEditorOpen, setIsBindingEditorOpen] = useState(false)
-  const [boundLearner, setBoundLearner] = useState({
-    id: adminUser.learnerUserId,
-    displayName: adminUser.learnerDisplayName,
-    email: adminUser.learnerEmail,
-  })
-  useEffect(() => {
-    let cancelled = false
-    void apiClient.getCurrentAdmin(adminToken).then((current) => {
-      if (!cancelled) {
-        setBoundLearner({
-          id: current.learnerUserId,
-          displayName: current.learnerDisplayName,
-          email: current.learnerEmail,
-        })
-      }
-    }).catch(() => undefined)
-    return () => { cancelled = true }
-  }, [adminToken])
-  const saveName = async () => {
-    if (!name.trim() || name.trim() === adminUser.displayName) return
-    setChangingName(true)
-    try { await apiClient.changeOwnAdminDisplayName(name.trim(), adminToken); onNotify(t('显示名称已更新，请刷新页面查看'), 'success') } catch (error) { onNotify(error instanceof Error ? error.message : t('显示名称修改失败'), 'error') } finally { setChangingName(false) }
-  }
-  const bind = async () => {
-    if (!email.trim() || !password) return false
-    setSaving(true)
-    try {
-      const updatedUser = await apiClient.bindOwnLearnerAccount({ learnerEmail: email.trim(), learnerPassword: password }, adminToken)
-      setBoundLearner({ id: updatedUser.learnerUserId, displayName: updatedUser.learnerDisplayName, email: updatedUser.learnerEmail })
-      setPassword('')
-      onNotify(t('学习端账号绑定成功'), 'success')
-      return true
-    } catch (error) {
-      onNotify(error instanceof Error ? error.message : t('学习端账号绑定失败'), 'error')
-      return false
-    } finally { setSaving(false) }
-  }
-  const nameChangeLocked = Boolean(adminUser.nextDisplayNameChangeAt)
-  const nextNameChangeAt = adminUser.nextDisplayNameChangeAt
-    ? new Intl.DateTimeFormat(uiLocale, { dateStyle: 'long', timeStyle: 'short' }).format(new Date(adminUser.nextDisplayNameChangeAt))
-    : ''
-  // 旧浏览器缓存可能只有 learnerUserId，没有昵称/邮箱；先显示未绑定状态，等待 auth/me 刷新后再展示完整身份。
-  const isBound = Boolean(boundLearner.displayName || boundLearner.email)
-  const boundLearnerLabel = boundLearner.displayName || t('学习端账号')
-  const submitBinding = async () => {
-    if (await bind()) setIsBindingEditorOpen(false)
-  }
-  return <section className="admin-section"><div className="panel-title"><Typography.Title level={3} style={{ margin: 0 }}>{t('我的账号')}</Typography.Title></div><Space direction="vertical" size={16} style={{ display: 'flex', maxWidth: 640 }}><Card title={t('公开资料')}><Typography.Paragraph type="secondary">{t('当前显示名称：{{name}}。该名称会展示在课程贡献者信息中。', { name: adminUser.displayName })}</Typography.Paragraph>{nameChangeLocked && <Alert description={t('你已进入显示名称冷却期，下次可修改时间：{{time}}。', { time: nextNameChangeAt })} message={t('当前无法修改显示名称')} showIcon type="warning" style={{ marginBottom: 12 }} />}<Tooltip title={nameChangeLocked ? t('冷却期内不可修改；{{time}} 后可再次修改', { time: nextNameChangeAt }) : undefined}><span><Button disabled={nameChangeLocked} onClick={() => { setName(adminUser.displayName); setIsNameEditorOpen(true) }}>{t('修改显示名称')}</Button></span></Tooltip></Card><Card title={t('绑定学习端账号')}>{isBound ? <Space direction="vertical" size={10}><Alert description={t('你负责课程的草稿已可在该账号的网页端和 App 中预览。')} message={t('已绑定学习端账号')} showIcon type="success" /><Typography.Text strong>{t('学习端账号：')}{boundLearnerLabel}</Typography.Text>{boundLearner.email && <Typography.Text type="secondary">{t('登录邮箱：')}{boundLearner.email}</Typography.Text>}<Button onClick={() => { setEmail(''); setPassword(''); setIsBindingEditorOpen(true) }}>{t('更换绑定')}</Button></Space> : <><Typography.Paragraph type="secondary">{t('绑定后，你负责的课程草稿会在学习端 App 和网页端中提供预览。')}</Typography.Paragraph><Button type="primary" onClick={() => setIsBindingEditorOpen(true)}>{t('绑定学习端账号')}</Button></>}</Card></Space><Modal confirmLoading={changingName} okButtonProps={{ disabled: !name.trim() || name.trim() === adminUser.displayName }} okText={t('确认修改')} onCancel={() => setIsNameEditorOpen(false)} onOk={async () => { await saveName(); setIsNameEditorOpen(false) }} open={isNameEditorOpen} title={t('修改显示名称')}><Typography.Paragraph type="secondary">{t('保存后 90 天内不能再次修改。')}</Typography.Paragraph><Input autoFocus maxLength={120} onChange={(event) => setName(event.target.value)} value={name} /></Modal><Modal confirmLoading={saving} okButtonProps={{ disabled: !email.trim() || !password }} okText={isBound ? t('验证并更换') : t('验证并绑定')} onCancel={() => setIsBindingEditorOpen(false)} onOk={() => void submitBinding()} open={isBindingEditorOpen} title={isBound ? t('更换学习端账号绑定') : t('绑定学习端账号')}><Typography.Paragraph type="secondary">{t('请输入学习端登录邮箱和密码完成验证。验证成功后，会{{action}}。', { action: isBound ? t('替换当前绑定账号') : t('开启课程草稿预览') })}</Typography.Paragraph><Input autoFocus placeholder={t('学习端登录邮箱')} type="email" value={email} onChange={(event) => setEmail(event.target.value)} /><Input.Password placeholder={t('学习端登录密码')} value={password} onChange={(event) => setPassword(event.target.value)} style={{ marginTop: 12 }} /></Modal></section>
-}
-
-const initialCategoryForm: CreateCategoryRequest = {
-  groupId: 1,
-  name: '新闻精听入门',
-  description: '面向新闻材料的学习系列',
-  accent: '#3a7ca5',
-  coverImageUrl: '',
-  sourceUrl: '',
-  sortOrder: 10,
-}
-
-const initialCategoryGroupForm: CreateCategoryGroupRequest = {
-  name: '新闻资讯',
-  description: '新闻简报、专题报道、公共事件解读',
-  accent: '#1cb0f6',
-  coverImageUrl: '',
-  sortOrder: 10,
-}
-
-const getNextSortOrder = (items: Array<{ sortOrder: number }>) =>
-  items.reduce((maxOrder, item) => Math.max(maxOrder, item.sortOrder), 0) + 10
-
-const normalizeSortOrder = <T extends { sortOrder: number }>(items: T[]) =>
-  items.map((item, index) => ({
-    ...item,
-    sortOrder: (index + 1) * 10,
-  }))
-
-const moveItem = <T extends { id: number }>(
-  items: T[],
-  itemId: number,
-  direction: 'up' | 'down',
-) => {
-  const nextItems = [...items]
-  const currentIndex = nextItems.findIndex((item) => item.id === itemId)
-  const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
-
-  if (
-    currentIndex < 0 ||
-    targetIndex < 0 ||
-    targetIndex >= nextItems.length
-  ) {
-    return null
-  }
-
-  const currentItem = nextItems[currentIndex]
-  nextItems[currentIndex] = nextItems[targetIndex]
-  nextItems[targetIndex] = currentItem
-  return nextItems
-}
+import { TaskPoolManager } from './admin/TaskPoolManager'
+import { UserActivityPanel } from './admin/UserActivityPanel'
+import { WorkflowActivityPanel } from './admin/WorkflowActivityPanel'
+import type { ContentAdminProps } from './admin/content-workspace/types'
 
 export function ContentAdmin({
   adminToken,
@@ -210,797 +41,81 @@ export function ContentAdmin({
   const localizedNotify = useCallback((message: string, tone?: AdminNoticeTone) => {
     onNotify(t(message), tone)
   }, [onNotify, t])
-  const location = useLocation()
-  const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const [categoryForm, setCategoryForm] =
-    useState<CreateCategoryRequest>(initialCategoryForm)
-  const [categoryGroupForm, setCategoryGroupForm] =
-    useState<CreateCategoryGroupRequest>(initialCategoryGroupForm)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isCatalogLoading, setIsCatalogLoading] = useState(false)
-  const [catalogLoadError, setCatalogLoadError] = useState('')
-  const [feedbackItems, setFeedbackItems] = useState<AcceptedAnswerFeedback[]>([])
-  const [feedbackLoading, setFeedbackLoading] = useState(false)
-  const [growthReport, setGrowthReport] = useState<AdminGrowthReport | null>(null)
-  const [growthLoading, setGrowthLoading] = useState(false)
-  const [importerDraft, setImporterDraft] = useState<ImporterDraft>(null)
+  const {
+    activeSection,
+    isOpenContentDocumentation,
+    navigate,
+    importerDraft,
+    setImporterDraft,
+    setImporterHasUnsavedChanges,
+    saveImporterBeforeLeaveRef,
+    changeSection,
+    openImporterForCategory,
+    openImporterForExercise,
+  } = useImporterNavigation({
+    adminUser,
+    categories,
+    exercises,
+    onRequestConfirm,
+    onRequestUnsavedLeaveConfirm,
+    onRegisterBeforeLogout,
+  })
+  const {
+    categoryForm,
+    setCategoryForm,
+    categoryGroupForm,
+    setCategoryGroupForm,
+    isSaving,
+    runAdminTask,
+    saveCategoryGroup,
+    saveCategory,
+    deleteCategoryGroup,
+    deleteCategory,
+    moveCategoryGroup,
+    moveCategory,
+    deleteCourse,
+    moveCourse,
+  } = useCatalogActions({
+    adminToken,
+    categoryGroups,
+    categories,
+    onRefreshCatalog,
+    onEnsureExercises,
+    onRequestConfirm,
+    localizedNotify,
+  })
+  const {
+    isCatalogLoading,
+    catalogLoadError,
+    refreshWorkspaceCatalog,
+    feedbackItems,
+    feedbackLoading,
+    refreshFeedback,
+    growthReport,
+    growthLoading,
+    refreshGrowth,
+    reviewingExercise,
+    setReviewingExercise,
+    reviewNote,
+    setReviewNote,
+    workflowContributors,
+    reviewTasks,
+    workflowInbox,
+    workflowNotifications,
+    setWorkflowNotifications,
+    refreshWorkflowInbox,
+    openSubtitleReview,
+  } = useWorkspaceData({
+    adminToken,
+    adminUser,
+    exercises,
+    onEnsureCatalog,
+    onEnsureExercises,
+    localizedNotify,
+    activeSection,
+  })
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [reviewingExercise, setReviewingExercise] = useState<import('@duolinting/shared').ListeningExercise | null>(null)
-  const [reviewNote, setReviewNote] = useState('')
-  const [workflowContributors, setWorkflowContributors] = useState<AdminMember[]>([])
-  const [reviewTasks, setReviewTasks] = useState<AdminReviewTask[]>([])
-  const [workflowInbox, setWorkflowInbox] = useState<AdminSubtitleWorkflowTaskInbox>({ items: [], counts: { proofreading: 0, awaitingReview: 0, returned: 0, completedProofreading: 0, completedSecondReview: 0 } })
-  const [workflowNotifications, setWorkflowNotifications] = useState<AdminWorkflowNotifications>({ items: [], unreadCount: 0 })
-  const [importerHasUnsavedChanges, setImporterHasUnsavedChanges] = useState(false)
-  const importerHasUnsavedChangesRef = useRef(false)
-  const onRequestConfirmRef = useRef(onRequestConfirm)
-  const saveImporterBeforeLeaveRef = useRef<(() => Promise<boolean>) | null>(null)
-  const allowNextHistoryBackRef = useRef(false)
-  const lastImporterRouteKeyRef = useRef('')
-
-  const activeSection = useMemo<AdminSection>(() => {
-    if (location.pathname.startsWith('/collaboration')) {
-      return 'collaboration'
-    }
-    if (location.pathname.startsWith('/activity')) {
-      return 'activity'
-    }
-    if (location.pathname.startsWith('/pool')) {
-      return 'pool'
-    }
-    if (location.pathname.startsWith('/account-settings')) {
-      return 'account-settings'
-    }
-    if (location.pathname.startsWith('/directory')) {
-      return 'directory'
-    }
-    if (location.pathname.startsWith('/courses')) {
-      return 'courses'
-    }
-    if (location.pathname.startsWith('/importer')) {
-      return 'importer'
-    }
-    if (location.pathname.startsWith('/recorder')) {
-      return 'recorder'
-    }
-    if (location.pathname.startsWith('/feedback')) {
-      return 'feedback'
-    }
-    if (location.pathname.startsWith('/users')) {
-      return 'users'
-    }
-    if (location.pathname.startsWith('/api-keys')) {
-      return 'api-keys'
-    }
-    return 'directory'
-  }, [location.pathname])
-  const isOpenContentDocumentation = location.pathname === '/api-keys/docs'
-
-  // 贡献者可直接输入旧链接或书签；统一回到其被分配的课程列表，避免展示没有写权限的工作区。
-  useEffect(() => {
-    if (
-      adminUser.role === 'subtitle_contributor' &&
-      !['courses', 'pool', 'importer', 'activity', 'account-settings'].includes(activeSection)
-    ) {
-      navigate('/courses', { replace: true })
-    }
-  }, [activeSection, adminUser.role, navigate])
-
-  const refreshWorkspaceCatalog = useCallback(async () => {
-    setIsCatalogLoading(true)
-    setCatalogLoadError('')
-    try {
-      await onEnsureCatalog()
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t('目录数据加载失败')
-      setCatalogLoadError(message)
-      localizedNotify(message, 'error')
-      throw error
-    } finally {
-      setIsCatalogLoading(false)
-    }
-  }, [localizedNotify, onEnsureCatalog, t])
-
-  const refreshWorkflowContributors = useCallback(async () => {
-    if (adminUser.role !== 'super_admin') {
-      setWorkflowContributors([])
-      return
-    }
-    try {
-      const result = await apiClient.getAdminMembers(adminToken)
-      // 校对和二次审核都由字幕贡献者承担；超级管理员只在此配置负责人。
-      setWorkflowContributors(result.items.filter((member) => member.role === 'subtitle_contributor'))
-    } catch (error) {
-      localizedNotify(error instanceof Error ? error.message : '字幕贡献者加载失败', 'error')
-    }
-  }, [adminToken, adminUser.role, localizedNotify])
-
-  const refreshWorkflowInbox = useCallback(async () => {
-    try {
-      const [tasks, notifications, inbox] = await Promise.all([
-        apiClient.getMySubtitleReviewTasks(adminToken),
-        apiClient.getMyWorkflowNotifications(adminToken),
-        apiClient.getMySubtitleWorkflowInbox(adminToken),
-      ])
-      setReviewTasks(tasks.items)
-      setWorkflowNotifications(notifications)
-      setWorkflowInbox(inbox)
-    } catch (error) {
-      localizedNotify(error instanceof Error ? error.message : '工作流待办加载失败', 'error')
-    }
-  }, [adminToken, localizedNotify])
-
-  const openSubtitleReview = useCallback(async (exerciseId: number) => {
-    try {
-      const detail = await apiClient.getAdminExercise(exerciseId, adminToken)
-      if (!detail.subtitleDrafts?.length) {
-        localizedNotify('这门课程当前没有待二次审核的字幕稿', 'info')
-        return
-      }
-      setReviewNote('')
-      setReviewingExercise(detail)
-    } catch (error) {
-      localizedNotify(error instanceof Error ? error.message : '加载字幕稿失败', 'error')
-    }
-  }, [adminToken, localizedNotify])
-
-  useEffect(() => {
-    // 课程授权要按“内容分类 → 学习系列 → 课程”分级显示，
-    // 因此进入人员管理时也必须刷新目录数据，不能只依赖此前访问过课程页的缓存。
-    // 任务广场的分类筛选器同样依赖目录数据，直接进入 /pool 时也要加载。
-    if (activeSection !== 'directory' && activeSection !== 'courses' && activeSection !== 'importer' && activeSection !== 'recorder' && activeSection !== 'collaboration' && activeSection !== 'pool') {
-      return
-    }
-
-    void refreshWorkspaceCatalog().catch(() => undefined)
-  }, [activeSection, refreshWorkspaceCatalog])
-
-  useEffect(() => {
-    // 协作页的课程授权同样需要完整课程列表，用于逐级勾选和全选。
-    if (activeSection !== 'importer' && activeSection !== 'recorder' && activeSection !== 'collaboration') {
-      return
-    }
-
-    void onEnsureExercises().catch((error) => {
-      localizedNotify(error instanceof Error ? error.message : '课程数据加载失败', 'error')
-    })
-  }, [activeSection, exercises.length, localizedNotify, onEnsureExercises])
-
-  useEffect(() => {
-    if (activeSection === 'courses' || activeSection === 'pool') {
-      void refreshWorkflowContributors()
-      void refreshWorkflowInbox()
-    }
-  }, [activeSection, refreshWorkflowContributors, refreshWorkflowInbox])
-
-  const importerRouteState = useMemo(
-    () => {
-      if (!location.pathname.startsWith('/importer')) {
-        return null
-      }
-
-      if (location.pathname === '/importer/new') {
-        const categoryIdParam = searchParams.get('categoryId')
-        return {
-          mode: 'create' as const,
-          categoryId: categoryIdParam ? Number(categoryIdParam) : 0,
-        }
-      }
-
-      const match = location.pathname.match(/^\/importer\/([^/]+)$/)
-      if (!match) {
-        return null
-      }
-
-      return {
-        mode: 'edit' as const,
-        exerciseId: Number(decodeURIComponent(match[1])),
-      }
-    },
-    [location.pathname, searchParams],
-  )
-
-  useEffect(() => {
-    importerHasUnsavedChangesRef.current = importerHasUnsavedChanges
-  }, [importerHasUnsavedChanges])
-
-  useEffect(() => {
-    onRequestConfirmRef.current = onRequestConfirm
-  }, [onRequestConfirm])
-
-  useEffect(() => {
-    const isKnownPath =
-      location.pathname === '/importer' ||
-      location.pathname === '/importer/new' ||
-      /^\/importer\/[^/]+$/.test(location.pathname) ||
-      location.pathname === '/directory' ||
-      location.pathname === '/collaboration' ||
-      location.pathname === '/courses' ||
-      location.pathname === '/activity' ||
-      location.pathname === '/pool' ||
-      location.pathname === '/account-settings' ||
-      location.pathname === '/recorder' ||
-      location.pathname === '/feedback' ||
-      location.pathname === '/users' ||
-      location.pathname === '/api-keys' ||
-      location.pathname === '/api-keys/docs'
-
-    if (!isKnownPath) {
-      navigate('/directory', { replace: true })
-    }
-  }, [location.pathname, navigate])
-
-  useEffect(() => {
-    if (!importerRouteState) {
-      return
-    }
-
-    if (importerRouteState.mode === 'create') {
-      const nextCategoryId =
-        importerRouteState.categoryId || categories[0]?.id || 0
-      const routeKey = `create:${nextCategoryId}`
-      if (routeKey === lastImporterRouteKeyRef.current) {
-        return
-      }
-
-      lastImporterRouteKeyRef.current = routeKey
-      setImporterDraft({
-        mode: 'create',
-        categoryId: nextCategoryId,
-      })
-      return
-    }
-
-    const exercise = exercises.find(
-      (item) => item.id === importerRouteState.exerciseId,
-    )
-    if (!exercise) {
-      return
-    }
-
-    const routeKey = `edit:${exercise.id}`
-    if (routeKey === lastImporterRouteKeyRef.current) {
-      return
-    }
-
-    lastImporterRouteKeyRef.current = routeKey
-    setImporterDraft({
-      mode: 'edit',
-      exercise,
-    })
-  }, [categories, exercises, importerRouteState])
-
-  useEffect(() => {
-    if (activeSection !== 'importer') {
-      lastImporterRouteKeyRef.current = ''
-    }
-  }, [activeSection])
-
-  const confirmSaveImporterBeforeLeave = useCallback(async () => {
-    if (!importerHasUnsavedChangesRef.current) {
-      return true
-    }
-
-    const action = await onRequestUnsavedLeaveConfirm()
-    if (action === 'discard') {
-      setImporterHasUnsavedChanges(false)
-      importerHasUnsavedChangesRef.current = false
-      return true
-    }
-    if (action !== 'save') {
-      return false
-    }
-
-    const saved = await saveImporterBeforeLeaveRef.current?.()
-    if (saved) {
-      setImporterHasUnsavedChanges(false)
-      importerHasUnsavedChangesRef.current = false
-      return true
-    }
-
-    return false
-  }, [onRequestUnsavedLeaveConfirm])
-
-  // 把“离开前保存确认”注册给 App，退出登录时复用同一套确认逻辑
-  useEffect(() => {
-    onRegisterBeforeLogout?.(confirmSaveImporterBeforeLeave)
-    return () => onRegisterBeforeLogout?.(null)
-  }, [confirmSaveImporterBeforeLeave, onRegisterBeforeLogout])
-
-  useEffect(() => {
-    if (!importerHasUnsavedChanges) {
-      return
-    }
-
-    window.history.pushState(
-      { duolintingAdminUnsavedGuard: true },
-      '',
-      window.location.href,
-    )
-
-    const handlePopState = () => {
-      if (allowNextHistoryBackRef.current) {
-        allowNextHistoryBackRef.current = false
-        return
-      }
-
-      if (!importerHasUnsavedChangesRef.current) {
-        return
-      }
-
-      void (async () => {
-        const canLeave = await confirmSaveImporterBeforeLeave()
-        if (canLeave) {
-          allowNextHistoryBackRef.current = true
-          window.history.back()
-          return
-        }
-
-        window.history.pushState(
-          { duolintingAdminUnsavedGuard: true },
-          '',
-          window.location.href,
-        )
-      })()
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [confirmSaveImporterBeforeLeave, importerHasUnsavedChanges])
-
-  useEffect(() => {
-    if (
-      categoryGroups.length > 0 &&
-      !categoryGroups.some((group) => group.id === categoryForm.groupId)
-    ) {
-      setCategoryForm((current) => ({
-        ...current,
-        groupId: categoryGroups[0].id,
-      }))
-    }
-  }, [categoryForm.groupId, categoryGroups])
-
-  const runAdminTask = async (
-    task: () => Promise<void>,
-    fallbackMessage: string,
-  ): Promise<boolean> => {
-    setIsSaving(true)
-    try {
-      await task()
-      return true
-    } catch (error) {
-      localizedNotify(error instanceof Error ? error.message : fallbackMessage, 'error')
-      return false
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const saveCategoryGroup = () =>
-    runAdminTask(async () => {
-      await apiClient.createCategoryGroup(
-        {
-          ...categoryGroupForm,
-          sortOrder:
-            categoryGroupForm.id !== undefined
-              ? categoryGroupForm.sortOrder
-              : getNextSortOrder(categoryGroups),
-        },
-        adminToken,
-      )
-      await onRefreshCatalog()
-      localizedNotify('内容分类已保存', 'success')
-    }, '内容分类保存失败')
-
-  const saveCategory = () =>
-    runAdminTask(async () => {
-      if (!categoryForm.groupId) {
-        throw new Error(t('请先创建内容分类'))
-      }
-
-      const siblingCategories = categories.filter(
-        (category) => category.groupId === categoryForm.groupId,
-      )
-      await apiClient.createCategory(
-        {
-          ...categoryForm,
-          sortOrder:
-            categoryForm.id !== undefined
-              ? categoryForm.sortOrder
-              : getNextSortOrder(siblingCategories),
-        },
-        adminToken,
-      )
-      await onRefreshCatalog()
-      localizedNotify('学习系列已保存', 'success')
-    }, '学习系列保存失败')
-
-  const deleteCategoryGroup = (groupId: number) =>
-    void runAdminTask(async () => {
-      await apiClient.deleteCategoryGroup(groupId, adminToken)
-      await onRefreshCatalog()
-      localizedNotify('内容分类已删除', 'success')
-    }, '内容分类删除失败')
-
-  const deleteCategory = (categoryId: number) =>
-    void runAdminTask(async () => {
-      await apiClient.deleteCategory(categoryId, adminToken)
-      await onRefreshCatalog()
-      localizedNotify('学习系列已删除', 'success')
-    }, '学习系列删除失败')
-
-  const moveCategoryGroup = (
-    groupId: number,
-    direction: 'up' | 'down',
-  ) =>
-    void runAdminTask(async () => {
-      const movedGroups = moveItem(categoryGroups, groupId, direction)
-      if (!movedGroups) {
-        return
-      }
-
-      // 串行 upsert：中途失败时已保存的排序保持，避免并发写留下半套 sortOrder
-      for (const group of normalizeSortOrder(movedGroups)) {
-        await apiClient.createCategoryGroup(
-          {
-            id: group.id,
-            name: group.name,
-            description: group.description,
-            accent: group.accent,
-            coverImageUrl: group.coverImageUrl,
-            sortOrder: group.sortOrder,
-            localizations: group.localizations,
-          },
-          adminToken,
-        )
-      }
-      await onRefreshCatalog()
-      localizedNotify('内容分类顺序已更新', 'success')
-    }, '内容分类排序失败')
-
-  const moveCategory = (
-    categoryId: number,
-    direction: 'up' | 'down',
-  ) =>
-    void runAdminTask(async () => {
-      const currentCategory = categories.find(
-        (category) => category.id === categoryId,
-      )
-      if (!currentCategory) {
-        return
-      }
-
-      const siblingCategories = categories.filter(
-        (category) => category.groupId === currentCategory.groupId,
-      )
-      const movedCategories = moveItem(siblingCategories, categoryId, direction)
-      if (!movedCategories) {
-        return
-      }
-
-      // 串行 upsert：中途失败时已保存的排序保持，避免并发写留下半套 sortOrder
-      for (const category of normalizeSortOrder(movedCategories)) {
-        await apiClient.createCategory(
-          {
-            id: category.id,
-            groupId: category.groupId,
-            name: category.name,
-            description: category.description,
-            accent: category.accent,
-            coverImageUrl: category.coverImageUrl,
-            sourceUrl: category.sourceUrl,
-            sortOrder: category.sortOrder,
-            localizations: category.localizations,
-          },
-          adminToken,
-        )
-      }
-      await onRefreshCatalog()
-      localizedNotify('学习系列顺序已更新', 'success')
-    }, '学习系列排序失败')
-
-  const changeSection = useCallback(async (section: AdminSection) => {
-    if (section === activeSection && !(section === 'api-keys' && isOpenContentDocumentation)) {
-      return
-    }
-
-    if (activeSection === 'importer') {
-      const canLeave = await confirmSaveImporterBeforeLeave()
-      if (!canLeave) {
-        return
-      }
-    }
-
-    navigate(
-      section === 'directory'
-        ? '/directory'
-        : section === 'collaboration'
-          ? '/collaboration'
-        : section === 'activity'
-          ? '/activity'
-        : section === 'pool'
-          ? '/pool'
-        : section === 'courses'
-          ? '/courses'
-          : section === 'recorder'
-            ? '/recorder'
-          : section === 'feedback'
-          ? '/feedback'
-          : section === 'users'
-            ? '/users'
-            : section === 'api-keys'
-              ? '/api-keys'
-              : section === 'account-settings'
-                ? '/account-settings'
-                : '/importer',
-    )
-  }, [activeSection, confirmSaveImporterBeforeLeave, isOpenContentDocumentation, navigate])
-
-  const openImporterForCategory = async (categoryId: number) => {
-    if (activeSection === 'importer') {
-      const canLeave = await confirmSaveImporterBeforeLeave()
-      if (!canLeave) {
-        return
-      }
-    }
-
-    navigate(`/importer/new?categoryId=${encodeURIComponent(categoryId)}`)
-  }
-
-  const openImporterForExercise = async (exercise: CatalogExerciseSummary) => {
-    if (activeSection === 'importer') {
-      const canLeave = await confirmSaveImporterBeforeLeave()
-      if (!canLeave) {
-        return
-      }
-    }
-
-    navigate(`/importer/${encodeURIComponent(exercise.id)}`)
-  }
-
-  const deleteCourse = async (exercise: CatalogExerciseSummary) => {
-    const confirmed = await onRequestConfirm({
-      title: t('删除课程'),
-      message: t('删除课程“{{title}}”后，会同时删除课程元数据、字幕、学习进度和对应媒体文件。此操作不可撤销。', { title: exercise.title }),
-      confirmLabel: t('确认删除'),
-      tone: 'danger',
-    })
-    if (!confirmed) {
-      return
-    }
-
-    void runAdminTask(async () => {
-      await apiClient.deleteExercise(exercise.id, adminToken)
-      await onRefreshCatalog()
-      localizedNotify(`课程已删除：${exercise.title}`, 'success')
-    }, '课程删除失败')
-  }
-
-  const moveCourse = (
-    exerciseId: number,
-    direction: 'up' | 'down',
-  ) => {
-    const operationId = createAdminOperationId('course-sort')
-    const operationStartedAt = Date.now()
-    let outcome: 'pending' | 'saved' | 'not-found' | 'boundary' | 'failed' = 'pending'
-    logAdminInfo('CourseSort', 'move-requested', {
-      operationId,
-      exerciseId,
-      direction,
-    })
-
-    void runAdminTask(async () => {
-      try {
-        // 课程管理页使用分页数据展示，但排序需要知道整个系列的真实邻居。
-        // 排序成功后目录刷新不会更新父层的全量 exercises 缓存，因此每次移动前都重新读取，
-        // 否则连续下移会基于上一次操作前的顺序再次写入旧的交换结果。
-        logAdminInfo('CourseSort', 'latest-exercises-fetch-start', { operationId })
-        const availableExercises = await onEnsureExercises()
-        logAdminInfo('CourseSort', 'latest-exercises-fetch-success', {
-          operationId,
-          totalExerciseCount: availableExercises.length,
-        })
-        const currentExercise = availableExercises.find((exercise) => exercise.id === exerciseId)
-        if (!currentExercise) {
-          outcome = 'not-found'
-          logAdminWarn('CourseSort', 'move-skipped-exercise-not-found', {
-            operationId,
-            exerciseId,
-            totalExerciseCount: availableExercises.length,
-          })
-          return
-        }
-
-        const siblingExercises = availableExercises
-          .filter((exercise) => exercise.categoryId === currentExercise.categoryId)
-          .sort((left, right) => left.sortOrder - right.sortOrder)
-        const currentIndex = siblingExercises.findIndex((exercise) => exercise.id === exerciseId)
-        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
-        if (currentIndex < 0) {
-          outcome = 'not-found'
-          logAdminWarn('CourseSort', 'move-skipped-current-not-in-siblings', {
-            operationId,
-            exerciseId,
-            categoryId: currentExercise.categoryId,
-            siblingCount: siblingExercises.length,
-          })
-          return
-        }
-        if (targetIndex < 0 || targetIndex >= siblingExercises.length) {
-          outcome = 'boundary'
-          logAdminWarn('CourseSort', 'move-skipped-boundary', {
-            operationId,
-            exerciseId,
-            direction,
-            categoryId: currentExercise.categoryId,
-            currentIndex,
-            targetIndex,
-            siblingCount: siblingExercises.length,
-          })
-          return
-        }
-
-        // 只记录当前项附近的顺序，避免课程数量很大时把控制台刷满；
-        // 这段信息足以判断连续移动时服务端返回的顺序是否已经变化。
-        const siblingPreview = siblingExercises
-          .slice(Math.max(0, currentIndex - 2), Math.min(siblingExercises.length, currentIndex + 3))
-          .map((exercise) => ({
-            id: exercise.id,
-            title: exercise.title,
-            sortOrder: exercise.sortOrder,
-          }))
-        logAdminInfo('CourseSort', 'neighbor-selected', {
-          operationId,
-          exerciseId,
-          direction,
-          categoryId: currentExercise.categoryId,
-          currentIndex,
-          targetIndex,
-          siblingCount: siblingExercises.length,
-          siblingPreview,
-        })
-
-        // 排序只交换相邻两门课的 sortOrder（2 次写），不整体重编号——
-        // sortOrder 间距本来就是为了支撑局部交换。
-        const current = siblingExercises[currentIndex]
-        const neighbor = siblingExercises[targetIndex]
-        const swapped: CatalogExerciseSummary[] = [
-          { ...current, sortOrder: neighbor.sortOrder },
-          { ...neighbor, sortOrder: current.sortOrder },
-        ]
-
-        // 历史遗留的重复排序值交换后顺序不变，此时才回退到全量重编号兜底
-        const usesFullRenumber = current.sortOrder === neighbor.sortOrder
-        const toPersist = usesFullRenumber
-          ? normalizeSortOrder(moveItem(siblingExercises, exerciseId, direction) ?? [])
-          : swapped
-        logAdminInfo('CourseSort', 'persist-plan-created', {
-          operationId,
-          exerciseId,
-          direction,
-          strategy: usesFullRenumber ? 'full-renumber' : 'adjacent-swap',
-          current: { id: current.id, sortOrder: current.sortOrder },
-          neighbor: { id: neighbor.id, sortOrder: neighbor.sortOrder },
-          persistCount: toPersist.length,
-          persistItems: toPersist.slice(0, 50).map((exercise) => ({
-            id: exercise.id,
-            sortOrder: exercise.sortOrder,
-          })),
-          omittedPersistItemCount: Math.max(0, toPersist.length - 50),
-        })
-
-        // 串行 upsert：中途失败时已保存的排序保持，避免并发写留下半套 sortOrder
-        for (const exercise of toPersist) {
-          const previousSortOrder = siblingExercises.find((item) => item.id === exercise.id)?.sortOrder
-          logAdminInfo('CourseSort', 'sort-save-start', {
-            operationId,
-            exerciseId: exercise.id,
-            title: exercise.title,
-            previousSortOrder,
-            nextSortOrder: exercise.sortOrder,
-          })
-          await apiClient.createExercise(
-            {
-              id: exercise.id,
-              categoryId: exercise.categoryId,
-              title: exercise.title,
-              source: exercise.source,
-              sourceUrl: exercise.sourceUrl,
-              difficulty: exercise.difficulty,
-              durationLabel: exercise.durationLabel,
-              mediaType: exercise.mediaType,
-              audioUrl: exercise.audioUrl,
-              coverImageUrl: exercise.coverImageUrl,
-              summary: exercise.summary,
-              sortOrder: exercise.sortOrder,
-              // 透传原状态，避免把 archived 课程改回 published
-              status: exercise.status,
-            },
-            adminToken,
-          )
-          logAdminInfo('CourseSort', 'sort-save-success', {
-            operationId,
-            exerciseId: exercise.id,
-            nextSortOrder: exercise.sortOrder,
-          })
-        }
-
-        logAdminInfo('CourseSort', 'catalog-refresh-start', { operationId })
-        await onRefreshCatalog()
-        logAdminInfo('CourseSort', 'catalog-refresh-success', { operationId })
-        outcome = 'saved'
-        localizedNotify('课程顺序已更新', 'success')
-      } catch (error) {
-        outcome = 'failed'
-        logAdminError('CourseSort', 'move-failed', {
-          operationId,
-          exerciseId,
-          direction,
-          elapsedMs: Date.now() - operationStartedAt,
-          ...getAdminErrorDetails(error),
-        })
-        throw error
-      }
-    }, '课程排序失败').then((succeeded) => {
-      logAdminInfo('CourseSort', 'move-finished', {
-        operationId,
-        exerciseId,
-        direction,
-        outcome,
-        taskSucceeded: succeeded,
-        elapsedMs: Date.now() - operationStartedAt,
-      })
-    })
-  }
-
-  const refreshFeedback = useCallback(async (status?: FeedbackStatus | 'all') => {
-    setFeedbackLoading(true)
-    try {
-      const response = await apiClient.getAcceptedAnswerFeedback(adminToken, status)
-      setFeedbackItems(response.items)
-    } catch (error) {
-      // 失败最常见的原因是 admin 登录态过期（401），提示里顺带引导重新登录
-      localizedNotify(
-        `反馈数据加载失败：${error instanceof Error ? error.message : '未知错误'}；若提示未授权，请重新登录管理员账号`,
-        'error',
-      )
-    } finally {
-      setFeedbackLoading(false)
-    }
-  }, [adminToken, localizedNotify])
-
-  useEffect(() => {
-    if (activeSection !== 'feedback') {
-      return
-    }
-
-    void refreshFeedback('all')
-  }, [activeSection, refreshFeedback])
-
-  const refreshGrowth = useCallback(async () => {
-    setGrowthLoading(true)
-    try {
-      const response = await apiClient.getAdminGrowth(adminToken)
-      setGrowthReport(response)
-    } catch (error) {
-      // 失败最常见的原因是 admin 登录态过期（401），提示里顺带引导重新登录
-      localizedNotify(
-        `增长数据加载失败：${error instanceof Error ? error.message : '未知错误'}；若提示未授权，请重新登录管理员账号`,
-        'error',
-      )
-    } finally {
-      setGrowthLoading(false)
-    }
-  }, [adminToken, localizedNotify])
-
-  useEffect(() => {
-    if (activeSection !== 'users') {
-      return
-    }
-
-    void refreshGrowth()
-  }, [activeSection, refreshGrowth])
 
   return (
     <ConfigProvider theme={{ token: { colorPrimary: '#1cb0f6' } }}>
