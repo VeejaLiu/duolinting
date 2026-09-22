@@ -55,4 +55,30 @@ export const coreMessages: Record<UiLocale, Record<string, string>> = {
     'stageRail.label': '学習ステージ',
     'tooltip.shortcut': 'ショートカット：{{shortcut}}',
   },
+  "fr-FR": {
+    "brand": "DuolinTing",
+    "courseLabel": "Cours d’écoute",
+    "login": "Se connecter",
+    "language": "Langue",
+    "interfaceLanguage": "Langue de l’interface",
+    "contentLanguage": "Langue du contenu pédagogique",
+    "preferences": "Préférences linguistiques",
+    "topbar.learningOverview": "Vue d’ensemble",
+    "topbar.openSource": "Code source ouvert",
+    "stageRail.label": "Étapes d’apprentissage",
+    "tooltip.shortcut": "Raccourci : {{shortcut}}"
+},
+  "es-ES": {
+    "brand": "DuolinTing",
+    "courseLabel": "Cursos de comprensión auditiva",
+    "login": "Iniciar sesión",
+    "language": "Idioma",
+    "interfaceLanguage": "Idioma de la interfaz",
+    "contentLanguage": "Idioma del contenido de aprendizaje",
+    "preferences": "Preferencias de idioma",
+    "topbar.learningOverview": "Resumen del aprendizaje",
+    "topbar.openSource": "Código abierto",
+    "stageRail.label": "Etapas de aprendizaje",
+    "tooltip.shortcut": "Atajo: {{shortcut}}"
+},
 }

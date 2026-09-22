@@ -35,4 +35,20 @@ export const extensiveStageMessages: Record<UiLocale, Record<string, string>> = 
     'transcript.panelTitle': 'チャプターの文',
     'transcript.hiddenLineChallenge': '字幕非表示チャレンジ',
   },
+  "fr-FR": {
+    "extensive.play": "Lire",
+    "extensive.pause": "Pause",
+    "extensive.playbackProgress": "Progression de la lecture",
+    "extensive.skipToSentenceStudy": "Passer à l’étude phrase par phrase",
+    "transcript.panelTitle": "Phrases du chapitre",
+    "transcript.hiddenLineChallenge": "Défi sans transcription"
+},
+  "es-ES": {
+    "extensive.play": "Reproducir",
+    "extensive.pause": "Pausa",
+    "extensive.playbackProgress": "Progreso de reproducción",
+    "extensive.skipToSentenceStudy": "Pasar al estudio por frases",
+    "transcript.panelTitle": "Frases del capítulo",
+    "transcript.hiddenLineChallenge": "Reto sin transcripción"
+},
 }

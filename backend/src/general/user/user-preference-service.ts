@@ -2,8 +2,8 @@ import type { ContentLocale, UiLocale, UserPreferences } from '../../domain';
 import { doRawQuery } from '../../models';
 import { sequelize } from '../../models/db-config-mysql';
 
-const uiLocales = new Set<UiLocale>(['zh-CN', 'en-US', 'th-TH', 'ja-JP']);
-const contentLocales = new Set<ContentLocale>(['zh-CN', 'en-US', 'th-TH', 'ja-JP']);
+const uiLocales = new Set<UiLocale>(['zh-CN', 'en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES']);
+const contentLocales = new Set<ContentLocale>(['zh-CN', 'en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES']);
 
 const DEFAULT_DAILY_GOAL = 10;
 
@@ -15,8 +15,8 @@ type PreferenceRow = {
 };
 
 const mapPreferences = (row?: PreferenceRow): UserPreferences => ({
-    uiLocale: uiLocales.has(row?.ui_locale as UiLocale) ? row!.ui_locale : 'zh-CN',
-    contentLocale: contentLocales.has(row?.content_locale as ContentLocale) ? row!.content_locale : 'zh-CN',
+    uiLocale: uiLocales.has(row?.ui_locale as UiLocale) ? row!.ui_locale : 'en-US',
+    contentLocale: contentLocales.has(row?.content_locale as ContentLocale) ? row!.content_locale : 'en-US',
     dailyGoal:
         row?.daily_goal && Number.isFinite(row.daily_goal) && row.daily_goal > 0
             ? row.daily_goal

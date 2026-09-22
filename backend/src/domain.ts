@@ -8,8 +8,8 @@ export type SubtitleDraftStatus = 'editing' | 'submitted' | 'returned' | 'approv
 /** Admin 课程列表使用的协作工作流节点，不改变课程的对外发布状态。 */
 export type CourseWorkflowStage = 'draft' | 'proofreading' | 'awaiting_review' | 'returned' | 'published' | 'archived';
 
-export type UiLocale = 'zh-CN' | 'en-US' | 'th-TH' | 'ja-JP';
-export type ContentLocale = 'zh-CN' | 'en-US' | 'th-TH' | 'ja-JP';
+export type UiLocale = 'zh-CN' | 'en-US' | 'th-TH' | 'ja-JP' | 'fr-FR' | 'es-ES';
+export type ContentLocale = 'zh-CN' | 'en-US' | 'th-TH' | 'ja-JP' | 'fr-FR' | 'es-ES';
 
 export type LocalizedDirectoryContent = {
     name?: string;

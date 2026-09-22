@@ -12,9 +12,9 @@ export type DraftLine = {
   keywordsText: string
 }
 
-// AI 翻译的目标语言集合：字幕原文固定按英文（en-US）处理，译文需为这三种语言各保留一份。
+// AI 翻译的目标语言集合：字幕原文固定按英文（en-US）处理，译文需为这五种语言各保留一份。
 // 批量翻译与单句翻译都按此列表逐语言补齐，顺序即请求顺序（串行执行，避免并发轰炸翻译服务）。
-export const TRANSLATION_TARGET_LOCALES = ['zh-CN', 'th-TH', 'ja-JP'] as const satisfies readonly ContentLocale[]
+export const TRANSLATION_TARGET_LOCALES = ['zh-CN', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const satisfies readonly ContentLocale[]
 
 export type TranslationTargetLocale = (typeof TRANSLATION_TARGET_LOCALES)[number]
 
@@ -23,6 +23,8 @@ export const TRANSLATION_LOCALE_LABELS: Record<TranslationTargetLocale, string> 
   'zh-CN': '中文',
   'th-TH': 'ไทย',
   'ja-JP': '日本語',
+  'fr-FR': 'Français',
+  'es-ES': 'Español',
 }
 
 export type SubtitleImportMode = 'single' | 'first-chinese' | 'second-chinese'

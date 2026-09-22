@@ -28,16 +28,46 @@ const START_COUNTDOWN_SECONDS = 3
 // 每次播放与下一步骤之间留出很短的呼吸时间，避免听感紧贴，同时保持录制节奏紧凑。
 const PLAYBACK_GAP_MS = 300
 
-const recorderLocales: ContentLocale[] = ['en-US', 'zh-CN', 'th-TH', 'ja-JP']
+const recorderLocales: ContentLocale[] = ['en-US', 'zh-CN', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES']
 
 const recorderLocaleLabels: Record<ContentLocale, string> = {
   'en-US': 'English',
   'zh-CN': '中文',
   'th-TH': 'ไทย',
   'ja-JP': '日本語',
+  'fr-FR': 'Français',
+  'es-ES': 'Español',
 }
 
 const recorderMessages: Record<ContentLocale, Record<RecordingPhase | 'idleDescription' | 'listenHint' | 'listenPrompt' | 'completeHint' | 'brandTagline' | 'webAppUrl' | 'mobileAppUrl', string>> = {
+"fr-FR": {
+    "idle": "Prêt à commencer",
+    "countdown": "L’enregistrement va commencer",
+    "blind-listen": "Écouter deux fois",
+    "show-transcript": "Écouter une fois avec les sous-titres",
+    "complete": "Leçon terminée",
+    "idleDescription": "Chaque phrase est lue deux fois sans sous-titres, puis une fois avec les sous-titres.",
+    "listenHint": "Repérez les sons et les expressions que vous comprenez.",
+    "listenPrompt": "Écoutez d’abord, sans sous-titres",
+    "completeHint": "Exercice phrase par phrase terminé",
+    "brandTagline": "Apprentissage de l’anglais open source et non lucratif",
+    "webAppUrl": "Web · https://app.duolinting.cn",
+    "mobileAppUrl": "Mobile · https://mobile.duolinting.cn"
+},
+"es-ES": {
+    "idle": "Listo para empezar",
+    "countdown": "La grabación va a empezar",
+    "blind-listen": "Escuchar dos veces",
+    "show-transcript": "Escuchar una vez con subtítulos",
+    "complete": "Lección completada",
+    "idleDescription": "Cada frase se reproduce dos veces sin subtítulos y una vez con subtítulos.",
+    "listenHint": "Presta atención a los sonidos y expresiones que reconoces.",
+    "listenPrompt": "Escucha primero, sin subtítulos",
+    "completeHint": "Práctica por frases completada",
+    "brandTagline": "Aprendizaje de inglés de código abierto y sin ánimo de lucro",
+    "webAppUrl": "Web · https://app.duolinting.cn",
+    "mobileAppUrl": "Mobile · https://mobile.duolinting.cn"
+},
   'en-US': {
     idle: 'Ready to begin',
     countdown: 'Recording starts soon',
@@ -125,7 +155,7 @@ export function ListeningVideoRecorder({
   const [activeLineIndex, setActiveLineIndex] = useState(0)
   const [countdown, setCountdown] = useState(START_COUNTDOWN_SECONDS)
   const [playbackRound, setPlaybackRound] = useState(0)
-  const [contentLocale, setContentLocale] = useState<ContentLocale>('zh-CN')
+  const [contentLocale, setContentLocale] = useState<ContentLocale>('en-US')
   const [mediaAspectRatio, setMediaAspectRatio] = useState<number | null>(null)
   // 每门课的媒体元素必须独立完成就绪；不能沿用上一门课的 ready 状态就开始 seek/play。
   const [isMediaReady, setIsMediaReady] = useState(false)

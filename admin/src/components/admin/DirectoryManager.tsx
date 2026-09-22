@@ -11,7 +11,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useEffect, useState, type Key } from 'react'
-import { Alert, Avatar, Badge, Button, Card, Descriptions, Divider, Dropdown, Empty, Flex, Form, Input, InputNumber, Modal, Space, Tag, Tree, Typography } from 'antd'
+import { Alert, Avatar, Badge, Button, Card, Descriptions, Dropdown, Empty, Flex, Form, Input, InputNumber, Modal, Space, Tag, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import type {
   CreateCategoryGroupRequest,
@@ -26,11 +26,13 @@ import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 import { buildDirectoryPrompt, parseDirectoryJson, type DirectoryJsonData } from '../../lib/directoryJson'
 
-const directoryLocalizationLocales = ['en-US', 'th-TH', 'ja-JP'] as const
+const directoryLocalizationLocales = ['zh-CN', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const
 const directoryLocalizationLabels = {
-  'en-US': '英语',
+  'zh-CN': '中文',
   'th-TH': '泰语',
   'ja-JP': '日语',
+  'fr-FR': '法语',
+  'es-ES': '西班牙语',
 }
 
 type DirectoryManagerProps = {
@@ -130,11 +132,16 @@ function DirectoryForm({
   }
   return (
     <Card className="directory-editor" size="small">
-      <Space wrap style={{ marginBottom: 16 }}>
+      <div className="directory-ai-toolbar">
+        <div className="directory-ai-copy">
+          <Typography.Text strong>{t('AI 辅助填写')}</Typography.Text>
+          <Typography.Text type="secondary">{t('先填写名称，复制提示词给 ChatGPT，再粘贴生成的 JSON。')}</Typography.Text>
+        </div>
+        <Space wrap>
         <Button className="ai-action-button" icon={<Sparkles size={15} aria-hidden="true" />} disabled={disabled} onClick={() => void copyPrompt()}>{t('复制提示词')}</Button>
         <Button className="ai-action-button" icon={<Sparkles size={15} aria-hidden="true" />} disabled={disabled} onClick={() => setJsonOpen(true)}>{t('粘贴 JSON 导入')}</Button>
-        <Typography.Text type="secondary">{t('先填写名称，复制提示词给 ChatGPT，再粘贴生成的 JSON。')}</Typography.Text>
-      </Space>
+        </Space>
+      </div>
       <Modal title={t('粘贴 JSON 导入')} open={jsonOpen} onCancel={() => setJsonOpen(false)} onOk={importJson}
         okText={t('填入表单')} cancelText={t('取消')} okButtonProps={{ disabled: disabled || !jsonText.trim() }}>
         <Typography.Paragraph>{t('导入会覆盖表单中的名称、描述、翻译和设置，检查后点击保存。')}</Typography.Paragraph>
@@ -146,22 +153,17 @@ function DirectoryForm({
         <Typography.Paragraph>{t('点击文本框可全选后手动复制')}</Typography.Paragraph>
         <Input.TextArea aria-label={t('复制提示词')} rows={14} readOnly value={manualPrompt} onClick={(event) => event.currentTarget.select()} />
       </Modal>
-      <Form layout="vertical">
-        <Flex gap={16} wrap>
-          <Form.Item label={t('名称')} required style={{ flex: '1 1 260px', marginBottom: 0 }}>
-            <Input disabled={disabled} value={form.name} onChange={(event) => onChange('name', event.target.value)} />
-          </Form.Item>
-          <Form.Item label={t('色值')} style={{ flex: '0 1 180px', marginBottom: 0 }}>
-            <Input disabled={disabled} value={form.accent} onChange={(event) => onChange('accent', event.target.value)} />
-          </Form.Item>
-        </Flex>
-        <Form.Item label={t('排序值')} style={{ marginTop: 16, marginBottom: 0 }}>
-          <InputNumber min={0} precision={0} disabled={disabled} value={form.sortOrder}
-            onChange={(value) => { if (value !== null) onChange('sortOrder', value) }} />
-        </Form.Item>
-        <Form.Item label={kind === 'group' ? t('说明') : t('描述')} style={{ marginTop: 16, marginBottom: 0 }}>
-          <Input disabled={disabled} value={form.description} onChange={(event) => onChange('description', event.target.value)} />
-        </Form.Item>
+      <Form layout="vertical" className="directory-edit-form">
+        <div className="directory-edit-layout">
+          <div className="directory-edit-content">
+            <section className="directory-edit-section">
+              <Typography.Title level={5}>{t('基本信息')} · English</Typography.Title>
+              <Form.Item label={t('名称')} required>
+                <Input disabled={disabled} value={form.name} onChange={(event) => onChange('name', event.target.value)} />
+              </Form.Item>
+              <Form.Item label={kind === 'group' ? t('说明') : t('描述')}>
+                <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} disabled={disabled} value={form.description} onChange={(event) => onChange('description', event.target.value)} />
+              </Form.Item>
         {kind === 'category' && (
           <Form.Item label={t('来源链接（可选）')} style={{ marginTop: 16, marginBottom: 0 }}>
             <Input
@@ -173,8 +175,9 @@ function DirectoryForm({
             />
           </Form.Item>
         )}
-        <Divider style={{ margin: '20px 0 12px' }}>{t('多语言内容')}</Divider>
-        <Typography.Text type="secondary">{t('同时检查和编辑所有语言。')}</Typography.Text>
+            </section>
+            <section className="directory-edit-section">
+              <Typography.Title level={5}>{t('多语言内容')}</Typography.Title>
         <div className="directory-localization-grid">
           {directoryLocalizationLocales.map((locale) => {
             const localized = form.localizations?.[locale] ?? {}
@@ -189,7 +192,8 @@ function DirectoryForm({
                     />
                   </Form.Item>
                   <Form.Item label={t('说明')} style={{ marginBottom: 0 }}>
-                    <Input
+                    <Input.TextArea
+                      autoSize={{ minRows: 4, maxRows: 10 }}
                       disabled={disabled}
                       value={localized.description ?? ''}
                       onChange={(event) => updateLocalized(locale, { description: event.target.value })}
@@ -200,7 +204,22 @@ function DirectoryForm({
             )
           })}
         </div>
-        <Form.Item label={t('封面图（可选）')} style={{ marginTop: 16, marginBottom: 0 }}>
+            </section>
+          </div>
+          <aside className="directory-edit-section directory-edit-settings">
+            <Typography.Title level={5}>{t('展示设置')}</Typography.Title>
+            <div className="directory-settings-row">
+              <Form.Item label={t('色值')}>
+                <Input disabled={disabled} value={form.accent}
+                  prefix={<span className="directory-accent-swatch" style={{ backgroundColor: /^#[0-9a-f]{6}$/i.test(form.accent) ? form.accent : 'transparent' }} />}
+                  onChange={(event) => onChange('accent', event.target.value)} />
+              </Form.Item>
+              <Form.Item label={t('排序值')}>
+                <InputNumber min={0} precision={0} disabled={disabled} value={form.sortOrder}
+                  onChange={(value) => { if (value !== null) onChange('sortOrder', value) }} />
+              </Form.Item>
+            </div>
+            <Form.Item label={t('封面图（可选）')} style={{ marginBottom: 0 }}>
           <CoverImageField
             adminToken={adminToken}
             disabled={disabled}
@@ -210,7 +229,9 @@ function DirectoryForm({
             value={form.coverImageUrl ?? ''}
           />
         </Form.Item>
-        <Flex justify="end" gap={8} style={{ marginTop: 16 }}>
+          </aside>
+        </div>
+        <Flex className="directory-edit-actions" justify="end" gap={8}>
           <Button disabled={disabled} onClick={onCancel}>{t('取消')}</Button>
           <Button disabled={disabled} icon={<Save size={15} />} onClick={onSave} type="primary">{t('保存')}{entityLabel}</Button>
         </Flex>

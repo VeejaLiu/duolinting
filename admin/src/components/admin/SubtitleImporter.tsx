@@ -28,12 +28,11 @@ type SubtitleImporterProps = {
   onCopySegmentPrompt: () => void
   // 当前是否有可复制的英文字幕内容；无内容时禁用复制按钮。
   copySegmentPromptDisabled: boolean
-  // 复制“字幕校对/三语翻译提示词 + 完整 dltjson”，由 ChatGPT 生成文件后导回。
+  // 复制“字幕校对/多语言翻译提示词 + 完整 dltjson”，由 ChatGPT 返回 JSON 代码块后粘贴导回。
   onCopyChatGptTranslation: () => void
   copyChatGptTranslationDisabled: boolean
   onDltjsonCopy: () => void
   onDltjsonExport: () => void
-  onDltjsonImport: (file: File) => void
   onDltjsonPaste: () => void
   isModal?: boolean
 }
@@ -54,13 +53,11 @@ export function SubtitleImporter({
   copyChatGptTranslationDisabled,
   onDltjsonCopy,
   onDltjsonExport,
-  onDltjsonImport,
   onDltjsonPaste,
   isModal = false,
 }: SubtitleImporterProps) {
   const { t } = useAdminLanguage()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const dltjsonFileInputRef = useRef<HTMLInputElement | null>(null)
 
   const adjustOffset = (delta: number) => {
     onTimeOffsetChange(timeOffset + delta)
@@ -80,7 +77,7 @@ export function SubtitleImporter({
         </div>
         <div className="subtitle-import-tools">
           <button
-            className="command-button"
+            className="command-button ai-action-button"
             disabled={copySegmentPromptDisabled}
             onClick={onCopySegmentPrompt}
             title={t('复制专家分段提示词 + 当前英文字幕（SRT 格式），可粘贴到 ChatGPT 等模型优化分段')}
@@ -195,11 +192,11 @@ export function SubtitleImporter({
         <div className="subtitle-import-export">
           <div className="subtitle-import-section-title">
             <strong>{t('ChatGPT 校对与翻译')}</strong>
-            <span>{t('校准英文后复制任务，下载 ChatGPT 生成的 dltjson 文件再导入')}</span>
+            <span>{t('复制任务给 ChatGPT，再将生成的 JSON 通过“粘贴 dltjson”导入')}</span>
           </div>
           <div className="dltjson-actions">
             <button
-              className="mini-command"
+              className="mini-command ai-action-button"
               disabled={copyChatGptTranslationDisabled}
               onClick={onCopyChatGptTranslation}
               title={t('复制翻译提示词和当前完整 dltjson，可直接粘贴给 ChatGPT')}
@@ -207,15 +204,6 @@ export function SubtitleImporter({
             >
               <Sparkles size={14} aria-hidden="true" />
               {t('复制 ChatGPT 翻译任务')}
-            </button>
-            <button
-              className="mini-command"
-              onClick={() => dltjsonFileInputRef.current?.click()}
-              title={t('导入 ChatGPT 生成的 dltjson 文件')}
-              type="button"
-            >
-              <Upload size={14} aria-hidden="true" />
-              {t('导入 ChatGPT 文件')}
             </button>
             <button
               className="mini-command secondary"
@@ -244,19 +232,6 @@ export function SubtitleImporter({
               <Download size={14} aria-hidden="true" />
               {t('导出 dltjson')}
             </button>
-            <input
-              ref={dltjsonFileInputRef}
-              accept=".dltjson,.htjson,.json"
-              hidden
-              type="file"
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                if (file) {
-                  onDltjsonImport(file)
-                  event.target.value = ''
-                }
-              }}
-            />
           </div>
         </div>
       </div>

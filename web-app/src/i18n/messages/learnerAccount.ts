@@ -42,4 +42,24 @@ export const learnerAccountMessages: Record<UiLocale, Record<string, string>> = 
     'account.progressSaved': '学習記録を保存しました',
     'account.saveFailed': '保存に失敗しました',
   },
+  "fr-FR": {
+    "account.loggedOut": "Non connecté",
+    "account.loggedIn": "Connecté",
+    "account.sessionExpired": "Votre session a expiré",
+    "account.progressSynced": "Progression synchronisée",
+    "account.noRecords": "Aucune activité d’apprentissage pour ce compte",
+    "account.syncFailed": "Échec de la synchronisation",
+    "account.progressSaved": "Progression enregistrée",
+    "account.saveFailed": "Échec de l’enregistrement"
+},
+  "es-ES": {
+    "account.loggedOut": "Sin sesión iniciada",
+    "account.loggedIn": "Sesión iniciada",
+    "account.sessionExpired": "Tu sesión ha caducado",
+    "account.progressSynced": "Progreso sincronizado",
+    "account.noRecords": "Todavía no hay registros de aprendizaje en esta cuenta",
+    "account.syncFailed": "No se pudo sincronizar el progreso",
+    "account.progressSaved": "Progreso guardado",
+    "account.saveFailed": "No se pudo guardar"
+},
 }

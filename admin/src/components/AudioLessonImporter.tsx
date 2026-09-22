@@ -140,51 +140,49 @@ const exportToDltjson = (
 // 基于 1Ntb 提供的「英语学习视频字幕语义与时间轴优化专家」提示词改编：
 // 外部模型拿不到视频/音频，故把「先分析视频音频」改为「按时间戳推算停顿与语速」；
 // 输出统一约束为 SRT（原始规则 13–15 针对 HTJSON 结构，此处不适用）。
-const SEGMENT_EXPERT_PROMPT = `你是一个英语学习视频字幕语义与时间轴优化专家。
-输入是一个 SRT 字幕文件（见文末），包含英文文本与每句的 start/end 时间戳。你无法直接访问视频或音频，请根据文本与时间戳推算语音节奏：句间停顿 = 下一句 start − 上一句 end，语速 = 文本长度 ÷ (end − start)。
-你的目标不是把字幕切得越碎越好，而是生成适合英语学习视频阅读的"语义文本块"。
-请严格遵循以下优先级：语义完整性 > 语音节奏 > 教学结构 > 时间戳绝对不重叠 > 字幕长度。
+const SEGMENT_EXPERT_PROMPT = `You are an expert in semantic segmentation and timing of English learning subtitles.
+The input below is an SRT file with English text and start/end timestamps. You cannot access its audio or video. Infer pauses from the next start minus the previous end, and estimate speech rate from text length divided by duration.
+Create natural semantic blocks suitable for reading and learning, rather than splitting into the smallest possible fragments.
+Priorities: semantic completeness > speech rhythm > teaching structure > non-overlapping timestamps > subtitle length.
 
-规则：
-1. 先根据时间戳推算停顿与语速，再修改字幕；不要只按原字幕机械切分。
-2. 短句如果属于同一个自然表达/教学单元，应合并。
-3. 中间存在明显长停顿时，即使两边很短也应拆分。参考阈值：≥0.8 秒强烈倾向拆分，≥1 秒通常拆分。
-4. 很短的碎片（尤其 <0.8 秒）如果没有明显停顿，不要让它单独成为字幕块，应并入邻近语义单元。
-5. 绝不能把姓名、单词、固定短语、phrasal verb、介词结构等从中间切开。例如 "German Rolf Buchholz" 必须保持完整。
-6. 破折号/连字符不一定代表断句，口语中的停顿、犹豫、修正不能机械拆开。
-7. 长句只有在自然语义边界上才拆分；字符数只作辅助判断，约 100–120 字符开始检查，超过 120–140 字符应认真判断是否需要拆分。
-8. 英语快速语流存在连读、弱读、吞音时，不要把词从中间切开；把完整单词归入相邻块，边界落在单词边界。各字幕块时间轴应连续且不重叠（下一块 start ≥ 上一块 end）。
-9. 识别教学阶段：讲解、示例、发音练习、跟读、倒数准备、正式朗读等，不要把不同教学动作随意合成一个巨大文本块。
-10. 重复朗读/练习不是错误，不要去重。
-11. 每个文本块的 start/end 应尽量贴合实际发音，避免把明显长静音包含进去，也不要过度截短弱音。
-12. 全片复核，不要只修用户指出的一处。检查：孤立碎片、残句、姓名断裂、长停顿、时间整体偏移、字幕覆盖静音、连续语流边界、重复朗读的时间偏移。
+Rules:
+1. Infer pauses and speech rate before making changes; do not split mechanically at existing boundaries.
+2. Merge short sentences that belong to the same natural expression or teaching unit.
+3. Split at obvious long pauses, even between short fragments. A pause of at least 0.8 seconds strongly suggests a split; at least 1 second usually requires one.
+4. Merge very short fragments (especially under 0.8 seconds) into adjacent semantic units when there is no clear pause.
+5. Never split names, words, fixed expressions, phrasal verbs, or prepositional phrases. For example, keep "German Rolf Buchholz" together.
+6. Dashes and hyphens are not necessarily sentence boundaries. Do not mechanically split hesitation, pauses, or self-corrections.
+7. Split long sentences only at natural semantic boundaries. Length is secondary: review blocks around 100–120 characters, and carefully consider splitting beyond 120–140.
+8. Keep whole words together during connected, reduced, or rapid speech. Boundaries must fall between words. Timeline blocks must not overlap (next start >= previous end).
+9. Preserve distinct teaching stages, such as explanation, examples, pronunciation practice, repetition, countdown, and reading. Do not merge them into one giant block.
+10. Repeated reading or practice is intentional; do not remove repetitions.
+11. Align boundaries as closely as the available timestamps allow. Avoid obvious long silence and do not cut off weak sounds.
+12. Review the entire file for isolated fragments, incomplete sentences, split names, long pauses, timing offsets, silent coverage, speech boundaries, and repeated-reading offsets.
 
-最终判断标准：
-每个文本块都应该是一个用户在英语学习视频中"自然可以一起读、一起理解"的单位，并且时间轴与视频中的实际说话基本同步。
+Each block should be a natural unit that learners can read and understand together, with timing that remains consistent with the supplied speech timestamps.
 
-输出要求：
-- 直接输出完整的标准 SRT 字幕，不要输出任何解释、前言、后缀或 Markdown 代码块。
-- 每个字幕块严格按「序号 / 时间轴 / 英文文本」排列，时间轴格式为 HH:MM:SS,mmm。
-- 不要改动英文原文文字：合并时只用单个空格连接，不得重写、增删、改标点、改大小写。
-- 如果全片复核没有发现实际问题，按原字幕原样输出即可。`
+Output:
+- Return the complete standard SRT only, without explanations, introductions, trailing comments, or Markdown code blocks.
+- Use sequence number / timestamp / English text for every block. Timestamps must use HH:MM:SS,mmm.
+- Do not change the original English wording, punctuation, or capitalization. Join merged text with a single space; do not add or delete words.
+- If the review finds no actual problems, return the original subtitles unchanged.`
 
 // 拼接「提示词 + 当前英文字幕(SRT)」的完整可复制文本。
 const buildSegmentPromptPayload = (draftLines: DraftLine[]): string =>
-  `${SEGMENT_EXPERT_PROMPT}\n\n以下是当前字幕（SRT 格式，仅英文）：\n\n${draftLinesToSrt(draftLines)}`
+  `${SEGMENT_EXPERT_PROMPT}\n\nCurrent subtitles (SRT, English only):\n\n${draftLinesToSrt(draftLines)}`
 
 // ChatGPT 翻译交接提示词：只描述任务和 dltjson 必要的结构约定，
-// 将具体翻译判断交给模型；结果要求作为文件返回，可直接导入 Admin。
-const CHATGPT_TRANSLATION_PROMPT = `请处理下面的完整 dltjson 字幕：
+// 将具体翻译判断交给模型；结果通过现有 dltjson 粘贴入口导回。
+const CHATGPT_TRANSLATION_PROMPT = `Process the complete dltjson subtitles below.
 
-1. 将每句英文翻译成简体中文、泰语和日语，分别写入 translations 的 "zh-CN"、"th-TH"、"ja-JP"。translation 与 "zh-CN" 保持一致。
-2. 检查 text 中的明显英文语法错误和语音识别错误（例如人名识别错、缺少介词、不可能的句子），只在上下文能够明确判断时修正。不要为了风格而随意改写正确的英文。
+1. Translate every English sentence into Simplified Chinese, Thai, Japanese, French, and Spanish. Put them in translations under "zh-CN", "th-TH", "ja-JP", "fr-FR", and "es-ES" respectively. Keep the legacy translation field identical to translations["zh-CN"].
+2. Correct clear English grammar and speech-recognition errors in text (such as misrecognized names or missing prepositions) only when the context makes the correction unambiguous. Do not rewrite correct English for stylistic reasons.
 
-除 text、translation 和 translations 外，保持 dltjson 的字段、字幕行和时间轴不变。
-
-完成后，请生成并返回一个可下载的 translated-subtitles.dltjson 文件。不要把 JSON 内容直接粘贴在聊天回复中。`
+Preserve all fields, subtitle rows, IDs, and timestamps except text, translation, and translations.
+Return the entire valid dltjson JSON in exactly one Markdown code block marked json, ready to copy and paste into the importer. Do not generate files or download links, split the response, omit rows or fields, or add explanations outside the code block.`
 
 const buildChatGptTranslationPayload = (draftLines: DraftLine[]): string =>
-  `${CHATGPT_TRANSLATION_PROMPT}\n\n以下是待校对和翻译的完整 dltjson：\n\n${exportToDltjson(draftLines)}`
+  `${CHATGPT_TRANSLATION_PROMPT}\n\nComplete dltjson to proofread and translate:\n\n${exportToDltjson(draftLines)}`
 
 type DltjsonV2 = {
   version: '2.0'
@@ -209,7 +207,7 @@ type DltjsonV2 = {
 // - lines 数组：每个元素包含 start、end（秒）、text、translation 等字段
 
 const importFromDltjson = (content: string): { lines: DltjsonV2['lines'] } => {
-  // 提示词要求返回纯 JSON，但外部对话模型偶尔仍会自动加 Markdown 代码块。
+  // 同时支持直接粘贴 JSON，以及提示词要求的单个 Markdown JSON 代码块。
   // 只剥离包住整份内容的单层代码块，不会宽松接受夹带解释的不确定输出。
   const trimmed = content.trim()
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
@@ -662,7 +660,7 @@ export function AudioLessonImporter({
             ),
       mediaType: options?.mediaType ?? nextCourseForm.mediaType,
       audioUrl: options?.mediaUrl ?? nextCourseForm.audioUrl,
-      title: nextCourseForm.title.trim() || '未命名课程',
+      title: nextCourseForm.title.trim() || 'Untitled course',
       source: nextCourseForm.source.trim() || '真实媒体导入',
       summary: nextCourseForm.summary.trim(),
       status: options?.forceDraft ? 'draft' : nextCourseForm.status,
@@ -738,7 +736,7 @@ export function AudioLessonImporter({
     setMediaSize(file.size)
 
     // 用户文件名只用于浏览器选择文件，不写入课程标题；新课程标题保持当前值，
-    // 为空时后台草稿使用“未命名课程”占位，用户后续自行填写真实课程名。
+    // 为空时后台草稿使用“Untitled course”占位，用户后续自行填写真实课程名。
     const isEditing = Boolean(courseForm.id)
     const nextCourseForm: CreateExerciseRequest = {
       ...courseForm,
@@ -860,16 +858,6 @@ export function AudioLessonImporter({
     return imported.lines.length
   }
 
-  const handleDltjsonImport = async (file: File) => {
-    try {
-      const content = await file.text()
-      const lineCount = applyImportedDltjson(content)
-      onStatusChange(`已从文件导入 ${lineCount} 句字幕`, 'success')
-    } catch (error) {
-      onStatusChange(error instanceof Error ? error.message : 'dltjson 导入失败', 'error')
-    }
-  }
-
   const handleDltjsonCopyToClipboard = async () => {
     if (!canWriteClipboard) {
       setClipboardPanel({
@@ -903,7 +891,7 @@ export function AudioLessonImporter({
 
     try {
       await navigator.clipboard.writeText(payload)
-      onStatusChange('ChatGPT 翻译任务已复制；完成后请下载 dltjson 文件并导入', 'success')
+      onStatusChange('ChatGPT 翻译任务已复制；完成后请复制 JSON，通过“粘贴 dltjson”导入', 'success')
     } catch (error) {
       onStatusChange(error instanceof Error ? error.message : '复制 ChatGPT 翻译任务失败', 'error')
     }
@@ -1210,9 +1198,6 @@ export function AudioLessonImporter({
               copyChatGptTranslationDisabled={!draftLines.some((line) => line.text.trim())}
               onDltjsonCopy={handleDltjsonCopyToClipboard}
               onDltjsonExport={handleDltjsonExport}
-              onDltjsonImport={(file) => {
-                void handleDltjsonImport(file)
-              }}
               onDltjsonPaste={handleDltjsonPasteFromClipboard}
               isModal
             />

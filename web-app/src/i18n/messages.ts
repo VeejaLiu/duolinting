@@ -37,6 +37,8 @@ export const messages: Record<UiLocale, Record<string, string>> = {
   'en-US': mergeLocale('en-US'),
   'th-TH': mergeLocale('th-TH'),
   'ja-JP': mergeLocale('ja-JP'),
+  'fr-FR': mergeLocale('fr-FR'),
+  'es-ES': mergeLocale('es-ES'),
 }
 
 export type MessageKey = string

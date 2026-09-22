@@ -86,6 +86,8 @@ const supportedContentLocales = new Set<ContentLocale>([
     'en-US',
     'th-TH',
     'ja-JP',
+    'fr-FR',
+    'es-ES',
 ]);
 
 export const parseContentLocale = (
@@ -280,8 +282,10 @@ const normalizeTranscriptLine = (
     if (!translations['zh-CN'] && legacyTranslation) {
         translations['zh-CN'] = legacyTranslation;
     }
+    // English uses the original sentence; a missing translation must not silently display Chinese.
+    // With no locale (admin/export), preserve the legacy Chinese field for lossless editing.
     const resolvedTranslation = contentLocale
-        ? (translations[contentLocale] ?? translations['zh-CN'] ?? '')
+        ? (translations[contentLocale] ?? (contentLocale === 'en-US' ? cleanEnglishAnswerText(String(item.text ?? '')) : ''))
         : (translations['zh-CN'] ?? legacyTranslation);
 
     return {
@@ -1113,7 +1117,7 @@ export async function upsertCategory(category: CreateCategoryRequest) {
         name: category.name,
         description: category.description,
         localizations_json: normalizeDirectoryLocalizations(
-            category.localizations,
+            { ...category.localizations, 'en-US': undefined },
         ),
         accent: category.accent,
         cover_image_url: toStoredMediaUrl(category.coverImageUrl) || null,
@@ -1130,7 +1134,7 @@ export async function upsertCategoryGroup(group: CreateCategoryGroupRequest) {
         name: group.name,
         description: group.description,
         localizations_json: normalizeDirectoryLocalizations(
-            group.localizations,
+            { ...group.localizations, 'en-US': undefined },
         ),
         accent: group.accent,
         cover_image_url: toStoredMediaUrl(group.coverImageUrl) || null,
@@ -1333,7 +1337,7 @@ export async function upsertExercise(exercise: CreateExerciseRequest) {
         cover_image_url: storedCoverImageUrl || null,
         summary: exercise.summary,
         localizations_json: exercise.localizations
-            ? normalizeExerciseLocalizations(exercise.localizations)
+            ? normalizeExerciseLocalizations({ ...exercise.localizations, 'en-US': undefined })
             : (existing?.localizations_json ?? {}),
         transcript_json: existing?.transcript_json ?? [],
         sort_order: exercise.sortOrder,

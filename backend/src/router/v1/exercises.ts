@@ -13,7 +13,7 @@ router.get('/:exerciseId', optionalUserTokenMiddleware, async (req: any, res) =>
     }
 
     const previewExerciseIds = await getPreviewExerciseIdsForLearner(req.user?.userId);
-    const exercise = await getExercise(exerciseId, false, parseContentLocale(req.query.contentLocale), previewExerciseIds, undefined, req.user?.userId);
+    const exercise = await getExercise(exerciseId, false, (parseContentLocale(req.query.contentLocale) ?? 'en-US'), previewExerciseIds, undefined, req.user?.userId);
     if (!exercise) {
         return res.status(404).send({ success: false, message: 'Exercise not found' });
     }

@@ -9,8 +9,8 @@ export type SubtitleDraftStatus = 'editing' | 'submitted' | 'returned' | 'approv
 export type CourseWorkflowStage = 'draft' | 'proofreading' | 'awaiting_review' | 'returned' | 'published' | 'archived'
 
 /** 界面语言支持中、英、泰、日四种；内容语言可随课程翻译逐步扩展。 */
-export type UiLocale = 'zh-CN' | 'en-US' | 'th-TH' | 'ja-JP'
-export type ContentLocale = 'zh-CN' | 'en-US' | 'th-TH' | 'ja-JP'
+export type UiLocale = 'zh-CN' | 'en-US' | 'th-TH' | 'ja-JP' | 'fr-FR' | 'es-ES'
+export type ContentLocale = 'zh-CN' | 'en-US' | 'th-TH' | 'ja-JP' | 'fr-FR' | 'es-ES'
 
 export type LocalizedDirectoryContent = {
   name?: string

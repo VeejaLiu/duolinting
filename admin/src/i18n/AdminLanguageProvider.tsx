@@ -5,10 +5,12 @@ import { adminMessages, type AdminMessageKey } from './messages'
 const ADMIN_UI_LOCALE_KEY = 'duolinting.admin.ui-locale.v1'
 
 export const adminUiLocaleLabels: Record<UiLocale, string> = {
-  'zh-CN': '简体中文',
   'en-US': 'English',
+  'zh-CN': '简体中文',
   'th-TH': 'ไทย',
   'ja-JP': '日本語',
+  'fr-FR': 'Français',
+  'es-ES': 'Español',
 }
 
 type AdminLanguageContextValue = {
@@ -20,19 +22,12 @@ type AdminLanguageContextValue = {
 const AdminLanguageContext = createContext<AdminLanguageContextValue | null>(null)
 
 const isUiLocale = (value: string | null): value is UiLocale =>
-  value === 'zh-CN' || value === 'en-US' || value === 'th-TH' || value === 'ja-JP'
+  value === 'zh-CN' || value === 'en-US' || value === 'th-TH' || value === 'ja-JP' || value === 'fr-FR' || value === 'es-ES'
 
 const getInitialUiLocale = (): UiLocale => {
   const stored = localStorage.getItem(ADMIN_UI_LOCALE_KEY)
   if (isUiLocale(stored)) return stored
-  const browserLocale = navigator.languages.find((locale) => {
-    const code = locale.toLowerCase()
-    return code.startsWith('en') || code.startsWith('th') || code.startsWith('ja')
-  })
-  if (browserLocale?.toLowerCase().startsWith('en')) return 'en-US'
-  if (browserLocale?.toLowerCase().startsWith('th')) return 'th-TH'
-  if (browserLocale?.toLowerCase().startsWith('ja')) return 'ja-JP'
-  return 'zh-CN'
+  return 'en-US'
 }
 
 export function AdminLanguageProvider({ children }: { children: ReactNode }) {
@@ -47,7 +42,7 @@ export function AdminLanguageProvider({ children }: { children: ReactNode }) {
     uiLocale,
     setUiLocale,
     t: (key, values) => {
-      let message = adminMessages[uiLocale][key] ?? adminMessages['zh-CN'][key] ?? key
+      let message = adminMessages[uiLocale][key] ?? adminMessages['en-US'][key] ?? key
       if (values) {
         for (const [name, value] of Object.entries(values)) {
           message = message.replaceAll(`{{${name}}}`, String(value))

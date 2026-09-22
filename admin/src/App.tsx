@@ -263,7 +263,7 @@ function App() {
         aria-label={t('界面语言')}
         onChange={(event) => {
           const locale = event.target.value
-          if (locale === 'zh-CN' || locale === 'en-US' || locale === 'th-TH' || locale === 'ja-JP') setUiLocale(locale)
+          if (locale === 'zh-CN' || locale === 'en-US' || locale === 'th-TH' || locale === 'ja-JP' || locale === 'fr-FR' || locale === 'es-ES') setUiLocale(locale)
         }}
         value={uiLocale}
       >

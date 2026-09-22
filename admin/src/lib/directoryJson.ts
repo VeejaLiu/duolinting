@@ -2,7 +2,7 @@ import type { CreateCategoryGroupRequest, CreateCategoryRequest } from '@duolint
 
 export type DirectoryJsonData = Omit<CreateCategoryGroupRequest, 'id'> & { sourceUrl?: string }
 export type DirectoryKind = 'group' | 'category'
-const locales = ['en-US', 'th-TH', 'ja-JP'] as const
+const locales = ['zh-CN', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const
 
 export function buildDirectoryPrompt(form: CreateCategoryGroupRequest | CreateCategoryRequest, kind: DirectoryKind) {
   // The template deliberately excludes IDs: AI output must never change record identity or its parent.
@@ -12,10 +12,11 @@ export function buildDirectoryPrompt(form: CreateCategoryGroupRequest | CreateCa
     ...(kind === 'category' ? { sourceUrl: (form as CreateCategoryRequest).sourceUrl ?? '' } : {}),
     localizations: Object.fromEntries(locales.map((locale) => [locale, form.localizations?.[locale] ?? { name: '', description: '' }])),
   }
-  return `请为英语精听产品的${kind === 'group' ? '内容分类' : '学习系列'}生成完整目录资料。请将完整的有效 JSON 对象放在唯一一个 Markdown 代码块中，代码块语言标记为 json，方便我点击复制。所有字段必须放在同一个代码块里，不要拆分，代码块外不要添加说明。
-以以下名称和已有描述为依据，完善简洁准确的简体中文名称与描述，并完整翻译为英语、泰语、日语。不要编造来源、版权或课程数量等事实。若名称为空，请先询问我名称。
-严格使用下列 JSON 结构：name、description 是简体中文；localizations 中 en-US、th-TH、ja-JP 均须包含非空 name 和 description。不要添加 id、groupId 或其他字段。
-accent 是 #RRGGBB 六位十六进制颜色；sortOrder 是非负整数（越小越靠前）。保留已有颜色和排序。coverImageUrl 是封面地址，${kind === 'category' ? 'sourceUrl 是原始材料的 http(s) 来源链接，' : ''}这些地址原样保留，不要虚构，空值保持空字符串。
+  return `Create complete directory content for an English listening app's ${kind === 'group' ? 'content category' : 'learning series'}.
+Return the entire valid JSON object in exactly one Markdown code block marked json, so it can be copied in one click. Do not split the output or add text outside the code block.
+Use the supplied name and description to produce a concise, accurate English name and description. Translate both into Simplified Chinese, Thai, Japanese, French, and Spanish. Do not invent facts about sources, copyright, or course counts. If the name is empty, ask me for it first.
+Follow this JSON structure exactly. The top-level name and description must be English. Each localizations entry (zh-CN, th-TH, ja-JP, fr-FR, es-ES) must contain a nonempty name and description. Do not add id, groupId, or other fields.
+accent is a six-digit #RRGGBB color. sortOrder is a nonnegative integer (smaller numbers appear first). Preserve the existing color and order. coverImageUrl is the cover image URL; ${kind === 'category' ? 'sourceUrl is the original material’s http(s) URL; ' : ''}preserve URLs exactly, never invent them, and keep empty strings empty.
 \n${JSON.stringify(template, null, 2)}`
 }
 

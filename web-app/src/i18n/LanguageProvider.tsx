@@ -6,17 +6,21 @@ const UI_LOCALE_KEY = 'duolinting.web.ui-locale.v1'
 const CONTENT_LOCALE_KEY = 'duolinting.web.content-locale.v1'
 
 export const uiLocaleLabels: Record<UiLocale, string> = {
-  'zh-CN': '简体中文',
   'en-US': 'English',
+  'zh-CN': '简体中文',
   'th-TH': 'ไทย',
   'ja-JP': '日本語',
+  'fr-FR': 'Français',
+  'es-ES': 'Español',
 }
 
 export const contentLocaleLabels: Record<ContentLocale, string> = {
-  'zh-CN': '中文',
   'en-US': 'English',
+  'zh-CN': '中文',
   'th-TH': 'ไทย',
   'ja-JP': '日本語',
+  'fr-FR': 'Français',
+  'es-ES': 'Español',
 }
 
 type LanguageContextValue = {
@@ -31,22 +35,15 @@ const LanguageContext = createContext<LanguageContextValue | null>(null)
 
 const getInitialUiLocale = (): UiLocale => {
   const stored = localStorage.getItem(UI_LOCALE_KEY)
-  if (stored === 'zh-CN' || stored === 'en-US' || stored === 'th-TH' || stored === 'ja-JP') return stored
-  const browserLanguage = navigator.languages.find((locale) => {
-    const code = locale.toLowerCase()
-    return code.startsWith('en') || code.startsWith('th') || code.startsWith('ja')
-  })
-  if (browserLanguage?.toLowerCase().startsWith('en')) return 'en-US'
-  if (browserLanguage?.toLowerCase().startsWith('th')) return 'th-TH'
-  if (browserLanguage?.toLowerCase().startsWith('ja')) return 'ja-JP'
-  return 'zh-CN'
+  if (stored === 'zh-CN' || stored === 'en-US' || stored === 'th-TH' || stored === 'ja-JP' || stored === 'fr-FR' || stored === 'es-ES') return stored
+  return 'en-US'
 }
 
 const getInitialContentLocale = (): ContentLocale => {
   const stored = localStorage.getItem(CONTENT_LOCALE_KEY)
-  return stored === 'zh-CN' || stored === 'en-US' || stored === 'th-TH' || stored === 'ja-JP'
+  return stored === 'zh-CN' || stored === 'en-US' || stored === 'th-TH' || stored === 'ja-JP' || stored === 'fr-FR' || stored === 'es-ES'
     ? stored
-    : 'zh-CN'
+    : 'en-US'
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
@@ -69,7 +66,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setContentLocale: setContentLocaleState,
     t: (key, values) => {
       // 语义 key 查消息表；查不到说明有组件漏配 key，原样返回 key 便于排查。
-      let message = messages[uiLocale][key] ?? messages['zh-CN'][key] ?? key
+      let message = messages[uiLocale][key] ?? messages['en-US'][key] ?? key
       if (values) {
         for (const [name, value] of Object.entries(values)) {
           message = message.replaceAll(`{{${name}}}`, String(value))

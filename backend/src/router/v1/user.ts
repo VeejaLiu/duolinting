@@ -34,8 +34,8 @@ router.get('/preferences', verifyTokenMiddleware, async (req: any, res) => {
 router.patch(
     '/preferences',
     verifyTokenMiddleware,
-    body('uiLocale').optional().isIn(['zh-CN', 'en-US', 'th-TH', 'ja-JP']),
-    body('contentLocale').optional().isIn(['zh-CN', 'en-US', 'th-TH', 'ja-JP']),
+    body('uiLocale').optional().isIn(['zh-CN', 'en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES']),
+    body('contentLocale').optional().isIn(['zh-CN', 'en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES']),
     body('dailyGoal').optional().isInt({ min: 1, max: 1000 }).toInt(),
     validateErrorCheck,
     async (req: any, res) => {

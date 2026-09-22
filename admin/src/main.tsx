@@ -1,6 +1,8 @@
 import { StrictMode, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App as AntdApp, ConfigProvider } from 'antd'
+import frFR from 'antd/locale/fr_FR'
+import esES from 'antd/locale/es_ES'
 import enUS from 'antd/locale/en_US'
 import jaJP from 'antd/locale/ja_JP'
 import thTH from 'antd/locale/th_TH'
@@ -14,7 +16,7 @@ import { installGlobalMediaDiagnostics, logReactDiagnostic } from './lib/mediaDi
 
 function AdminAntdProvider({ children }: { children: ReactNode }) {
   const { uiLocale } = useAdminLanguage()
-  const locale = uiLocale === 'en-US' ? enUS : uiLocale === 'th-TH' ? thTH : uiLocale === 'ja-JP' ? jaJP : zhCN
+  const locale = uiLocale === 'en-US' ? enUS : uiLocale === 'th-TH' ? thTH : uiLocale === 'ja-JP' ? jaJP : uiLocale === 'fr-FR' ? frFR : uiLocale === 'es-ES' ? esES : zhCN
   return <ConfigProvider locale={locale} theme={{ token: { colorPrimary: '#1cb0f6' } }}>{children}</ConfigProvider>
 }
 

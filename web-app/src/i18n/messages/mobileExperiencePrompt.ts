@@ -34,4 +34,20 @@ export const mobileExperiencePromptMessages: Record<UiLocale, Record<string, str
     'mobileExperience.open': 'モバイル版を開く',
     'mobileExperience.close': 'モバイル版の案内を閉じる',
   },
+  "fr-FR": {
+    "mobileExperience.eyebrow": "Conçu pour votre téléphone",
+    "mobileExperience.title": "Ouvrir la version mobile ?",
+    "mobileExperience.description": "La version mobile est conçue pour les petits écrans et facilite la pratique, la lecture et l’étude des phrases.",
+    "mobileExperience.stay": "Rester sur le Web",
+    "mobileExperience.open": "Ouvrir la version mobile",
+    "mobileExperience.close": "Fermer la proposition de version mobile"
+},
+  "es-ES": {
+    "mobileExperience.eyebrow": "Diseñado para tu teléfono",
+    "mobileExperience.title": "¿Abrir la versión móvil?",
+    "mobileExperience.description": "La versión móvil está diseñada para pantallas pequeñas y facilita la práctica, la reproducción y el estudio por frases.",
+    "mobileExperience.stay": "Seguir en la web",
+    "mobileExperience.open": "Abrir versión móvil",
+    "mobileExperience.close": "Cerrar aviso de versión móvil"
+},
 }

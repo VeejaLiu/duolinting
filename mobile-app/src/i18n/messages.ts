@@ -1,6 +1,10 @@
+import frFR from './fr-FR'
+import esES from './es-ES'
 import type { UiLocale } from '@duolinting/domain'
 
 export const messages = {
+  'fr-FR': frFR,
+  'es-ES': esES,
   'zh-CN': {
     'tabs.study': '学习',
     'tabs.leaderboard': '排行',

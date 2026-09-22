@@ -165,7 +165,7 @@ export function MediaCourseForm({
   onSubmitSubtitleDraft,
 }: MediaCourseFormProps) {
   const { t } = useAdminLanguage()
-  const [localizationLocale, setLocalizationLocale] = useState<ContentLocale>('en-US')
+  const [localizationLocale, setLocalizationLocale] = useState<ContentLocale>('zh-CN')
   const [previewTime, setPreviewTime] = useState(0)
   const [isCourseMetaOpen, setIsCourseMetaOpen] = useState(false)
   const [isSubtitleImporterOpen, setIsSubtitleImporterOpen] = useState(false)
@@ -495,7 +495,8 @@ export function MediaCourseForm({
                   <dt>{t('摘要')}</dt><dd>{courseForm.summary || t('未填写')}</dd>
                 </dl>
                 <FieldSelect label={t('本地化内容语言')} value={localizationLocale} onValueChange={(value) => setLocalizationLocale(value as ContentLocale)} options={[
-                  { value: 'en-US', label: 'English' }, { value: 'th-TH', label: 'ไทย' }, { value: 'ja-JP', label: '日本語' },
+                  { value: 'zh-CN', label: '中文' }, { value: 'th-TH', label: 'ไทย' }, { value: 'ja-JP', label: '日本語' },
+                  { value: 'fr-FR', label: 'Français' }, { value: 'es-ES', label: 'Español' },
                 ]} />
                 <dl>
                   <dt>{t('本地化标题')}</dt><dd>{localizedContent.title || t('未填写')}</dd>
@@ -656,9 +657,10 @@ export function MediaCourseForm({
               value={localizationLocale}
               onValueChange={(value) => setLocalizationLocale(value as ContentLocale)}
               options={[
-                { value: 'en-US', label: 'English' },
+                { value: 'zh-CN', label: '中文' },
                 { value: 'th-TH', label: 'ไทย' },
                 { value: 'ja-JP', label: '日本語' },
+                  { value: 'fr-FR', label: 'Français' }, { value: 'es-ES', label: 'Español' },
               ]}
             />
             <label className="field">

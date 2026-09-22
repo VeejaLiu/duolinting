@@ -32,4 +32,18 @@ export const appMessages: Record<UiLocale, Record<string, string>> = {
     'app.chapterBanner.seriesFallback': '現在のシリーズ',
     'app.chapterBanner.progress': '第 {{current}} 章 / 全 {{total}} 章',
   },
+  "fr-FR": {
+    "app.studyArea.aria": "Espace d’étude du cours",
+    "app.chapterBanner.aria": "Chapitre actuel",
+    "app.chapterBanner.kicker": "Chapitre actuel",
+    "app.chapterBanner.seriesFallback": "Série actuelle",
+    "app.chapterBanner.progress": "Chapitre {{current}} sur {{total}}"
+},
+  "es-ES": {
+    "app.studyArea.aria": "Área de estudio del curso",
+    "app.chapterBanner.aria": "Capítulo actual",
+    "app.chapterBanner.kicker": "Capítulo actual",
+    "app.chapterBanner.seriesFallback": "Serie actual",
+    "app.chapterBanner.progress": "Capítulo {{current}} de {{total}}"
+},
 }
