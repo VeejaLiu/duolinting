@@ -1,0 +1,41 @@
+.workflow-activity-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.workflow-activity-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.workflow-activity-filter {
+  min-width: 174px;
+}
+
+.subtitle-task-section-label {
+  display: block;
+  margin: 14px 0 8px;
+}
+
+.subtitle-task-history-list {
+  margin-top: 8px;
+}
+
+.workflow-activity-timeline.ant-card {
+  border-color: #d7dde5;
+  border-radius: 6px;
+}
+
+.workflow-activity-timeline .ant-card-head {
+  min-height: 46px;
+}
+
+.workflow-activity-timeline .workflow-activity-row-is-current-user > td {
+  background: #eef9ff !important;
+}
+
+.workflow-activity-timeline .workflow-activity-row-is-current-user:hover > td {
+  background: #e0f4fe !important;
+}

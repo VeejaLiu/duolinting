@@ -1,0 +1,9 @@
+.import-workbench {
+  gap: 16px;
+}
+
+.recorder-workspace {
+  display: grid;
+  gap: 16px;
+  min-height: calc(100vh - 116px);
+}

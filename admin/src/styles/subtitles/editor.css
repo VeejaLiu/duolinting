@@ -1,0 +1,278 @@
+.subtitle-detail-head,
+.subtitle-time-fields {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.subtitle-detail-head strong {
+  color: #111827;
+  font-size: 12px;
+  margin-right: auto;
+}
+
+.subtitle-detail-head span {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.subtitle-text-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.subtitle-editor-inspector .field {
+  gap: 4px;
+}
+
+.subtitle-editor-inspector .field > span,
+.subtitle-editor-inspector .translation-field-head > span {
+  font-size: 11px;
+}
+
+.subtitle-editor-inspector .field input,
+.subtitle-editor-inspector .field select,
+.subtitle-editor-inspector .field textarea {
+  font-size: 13px;
+  min-height: 32px;
+  padding: 6px 8px;
+}
+
+.subtitle-editor-inspector .time-ms-field {
+  font-size: 11px;
+  gap: 3px;
+  min-height: 26px;
+  padding: 0 5px;
+}
+
+.subtitle-editor-inspector .time-ms-field span,
+.subtitle-editor-inspector .time-ms-field small {
+  font-size: 10px;
+}
+
+.subtitle-editor-inspector .time-ms-field input {
+  font-size: 11px;
+  min-height: 22px;
+  width: 56px;
+}
+
+.subtitle-time-input.ant-input-number {
+  width: 82px;
+}
+
+.subtitle-time-input.ant-input-number .ant-input-number-input {
+  font-size: 11px;
+  height: 26px;
+  padding: 0 6px;
+}
+
+.subtitle-time-separator {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.subtitle-time-unit {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.subtitle-editor-button.ant-btn {
+  border-radius: 4px;
+  font-size: 11px;
+  min-height: 30px;
+  padding-inline: 8px;
+}
+
+.subtitle-editor-inspector .ant-input {
+  min-height: 30px;
+  padding: 4px 8px;
+}
+
+.subtitle-editor-inspector .ant-input-number {
+  min-height: 30px;
+}
+
+.subtitle-editor-inspector .ant-input-number-input {
+  min-height: 28px;
+}
+
+.subtitle-text-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.answer-field {
+  align-content: start;
+}
+
+/* 字幕译文编辑区：标题行（标签 + 单句 AI 翻译按钮） */
+.translation-field-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* 每种目标语言一行：语言名 + 可编辑输入框，便于对照检查 */
+.translation-locale-row {
+  align-items: center;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 48px minmax(0, 1fr);
+}
+
+.translation-locale-row > span {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.answer-input-list {
+  display: grid;
+  gap: 6px;
+}
+
+.answer-input-row {
+  align-items: center;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.answer-input-row .mini-command {
+  min-height: 32px;
+}
+
+.subtitle-list-panel {
+  background: #ffffff;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.subtitle-list-panel summary {
+  align-items: center;
+  color: #334155;
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  font-weight: 800;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.subtitle-list-panel summary strong {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.subtitle-list-panel .ant-table-content {
+  max-height: 360px;
+  overflow: auto !important;
+}
+
+.line-editor-list {
+  display: grid;
+  gap: 10px;
+  max-height: 740px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.line-editor {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.line-editor.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.line-editor-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.line-select-button,
+.line-play-button,
+.line-delete-button {
+  background: #ffffff;
+  border: 1px solid #cfd6df;
+  border-radius: 6px;
+  color: #374151;
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.line-select-button {
+  margin-right: auto;
+}
+
+.line-time-strip {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.time-ms-field,
+.time-stamp-button {
+  align-items: center;
+  border-radius: 6px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  min-height: 28px;
+}
+
+.time-ms-field {
+  background: #f1f5f9;
+  border: 1px solid #dbe3ee;
+  color: #334155;
+  gap: 4px;
+  padding: 0 6px;
+}
+
+.time-ms-field span,
+.time-ms-field small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.time-ms-field input {
+  background: transparent;
+  border: 0;
+  color: #111827;
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  min-height: 24px;
+  padding: 0;
+  width: 64px;
+}
+
+.time-ms-field input:focus {
+  outline: 0;
+}
+
+.time-stamp-button {
+  background: #ffffff;
+  border: 1px solid #cfd6df;
+  color: #374151;
+  cursor: pointer;
+  gap: 4px;
+  padding: 0 8px;
+}
+
+.line-editor .field textarea {
+  min-height: 76px;
+}

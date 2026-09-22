@@ -1,0 +1,114 @@
+.directory-workbench {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  min-height: 620px;
+}
+
+.directory-tree-panel,
+.directory-detail-panel {
+  min-width: 0;
+}
+
+.directory-tree-panel > .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: calc(100vh - 220px);
+  min-height: 560px;
+  padding: 14px;
+}
+
+.directory-tree-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.directory-tree-scroll .ant-tree {
+  background: transparent;
+}
+
+.directory-tree-scroll .ant-tree-node-content-wrapper {
+  min-width: 0;
+  padding-block: 4px;
+}
+
+.directory-tree-scroll .ant-tree-title {
+  display: block;
+  min-width: 0;
+}
+
+.directory-tree-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  min-height: 32px;
+  min-width: 0;
+  width: 100%;
+}
+
+.directory-tree-group-row {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+.directory-tree-category-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.directory-tree-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.directory-tree-description {
+  font-size: 12px;
+}
+
+.directory-tree-category-name {
+  min-width: 0;
+}
+
+.directory-tree-row .ant-btn {
+  color: #64748b;
+}
+
+.directory-tree-row .ant-btn:hover {
+  border-color: #1cb0f6;
+  color: #111827;
+}
+
+.directory-detail-panel > .ant-card-body {
+  max-height: calc(100vh - 220px);
+  min-height: 560px;
+  overflow: auto;
+}
+
+.directory-detail-content {
+  display: grid;
+  gap: 24px;
+}
+
+.directory-detail-hero {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+}
+
+.directory-detail-hero .ant-typography {
+  margin-bottom: 0;
+}
+
+.directory-accent-swatch {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 4px;
+  display: inline-block;
+  height: 18px;
+  width: 18px;
+}
+
+.directory-localization-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}

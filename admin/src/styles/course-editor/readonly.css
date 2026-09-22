@@ -1,0 +1,14 @@
+/* 只读课程资料允许复制文本，长链接和多语言内容在值列内换行。 */
+.course-readonly-info dl {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 14px 10px;
+  margin: 18px 0;
+}
+.course-readonly-info dt { color: #64748b; }
+.course-readonly-info dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.course-readonly-notice { margin: 0; padding: 12px; background: #f0f9ff; border-radius: 8px; line-height: 1.7; }
+.course-readonly-help { color: #64748b; line-height: 1.7; }
+.course-readonly-info summary { cursor: pointer; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; }
+.course-readonly-info summary:hover { border-color: #1cb0f6; }
+.course-readonly-info summary:focus-visible { outline: 2px solid #1cb0f6; outline-offset: 2px; }

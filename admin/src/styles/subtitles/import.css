@@ -1,0 +1,297 @@
+.subtitle-import {
+  padding: 12px;
+}
+
+.subtitle-import summary {
+  align-items: center;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 8px;
+  list-style: none;
+}
+
+/* 隐藏原生 disclosure 三角，改用自定义箭头，展开时旋转为向下 */
+.subtitle-import summary::-webkit-details-marker {
+  display: none;
+}
+
+.subtitle-import summary::before {
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid #94a3b8;
+  border-top: 4px solid transparent;
+  content: '';
+  flex-shrink: 0;
+  height: 0;
+  transition: transform 0.15s ease;
+  width: 0;
+}
+
+.subtitle-import[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.subtitle-import-title {
+  flex: 1;
+}
+
+.subtitle-import-formats {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.subtitle-import-body {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.subtitle-import-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.subtitle-bilingual-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.subtitle-import-footer {
+  align-items: center;
+  border-top: 1px solid #eef2f7;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  padding-top: 12px;
+}
+
+.subtitle-import-export {
+  border-top: 1px solid #eef2f7;
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.subtitle-import-section-title {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.subtitle-import-section-title strong {
+  color: #374151;
+  font-size: 12px;
+}
+
+.subtitle-import-section-title span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.subtitle-offset {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.subtitle-offset > span {
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 60px;
+}
+
+.subtitle-offset small {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.subtitle-import .offset-input {
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid #cfd6df;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* 字幕导入抽屉：以卡片分组，避免把原来的折叠面板样式直接塞进 Drawer。 */
+.subtitle-import-drawer .ant-drawer-body {
+  background: #f7f9fc;
+}
+
+.subtitle-import-drawer .ant-drawer-header,
+.dltjson-drawer .ant-drawer-header {
+  border-bottom: 1px solid #e5eaf1;
+  padding: 12px 16px;
+}
+
+.subtitle-import-drawer .ant-drawer-title,
+.dltjson-drawer .ant-drawer-title {
+  color: #172033;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.subtitle-import-drawer .subtitle-import {
+  background: transparent;
+  padding: 10px;
+}
+
+.subtitle-import-drawer .subtitle-import > summary {
+  display: none;
+}
+
+.subtitle-import-drawer .subtitle-import-body {
+  gap: 8px;
+  margin-top: 0;
+}
+
+.subtitle-import-intro,
+.subtitle-import-body > .field,
+.subtitle-import-export,
+.subtitle-import-footer {
+  background: #ffffff;
+  border: 1px solid #e1e7ef;
+  border-radius: 8px;
+}
+
+.subtitle-import-intro {
+  display: grid;
+  gap: 2px;
+  padding: 9px 11px;
+}
+
+.subtitle-import-intro strong {
+  color: #172033;
+  font-size: 13px;
+}
+
+.subtitle-import-intro span {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.subtitle-import-drawer .subtitle-import-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.subtitle-import-drawer .subtitle-import-tools .command-button {
+  justify-content: center;
+  min-height: 34px;
+}
+
+.subtitle-import-drawer .subtitle-import-body > .field {
+  gap: 6px;
+  padding: 9px 11px;
+}
+
+.subtitle-import-drawer .subtitle-import-body > .field > span {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.subtitle-import-drawer .subtitle-import-body .code-textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.subtitle-import-drawer .subtitle-bilingual-options {
+  background: #f8fafc;
+  border: 1px solid #e8edf3;
+  border-radius: 6px;
+  padding: 7px 9px;
+}
+
+.subtitle-import-drawer .subtitle-import-footer {
+  align-items: stretch;
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+}
+
+.subtitle-import-drawer .subtitle-offset {
+  background: #f8fafc;
+  border: 1px solid #e8edf3;
+  border-radius: 6px;
+  justify-content: center;
+  min-height: 34px;
+}
+
+.subtitle-import-drawer .subtitle-import-footer > .command-button {
+  justify-content: center;
+  min-height: 36px;
+}
+
+.subtitle-import-drawer .subtitle-import-export {
+  border-top: 1px solid #e1e7ef;
+  gap: 8px;
+  padding: 10px 11px;
+}
+
+.subtitle-import-drawer .dltjson-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.subtitle-import-drawer .dltjson-actions .mini-command {
+  justify-content: center;
+  min-height: 34px;
+}
+
+.dltjson-drawer .ant-drawer-body {
+  background: #f7f9fc;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+.dltjson-drawer .dltjson-manual-textarea {
+  background: #ffffff;
+  border-color: #e1e7ef;
+  border-radius: 8px;
+  flex: 1 1 auto;
+  min-height: min(60vh, 480px);
+  padding: 10px;
+  resize: none;
+}
+
+.dltjson-drawer .dltjson-dialog-actions {
+  background: #ffffff;
+  border: 1px solid #e1e7ef;
+  border-radius: 8px;
+  min-height: 42px;
+  padding: 7px 9px;
+}
+
+@media (max-width: 480px) {
+  .subtitle-import-drawer .subtitle-import-tools,
+  .subtitle-import-drawer .dltjson-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+.code-textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}

@@ -1,0 +1,17 @@
+.course-meta-panel {
+  background: #ffffff;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.meta-save-command {
+  flex-shrink: 0;
+  width: auto;
+}
+
+.compact-form-grid {
+  gap: 10px;
+}

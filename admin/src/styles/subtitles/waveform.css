@@ -1,0 +1,421 @@
+.waveform-panel {
+  background: #ffffff;
+  border: 1px solid #d7dee8;
+  border-radius: 0;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 12px 0;
+}
+
+.waveform-editor-main,
+.waveform-editor-inspector {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.waveform-editor-inspector {
+  align-content: start;
+  border-left: 1px solid #e2e8f0;
+  max-height: 760px;
+  overflow: auto;
+  padding-left: 12px;
+}
+
+.waveform-inspector-heading {
+  align-items: center;
+  color: #111827;
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.waveform-inspector-heading span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.zoom-control {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.waveform-controls span {
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.waveform-controls strong {
+  color: #111827;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.waveform-controls {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 38px;
+  flex-wrap: nowrap;
+  gap: 4px;
+  height: 38px;
+  min-height: 38px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+
+.waveform-controls input {
+  accent-color: #0f766e;
+}
+
+/* 工具组只负责分隔，不再重复包裹多个厚重胶囊，保持剪辑软件式的紧凑工具条。 */
+.waveform-tool-group {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  display: flex;
+  gap: 4px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 2px;
+}
+
+.waveform-tool-group + .waveform-tool-group {
+  border-left: 0;
+  margin-left: 4px;
+  padding-left: 4px;
+}
+
+/* 波形工具条统一使用 Ant Design 小型方形按钮，名称交给 Tooltip 显示。 */
+.waveform-icon-button.ant-btn {
+  align-items: center;
+  background: transparent;
+  border: 0 !important;
+  border-color: transparent;
+  border-radius: 5px;
+  box-shadow: none;
+  color: #334155;
+  display: inline-flex;
+  flex: 0 0 30px;
+  height: 30px;
+  justify-content: center;
+  padding: 0;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
+  width: 30px;
+}
+
+.waveform-icon-button.ant-btn:hover:not(:disabled),
+.waveform-icon-button.ant-btn:focus-visible {
+  background: #d9f2ff;
+  border-color: transparent;
+  box-shadow: 0 2px 7px rgba(2, 132, 199, 0.22);
+  color: #0369a1;
+  transform: translateY(-1px);
+}
+
+.waveform-icon-button.ant-btn:focus-visible {
+  outline: 2px solid #1cb0f6;
+  outline-offset: 1px;
+}
+
+.waveform-icon-button.ant-btn.ant-btn-dangerous {
+  color: #b42318;
+}
+
+.waveform-icon-button.ant-btn.ant-btn-dangerous:hover:not(:disabled),
+.waveform-icon-button.ant-btn.ant-btn-dangerous:focus-visible {
+  background: #ffe4e6;
+  border-color: transparent;
+  box-shadow: 0 2px 7px rgba(190, 24, 93, 0.16);
+  color: #b42318;
+}
+
+.waveform-icon-button.ant-btn:disabled {
+  background: transparent;
+  border-color: transparent;
+  color: #9ca3af;
+}
+
+/* 缩放组是唯一的弹性分组：窄屏时收缩滑杆而不是换行 */
+.zoom-control {
+  flex: 1 1 240px;
+  justify-content: flex-start;
+  max-width: 380px;
+  min-width: 200px;
+}
+
+.zoom-control input {
+  flex: 1 1 auto;
+  min-width: 40px;
+  width: auto;
+}
+
+.zoom-control strong {
+  flex: 0 0 auto;
+  min-width: 34px;
+  text-align: right;
+}
+
+.waveform-actions {
+  flex: 0 0 auto;
+}
+
+.waveform-line-actions,
+.waveform-timing-action {
+  flex: 0 0 auto;
+}
+
+.batch-timing-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 268px;
+}
+
+.batch-timing-popover > strong {
+  color: #111827;
+  font-size: 12px;
+}
+
+.batch-timing-popover .ant-space {
+  width: 100%;
+}
+
+.batch-timing-popover .ant-input-number {
+  width: 88px;
+}
+
+.batch-timing-popover .ant-btn {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  min-width: 28px;
+  padding-inline: 6px;
+}
+
+.batch-timing-popover > .ant-btn-link {
+  padding-inline: 0;
+}
+
+.waveform-time-readout {
+  color: #475569;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  margin-left: auto;
+  padding-left: 8px;
+  white-space: nowrap;
+}
+
+.waveform-canvas-wrap {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0;
+  min-height: 220px;
+  overflow: hidden;
+  position: relative;
+}
+
+.wavesurfer-shell {
+  /* 脱离内容尺寸计算：画布重绘和滚动条不能改变可视区的 flex 基准高度。 */
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.wavesurfer-shell.ready {
+  display: flex;
+}
+
+.wavesurfer-view {
+  flex: 0 0 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.wavesurfer-view ::part(wrapper) {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.wavesurfer-view ::part(scroll) {
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 72%, #eef2f7 100%);
+  box-sizing: border-box;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.wavesurfer-view ::part(regions-container) {
+  box-sizing: border-box;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  position: absolute;
+  top: 0;
+}
+
+.wavesurfer-view ::part(cursor) {
+  background: #111827;
+}
+
+.wavesurfer-view ::part(cursor)::before {
+  background: #111827;
+  border-radius: 999px;
+  content: '';
+  height: 8px;
+  left: 50%;
+  position: absolute;
+  top: 10px;
+  transform: translateX(-50%);
+  width: 8px;
+}
+
+.wavesurfer-view ::part(region) {
+  border: 1px solid rgba(30, 64, 175, 0.8);
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.42),
+    0 1px 4px rgba(30, 64, 175, 0.18);
+  box-sizing: border-box !important;
+  bottom: auto !important;
+
+  min-width: 0;
+  min-height: 0 !important;
+  overflow: hidden;
+
+}
+
+.wavesurfer-view ::part(region-content) {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.88);
+  border-radius: 3px;
+  color: #ffffff;
+  display: flex;
+  box-sizing: border-box;
+  font-size: 11px;
+  font-weight: 800;
+  gap: 6px;
+  line-height: 1.2;
+  height: calc(100% - 4px);
+  margin: 2px 6px !important;
+  max-width: 100%;
+  max-height: calc(100% - 4px);
+  overflow: hidden;
+  padding: 4px 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wavesurfer-view ::part(region-handle) {
+  border-color: #1d4ed8;
+  width: 7px;
+}
+
+.waveform-region-label {
+  align-items: center;
+  display: flex;
+  gap: 5px;
+  min-width: 0;
+  pointer-events: none;
+}
+
+.wavesurfer-view ::part(waveform-region-index) {
+  align-items: center;
+  aspect-ratio: 1;
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: #1d4ed8;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 800;
+  height: 16px;
+  justify-content: center;
+  line-height: 1;
+  width: 16px;
+}
+
+.wavesurfer-view ::part(waveform-region-text) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waveform-placeholder {
+  align-items: center;
+  color: #64748b;
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  inset: 0;
+  justify-content: center;
+  padding: 14px;
+  position: absolute;
+  text-align: center;
+  z-index: 2;
+}
+
+.waveform-placeholder.error {
+  color: #b42318;
+}
+
+/* 波形错误边界：波形区异常时的兜底占位，避免整页白屏，并提供重载入口。 */
+.waveform-error-boundary {
+  align-items: center;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b42318;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  min-height: 180px;
+  padding: 16px;
+  text-align: center;
+}
+
+.waveform-error-boundary strong {
+  font-size: 13px;
+}
+
+.waveform-error-message {
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

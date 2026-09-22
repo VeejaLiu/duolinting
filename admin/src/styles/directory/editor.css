@@ -1,0 +1,92 @@
+/* Container queries use the editor width, including the space taken by both navigation panels. */
+.directory-editor {
+  container-type: inline-size;
+}
+
+.directory-ai-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px;
+  margin-bottom: 24px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.directory-ai-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.directory-edit-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: 24px;
+}
+
+.directory-edit-content {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+.directory-edit-section {
+  min-width: 0;
+}
+
+.directory-edit-section h5.ant-typography {
+  margin: 0 0 16px;
+}
+
+.directory-edit-form .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.directory-edit-section > .ant-form-item:last-child {
+  margin-bottom: 0;
+}
+
+.directory-edit-settings {
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.directory-settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px;
+  gap: 12px;
+}
+
+.directory-settings-row .ant-input-number {
+  width: 100%;
+}
+
+.directory-edit-form .directory-localization-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.directory-edit-actions {
+  position: sticky;
+  bottom: -16px;
+  z-index: 2;
+  margin-top: 24px;
+  padding: 16px 0;
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
+}
+
+.directory-editor .cover-file-input {
+  display: none;
+}
+
+@container (max-width: 850px) {
+  .directory-edit-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

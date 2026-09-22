@@ -1,0 +1,30 @@
+.directory-detail-panel .directory-editor {
+  border: 0;
+  box-shadow: none;
+}
+
+.directory-detail-panel .directory-editor > .ant-card-body {
+  padding: 0;
+}
+
+/* 后台左侧导航会额外占用约 240px；窗口小于 1200px 时继续双栏会让右侧
+ * 多语言表单过窄，因此提前切换为上下布局。 */
+@media (max-width: 1200px) {
+  .directory-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .directory-tree-panel > .ant-card-body,
+  .directory-detail-panel > .ant-card-body {
+    height: auto;
+    min-height: 0;
+  }
+
+  .directory-tree-panel > .ant-card-body {
+    max-height: 420px;
+  }
+
+  .directory-localization-grid {
+    grid-template-columns: 1fr;
+  }
+}

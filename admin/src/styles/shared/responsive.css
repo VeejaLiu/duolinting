@@ -1,0 +1,73 @@
+@media (max-width: 1120px) {
+  .course-grid,
+  .menu-admin-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .waveform-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .subtitle-editor-inspector {
+    max-height: none;
+  }
+
+  .waveform-editor-inspector {
+    border-left: 0;
+    border-top: 1px solid #e2e8f0;
+    max-height: none;
+    padding-left: 0;
+    padding-top: 12px;
+  }
+
+  /* 窄屏仍保持“视频 + 字幕编辑”左右并列；宽度不足时只滚动工作区，
+     不把字幕编辑器改排到视频下方，避免切换布局后失去同时对照能力。 */
+  .media-editor-workspace {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .media-editor-upper {
+    grid-template-columns:
+      minmax(360px, var(--video-column-size, 2fr))
+      8px
+      minmax(300px, var(--subtitle-column-size, 1fr));
+    min-width: 668px;
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-workspace-content { padding: 14px; }
+
+  .open-content-api-documentation {
+    padding: 16px;
+  }
+
+  .open-content-api-documentation-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .open-content-api-documentation-header > .ant-btn {
+    align-self: flex-start;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .video-preview-stage,
+  .video-player {
+    min-height: 220px;
+  }
+
+  .workflow-activity-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workflow-activity-filter {
+    min-width: min(100%, 220px);
+  }
+}

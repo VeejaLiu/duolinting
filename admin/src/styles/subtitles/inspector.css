@@ -1,0 +1,144 @@
+.subtitle-editor-inspector {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  max-height: 760px;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: 8px;
+}
+
+.subtitle-inspector-tablist {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  gap: 28px;
+  min-width: 0;
+}
+
+.subtitle-inspector-tab {
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: #334155;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 14px;
+  padding: 10px 0 9px;
+}
+
+.subtitle-inspector-tab:hover,
+.subtitle-inspector-tab:focus-visible {
+  border-bottom-color: #1cb0f6;
+  color: #0284c7;
+  outline: 0;
+}
+
+.subtitle-inspector-tab.active {
+  border-bottom-color: #1cb0f6;
+  color: #0284c7;
+  font-weight: 600;
+}
+
+.subtitle-inspector-tab-content {
+  border-top: 8px solid #ffffff;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.subtitle-list-embedded {
+  min-width: 0;
+  width: 100%;
+}
+
+.subtitle-list-antd-table {
+  min-width: 0;
+  width: 100%;
+}
+
+.subtitle-list-antd-table .ant-table {
+  font-size: 12px;
+}
+
+.subtitle-list-antd-table .ant-table-cell {
+  white-space: nowrap;
+}
+
+.subtitle-list-antd-table .ant-table-thead > tr > th,
+.subtitle-list-antd-table .ant-table-tbody > tr > td {
+  line-height: 1.25;
+  padding: 5px 8px;
+}
+
+.subtitle-resizable-column-title {
+  display: block;
+  position: relative;
+}
+
+.subtitle-column-resize-handle {
+  bottom: -6px;
+  cursor: col-resize;
+  position: absolute;
+  right: -9px;
+  top: -6px;
+  touch-action: none;
+  width: 9px;
+  z-index: 2;
+}
+
+.subtitle-column-resize-handle::after {
+  background: #cbd5e1;
+  bottom: 2px;
+  content: '';
+  left: 4px;
+  position: absolute;
+  top: 2px;
+  width: 1px;
+}
+
+.subtitle-column-resize-handle:hover::after,
+.subtitle-column-resize-handle:active::after {
+  background: #1cb0f6;
+  width: 2px;
+}
+
+.subtitle-list-antd-table .ant-table-row {
+  cursor: pointer;
+}
+
+.subtitle-list-antd-table .ant-table-row:hover > .ant-table-cell {
+  background: #eff6ff !important;
+}
+
+.subtitle-list-antd-table .subtitle-table-row-active > .ant-table-cell,
+.subtitle-list-antd-table .subtitle-table-row-active:hover > .ant-table-cell {
+  background: #dbeafe !important;
+  color: #1e3a8a;
+}
+
+.subtitle-table-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.subtitle-detail-tab {
+  min-height: 100%;
+  overflow: visible;
+  padding-right: 4px;
+}
+
+.subtitle-empty-state {
+  align-items: center;
+  color: #64748b;
+  display: flex;
+  font-size: 12px;
+  justify-content: center;
+  min-height: 160px;
+  padding: 24px 12px;
+  text-align: center;
+}

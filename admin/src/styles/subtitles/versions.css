@@ -1,0 +1,28 @@
+/* 字幕版本历史：逐句时间轴 + 文案 */
+.subtitle-version-table .ant-table-cell {
+  vertical-align: top;
+}
+
+.subtitle-version-reason.ant-typography {
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+.subtitle-version-lines {
+  display: grid;
+  gap: 4px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.subtitle-version-line {
+  align-items: baseline;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 96px 1fr;
+}
+
+.subtitle-version-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

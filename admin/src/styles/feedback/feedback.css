@@ -1,0 +1,41 @@
+.feedback-list {
+  display: grid;
+  gap: 12px;
+}
+
+.feedback-card {
+  background: #f8fafc;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 14px;
+}
+
+.feedback-card-main {
+  display: grid;
+  gap: 8px;
+}
+
+.feedback-block {
+  display: grid;
+  gap: 4px;
+}
+
+.feedback-label {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.feedback-block p {
+  color: #111827;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.feedback-actions {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}

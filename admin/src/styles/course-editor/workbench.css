@@ -1,0 +1,228 @@
+.import-layout {
+  align-items: start;
+  display: grid;
+  gap: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* 课程编辑器顶部工具栏：课程标题、基础信息入口和保存按钮 */
+.import-main-toolbar {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 8px 12px;
+}
+
+.import-main-toolbar-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.import-main-title {
+  color: #111827;
+  font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-main-title-group {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+
+.course-meta-trigger.ant-btn {
+  color: #475569;
+  flex: 0 0 auto;
+  font-size: 12px;
+  height: 28px;
+  padding-inline: 6px;
+}
+
+.course-meta-trigger.ant-btn:hover,
+.course-meta-trigger.ant-btn:focus-visible {
+  background: #d9f2ff;
+  color: #0369a1;
+}
+
+.course-meta-drawer .ant-drawer-body {
+  padding: 12px;
+}
+
+.course-meta-drawer {
+  max-width: min(560px, 92vw);
+}
+
+.course-meta-drawer .course-meta-panel {
+  border: 0;
+  border-radius: 0;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  padding: 0;
+}
+
+.course-meta-drawer .compact-form-grid {
+  gap: 10px;
+  grid-template-columns: 1fr;
+}
+
+.course-meta-drawer .field {
+  align-items: start;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 84px minmax(0, 1fr);
+}
+
+.course-meta-drawer .field.wide {
+  align-items: start;
+}
+
+.course-meta-drawer .field > span {
+  padding-top: 7px;
+}
+
+.course-meta-drawer .field input,
+.course-meta-drawer .field select,
+.course-meta-drawer .field textarea {
+  font-size: 12px;
+  min-height: 32px;
+  padding: 6px 8px;
+}
+
+.course-meta-drawer .field textarea {
+  height: 32px;
+  resize: none;
+}
+
+.course-meta-drawer .field .cover-summary-textarea {
+  height: auto;
+  min-height: 90px;
+  resize: none;
+  width: 100%;
+}
+
+.subtitle-import-drawer .ant-drawer-body {
+  padding: 0;
+}
+
+.subtitle-import-drawer .subtitle-import {
+  border: 0;
+  border-radius: 0;
+  min-height: 100%;
+  padding: 16px;
+}
+
+.dltjson-drawer .ant-drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.import-main {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  width: 100%;
+}
+
+.media-editor-workspace {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.media-editor-upper {
+  align-items: stretch;
+  display: grid;
+  gap: 14px;
+  grid-template-columns:
+    minmax(360px, var(--video-column-size, 2fr))
+    8px
+    minmax(300px, var(--subtitle-column-size, 1fr));
+  min-width: 0;
+  width: 100%;
+}
+
+.media-editor-resizer {
+  align-items: center;
+  background: transparent;
+  display: none;
+  flex: 0 0 auto;
+  justify-content: center;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  z-index: 3;
+}
+
+.media-editor-resizer::after {
+  background: #cbd5e1;
+  content: '';
+  display: block;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.media-editor-resizer:hover::after,
+.media-editor-resizer.active::after,
+.media-editor-resizer:focus-visible::after {
+  background: #1cb0f6;
+  box-shadow: 0 0 0 2px rgba(28, 176, 246, 0.14);
+}
+
+.media-editor-resizer:focus-visible {
+  outline: 0;
+}
+
+.media-editor-resizer-vertical {
+  cursor: col-resize;
+  min-width: 8px;
+}
+
+.media-editor-resizer-vertical::after {
+  height: 100%;
+  width: 1px;
+}
+
+.media-editor-resizer-horizontal {
+  cursor: row-resize;
+  min-height: 8px;
+}
+
+.media-editor-resizer-horizontal::after {
+  height: 1px;
+  width: 100%;
+}
+
+.media-editor-workspace.is-resizing {
+  user-select: none;
+}
+
+.media-editor-video-column {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.media-editor-video-column > .media-replace-button {
+  justify-self: start;
+  max-width: 420px;
+  width: 100%;
+}
+
+.media-editor-timeline {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}

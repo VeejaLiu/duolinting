@@ -1,0 +1,9 @@
+.course-metadata-ai-tools {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+}

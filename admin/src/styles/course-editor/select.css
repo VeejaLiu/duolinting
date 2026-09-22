@@ -1,0 +1,77 @@
+/* ── Radix Select (课程信息 Drawer) ── */
+.course-meta-drawer .radix-select-trigger {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #cfd6df;
+  border-radius: 6px;
+  color: #111827;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 12px;
+  gap: 4px;
+  justify-content: space-between;
+  line-height: 1.45;
+  min-height: 32px;
+  padding: 6px 8px;
+  width: 100%;
+}
+
+.course-meta-drawer .radix-select-trigger:focus-visible {
+  border-color: #2563eb;
+  outline: 2px solid rgba(37, 99, 235, 0.16);
+  outline-offset: 1px;
+}
+
+.course-meta-drawer .radix-select-trigger:hover {
+  border-color: #1cb0f6;
+}
+
+.course-meta-drawer .radix-select-icon {
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.radix-select-content {
+  background: #ffffff;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  min-width: var(--radix-select-trigger-width);
+  overflow: hidden;
+  z-index: 1000;
+}
+
+.radix-select-viewport {
+  padding: 4px;
+}
+
+.radix-select-item {
+  align-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  justify-content: space-between;
+  line-height: 1.4;
+  min-height: 34px;
+  padding: 6px 8px 6px 10px;
+  user-select: none;
+}
+
+.radix-select-item[data-highlighted] {
+  background: #eef5ff;
+  color: #1d4ed8;
+  outline: none;
+}
+
+.radix-select-item[data-disabled] {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.radix-select-indicator {
+  color: #1d4ed8;
+  flex-shrink: 0;
+}
