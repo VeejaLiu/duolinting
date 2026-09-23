@@ -49,7 +49,7 @@ export function StudyScreen() {
     stage?: string
   }>()
   const numericExerciseId = Number(exerciseId)
-  const { data: exercise, isLoading, isError, error, releaseUpdateAvailable, refreshRelease } =
+  const { data: exercise, isLoading, isError, error } =
     useExerciseDetailQuery(numericExerciseId)
   const store = useStudyStore((state) => state.store)
   const setStore = useStudyStore((state) => state.setStore)
@@ -342,7 +342,6 @@ export function StudyScreen() {
           }}
         />
 
-        {releaseUpdateAvailable && <Pressable onPress={() => { pause(); refreshRelease() }}><Text>{t('study.releaseUpdateAvailable')}</Text></Pressable>}
         {playbackError && <ErrorState message={t(nativePlaybackAvailable ? 'study.playbackFailed' : 'preview.updateRequired')} />}
         {stage === 'intensive' || stage === 'review' ? (
           <AppScrollView

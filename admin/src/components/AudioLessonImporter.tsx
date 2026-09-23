@@ -1,4 +1,3 @@
-import { LearnerPreviewButton } from './admin/LearnerPreviewButton'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type {
@@ -499,6 +498,8 @@ export function AudioLessonImporter({
       audioUrl: exercise.audioUrl,
       coverImageUrl: exercise.coverImageUrl ?? '',
       summary: exercise.summary,
+      // Restore every locale when reopening; saving already sends this map.
+      localizations: exercise.localizations ?? {},
       sortOrder: exercise.sortOrder,
       // 透传原状态，避免把 archived 课程改回 published
       status: exercise.status,
@@ -757,7 +758,7 @@ export function AudioLessonImporter({
       ...courseForm,
       mediaType,
       audioUrl: '',
-      status: 'draft',
+      status: isEditing ? courseForm.status : 'draft',
       ...(isEditing
         ? {}
         : {
@@ -780,7 +781,7 @@ export function AudioLessonImporter({
           adminToken,
         )
         await onRefreshCatalog()
-        onStatusChange('媒体已替换，请重新校对；学习端继续使用原发布版本', 'success')
+        onStatusChange('媒体已替换，课程和个人字幕稿已保留，请核对字幕时间', 'success')
       } else {
         await persistDraftExercise(nextCourseForm, {
           mediaUrl: uploaded.publicUrl,
@@ -994,7 +995,7 @@ export function AudioLessonImporter({
         if (!hasTranscriptContent) {
           throw new Error('请至少保留一条有效字幕后再保存校对草稿')
         }
-        await apiClient.replaceTranscript(courseForm.id, transcript, adminToken, courseForm.audioUrl)
+        await apiClient.replaceTranscript(courseForm.id, transcript, adminToken)
         setSavedImporterSnapshot(
           createImporterSnapshot(courseForm, draftLines, subtitleDraft),
         )
@@ -1016,7 +1017,7 @@ export function AudioLessonImporter({
         ...courseForm,
         mediaType: uploaded.mediaType,
         audioUrl: uploaded.publicUrl,
-        status: courseForm.status === 'published' ? 'draft' : courseForm.status,
+        status: courseForm.status,
         sortOrder:
           courseForm.sortOrder > 0
             ? courseForm.sortOrder
@@ -1036,7 +1037,7 @@ export function AudioLessonImporter({
       }
       if (hasTranscriptContent) {
         onStatusChange('课程已保存，正在写入字幕...', 'info')
-        await apiClient.replaceTranscript(savedExerciseId, transcript, adminToken, uploaded.publicUrl)
+        await apiClient.replaceTranscript(savedExerciseId, transcript, adminToken)
       }
       await onRefreshCatalog()
       setSavedImporterSnapshot(
@@ -1090,7 +1091,7 @@ export function AudioLessonImporter({
         throw new Error('请至少保留一条时间范围和文本都有效的字幕后再提交')
       }
       // 提交时携带当前编辑内容，避免用户忘记先保存而丢失最后一次微调。
-      await apiClient.submitSubtitleDraft(courseForm.id, transcript, adminToken, courseForm.audioUrl)
+      await apiClient.submitSubtitleDraft(courseForm.id, transcript, adminToken)
       // 重新读取后端状态：首次提交时此前可能不存在草稿，本地不能凭空构造草稿 ID。
       setLoadedExercise(await apiClient.getAdminExercise(courseForm.id, adminToken))
       setSavedImporterSnapshot(
@@ -1154,7 +1155,6 @@ export function AudioLessonImporter({
           onNotify={onStatusChange}
           historyControls={
             <>
-            <LearnerPreviewButton exerciseId={courseForm.id} audioUrl={courseForm.audioUrl} lines={toTranscriptLines(draftLines)} adminToken={adminToken} />
             <SubtitleHistoryControls
               history={history}
               disabled={isSaving || isDraggingTiming || isSubmittingSubtitleDraft || isSubmittedSubtitleDraft || isApprovedSubtitleDraft || Boolean(draft)}

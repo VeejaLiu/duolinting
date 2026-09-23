@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 const require=createRequire(import.meta.url)
-const { analysePeaks }=require('../backend/src/general/releases/media-analysis.ts')
+const { analysePeaks }=require('../backend/src/general/media/media-waveform.ts')
 const spec=JSON.parse(await readFile(new URL('../packages/playback/fixtures/source-markers.json',import.meta.url),'utf8'))
 const directory=await mkdtemp(join(tmpdir(),'waveform-check-'))
 try {

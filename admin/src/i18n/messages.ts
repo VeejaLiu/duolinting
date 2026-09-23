@@ -2524,3 +2524,26 @@ const releasePreviewMessages: Record<UiLocale, Record<string, string>> = {
   }
 }
 for (const locale of Object.keys(releasePreviewMessages) as UiLocale[]) Object.assign(adminMessages[locale], releasePreviewMessages[locale])
+
+// Course metadata export labels across all Admin languages.
+for (const [locale, copy, copied] of [
+  ['zh-CN', '复制 JSON', 'JSON 已复制'],
+  ['en-US', 'Copy JSON', 'JSON copied'],
+  ['th-TH', 'คัดลอก JSON', 'คัดลอก JSON แล้ว'],
+  ['ja-JP', 'JSON をコピー', 'JSON をコピーしました'],
+  ['fr-FR', 'Copier le JSON', 'JSON copié'],
+  ['es-ES', 'Copiar JSON', 'JSON copiado'],
+] as const) {
+  Object.assign(adminMessages[locale], { '复制 JSON': copy, 'JSON 已复制': copied })
+}
+
+for (const [locale, message] of [
+  ['zh-CN', '媒体已替换，课程和个人字幕稿已保留，请核对字幕时间'],
+  ['en-US', 'Media replaced. The course and personal subtitle drafts are preserved. Please check subtitle timing.'],
+  ['th-TH', 'เปลี่ยนสื่อแล้ว เก็บบทเรียนและฉบับร่างคำบรรยายส่วนตัวไว้ โปรดตรวจสอบเวลาคำบรรยาย'],
+  ['ja-JP', 'メディアを差し替えました。コースと個人の字幕下書きは保持されています。字幕のタイミングを確認してください。'],
+  ['fr-FR', 'Média remplacé. Le cours et les brouillons personnels sont conservés. Vérifiez le minutage des sous-titres.'],
+  ['es-ES', 'Medio reemplazado. Se conservan el curso y los borradores personales. Revisa los tiempos de los subtítulos.'],
+] as const) {
+  Object.assign(adminMessages[locale], { '媒体已替换，课程和个人字幕稿已保留，请核对字幕时间': message })
+}

@@ -97,22 +97,24 @@ export interface ExerciseDb {
     sort_order: number;
 }
 
+// Type-only declarations preserve Sequelize attribute accessors. Emitted class fields
+// would shadow them with undefined and falsely report that the media has changed.
 export class ExerciseModel extends Model<ExerciseDb> {
-    public id!: number;
-    public category_id!: number;
-    public title!: string;
-    public source!: string;
-    public source_url!: string | null;
-    public difficulty!: 'beginner' | 'intermediate' | 'advanced';
-    public duration_label!: string;
-    public media_type!: 'audio' | 'video';
-    public audio_url!: string;
-    public cover_image_url!: string | null;
-    public summary!: string;
-    public localizations_json!: unknown;
-    public transcript_json!: unknown;
-    public status!: 'draft' | 'proofread' | 'published' | 'archived';
-    public sort_order!: number;
+    declare id: number;
+    declare category_id: number;
+    declare title: string;
+    declare source: string;
+    declare source_url: string | null;
+    declare difficulty: 'beginner' | 'intermediate' | 'advanced';
+    declare duration_label: string;
+    declare media_type: 'audio' | 'video';
+    declare audio_url: string;
+    declare cover_image_url: string | null;
+    declare summary: string;
+    declare localizations_json: unknown;
+    declare transcript_json: unknown;
+    declare status: 'draft' | 'proofread' | 'published' | 'archived';
+    declare sort_order: number;
 }
 
 ExerciseModel.init(ExerciseSchema, {

@@ -564,20 +564,16 @@ export const apiClient = {
       },
       { adminToken },
     ),
-  createLearnerPreview: (exerciseId: number, lines: CreateTranscriptLineRequest[], expectedMediaUrl: string, adminToken: string) =>
-    fetchJson<{ course: ListeningExercise; mobilePreviewToken: string | null; expiresInSeconds: number }>(
-      `/api/v1/admin/exercises/${exerciseId}/learner-preview`, { method: 'POST', body: JSON.stringify({ lines, expectedMediaUrl }) }, { adminToken }),
   replaceTranscript: (
     exerciseId: number,
     lines: CreateTranscriptLineRequest[],
     adminToken: string,
-    expectedMediaUrl: string,
   ) =>
     fetchJson<AdminContentResponse>(
       `/api/v1/admin/exercises/${exerciseId}/transcript`,
       {
         method: 'PUT',
-        body: JSON.stringify({ lines, expectedMediaUrl }),
+        body: JSON.stringify({ lines }),
       },
       { adminToken },
     ),
@@ -585,11 +581,10 @@ export const apiClient = {
     exerciseId: number,
     lines: CreateTranscriptLineRequest[],
     adminToken: string,
-    expectedMediaUrl: string,
   ) =>
     fetchJson<AdminContentResponse>(
       `/api/v1/admin/exercises/${exerciseId}/subtitle-drafts/submit`,
-      { method: 'POST', body: JSON.stringify({ lines, expectedMediaUrl }) },
+      { method: 'POST', body: JSON.stringify({ lines }) },
       { adminToken },
     ),
   approveSubtitleDraft: (draftId: number, adminToken: string) =>

@@ -362,11 +362,3 @@ export async function deleteMediaObject(objectName: string) {
         throw error;
     }
 }
-
-/** Store exactly the analysed bytes at a content-addressed location never issued for presigned PUT. */
-export async function storeReleaseMediaFile(revision: string, contentType: string, filePath: string) {
-    if (!/^[a-f0-9]{64}$/.test(revision)) throw new Error('Invalid media revision');
-    const objectName = `releases/${revision}.${extensionByContentType[contentType] ?? 'media'}`;
-    await objectStorage.fPutObject(env.minio.bucket, objectName, filePath, { 'Content-Type': contentType });
-    return buildStoredMediaUrl(objectName);
-}

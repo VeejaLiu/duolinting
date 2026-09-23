@@ -135,7 +135,7 @@ function LearnerAppShell() {
   )
   const hasExercise = Boolean(activeExerciseSummary)
 
-  const { activeExercise, exerciseLoading, exerciseLoadFailed, releaseUpdateAvailable, refreshRelease } =
+  const { activeExercise, exerciseLoading, exerciseLoadFailed } =
     useExerciseDetail({
       activeExerciseSummary,
       setStore,
@@ -568,7 +568,6 @@ function LearnerAppShell() {
               <EmptyStudyState />
             ) : (
               <>
-                {releaseUpdateAvailable && <button type="button" onClick={() => { stopPlayback(); refreshRelease() }}>{t('app.releaseUpdateAvailable')}</button>}
                 {playbackError && <p role="alert">{t('app.playbackFailed')}</p>}
                 <StudyHero
                   exercise={activeExercise}

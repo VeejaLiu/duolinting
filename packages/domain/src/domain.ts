@@ -1,4 +1,4 @@
-import type { CourseReleaseManifest, CourseWaveform } from './releases.js'
+import type { CourseWaveform } from './playback.js'
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
 export type LessonMediaType = 'audio' | 'video'
 export type ExerciseStatus = 'draft' | 'proofread' | 'published' | 'archived'
@@ -75,7 +75,6 @@ export type TranscriptLine = {
 }
 
 export type ListeningExercise = {
-  release?: CourseReleaseManifest
   waveform?: CourseWaveform
 
   id: number

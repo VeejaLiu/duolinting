@@ -3,21 +3,25 @@ import { TRANSLATION_TARGET_LOCALES } from './mediaDraftTools'
 
 export type CourseMetadataJson = Pick<CreateExerciseRequest, 'title' | 'summary' | 'localizations'>
 
-export function buildCourseMetadataPrompt(form: CourseMetadataJson): string {
-  // Only text metadata crosses the AI handoff; IDs, media, subtitles and publication settings stay local.
-  const template: CourseMetadataJson = {
+/** Export only editable text metadata, including unsaved translations in every target locale. */
+export function serializeCourseMetadataJson(form: CourseMetadataJson): string {
+  return JSON.stringify({
     title: form.title,
     summary: form.summary,
     localizations: Object.fromEntries(TRANSLATION_TARGET_LOCALES.map((locale) => [
-      locale, form.localizations?.[locale] ?? { title: '', summary: '' },
+      locale, { title: form.localizations?.[locale]?.title ?? '', summary: form.localizations?.[locale]?.summary ?? '' },
     ])),
-  }
+  }, null, 2)
+}
+
+export function buildCourseMetadataPrompt(form: CourseMetadataJson): string {
+  // Only text metadata crosses the AI handoff; IDs, media, subtitles and publication settings stay local.
   return `Translate the title and summary of this English listening course.
 Use the supplied title and summary as your source. The top-level title and summary must be English. If the source is in another language, translate it accurately into English. Preserve proper names and meaning. Do not invent course content or facts. If the summary is empty, keep every summary empty rather than inventing one.
 Provide complete translations into Simplified Chinese (zh-CN), Thai (th-TH), Japanese (ja-JP), French (fr-FR), and Spanish (es-ES). Each localizations entry must contain title and summary. Use exactly the fields in the template; do not add IDs, settings, subtitles, or an en-US entry (English uses the top-level fields).
 Return the entire valid JSON in exactly one Markdown code block marked json, ready to copy and paste. Do not generate a file, split the response, omit fields, or add text outside the code block.
 
-${JSON.stringify(template, null, 2)}`
+${serializeCourseMetadataJson(form)}`
 }
 
 export function parseCourseMetadataJson(input: string): CourseMetadataJson {

@@ -1,5 +1,4 @@
 import { QueryTypes } from 'sequelize';
-import { assertExpectedMedia } from '../../releases/release-service';
 import type { SubtitleDraftStatus } from '../../../domain';
 import type { TranscriptLine } from '../../../domain';
 import type { SubtitleDraft } from '../../../domain';
@@ -18,7 +17,6 @@ export type SubtitleDraftRow = {
     reviewer_admin_user_id?: number | string | null;
     display_name: string;
     transcript_json: unknown;
-    media_url?: string;
     status: SubtitleDraftStatus;
     review_note: string | null;
     submitted_at: Date | string | null;
@@ -158,25 +156,22 @@ export async function saveSubtitleDraft({
     exerciseId,
     adminId,
     lines,
-    expectedMediaUrl,
 }: {
     exerciseId: number;
     adminId: number;
     lines: CreateTranscriptLineRequest[];
-    expectedMediaUrl: string;
 }) {
     await sequelize.transaction(async (transaction) => {
     const [course] = await sequelize.query<{ audio_url: string }>('select audio_url from exercises where id=:exerciseId for update', { replacements: { exerciseId }, type: QueryTypes.SELECT, transaction });
     if (!course) throw new Error('课程不存在');
-    assertExpectedMedia(course.audio_url, expectedMediaUrl);
     const [existing] = await sequelize.query<{ status: SubtitleDraftStatus }>('select status from exercise_subtitle_drafts where exercise_id=:exerciseId and admin_user_id=:adminId for update', { replacements: { exerciseId, adminId }, type: QueryTypes.SELECT, transaction });
     if (existing?.status === 'submitted' || existing?.status === 'approved') throw new Error('该字幕稿已提交或审核通过，不能直接修改');
     await sequelize.query(
         `insert into exercise_subtitle_drafts
-           (exercise_id, admin_user_id, transcript_json, media_url, status, review_note, submitted_at, reviewed_at, reviewed_by_admin_user_id)
-         values (:exerciseId, :adminId, cast(:transcriptJson as json), :mediaUrl, 'editing', null, null, null, null)
+           (exercise_id, admin_user_id, transcript_json, status, review_note, submitted_at, reviewed_at, reviewed_by_admin_user_id)
+         values (:exerciseId, :adminId, cast(:transcriptJson as json), 'editing', null, null, null, null)
          on duplicate key update
-           transcript_json = values(transcript_json), media_url=values(media_url),
+           transcript_json = values(transcript_json),
            status = 'editing',
            submitted_at = null,
            reviewed_at = null,
@@ -187,7 +182,6 @@ export async function saveSubtitleDraft({
                 exerciseId,
                 adminId,
                 transcriptJson: JSON.stringify(lines),
-                mediaUrl: course.audio_url,
             },
             transaction,
         },

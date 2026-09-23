@@ -77,7 +77,7 @@ export function AppProviders({ children }: PropsWithChildren) {
       <SafeAreaProvider>
         <PersistQueryClientProvider
           client={queryClient}
-          persistOptions={{ persister: queryPersister, buster: 'course-releases-v1', dehydrateOptions: { shouldDehydrateQuery: (query) => query.state.status === 'success' && query.queryKey[0] !== 'course-preview' } }}
+          persistOptions={{ persister: queryPersister, buster: 'current-course-v2', dehydrateOptions: { shouldDehydrateQuery: (query) => query.state.status === 'success' } }}
         >
           <LanguageProvider>
             <StatusBar style="dark" />

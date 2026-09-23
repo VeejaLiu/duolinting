@@ -139,14 +139,12 @@ export const createApiClient = ({
         undefined,
         { authToken },
       ),
-    getExercise: (exerciseId: number, contentLocale?: ContentLocale, authToken?: string, releaseId?: number) =>
+    getExercise: (exerciseId: number, contentLocale?: ContentLocale, authToken?: string) =>
       fetchJson<ListeningExercise>(
-        `/api/v1/exercises/${exerciseId}?playbackContractVersion=1${contentLocale ? `&contentLocale=${encodeURIComponent(contentLocale)}` : ''}${releaseId ? `&releaseId=${releaseId}` : ''}`,
+        `/api/v1/exercises/${exerciseId}${contentLocale ? `?contentLocale=${encodeURIComponent(contentLocale)}` : ''}`,
         undefined,
         { authToken },
       ),
-    getCoursePreview: (token: string, authToken: string, contentLocale?: ContentLocale) => fetchJson<ListeningExercise>(
-      '/api/v1/exercises/preview', { method: 'POST', body: JSON.stringify({ token, contentLocale }) }, { authToken }),
     getUserPreferences: (authToken: string) =>
       fetchJson<UserPreferences>('/api/v1/user/preferences', { method: 'GET' }, { authToken }),
     updateUserPreferences: (preferences: Partial<UserPreferences>, authToken: string) =>

@@ -1,5 +1,4 @@
-import { cachedMediaWaveform } from '../releases/media-analysis';
-import { publishedCourse, decodeRelease, releaseWaveform, assertExpectedMedia } from '../releases/release-service';
+import { cachedMediaWaveform } from '../media/media-waveform';
 import type {
     CatalogExerciseSummary,
     CatalogResponse,
@@ -698,15 +697,13 @@ const loadCategoryGroupRows = async () => {
 };
 
 const buildLearnerStatusFilter = (previewExerciseIds: number[] = []) => {
-    void previewExerciseIds; // Draft access now uses explicit, expiring release-preview links.
-    return `published_release_id is not null and status <> 'archived'`;
+    const ids = previewExerciseIds.filter((id) => Number.isInteger(id) && id > 0);
+    return ids.length > 0
+        ? `(status = 'published' or (id in (${ids.join(',')}) and status in ('draft', 'proofread', 'published')))`
+        : `status = 'published'`;
 };
 
 const loadCategoryIdsWithExercises = async (includeDrafts = false, previewExerciseIds: number[] = []) => {
-    if (!includeDrafts) {
-        const rows = await doRawQuery<{ category_id: number }>({ query: `select distinct cast(json_unquote(json_extract(r.snapshot_json,'$.categoryId')) as unsigned) as category_id from exercises e join course_releases r on r.id=e.published_release_id where e.status<>'archived' and r.state='published'` });
-        return new Set(rows.map((row) => Number(row.category_id)));
-    }
     const statusFilter = includeDrafts ? '' : `where ${buildLearnerStatusFilter(previewExerciseIds)}`;
     const rows = await doRawQuery<any>({
         query: `
@@ -807,16 +804,6 @@ export async function listCategoryExercises(
     contentLocale?: ContentLocale,
     previewExerciseIds: number[] = [],
  ): Promise<CatalogExerciseSummary[]> {
-    if (!includeDrafts) {
-        const releases = await doRawQuery<any>({ query: `select r.*,e.category_id as current_category_id,e.sort_order as current_sort_order from exercises e
-            join course_releases r on r.id=e.published_release_id
-            where cast(json_unquote(json_extract(r.snapshot_json,'$.categoryId')) as unsigned)=? and e.status<>'archived' and r.state='published' order by e.sort_order,e.id`, params: [categoryId] });
-        return releases.map((row) => {
-            const { lines, ...course } = decodeRelease(row, contentLocale);
-            delete course.waveform;
-            return { ...course, sortOrder: Number(row.current_sort_order), lineCount: lines.length };
-        });
-    }
     const statusFilter = includeDrafts ? '' : `and ${buildLearnerStatusFilter(previewExerciseIds)}`;
 
     try {
@@ -1007,14 +994,6 @@ export async function getExercise(
     adminActor?: AdminActor,
     previewLearnerUserId?: number,
  ) {
-    if (!includeDrafts && !adminActor) {
-        const released = await publishedCourse(exerciseId, undefined, contentLocale);
-        if (!released) return null;
-        const [contributors, workflowCredits, waveform] = await Promise.all([
-            listExerciseContributors(exerciseId), getExerciseWorkflowCredits(exerciseId), releaseWaveform(released),
-        ]);
-        return { ...released, contributors, workflowCredits, waveform };
-    }
     const rows = await doRawQuery<ExerciseRow>({
         query: `
             select
@@ -1079,12 +1058,48 @@ export async function getExercise(
  * 原因是后者还会检查 MinIO 媒体大小并加载协作信息；这些数据不应成为字幕同步的依赖。
  */
 export async function getPublishedExerciseForOpenContent(exerciseId: number) {
-    const course = await publishedCourse(exerciseId);
-    if (!course) return null;
-    return { id: course.id, categoryId: course.categoryId, title: course.title, source: course.source,
-        sourceUrl: course.sourceUrl, difficulty: course.difficulty, durationLabel: course.durationLabel,
-        mediaType: course.mediaType, mediaUrl: course.audioUrl, summary: course.summary,
-        sortOrder: course.sortOrder, localizations: course.localizations, lines: course.lines };
+    const rows = await doRawQuery<ExerciseRow>({
+        query: `
+            select
+              id,
+              category_id,
+              title,
+              source,
+              source_url,
+              difficulty,
+              duration_label,
+              media_type,
+              audio_url,
+              summary,
+              localizations_json,
+              transcript_json,
+              sort_order
+            from exercises
+            where id = ? and status = 'published'
+            limit 1
+        `,
+        params: [exerciseId],
+    });
+    const row = rows[0];
+    if (!row) {
+        return null;
+    }
+
+    return {
+        id: Number(row.id),
+        categoryId: Number(row.category_id),
+        title: row.title,
+        source: row.source,
+        sourceUrl: normalizeSourceUrl(row.source_url) || undefined,
+        difficulty: row.difficulty,
+        durationLabel: row.duration_label,
+        mediaType: row.media_type ?? 'audio',
+        mediaUrl: toDeliveryMediaUrl(row.audio_url),
+        summary: row.summary,
+        sortOrder: Number(row.sort_order ?? 0),
+        localizations: normalizeExerciseLocalizations(row.localizations_json),
+        lines: parseTranscriptJson(row.transcript_json),
+    };
 }
 
 export async function upsertCategory(category: CreateCategoryRequest) {
@@ -1153,10 +1168,7 @@ export async function deleteCategory(categoryId: number) {
         where: { category_id: categoryId },
     });
 
-    const publishedReferences = await doRawQuery<{ count: number }>({ query: `select count(*) as count from exercises e join course_releases r on r.id=e.published_release_id where e.status<>'archived' and cast(json_unquote(json_extract(r.snapshot_json,'$.categoryId')) as unsigned)=?`, params: [categoryId] });
-    if (exerciseCount > 0 || Number(publishedReferences[0]?.count ?? 0) > 0) {
-        throw new Error('请先删除、下架或发布移动这个学习系列下的课程');
-    }
+    if (exerciseCount > 0) throw new Error('请先移除这个学习系列下的课程');
 
     await CategoryModel.destroy({
         where: { id: categoryId },
@@ -1221,11 +1233,9 @@ export async function updateExerciseMedia(exerciseId: number, mediaType: Listeni
         const existing = await ExerciseModel.findByPk(exerciseId, { transaction, lock: transaction.LOCK.UPDATE });
         if (!existing) throw new Error('课程不存在');
         const stored = toStoredMediaUrl(audioUrl);
+        // Replacing media updates the same course. Personal subtitle drafts stay intact.
         await existing.update({ media_type: mediaType, audio_url: stored,
-            audio_object_name: getObjectNameFromUrl(stored) || null, status: 'draft' }, { transaction });
-        await sequelize.query(`update exercise_subtitle_drafts set status='returned',review_note='媒体已替换，请重新校对后提交',reviewed_at=null,reviewed_by_admin_user_id=null
-            where exercise_id=:exerciseId`, { replacements: { exerciseId }, transaction });
-        // Retain prior objects referenced by published/preview release snapshots.
+            audio_object_name: getObjectNameFromUrl(stored) || null }, { transaction });
     });
 }
 
@@ -1274,14 +1284,13 @@ export async function upsertExercise(exercise: CreateExerciseRequest) {
             : (existing?.localizations_json ?? {}),
         transcript_json: existing?.transcript_json ?? [],
         sort_order: exercise.sortOrder,
-        status: existing && exercise.status === 'published' ? 'draft' : exercise.status,
+        status: exercise.status,
     } as any;
 
     if (existing && exercise.id) {
         await ExerciseModel.upsert(payload);
-        if (payload.status === 'draft') await sequelize.query(`update exercise_subtitle_drafts set status='editing',reviewed_at=null,reviewed_by_admin_user_id=null where exercise_id=:exerciseId and status='approved'`, { replacements: { exerciseId: exercise.id } });
 
-        // 已发布快照继续引用原媒体和封面，保留原对象。
+        // Keep existing objects; media replacement must not delete files another editor is using.
 
         return Number(exercise.id);
     }
@@ -1317,12 +1326,10 @@ export async function upsertExercise(exercise: CreateExerciseRequest) {
 export async function replaceTranscriptLines(
     exerciseId: number,
     lines: CreateTranscriptLineRequest[],
-    expectedMediaUrl: string,
 ) {
     await sequelize.transaction(async (transaction) => {
         const exercise = await ExerciseModel.findByPk(exerciseId, { transaction, lock: transaction.LOCK.UPDATE });
         if (!exercise) throw new Error('课程不存在');
-        assertExpectedMedia(exercise.audio_url, expectedMediaUrl);
-        await exercise.update({ transcript_json: serializeTranscriptLines(lines), status: exercise.status === 'published' ? 'draft' : exercise.status }, { transaction });
+        await exercise.update({ transcript_json: serializeTranscriptLines(lines), status: exercise.status }, { transaction });
     });
 }

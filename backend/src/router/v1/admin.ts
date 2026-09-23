@@ -1,4 +1,3 @@
-import { createCoursePreview } from '../../general/releases/release-service';
 import express from 'express';
 import { body, param } from 'express-validator';
 import type { AdminWorkflowActivityType, FeedbackStatus } from '../../domain';
@@ -409,16 +408,6 @@ router.get('/exercises', async (req: any, res) => {
     res.status(200).send(await listAllExercises());
 });
 
-router.post('/exercises/:exerciseId/learner-preview', async (req: any, res) => {
-    const exerciseId = toId(req.params.exerciseId);
-    if (!(await canAccessExerciseWorkflow(req.admin, exerciseId))) return res.status(403).send({ message: '无权预览此课程' });
-    if (!Array.isArray(req.body.lines)) return res.status(400).send({ message: '字幕格式无效' });
-    try {
-        const preview = await createCoursePreview(exerciseId, req.admin.id, req.body.lines, req.body.expectedMediaUrl);
-        res.setHeader('Cache-Control', 'no-store');
-        return res.send(preview);
-    } catch (error) { return res.status(409).send({ message: error instanceof Error ? error.message : '预览准备失败' }); }
-});
 router.get('/exercises/:exerciseId', async (req: any, res) => {
     const exerciseId = toId(req.params.exerciseId);
     if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
@@ -616,9 +605,9 @@ router.put('/exercises/:exerciseId/transcript', async (req: any, res) => {
         // 超级管理员维护课程正式字幕；贡献者此接口只保存个人工作稿，
         // 永远不会改变课程发布状态或覆盖当前学习端版本。
         if (isSuperAdmin(req.admin)) {
-            await replaceTranscriptLines(exerciseId, lines, req.body.expectedMediaUrl);
+            await replaceTranscriptLines(exerciseId, lines);
         } else {
-            await saveSubtitleDraft({ exerciseId, adminId: req.admin.id, lines, expectedMediaUrl: req.body.expectedMediaUrl });
+            await saveSubtitleDraft({ exerciseId, adminId: req.admin.id, lines });
         }
         res.status(200).send({ ok: true });
     } catch (error) {
@@ -655,7 +644,7 @@ router.post('/exercises/:exerciseId/subtitle-drafts/submit', async (req: any, re
         return res.status(400).send({ success: false, message: `Line ${invalidRange.id} must end after it starts and have non-empty text` });
     }
     try {
-        await submitSubtitleDraft({ exerciseId, adminId: req.admin.id, lines, expectedMediaUrl: req.body.expectedMediaUrl });
+        await submitSubtitleDraft({ exerciseId, adminId: req.admin.id, lines });
         res.status(200).send({ ok: true });
     } catch (error) {
         if (error instanceof Error) {

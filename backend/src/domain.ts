@@ -1,4 +1,4 @@
-import type { CourseReleaseManifest, CourseWaveform } from '@duolinting/shared' with { 'resolution-mode': 'import' };
+import type { CourseWaveform } from '@duolinting/shared' with { 'resolution-mode': 'import' };
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 export type LessonMediaType = 'audio' | 'video';
 export type ExerciseStatus = 'draft' | 'proofread' | 'published' | 'archived';
@@ -70,7 +70,6 @@ export type TranscriptLine = {
 };
 
 export type ListeningExercise = {
-    release?: CourseReleaseManifest;
     waveform?: CourseWaveform;
     id: number;
     categoryId: number;

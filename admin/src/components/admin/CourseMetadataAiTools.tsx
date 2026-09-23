@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Alert, Button, Input, Modal, Space, Typography } from 'antd'
-import { Sparkles } from 'lucide-react'
+import { Copy, Sparkles } from 'lucide-react'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
-import { buildCourseMetadataPrompt, parseCourseMetadataJson, type CourseMetadataJson } from '../../lib/courseMetadataJson'
+import { buildCourseMetadataPrompt, parseCourseMetadataJson, serializeCourseMetadataJson, type CourseMetadataJson } from '../../lib/courseMetadataJson'
 import type { AdminNoticeTone } from './AdminFeedback'
 
 type Props = {
@@ -18,6 +18,14 @@ export function CourseMetadataAiTools({ form, disabled, onApply, onNotify }: Pro
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
   const [manualPrompt, setManualPrompt] = useState('')
+  const [manualTitle, setManualTitle] = useState('复制提示词')
+  const copyJson = async () => {
+    const json = serializeCourseMetadataJson(form)
+    try {
+      await navigator.clipboard.writeText(json)
+      onNotify(t('JSON 已复制'), 'success')
+    } catch { setManualTitle('复制 JSON'); setManualPrompt(json) }
+  }
   const copy = async () => {
     if (!form.title.trim()) {
       onNotify(t('请先填写课程标题'), 'error')
@@ -27,7 +35,7 @@ export function CourseMetadataAiTools({ form, disabled, onApply, onNotify }: Pro
     try {
       await navigator.clipboard.writeText(prompt)
       onNotify(t('提示词已复制'), 'success')
-    } catch { setManualPrompt(prompt) }
+    } catch { setManualTitle('复制提示词'); setManualPrompt(prompt) }
   }
   const apply = () => {
     if (disabled) return
@@ -47,6 +55,7 @@ export function CourseMetadataAiTools({ form, disabled, onApply, onNotify }: Pro
       <Typography.Text strong>{t('ChatGPT 校对与翻译')}</Typography.Text>
       <Typography.Text type="secondary">{t('复制课程标题与简介的翻译任务，粘贴 JSON 后检查并保存。')}</Typography.Text>
       <Space wrap>
+        <Button icon={<Copy size={15} aria-hidden="true" />} disabled={disabled} onClick={() => void copyJson()}>{t('复制 JSON')}</Button>
         <Button className="ai-action-button" icon={<Sparkles size={15} aria-hidden="true" />} disabled={disabled} onClick={() => void copy()}>{t('复制提示词')}</Button>
         <Button className="ai-action-button" icon={<Sparkles size={15} aria-hidden="true" />} disabled={disabled} onClick={() => setOpen(true)}>{t('粘贴 JSON 导入')}</Button>
       </Space>
@@ -57,9 +66,9 @@ export function CourseMetadataAiTools({ form, disabled, onApply, onNotify }: Pro
           onChange={(event) => { setInput(event.target.value); setError('') }} />
         {error && <Alert type="error" title={error} showIcon style={{ marginTop: 12 }} />}
       </Modal>
-      <Modal open={Boolean(manualPrompt)} title={t('复制提示词')} onCancel={() => setManualPrompt('')} footer={null}>
+      <Modal open={Boolean(manualPrompt)} title={t(manualTitle)} onCancel={() => setManualPrompt('')} footer={null}>
         <Typography.Paragraph>{t('点击文本框可全选后手动复制')}</Typography.Paragraph>
-        <Input.TextArea aria-label={t('复制提示词')} rows={14} value={manualPrompt} readOnly onClick={(event) => event.currentTarget.select()} />
+        <Input.TextArea aria-label={t(manualTitle)} rows={14} value={manualPrompt} readOnly onClick={(event) => event.currentTarget.select()} />
       </Modal>
     </div>
   )

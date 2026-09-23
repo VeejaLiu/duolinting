@@ -1,4 +1,3 @@
-import { assertExpectedMedia, publishReviewedRelease } from '../../releases/release-service';
 import type { CreateTranscriptLineRequest } from '../../../domain';
 import { doRawQuery } from '../../../models';
 import type { SubtitleDraftStatus } from '../../../domain';
@@ -17,12 +16,10 @@ export async function submitSubtitleDraft({
     exerciseId,
     adminId,
     lines,
-    expectedMediaUrl,
 }: {
     exerciseId: number;
     adminId: number;
     lines: CreateTranscriptLineRequest[];
-    expectedMediaUrl: string;
 }) {
     const existing = await doRawQuery<{ status: SubtitleDraftStatus }>({
         query: `select status from exercise_subtitle_drafts
@@ -45,15 +42,14 @@ export async function submitSubtitleDraft({
             { replacements: { exerciseId }, type: QueryTypes.SELECT, transaction },
         );
         if (!exercise) throw new Error('课程不存在');
-        assertExpectedMedia(exercise.audio_url, expectedMediaUrl);
         const [currentDraft] = await sequelize.query<{ status: string }>('select status from exercise_subtitle_drafts where exercise_id=:exerciseId and admin_user_id=:adminId for update', { replacements: { exerciseId, adminId }, type: QueryTypes.SELECT, transaction });
         if (currentDraft?.status === 'submitted' || currentDraft?.status === 'approved') throw new Error('该字幕稿已提交或审核通过');
         await sequelize.query(
             `insert into exercise_subtitle_drafts
-           (exercise_id, admin_user_id, reviewer_admin_user_id, transcript_json, media_url, status, review_note, submitted_at, reviewed_at, reviewed_by_admin_user_id)
-         values (:exerciseId, :adminId, :reviewerId, cast(:transcriptJson as json), :mediaUrl, 'submitted', null, current_timestamp, null, null)
+           (exercise_id, admin_user_id, reviewer_admin_user_id, transcript_json, status, review_note, submitted_at, reviewed_at, reviewed_by_admin_user_id)
+         values (:exerciseId, :adminId, :reviewerId, cast(:transcriptJson as json), 'submitted', null, current_timestamp, null, null)
          on duplicate key update
-           transcript_json = values(transcript_json), media_url=values(media_url),
+           transcript_json = values(transcript_json),
            reviewer_admin_user_id = values(reviewer_admin_user_id),
            status = 'submitted',
            review_note = null,
@@ -67,7 +63,6 @@ export async function submitSubtitleDraft({
                     adminId,
                     reviewerId: assignees.reviewerId,
                     transcriptJson: JSON.stringify(lines),
-                mediaUrl: exercise.audio_url,
                 },
                 transaction,
             },
@@ -214,7 +209,7 @@ export async function approveSubtitleDraft({
     await sequelize.transaction(async (transaction) => {
         const rows = await sequelize.query<SubtitleDraftRow>(
             `select drafts.id, drafts.exercise_id, drafts.admin_user_id, drafts.reviewer_admin_user_id, admins.display_name,
-                    drafts.transcript_json, drafts.media_url, drafts.status, drafts.review_note,
+                    drafts.transcript_json, drafts.status, drafts.review_note,
                     drafts.submitted_at, drafts.updated_at
              from exercise_subtitle_drafts drafts
              inner join admin_users admins on admins.id = drafts.admin_user_id
@@ -233,8 +228,6 @@ export async function approveSubtitleDraft({
             { replacements: { exerciseId: Number(draft.exercise_id) }, type: QueryTypes.SELECT, transaction },
         );
         if (!exerciseRows) throw new Error('课程不存在');
-        assertExpectedMedia(exerciseRows.audio_url, draft.media_url);
-        await publishReviewedRelease(Number(draft.exercise_id), reviewerId, parseSubtitleDraftLines(draft.transcript_json), transaction);
 
         await sequelize.query(
             `update exercises
@@ -371,7 +364,7 @@ export async function revertPublishedSubtitle({
         // 课程回到草稿，保留现有字幕；重新开放自助领取。
         await sequelize.query(
             `update exercises
-             set status = 'draft', published_release_id=null, claim_blocked = false, updated_at = current_timestamp
+             set status = 'draft', claim_blocked = false, updated_at = current_timestamp
              where id = :exerciseId`,
             { replacements: { exerciseId }, transaction },
         );
