@@ -93,47 +93,20 @@ export async function authorizedPreview(token: string, userId: number, locale?: 
     if (!row || !parse<number[]>(row.audience_json).includes(userId)) throw new Error('预览链接已过期或当前账号无权访问');
     return decodeRelease(row, locale);
 }
-export async function recordReleaseCheck(releaseId: number, platform: 'web'|'ios'|'android', actor: { adminId?: number; userId?: number }, evidence: { lineId: string; startUs: number; endUs: number; startedPositionUs: number; finishedPositionUs: number; playbackRate: number; adapter: string; playbackContractVersion: number }) {
-    const [row] = await sequelize.query<ReleaseRow>('select * from course_releases where id=:releaseId limit 1', { replacements: { releaseId }, type: QueryTypes.SELECT });
-    if (!row) throw new Error('预览版本不存在');
-    const course = decodeRelease(row);
-    const line = course.lines.find((item) => item.id === evidence.lineId);
-    if (!line || evidence.playbackContractVersion !== 1 || evidence.startUs !== Math.round(line.start*1e6) || evidence.endUs !== Math.round(line.end*1e6)) throw new Error('预览验收记录与版本不一致');
-    if (!Number.isSafeInteger(evidence.startedPositionUs) || !Number.isSafeInteger(evidence.finishedPositionUs) ||
-        Math.abs(evidence.startedPositionUs-evidence.startUs)>50000 || evidence.finishedPositionUs<evidence.endUs || evidence.finishedPositionUs-evidence.endUs>50000 ||
-        ![0.5,1,1.5,2].includes(evidence.playbackRate) || evidence.adapter !== (platform === 'web' ? 'browser-native' : 'native-timed-v1')) throw new Error('本次播放边界误差超过 50ms 或未正常播完，请重新试听确认');
-    // Keep the bearer preview token and any unrecognized request fields out of audit storage.
-    const record = { lineId: evidence.lineId, startUs: evidence.startUs, endUs: evidence.endUs,
-        startedPositionUs: evidence.startedPositionUs, finishedPositionUs: evidence.finishedPositionUs,
-        playbackRate: evidence.playbackRate, adapter: evidence.adapter, playbackContractVersion: evidence.playbackContractVersion };
-    await sequelize.query(`insert into course_release_checks (release_id,platform,actor_user_id,actor_admin_id,evidence_json)
-        values (:releaseId,:platform,:userId,:adminId,cast(:evidence as json))
-        on duplicate key update actor_user_id=values(actor_user_id),actor_admin_id=values(actor_admin_id),evidence_json=values(evidence_json),checked_at=current_timestamp`,
-        { replacements: { releaseId, platform, userId: actor.userId ?? null, adminId: actor.adminId ?? null, evidence: JSON.stringify(record) } });
-}
-export async function listReleaseChecks(releaseId: number) {
-    return sequelize.query<{ platform: string; checked_at: string }>('select platform,checked_at from course_release_checks where release_id=:releaseId',
-        { replacements: { releaseId }, type: QueryTypes.SELECT });
-}
-
-/** Called only inside the existing approval transaction, after the course row is locked. */
+/** Freeze the approved content in the approval transaction; preview is optional. */
 export async function publishReviewedRelease(exerciseId: number, reviewerId: number, lines: TranscriptLine[], transaction: Transaction) {
     const course = await readWorkingCourse(exerciseId, transaction);
     const analysis = await ensureMediaAnalysis(course.audioUrl, course.mediaType);
-    const rows = await sequelize.query<ReleaseRow>(`select * from course_releases where exercise_id=:exerciseId and created_by_admin_id=:reviewerId
-        and state='preview' and json_unquote(json_extract(manifest_json,'$.subtitleRevision'))=:revision order by id desc`,
-        { replacements: { exerciseId, reviewerId, revision: digest(lines) }, type: QueryTypes.SELECT, transaction });
-    for (const row of rows) {
-        const candidate = decodeRelease(row);
-        if (!sameMedia(row.media_url, course.audioUrl) || candidate.release?.mediaRevision !== analysis.mediaRevision) continue;
-        const snapshot = parse<ListeningExercise>(row.snapshot_json);
-        if (digest({ ...course, audioUrl: snapshot.audioUrl, lines, status: 'published' }) !== digest(snapshot)) continue;
-        const checks = await sequelize.query<{ platform: string }>('select platform from course_release_checks where release_id=:id',
-            { replacements: { id: row.id }, type: QueryTypes.SELECT, transaction });
-        if (!['web','ios','android'].every((platform) => checks.some((check) => check.platform === platform))) continue;
-        await sequelize.query("update course_releases set state='published',published_at=utc_timestamp() where id=:id", { replacements: { id: row.id }, transaction });
-        await sequelize.query('update exercises set published_release_id=:id where id=:exerciseId', { replacements: { id: row.id, exerciseId }, transaction });
-        return Number(row.id);
-    }
-    throw new Error('请先为当前媒体和字幕创建学习者预览，并完成网页、iOS、Android 的播放一致性确认');
+    // Publish the current reviewed lines and the analysed immutable media together.
+    // A prior preview or device confirmation is never required for publication.
+    const snapshot = { ...course, audioUrl: analysis.mediaUrl, lines, status: 'published' as const };
+    const manifest = createManifest(snapshot, analysis.mediaRevision, analysis.durationUs, analysis.waveform.revision);
+    const [result] = await sequelize.query(`insert into course_releases
+        (exercise_id,media_url,snapshot_json,manifest_json,state,created_by_admin_id,published_at)
+        values (:exerciseId,:url,cast(:snapshot as json),cast(:manifest as json),'published',:reviewerId,utc_timestamp())`,
+        { replacements: { exerciseId, reviewerId, url: course.audioUrl, snapshot: JSON.stringify(snapshot), manifest: JSON.stringify(manifest) }, transaction });
+    const releaseId = Number(typeof result === 'number' ? result : (result as unknown as { insertId: number }).insertId);
+    await sequelize.query('update exercises set published_release_id=:releaseId where id=:exerciseId',
+        { replacements: { releaseId, exerciseId }, transaction });
+    return releaseId;
 }

@@ -1,4 +1,4 @@
-import { Alert, Button, Checkbox, Modal, QRCode, Select, Space, Tag, Typography } from 'antd'
+import { Alert, Button, Modal, QRCode, Select, Space, Typography } from 'antd'
 import { useEffect, useRef, useState } from 'react'
 import type { ContentLocale, ListeningExercise, TranscriptLine } from '@duolinting/shared'
 import { transcriptTranslation } from '@duolinting/shared'
@@ -16,9 +16,6 @@ export function LearnerPreviewButton({ exerciseId, audioUrl, lines, adminToken }
   const [preview, setPreview] = useState<Preview | null>(null)
   const [index, setIndex] = useState(0), [rate, setRate] = useState(1), [repeats, setRepeats] = useState(1)
   const [locale, setLocale] = useState<ContentLocale>('zh-CN')
-  const [completed, setCompleted] = useState<string | null>(null), [confirmed, setConfirmed] = useState(false)
-  const [checks, setChecks] = useState<string[]>([])
-  const evidence = useRef<{ startedPositionUs: number; finishedPositionUs: number } | null>(null)
   const media = useRef<HTMLMediaElement | null>(null), source = useRef(''), session = useRef<PlaybackSession | null>(null)
   const loop = useRef(0), request = useRef(0)
   const controller = useRef<ReturnType<typeof createPlaybackController> | null>(null)
@@ -28,37 +25,24 @@ export function LearnerPreviewButton({ exerciseId, audioUrl, lines, adminToken }
   const stop = () => { loop.current++; controller.current?.cancel(); session.current = null }
   const load = async () => {
     if (!exerciseId) return
-    const id = ++request.current; stop(); setOpen(true); setBusy(true); setError(''); setPreview(null); setChecks([]); setCompleted(null); setConfirmed(false)
+    const id = ++request.current; stop(); setOpen(true); setBusy(true); setError(''); setPreview(null)
     try {
       const result = await apiClient.createLearnerPreview(exerciseId, lines, audioUrl, adminToken)
-      if (request.current === id) { setPreview(result); setIndex(0); const state = await apiClient.getPreviewChecks(result.course.release!.courseReleaseId, adminToken); if (request.current === id) setChecks(state.checks.map((entry) => entry.platform)) }
+      if (request.current === id) { setPreview(result); setIndex(0) }
     } catch (cause) { if (request.current === id) setError(cause instanceof Error ? cause.message : t('预览失败')) }
     finally { if (request.current === id) setBusy(false) }
   }
   const play = async () => {
     const line = preview?.course.lines[index]
     if (!line || !media.current) return
-    stop(); setError(''); setCompleted(null); setConfirmed(false)
+    stop(); setError('')
     const generation = ++loop.current
     media.current.playbackRate = rate; media.current.preservesPitch = true
     const next = controller.current!.repeat({ sourceKey: source.current, startUs: secondsToUs(line.start), endUs: secondsToUs(line.end) }, repeats)
     session.current = next
-    const started = await next.started, result = await next.finished
-    evidence.current = { startedPositionUs: started.positionUs, finishedPositionUs: result.positionUs }
+    const result = await next.finished
     if (generation !== loop.current) return
     if (result.reason !== 'range-ended') { if (result.reason === 'failed' || result.reason === 'timeout') setError(t('播放失败，请重试')); return }
-    if (generation === loop.current) setCompleted(line.id)
-  }
-  const refresh = async () => {
-    if (preview?.course.release) setChecks((await apiClient.getPreviewChecks(preview.course.release.courseReleaseId, adminToken)).checks.map((item) => item.platform))
-  }
-  const confirm = async () => {
-    const course = preview?.course, line = course?.lines[index]
-    if (!course?.release || !line || completed !== line.id || !confirmed || !evidence.current) return
-    try {
-      await apiClient.confirmPreview(course.release.courseReleaseId, { lineId: line.id, startUs: secondsToUs(line.start), endUs: secondsToUs(line.end), ...evidence.current, playbackRate: rate, adapter: 'browser-native', playbackContractVersion: 1 }, adminToken)
-      await refresh()
-    } catch (cause) { setError(cause instanceof Error ? cause.message : t('预览失败')) }
   }
   const line = preview?.course.lines[index]
   return <>
@@ -78,18 +62,15 @@ export function LearnerPreviewButton({ exerciseId, audioUrl, lines, adminToken }
             return <rect key={i} x={i*4} y={36-max*34} width={2} height={Math.max(1,max*68)} fill="#1cb0f6" />
           })}
         </svg>}
-        <Select style={{ width: '100%' }} value={index} onChange={(value) => { stop(); setIndex(value); setCompleted(null); setConfirmed(false) }} options={preview.course.lines.map((item, i) => ({ value: i, label: `${i+1}. ${item.text}` }))} />
+        <Select style={{ width: '100%' }} value={index} onChange={(value) => { stop(); setIndex(value) }} options={preview.course.lines.map((item, i) => ({ value: i, label: `${i+1}. ${item.text}` }))} />
         <Typography.Paragraph strong>{line?.text}</Typography.Paragraph>
         <Typography.Paragraph>{line && transcriptTranslation(line, locale)}</Typography.Paragraph>
         <Space wrap>
           <Select value={locale} onChange={setLocale} options={['zh-CN','en-US','th-TH','ja-JP','fr-FR','es-ES'].map((value) => ({ value, label: value }))} />
-          <Select value={rate} onChange={(value) => { stop(); setCompleted(null); setConfirmed(false); setRate(value) }} options={[0.5,1,1.5,2].map((value) => ({ value, label: `${value}×` }))} />
-          <Select value={repeats} onChange={(value) => { stop(); setCompleted(null); setConfirmed(false); setRepeats(value) }} options={[1,2,3].map((value) => ({ value, label: `${t('播放次数')} ${value}` }))} />
+          <Select value={rate} onChange={(value) => { stop(); setRate(value) }} options={[0.5,1,1.5,2].map((value) => ({ value, label: `${value}×` }))} />
+          <Select value={repeats} onChange={(value) => { stop(); setRepeats(value) }} options={[1,2,3].map((value) => ({ value, label: `${t('播放次数')} ${value}` }))} />
           <Button onClick={() => void play()}>{t('整句试听')}</Button><Button onClick={stop}>{t('停止')}</Button>
         </Space>
-        <Checkbox checked={confirmed} disabled={completed !== line?.id} onChange={(event) => setConfirmed(event.target.checked)}>{t('我已确认声音、字幕和波形一致')}</Checkbox>
-        <Space wrap><Button disabled={!confirmed || completed !== line?.id} onClick={() => void confirm()}>{t('确认网页验收')}</Button>
-          <Button onClick={() => void refresh()}>{t('刷新验收结果')}</Button>{['web','ios','android'].map((platform) => <Tag key={platform} color={checks.includes(platform) ? 'green' : 'default'}>{platform}: {t(checks.includes(platform) ? '已确认' : '待确认')}</Tag>)}</Space>
         {preview.mobilePreviewToken ? <Space align="start"><QRCode value={`duolinting://preview/${preview.mobilePreviewToken}`} /><Typography.Text copyable>{`duolinting://preview/${preview.mobilePreviewToken}`}</Typography.Text></Space>
           : <Typography.Text>{t('绑定学习账号后可生成手机测试入口')}</Typography.Text>}
         <Typography.Text type="secondary">{t('手机预览需登录有权限的学习账号，链接 24 小时后失效。')}</Typography.Text>

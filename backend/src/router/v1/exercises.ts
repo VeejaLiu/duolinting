@@ -1,4 +1,4 @@
-import { authorizedPreview, publishedCourse, recordReleaseCheck, releaseWaveform } from '../../general/releases/release-service';
+import { authorizedPreview, publishedCourse, releaseWaveform } from '../../general/releases/release-service';
 import express from 'express';
 import { getExercise, parseContentLocale } from '../../general/catalog/catalog-service';
 import { getPreviewExerciseIdsForLearner } from '../../general/admin/collaboration-service';
@@ -15,16 +15,6 @@ router.post('/preview', optionalUserTokenMiddleware, async (req: any, res) => {
         return res.send({ ...course, waveform: await releaseWaveform(course) });
     } catch { return res.status(403).send({ message: '预览链接已过期或当前账号无权访问' }); }
 });
-router.post('/preview/check', optionalUserTokenMiddleware, async (req: any, res) => {
-    if (!req.user?.userId) return res.status(401).send({ message: '请先登录学习账号' });
-    if (!['ios','android'].includes(req.body.platform)) return res.status(400).send({ message: '需要在 iOS 或 Android App 中完成验收' });
-    try {
-        const course = await authorizedPreview(req.body.token, req.user.userId);
-        await recordReleaseCheck(course.release!.courseReleaseId, req.body.platform, { userId: req.user.userId }, req.body);
-        return res.send({ ok: true });
-    } catch { return res.status(403).send({ message: '预览链接或验收记录无效' }); }
-});
-
 router.get('/:exerciseId', optionalUserTokenMiddleware, async (req: any, res) => {
     const exerciseId = toId(req.params.exerciseId);
     if (!Number.isInteger(exerciseId) || exerciseId <= 0) {

@@ -42,12 +42,6 @@ import { CategoryModel } from '../../models/schema/CategoryDB';
 import { ExerciseModel } from '../../models/schema/ExerciseDB';
 
 
-const emptyCatalog = (): CatalogResponse => ({
-    categoryGroups: [],
-    categories: [],
-    exercises: [],
-});
-
 type ExerciseRow = {
     id: number;
     category_id: number;
@@ -735,78 +729,76 @@ export async function listCatalog(
     contentLocale?: ContentLocale,
     previewExerciseIds: number[] = [],
 ): Promise<CatalogResponse> {
-    try {
-        const categoryGroupRows = await loadCategoryGroupRows();
-        const categoryRows = await loadCategoryRows();
-        const categoryIdsWithExercises =
-            await loadCategoryIdsWithExercises(includeDrafts, previewExerciseIds);
+    // Let database failures reach the API error handler so clients show a load error,
+    // rather than treating a missing migration or unavailable database as an empty catalog.
+    const categoryGroupRows = await loadCategoryGroupRows();
+    const categoryRows = await loadCategoryRows();
+    const categoryIdsWithExercises =
+        await loadCategoryIdsWithExercises(includeDrafts, previewExerciseIds);
 
-        const mappedCategories: ExerciseCategory[] = categoryRows.map(
-            (row: any) => ({
-                id: Number(row.id),
-                groupId: Number(row.group_id),
-                name: contentLocale
-                    ? (normalizeDirectoryLocalizations(row.localizations_json)[
-                          contentLocale
-                      ]?.name ?? row.name)
-                    : row.name,
-                description: contentLocale
-                    ? (normalizeDirectoryLocalizations(row.localizations_json)[
-                          contentLocale
-                      ]?.description ?? row.description)
-                    : row.description,
-                accent: row.accent,
-                coverImageUrl:
-                    toDeliveryMediaUrl(row.cover_image_url) || undefined,
-                sourceUrl: normalizeSourceUrl(row.source_url) || undefined,
-                sortOrder: Number(row.sort_order ?? 0),
-                localizations: normalizeDirectoryLocalizations(
-                    row.localizations_json,
-                ),
-            }),
+    const mappedCategories: ExerciseCategory[] = categoryRows.map(
+        (row: any) => ({
+            id: Number(row.id),
+            groupId: Number(row.group_id),
+            name: contentLocale
+                ? (normalizeDirectoryLocalizations(row.localizations_json)[
+                      contentLocale
+                  ]?.name ?? row.name)
+                : row.name,
+            description: contentLocale
+                ? (normalizeDirectoryLocalizations(row.localizations_json)[
+                      contentLocale
+                  ]?.description ?? row.description)
+                : row.description,
+            accent: row.accent,
+            coverImageUrl:
+                toDeliveryMediaUrl(row.cover_image_url) || undefined,
+            sourceUrl: normalizeSourceUrl(row.source_url) || undefined,
+            sortOrder: Number(row.sort_order ?? 0),
+            localizations: normalizeDirectoryLocalizations(
+                row.localizations_json,
+            ),
+        }),
+    );
+    // Learners should only see series with content; administrators must also
+    // manage newly created, currently empty categories and groups.
+    const categories = includeEmptyDirectories
+        ? mappedCategories
+        : mappedCategories.filter((category) =>
+              categoryIdsWithExercises.has(category.id),
+          );
+    const visibleGroupIds = new Set(
+        categories.map((category) => category.groupId),
+    );
+
+    const categoryGroups: MaterialCategory[] = categoryGroupRows
+        .map((row: any) => ({
+            id: Number(row.id),
+            name: contentLocale
+                ? (normalizeDirectoryLocalizations(row.localizations_json)[
+                      contentLocale
+                  ]?.name ?? row.name)
+                : row.name,
+            description: contentLocale
+                ? (normalizeDirectoryLocalizations(row.localizations_json)[
+                      contentLocale
+                  ]?.description ?? row.description)
+                : row.description,
+            accent: row.accent,
+            coverImageUrl:
+                toDeliveryMediaUrl(row.cover_image_url) || undefined,
+            sortOrder: Number(row.sort_order ?? 0),
+            localizations: normalizeDirectoryLocalizations(
+                row.localizations_json,
+            ),
+        }))
+        .filter(
+            (group) =>
+                includeEmptyDirectories || visibleGroupIds.has(group.id),
         );
-        // Learners should only see series with content; administrators must also
-        // manage newly created, currently empty categories and groups.
-        const categories = includeEmptyDirectories
-            ? mappedCategories
-            : mappedCategories.filter((category) =>
-                  categoryIdsWithExercises.has(category.id),
-              );
-        const visibleGroupIds = new Set(
-            categories.map((category) => category.groupId),
-        );
 
-        const categoryGroups: MaterialCategory[] = categoryGroupRows
-            .map((row: any) => ({
-                id: Number(row.id),
-                name: contentLocale
-                    ? (normalizeDirectoryLocalizations(row.localizations_json)[
-                          contentLocale
-                      ]?.name ?? row.name)
-                    : row.name,
-                description: contentLocale
-                    ? (normalizeDirectoryLocalizations(row.localizations_json)[
-                          contentLocale
-                      ]?.description ?? row.description)
-                    : row.description,
-                accent: row.accent,
-                coverImageUrl:
-                    toDeliveryMediaUrl(row.cover_image_url) || undefined,
-                sortOrder: Number(row.sort_order ?? 0),
-                localizations: normalizeDirectoryLocalizations(
-                    row.localizations_json,
-                ),
-            }))
-            .filter(
-                (group) =>
-                    includeEmptyDirectories || visibleGroupIds.has(group.id),
-            );
-
-        // exercises 不再随 catalog 返回，改为按系列懒加载
-        return { categoryGroups, categories, exercises: [] };
-    } catch {
-        return emptyCatalog();
-    }
+    // exercises 不再随 catalog 返回，改为按系列懒加载
+    return { categoryGroups, categories, exercises: [] };
 }
 
 export async function listCategoryExercises(

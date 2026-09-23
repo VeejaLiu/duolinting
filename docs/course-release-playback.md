@@ -6,7 +6,7 @@ Content preparers supply AAC-LC/M4A mono audio, or H.264/AAC/yuv420p MP4 video w
 
 ## Frozen content
 
-`V202609230001__immutable_course_releases.sql` creates release snapshots, source analyses, expiring preview access and verification records. Tables have ordinary indexed relationship columns, without database foreign keys.
+`V202609230001__immutable_course_releases.sql` creates release snapshots, source analyses, expiring preview access. Tables have ordinary indexed relationship columns, without database foreign keys.
 
 A release contains the exact media URL, metadata and all subtitle texts/translations/IDs. Its manifest binds `courseReleaseId`, byte-derived `mediaRevision`, `timelineId`, canonical `subtitleRevision`, `waveformRevision` and `playbackContractVersion`. Presentation time starts at source zero. Nonstandard origins or multiple candidate tracks require the content preparer to resolve them, rather than the application guessing a time mapping.
 
@@ -20,13 +20,13 @@ Subtitle saves/submissions carry the media URL the editor actually loaded. A mis
 
 ## Learner preview and approval
 
-The editor and review modal both offer **Learner preview**. It freezes the submitted media/lines, displays the canonical waveform and uses the same web adapter/shared controller as the learner app. Rate, repeat count and translation locale are explicit. Identical previews can be reopened without discarding their checks.
+The editor and review modal both offer **Learner preview**. It freezes the submitted media/lines, displays the canonical waveform and uses the same web adapter/shared controller as the learner app. Rate, repeat count and translation locale are explicit. Identical previews can be reopened. Preview is optional and does not block approval.
 
 A deep link opens `mobile-app/app/preview/[token].tsx`. The link expires in 24 hours and requires a logged-in, currently authorized learner account bound to an active workflow member. Only a token hash is stored. API calls carry the token in a POST body, not an access-log URL. Preview responses are `no-store` and are not persisted in the mobile query cache.
 
-The user must finish a sentence, check the alignment and explicitly confirm it. Evidence records requested and reported start/end positions, rate, adapter, contract version, actor and platform. The server rejects early completion or more than 50 ms of reported boundary error. This is a **human attestation plus reported-position check**, not cryptographic device attestation or proof of physical speaker/headphone latency.
+Approval directly freezes the current reviewed subtitles and analysed media in the same transaction as publication. Contributors and reviewers do not need to open a preview, record a confirmation, or test on web/iOS/Android to publish. Preview remains available for voluntary listening, including rate and repeat controls.
 
-Approval requires web, iOS and Android confirmations on the same preview content owned by the assigned reviewer. Changed media/subtitles require new matching checks. No checks are automatically fabricated by the application.
+The historical `course_release_checks` table is no longer read or written. Its original migration remains unchanged for compatibility with databases that already applied it.
 
 ## Playback and caches
 
@@ -48,8 +48,8 @@ Old clients which do not declare a playback contract are treated as contract 0. 
 
 - `npm run check:playback`: controller/adapter regression tests, including buffering, cancellation, seek timeout, source change, repeating and interruption.
 - `NODE_ENV=test node --import tsx scripts/check-waveform-timing.mjs`: generates an 8-minute mono fixture with known markers at beginning/middle/end; validates the canonical waveform within 30 ms. No course content is seeded into production tables.
-- `scripts/check-course-releases.mjs`: refuses to run except against the explicitly named isolated test database `release_check`; requires test MySQL/MinIO environment variables. Tests frozen bytes, atomic pointer switching, stale media rejection, three-platform gating, preview permissions/expiry and preview reuse.
+- `scripts/check-course-releases.mjs`: refuses to run except against the explicitly named isolated test database `release_check`; requires test MySQL/MinIO environment variables. Tests frozen bytes, atomic pointer switching, stale media rejection, publication without preview or device checks, preview permissions/expiry and preview reuse.
 - Native module compiled for iOS simulator and Android; Admin/Web/Mobile types and bundles are checked independently.
-- Real browsers exercise both the production web adapter and the isolated precision prototype. Physical iOS/Android/Chrome/Safari output timing still requires the actual devices and human release checks. Reported positions do not establish a P95 speaker-output figure.
+- Real browsers exercise both the production web adapter and the isolated precision prototype. Physical iOS/Android/Chrome/Safari output timing still requires the actual devices and manual regression. Reported positions do not establish a P95 speaker-output figure.
 
 Before deployment, apply the Flyway migration and use the backend image containing FFmpeg. Rebuild the mobile application for its native module. The migration and test containers used during development do not deploy or modify production. No production host details belong in this document.

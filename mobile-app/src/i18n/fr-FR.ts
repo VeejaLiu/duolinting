@@ -9,8 +9,6 @@ export default {
   "preview.rate": "Vitesse",
   "preview.previous": "Précédente",
   "preview.next": "Suivante",
-  "preview.confirmed": "Confirmé",
-  "preview.confirm": "J’ai vérifié la synchronisation audio, sous-titres et image",
   "study.releaseUpdateAvailable": "Nouvelle version disponible. Touchez pour mettre à jour.",
   "study.playbackFailed": "La lecture n’a pas abouti. Veuillez réessayer.",
   "tabs.study": "Étudier",

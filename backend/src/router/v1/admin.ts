@@ -1,6 +1,4 @@
-import { QueryTypes } from 'sequelize';
-import { sequelize } from '../../models/db-config-mysql';
-import { createCoursePreview, recordReleaseCheck, listReleaseChecks } from '../../general/releases/release-service';
+import { createCoursePreview } from '../../general/releases/release-service';
 import express from 'express';
 import { body, param } from 'express-validator';
 import type { AdminWorkflowActivityType, FeedbackStatus } from '../../domain';
@@ -421,20 +419,6 @@ router.post('/exercises/:exerciseId/learner-preview', async (req: any, res) => {
         return res.send(preview);
     } catch (error) { return res.status(409).send({ message: error instanceof Error ? error.message : '预览准备失败' }); }
 });
-router.get('/release-previews/:releaseId/checks', async (req: any, res) => {
-    const releaseId = toId(req.params.releaseId);
-    const [row] = await sequelize.query<{ exercise_id: number }>('select exercise_id from course_releases where id=:releaseId', { replacements: { releaseId }, type: QueryTypes.SELECT });
-    if (!row || !(await canAccessExerciseWorkflow(req.admin, Number(row.exercise_id)))) return res.status(403).send({ message: '无权访问此预览' });
-    return res.send({ checks: await listReleaseChecks(releaseId) });
-});
-router.post('/release-previews/:releaseId/checks', async (req: any, res) => {
-    const releaseId = toId(req.params.releaseId);
-    const [row] = await sequelize.query<{ exercise_id: number; created_by_admin_id: number }>('select exercise_id,created_by_admin_id from course_releases where id=:releaseId', { replacements: { releaseId }, type: QueryTypes.SELECT });
-    if (!row || Number(row.created_by_admin_id) !== req.admin.id || !(await canAccessExerciseWorkflow(req.admin, Number(row.exercise_id)))) return res.status(403).send({ message: '无权确认此预览' });
-    try { await recordReleaseCheck(releaseId, 'web', { adminId: req.admin.id }, req.body); return res.send({ ok: true }); }
-    catch (error) { return res.status(400).send({ message: error instanceof Error ? error.message : '验收失败' }); }
-});
-
 router.get('/exercises/:exerciseId', async (req: any, res) => {
     const exerciseId = toId(req.params.exerciseId);
     if (!Number.isInteger(exerciseId) || exerciseId <= 0) {

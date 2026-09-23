@@ -147,8 +147,6 @@ export const createApiClient = ({
       ),
     getCoursePreview: (token: string, authToken: string, contentLocale?: ContentLocale) => fetchJson<ListeningExercise>(
       '/api/v1/exercises/preview', { method: 'POST', body: JSON.stringify({ token, contentLocale }) }, { authToken }),
-    confirmCoursePreview: (token: string, authToken: string, evidence: { platform: 'ios'|'android'; lineId: string; startUs: number; endUs: number; startedPositionUs: number; finishedPositionUs: number; playbackRate: number; adapter: string; playbackContractVersion: number }) =>
-      fetchJson<{ ok: boolean }>('/api/v1/exercises/preview/check', { method: 'POST', body: JSON.stringify({ token, ...evidence }) }, { authToken }),
     getUserPreferences: (authToken: string) =>
       fetchJson<UserPreferences>('/api/v1/user/preferences', { method: 'GET' }, { authToken }),
     updateUserPreferences: (preferences: Partial<UserPreferences>, authToken: string) =>
