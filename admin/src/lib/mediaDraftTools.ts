@@ -1,3 +1,5 @@
+import { cleanEnglishAnswerText, cleanSubtitleSpacing } from './subtitleText'
+export { cleanEnglishAnswerText, cleanSubtitleSpacing } from './subtitleText'
 import type { CreateTranscriptLineRequest } from '@duolinting/shared'
 import type { ContentLocale } from '@duolinting/domain'
 
@@ -150,31 +152,6 @@ export const mergeDraftLines = (firstInput: DraftLine, secondInput: DraftLine): 
   }
 }
 
-const englishPunctuationMap: Record<string, string> = {
-  '，': ',',
-  '。': '.',
-  '！': '!',
-  '？': '?',
-  '；': ';',
-  '：': ':',
-  '（': '(',
-  '）': ')',
-  '【': '[',
-  '】': ']',
-  '［': '[',
-  '］': ']',
-  '“': '"',
-  '”': '"',
-  '‘': "'",
-  '’': "'",
-  '、': ',',
-  '《': '<',
-  '》': '>',
-  '…': '...',
-  '—': '-',
-  '～': '~',
-  '　': ' ',
-}
 
 export type SubtitleFormat = 'srt' | 'vtt' | 'ass' | 'lrc' | 'unknown'
 
@@ -191,34 +168,6 @@ export const detectSubtitleFormat = (value: string): SubtitleFormat => {
   if (/^\d+\s*\n\s*\d{2}:\d{2}:\d{2}/m.test(trimmed)) return 'srt'
   return 'unknown'
 }
-
-export const cleanSubtitleSpacing = (value: string) =>
-  value.replace(/[ \t\u00a0\u3000]+/g, ' ').trim()
-
-// English subtitles are stored as a single normalized line so later matching
-// logic does not need to handle full-width punctuation or stray spaces before
-// sentence punctuation such as "word ," or "word ?", and we also restore the
-// usual separator space after punctuation in phrases like "Hello,world".
-// Numeric tokens such as times keep tight separators, for example "5: 00"
-// should normalize to "5:00" instead of "5: 00".
-export const cleanEnglishAnswerText = (value: string) =>
-  cleanSubtitleSpacing(
-    Array.from(value)
-      .map((char) => englishPunctuationMap[char] ?? char)
-      .join(''),
-  )
-    .replace(/(\d)\s*:\s*(\d)/g, '$1:$2')
-    .replace(/\s+([,.;:!?)\]%}\]>])/g, '$1')
-    .replace(/([,;!?])([A-Za-z0-9"'([])/g, '$1 $2')
-    .replace(/:([A-Za-z"'([])/g, ': $1')
-    .replace(/([.])([A-Za-z"'([])/g, (match, _period, next: string, offset: number, text: string) => {
-      // 称谓缩写的点不作为句末标点处理：保留 Mr.Dinosaur / Mrs.Pig 等原始写法。
-      // 仅匹配完整称谓（忽略大小写），避免把单词末尾恰好含 mr 等字母也误判为缩写。
-      // 已有空格的 Mr. Dinosaur 不会匹配此规则，同样保持原样。
-      const isTitle = /(?:^|[^A-Za-z])(?:Mr|Mrs|Ms|Mx|Dr|Prof|Sr|Jr|Mme|Mlle)\.$/i
-        .test(text.slice(0, offset + 1))
-      return isTitle && /^[A-Za-z]$/.test(next) ? match : `. ${next}`
-    })
 
 export const formatDurationLabel = (seconds: number) => {
   const safeSeconds = Number.isFinite(seconds) ? Math.max(seconds, 0) : 0
