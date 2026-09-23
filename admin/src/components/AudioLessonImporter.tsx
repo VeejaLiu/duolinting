@@ -24,7 +24,6 @@ import { ADMIN_TOKEN_STORAGE_KEY } from '../lib/contentTools'
 import { useSubtitleHistory } from '../hooks/useSubtitleHistory'
 import { SubtitleHistoryControls } from './admin/SubtitleHistoryControls'
 import { useMediaPlayback } from '../hooks/useMediaPlayback'
-import { usePreciseAudioPreview } from '../hooks/usePreciseAudioPreview'
 import { useAdminLanguage } from '../i18n/AdminLanguageProvider'
 import { detectMp4VideoCodec } from '../lib/mediaCompatibility'
 import {
@@ -319,10 +318,9 @@ export function AudioLessonImporter({
     : undefined
   const isSubmittedSubtitleDraft = ownSubtitleDraft?.status === 'submitted'
   const isApprovedSubtitleDraft = ownSubtitleDraft?.status === 'approved'
-  const audioPreview = usePreciseAudioPreview(localMediaUrl, courseForm.mediaType, mediaFile)
   const { playMedia, playMediaRange, seekMedia, stopPlayback } = useMediaPlayback({
     mediaRef,
-    sourceKey: audioPreview.url,
+    sourceKey: localMediaUrl,
   })
 
   useEffect(() => {
@@ -1146,10 +1144,7 @@ export function AudioLessonImporter({
           isSubtitleContributor={adminRole === 'subtitle_contributor'}
           proofreadingStatus={ownSubtitleDraft?.status}
           saveDisabledReason={saveDisabledReason}
-          localMediaUrl={audioPreview.url}
-          isPreparingAudioPreview={audioPreview.preparing}
-          audioPreviewError={audioPreview.error}
-          onRetryAudioPreview={audioPreview.retry}
+          localMediaUrl={localMediaUrl}
           mediaSize={mediaSize}
           mediaFile={mediaFile}
           mediaUploadProgress={mediaUploadProgress}
@@ -1230,7 +1225,7 @@ export function AudioLessonImporter({
                 activeLineIndex={activeLineIndex}
                 draftLines={draftLines}
                 mediaRef={mediaRef}
-                sourceUrl={audioPreview.url}
+                sourceUrl={localMediaUrl}
                 showInspector={false}
                 onActiveLineChange={setActiveLineIndex}
                 onAddLine={addLineAfterActive}
