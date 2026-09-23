@@ -65,6 +65,9 @@ type MediaWaveformProps = {
   onMergeLine?: (index: number) => void
   onSetPointFromPlayer: (field: 'start' | 'end', lineIndex: number) => void
   onUpdateLine: (index: number, patch: Partial<DraftLine>, lineId?: string) => void
+  onSeek: (seconds: number) => Promise<void>
+  onStopPlayback: () => void
+  onDragStateChange: (dragging: boolean) => void
   onEditEnd?: () => void
   batchOffset: number
   onBatchAdjustTiming: (deltaMs: number) => void
@@ -217,6 +220,9 @@ export function MediaWaveform({
   onMergeLine,
   onSetPointFromPlayer,
   onUpdateLine,
+  onSeek,
+  onStopPlayback,
+  onDragStateChange,
   batchOffset,
   onBatchAdjustTiming,
   onEditEnd,
@@ -230,7 +236,11 @@ export function MediaWaveform({
   const onActiveLineChangeRef = useRef(onActiveLineChange)
   const onAddLineRef = useRef(onAddLine)
   const onUpdateLineRef = useRef(onUpdateLine)
+  const onSeekRef = useRef(onSeek)
+  const onStopPlaybackRef = useRef(onStopPlayback)
+  const onDragStateChangeRef = useRef(onDragStateChange)
   const onEditEndRef = useRef(onEditEnd)
+  const dragPreviewRef = useRef<HTMLSpanElement | null>(null)
   const isSyncingRegionsRef = useRef(false)
   const isDraggingRegionRef = useRef(false)
   const timeoutCleanupRef = useRef<(() => void) | null>(null)
@@ -302,8 +312,11 @@ export function MediaWaveform({
     onActiveLineChangeRef.current = onActiveLineChange
     onAddLineRef.current = onAddLine
     onUpdateLineRef.current = onUpdateLine
+    onSeekRef.current = onSeek
+    onStopPlaybackRef.current = onStopPlayback
+    onDragStateChangeRef.current = onDragStateChange
     onEditEndRef.current = onEditEnd
-  }, [onActiveLineChange, onAddLine, onUpdateLine, onEditEnd])
+  }, [onActiveLineChange, onAddLine, onUpdateLine, onSeek, onStopPlayback, onDragStateChange, onEditEnd])
 
 	  // Reset media ready state when source changes
 	  useEffect(() => {
@@ -483,7 +496,15 @@ export function MediaWaveform({
         if (disposed) return
         // 读取 canvas 像素会同步占用主线程；播放时留给音频和光标更新，
         // 暂停或下次空闲检查时再判断画布是否需要恢复。
-        if (!media.paused && !media.ended) return
+        if ((!media.paused && !media.ended) ||
+          isDraggingRegionRef.current ||
+          document.visibilityState !== 'visible' ||
+          waveformStatusRef.current !== 'ready' ||
+          !wavesurfer.getDecodedData()) return
+        if (Date.now() - lastRedrawAt <= 1500) {
+          scheduleHealth('redraw-settled', 1600)
+          return
+        }
         const dom = getWaveformDomSnapshot(waveformContainer)
         const currentActiveLineIndex = activeLineIndexRef.current
         const currentActiveLine = draftLinesRef.current[currentActiveLineIndex]
@@ -498,10 +519,7 @@ export function MediaWaveform({
               sampledCanvases.every((canvas) => canvas.nonTransparentProbePixels === 0)))
         // 隐藏页面、拖动过程和刚开始重绘时不做恢复。两次定时检查均确认
         // 完整画布为空才重绘，避免抽样落在柱间空隙或短暂渲染造成误触发。
-        const canCheck = document.visibilityState === 'visible' &&
-          Boolean(dom?.container.connected && dom.container.width > 0 && dom.container.height > 0) &&
-          waveformStatusRef.current === 'ready' && Boolean(wavesurfer.getDecodedData()) &&
-          !isDraggingRegionRef.current && Date.now() - lastRedrawAt > 1500
+        const canCheck = Boolean(dom?.container.connected && dom.container.width > 0 && dom.container.height > 0)
         const confirmedBlank = visibleCanvases.length === 0 ||
           visibleCanvases.every((canvas) => canvas.blankConfirmed || canvas.contextLost)
         const details = {
@@ -539,11 +557,6 @@ export function MediaWaveform({
           logMediaDebug('waveform-health', details)
         }
         if (!canCheck) {
-          // 切走页面不丢弃已发现的空白；返回时立即复核。重绘宽限期结束后
-          // 再检查，防止返回页面或重绘后又等待两个五秒周期。
-          if (document.visibilityState === 'visible' && Date.now() - lastRedrawAt <= 1500) {
-            scheduleHealth('redraw-settled', 1600)
-          }
           return
         }
         if (recoveryPending) {
@@ -699,12 +712,7 @@ export function MediaWaveform({
           ? clamp(nextTime, 0, maxTime)
           : Math.max(0, nextTime)
 
-        try {
-          media.currentTime = safeTime
-        } catch {
-          // 媒体正在切换 source 时可能暂时拒绝 seek；主播放器稍后会通过
-          // timeupdate 同步回来，不应因此打断波形编辑。
-        }
+        void onSeekRef.current(safeTime).then(syncWaveformToMainMedia, syncWaveformToMainMedia)
         setCurrentTime(safeTime)
         updateWaveformCursor(safeTime, !media.paused && !media.ended)
       }
@@ -718,15 +726,54 @@ export function MediaWaveform({
       media.addEventListener('loadedmetadata', syncWaveformToMainMedia)
       media.addEventListener('durationchange', syncDuration)
       media.addEventListener('seeking', syncWaveformToMainMedia)
+      media.addEventListener('seeked', syncWaveformToMainMedia)
       media.addEventListener('timeupdate', syncWaveformToMainMedia)
       media.addEventListener('play', startWaveformCursorSync)
       media.addEventListener('pause', stopWaveformCursorSync)
       media.addEventListener('ended', stopWaveformCursorSync)
 
+      let draggingRegion: Region | null = null
+      let cancelledDragId: string | null = null
+      const clearDragPreview = () => {
+        if (dragPreviewRef.current) dragPreviewRef.current.textContent = ''
+      }
+      const restoreRegion = (region: Region) => {
+        const committed = draftLinesRef.current.find((line) => line.id === region.id)
+        if (!committed) return
+        region.setOptions({
+          start: toWaveformTime(committed.start, wavesurfer),
+          end: toWaveformTime(committed.end, wavesurfer),
+        })
+      }
+      const cancelRegionDrag = () => {
+        if (!draggingRegion) return
+        cancelledDragId = draggingRegion.id
+        restoreRegion(draggingRegion)
+        draggingRegion = null
+        isDraggingRegionRef.current = false
+        onDragStateChangeRef.current(false)
+        clearDragPreview()
+      }
+      const beginPointerGesture = () => { cancelledDragId = null }
+      const onDragKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') cancelRegionDrag()
+      }
+      // WaveSurfer 将 pointercancel 也结束为 region-updated；先在捕获阶段标记取消，
+      // 避免失焦或触控取消时把预览位置提交进正式字幕与撤销历史。
+      waveformContainer.addEventListener('pointerdown', beginPointerGesture, true)
+      document.addEventListener('pointercancel', cancelRegionDrag, true)
+      window.addEventListener('blur', cancelRegionDrag)
+      window.addEventListener('keydown', onDragKeyDown, true)
+
 	      const cleanups = [
+	        () => waveformContainer.removeEventListener('pointerdown', beginPointerGesture, true),
+	        () => document.removeEventListener('pointercancel', cancelRegionDrag, true),
+	        () => window.removeEventListener('blur', cancelRegionDrag),
+	        () => window.removeEventListener('keydown', onDragKeyDown, true),
 	        () => media.removeEventListener('loadedmetadata', syncWaveformToMainMedia),
 	        () => media.removeEventListener('durationchange', syncDuration),
 	        () => media.removeEventListener('seeking', syncWaveformToMainMedia),
+	        () => media.removeEventListener('seeked', syncWaveformToMainMedia),
 	        () => media.removeEventListener('timeupdate', syncWaveformToMainMedia),
 	        () => media.removeEventListener('play', startWaveformCursorSync),
 	        () => media.removeEventListener('pause', stopWaveformCursorSync),
@@ -855,6 +902,7 @@ export function MediaWaveform({
           seekMainMedia(nextTime)
         }),
 	        regions.on('region-update', (region) => {
+          if (cancelledDragId === region.id) return
           const index = draftLinesRef.current.findIndex(
             (line) => line.id === region.id,
           )
@@ -862,45 +910,69 @@ export function MediaWaveform({
             return
           }
 
-	          if (!isDraggingRegionRef.current) media.pause()
+	          if (!isDraggingRegionRef.current) {
+            onStopPlaybackRef.current()
+            onDragStateChangeRef.current(true)
+          }
 	          isDraggingRegionRef.current = true
-	          onUpdateLineRef.current(index, {
-	            end: roundToMilliseconds(toMediaTime(region.end, wavesurfer)),
-	            start: roundToMilliseconds(toMediaTime(region.start, wavesurfer)),
-          }, region.id)
+          draggingRegion = region
+          if (dragPreviewRef.current) {
+            const start = roundToMilliseconds(toMediaTime(region.start, wavesurfer))
+            const end = roundToMilliseconds(toMediaTime(region.end, wavesurfer))
+            dragPreviewRef.current.textContent = `${index + 1} · ${formatTimeWithMilliseconds(start)} → ${formatTimeWithMilliseconds(end)}`
+          }
 	        }),
 	        regions.on('region-updated', (region, side) => {
+          if (cancelledDragId === region.id) {
+            cancelledDragId = null
+            return
+          }
           const index = draftLinesRef.current.findIndex(
             (line) => line.id === region.id,
           )
-	          if (index >= 0) {
+          const committed = draftLinesRef.current[index]
+          const start = roundToMilliseconds(toMediaTime(region.start, wavesurfer))
+          const end = roundToMilliseconds(toMediaTime(region.end, wavesurfer))
+          const changed = Boolean(committed && (
+            roundToMilliseconds(committed.start) !== start ||
+            roundToMilliseconds(committed.end) !== end
+          ))
+          draggingRegion = null
+          isDraggingRegionRef.current = false
+          onDragStateChangeRef.current(false)
+          clearDragPreview()
+          if (index >= 0 && changed) {
             logMediaDebug('region-drag-finished', {
-              end: roundToMilliseconds(toMediaTime(region.end, wavesurfer)),
+              end,
               index,
               lineId: region.id,
               media: getMediaSnapshot(mediaRef.current),
-              start: roundToMilliseconds(toMediaTime(region.start, wavesurfer)),
+              start,
             })
-	            // 最终写回前解除拖动态，让这次重排触发 Region 标签同步；否则序号内容
-	            // 会等到下一次无关编辑才刷新。
-	            isDraggingRegionRef.current = false
-	            onUpdateLineRef.current(index, {
-	              end: roundToMilliseconds(toMediaTime(region.end, wavesurfer)),
-	              start: roundToMilliseconds(toMediaTime(region.start, wavesurfer)),
-            }, region.id)
+            // Region 自己承担拖动期间的视觉反馈；正式字幕、排序和撤销历史只提交一次。
+            onUpdateLineRef.current(index, { start, end }, region.id)
+            onEditEndRef.current?.()
+          } else {
+            restoreRegion(region)
+          }
+          if (index >= 0) {
             // 拖动结束后把播放器定位到刚编辑的边界。此前播放器停在旧位置，
             // 用户继续按播放时会听到比新区域更早的声音。
             seekMainMedia(roundToMilliseconds(toMediaTime(
               side === 'end' ? region.end : region.start, wavesurfer,
             )))
           }
-          isDraggingRegionRef.current = false
-          onEditEndRef.current?.()
-          // 历史会忽略拖动结束的重复值；仍需强制完成布局同步，避免最后一帧
-          // 已渲染时 effect 因字幕引用未变而跳过分轨、区域标签和排序更新。
+          // 拖动结束后重新同步轨道布局、标签和排序。
           setFinishedDrag((value) => value + 1)
         }),
         regions.on('region-removed', (region) => {
+          if (draggingRegion?.id === region.id) {
+            cancelledDragId = region.id
+            draggingRegion = null
+            isDraggingRegionRef.current = false
+            onDragStateChangeRef.current(false)
+            clearDragPreview()
+          }
           delete regionByIdRef.current[region.id]
         }),
       ]
@@ -917,8 +989,9 @@ export function MediaWaveform({
       )
 
       // Store cleanup functions to be called when timeout is cleared or component unmounts
-	      const cleanup = () => {
+      const cleanup = () => {
         disposed = true
+        if (isDraggingRegionRef.current) onDragStateChangeRef.current(false)
         window.clearTimeout(healthTimeoutId)
         observer.disconnect()
         document.removeEventListener('visibilitychange', onVisibilityChange)
@@ -1282,6 +1355,7 @@ export function MediaWaveform({
             </Popover>
           </div>
 
+          <span className="waveform-drag-preview" ref={dragPreviewRef} />
           <div className="waveform-time-readout" aria-label="当前播放时间">
             {formatTimeWithMilliseconds(currentTime)} / {formatTimeWithMilliseconds(duration)}
           </div>

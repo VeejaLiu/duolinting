@@ -225,6 +225,18 @@
   white-space: nowrap;
 }
 
+.waveform-controls .waveform-drag-preview {
+  color: #0369a1;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.waveform-controls .waveform-drag-preview:empty {
+  display: none;
+}
+
 .waveform-canvas-wrap {
   background: #f8fafc;
   border: 1px solid #e2e8f0;

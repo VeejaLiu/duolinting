@@ -279,6 +279,7 @@ export function AudioLessonImporter({
     useState<SubtitleImportMode>('single')
   const [subtitleTimeOffset, setSubtitleTimeOffset] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
+  const [isDraggingTiming, setIsDraggingTiming] = useState(false)
   const [isUploadingMedia, setIsUploadingMedia] = useState(false)
   const [mediaUploadProgress, setMediaUploadProgress] =
     useState<FileUploadProgress | null>(null)
@@ -317,8 +318,9 @@ export function AudioLessonImporter({
     : undefined
   const isSubmittedSubtitleDraft = ownSubtitleDraft?.status === 'submitted'
   const isApprovedSubtitleDraft = ownSubtitleDraft?.status === 'approved'
-  const { playMedia, playMediaRange, stopPlayback } = useMediaPlayback({
+  const { playMedia, playMediaRange, seekMedia, stopPlayback } = useMediaPlayback({
     mediaRef,
+    sourceKey: localMediaUrl,
   })
 
   useEffect(() => {
@@ -374,7 +376,11 @@ export function AudioLessonImporter({
       event.stopPropagation()
 
       if (media.paused) {
-        void playMedia()
+        void playMedia().then((outcome) => {
+          if (outcome === 'timeout' || outcome === 'failed') {
+            onStatusChange('媒体播放未就绪，请稍后重试', 'error')
+          }
+        })
         return
       }
 
@@ -383,7 +389,7 @@ export function AudioLessonImporter({
 
     window.addEventListener('keydown', handleGlobalSpace, true)
     return () => window.removeEventListener('keydown', handleGlobalSpace, true)
-  }, [courseForm.audioUrl, playMedia, stopPlayback])
+  }, [courseForm.audioUrl, onStatusChange, playMedia, stopPlayback])
 
   useEffect(() => {
     if (
@@ -546,6 +552,9 @@ export function AudioLessonImporter({
     if (isUploadingMedia) {
       return '媒体上传中，请稍候'
     }
+    if (isDraggingTiming) {
+      return '请先结束字幕拖动'
+    }
     if (!mediaFile && !courseForm.audioUrl) {
       return '请先选择音频或视频文件'
     }
@@ -561,6 +570,7 @@ export function AudioLessonImporter({
     courseForm.categoryId,
     courseForm.title,
     isUploadingMedia,
+    isDraggingTiming,
     isSubmittedSubtitleDraft,
     isApprovedSubtitleDraft,
     mediaFile,
@@ -573,6 +583,9 @@ export function AudioLessonImporter({
       const current = snapshot.lines
       const targetIndex = current.findIndex((line) => line.id === targetId)
       if (targetIndex < 0) return snapshot
+      const target = current[targetIndex]
+      if (Object.entries(patch).every(([field, value]) =>
+        Object.is(target[field as keyof DraftLine], value))) return snapshot
       const updated = current.map((line, lineIndex) =>
         lineIndex === targetIndex ? { ...line, ...patch } : line,
       )
@@ -634,10 +647,13 @@ export function AudioLessonImporter({
   }
 
   const playLine = async (line: DraftLine) => {
-    await playMediaRange({
+    const outcome = await playMediaRange({
       end: line.end,
       start: line.start,
     })
+    if (outcome === 'timeout' || outcome === 'failed') {
+      onStatusChange('逐句试听未就绪，请稍后重试', 'error')
+    }
   }
 
   const persistDraftExercise = async (
@@ -1106,14 +1122,14 @@ export function AudioLessonImporter({
       if (target.closest('[role="dialog"]')) return
       event.preventDefault()
       event.stopPropagation()
-      if (isSaving || isSubmittingSubtitleDraft || isSubmittedSubtitleDraft || isApprovedSubtitleDraft || draft) return
+      if (isSaving || isDraggingTiming || isSubmittingSubtitleDraft || isSubmittedSubtitleDraft || isApprovedSubtitleDraft || draft) return
       stopPlayback()
       if (key === 'y' || event.shiftKey) redo()
       else undo()
     }
     window.addEventListener('keydown', handleHistoryShortcut)
     return () => window.removeEventListener('keydown', handleHistoryShortcut)
-  }, [draft, isSaving, isSubmittingSubtitleDraft, isSubmittedSubtitleDraft, isApprovedSubtitleDraft, redo, stopPlayback, undo])
+  }, [draft, isSaving, isDraggingTiming, isSubmittingSubtitleDraft, isSubmittedSubtitleDraft, isApprovedSubtitleDraft, redo, stopPlayback, undo])
 
   return (
     <section ref={workbenchRef} className="admin-section import-workbench" onBlurCapture={breakGroup}>
@@ -1138,9 +1154,9 @@ export function AudioLessonImporter({
           historyControls={
             <SubtitleHistoryControls
               history={history}
-              disabled={isSaving || isSubmittingSubtitleDraft || isSubmittedSubtitleDraft || isApprovedSubtitleDraft || Boolean(draft)}
-              onUndo={(steps) => { stopPlayback(); undo(steps) }}
-              onRedo={(steps) => { stopPlayback(); redo(steps) }}
+              disabled={isSaving || isDraggingTiming || isSubmittingSubtitleDraft || isSubmittedSubtitleDraft || isApprovedSubtitleDraft || Boolean(draft)}
+              onUndo={(steps) => { if (!isDraggingTiming) { stopPlayback(); undo(steps) } }}
+              onRedo={(steps) => { if (!isDraggingTiming) { stopPlayback(); redo(steps) } }}
             />
           }
           statusBar={
@@ -1227,6 +1243,14 @@ export function AudioLessonImporter({
                   }))
                 }}
                 onPlayLine={playLine}
+                onSeek={async (seconds) => {
+                  const outcome = await seekMedia(seconds)
+                  if (outcome === 'timeout' || outcome === 'failed') {
+                    onStatusChange('媒体定位未完成，请稍后重试', 'error')
+                  }
+                }}
+                onStopPlayback={stopPlayback}
+                onDragStateChange={setIsDraggingTiming}
                 onRemoveLine={removeLine}
                 onMergeLine={mergeLineWithNext}
                 onSetPointFromPlayer={setPointFromPlayer}
@@ -1243,7 +1267,11 @@ export function AudioLessonImporter({
             void handleFileChange(file)
           }}
           onPlayFromTime={(seconds) => {
-            void playMedia(seconds)
+            void playMedia(seconds).then((outcome) => {
+              if (outcome === 'timeout' || outcome === 'failed') {
+                onStatusChange('媒体播放未就绪，请稍后重试', 'error')
+              }
+            })
           }}
           onSaveLesson={() => void saveImportedLesson()}
           // 已提交或已通过的版本不再显示提交入口；只有审核退回后的工作稿可以重新提交。
