@@ -35,6 +35,16 @@
   position: relative;
 }
 
+/*
+ * Video intrinsically gives the card a 16:9 height, while an <audio> element
+ * without native controls contributes almost no visible height. Keep a real
+ * canvas for the transcript and custom controls in audio-only lessons so the
+ * two absolute overlays cannot collapse onto each other.
+ */
+.intensive-media-card.audio-media-card {
+  min-height: clamp(280px, 38vw, 360px);
+}
+
 .review-media-card {
   min-height: 360px;
 }

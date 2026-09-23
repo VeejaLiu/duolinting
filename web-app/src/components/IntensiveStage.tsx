@@ -145,7 +145,13 @@ export function IntensiveStage({
   return (
     <section className="stage-board intensive-board">
       <div className="sentence-workbench">
-        <div className="lesson-media-card">
+        <div
+          className={
+            exercise.mediaType === 'audio'
+              ? 'lesson-media-card intensive-media-card audio-media-card'
+              : 'lesson-media-card intensive-media-card'
+          }
+        >
           {exercise.mediaType === 'video' ? (
             <video
               ref={mediaRef as RefObject<HTMLVideoElement | null>}
