@@ -181,6 +181,8 @@ export function MediaCourseForm({
   const mediaEditorWorkspaceRef = useRef<HTMLDivElement | null>(null)
   const mediaDiagnosticsCleanupRef = useRef<(() => void) | null>(null)
   const resizeModeRef = useRef<MediaEditorResizeMode | null>(null)
+
+  useEffect(() => setPreviewTime(0), [localMediaUrl])
   const localizedContent = courseForm.localizations?.[localizationLocale] ?? {}
   const updateLocalizedContent = (patch: { title?: string; summary?: string }) =>
     onCourseFormChange((current) => ({
@@ -314,6 +316,15 @@ export function MediaCourseForm({
       previewTime >= line.start &&
       previewTime < line.end,
   )
+  const updatePreviewTime = (nextTime: number) => {
+    // 预览区只显示当前字幕；同一句内的 timeupdate 无需重绘整张课程表单。
+    setPreviewTime((previousTime) => {
+      const lineAt = (time: number) => previewLines.find(
+        (line) => line.text.trim() && time >= line.start && time < line.end,
+      )?.id
+      return lineAt(previousTime) === lineAt(nextTime) ? previousTime : nextTime
+    })
+  }
 
   const mediaReplaceControl = (
     <label className="file-drop media-replace-button">
@@ -802,9 +813,9 @@ export function MediaCourseForm({
                       playsInline
                       src={localMediaUrl}
                       onError={handleMediaError}
-                      onTimeUpdate={(event) => setPreviewTime(event.currentTarget.currentTime)}
+                      onTimeUpdate={(event) => updatePreviewTime(event.currentTarget.currentTime)}
                       onLoadedMetadata={(event) => {
-                        setPreviewTime(event.currentTarget.currentTime)
+                        updatePreviewTime(event.currentTarget.currentTime)
                         updateDuration(event.currentTarget.duration)
                       }}
                     />
@@ -833,9 +844,9 @@ export function MediaCourseForm({
                         controls
                         src={localMediaUrl}
                         onError={handleMediaError}
-                        onTimeUpdate={(event) => setPreviewTime(event.currentTarget.currentTime)}
+                        onTimeUpdate={(event) => updatePreviewTime(event.currentTarget.currentTime)}
                         onLoadedMetadata={(event) => {
-                          setPreviewTime(event.currentTarget.currentTime)
+                          updatePreviewTime(event.currentTarget.currentTime)
                           updateDuration(event.currentTarget.duration)
                         }}
                       />

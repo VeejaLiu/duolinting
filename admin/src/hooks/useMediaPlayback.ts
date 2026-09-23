@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 
 type UseMediaPlaybackOptions = {
   mediaRef: RefObject<HTMLMediaElement | null>
@@ -14,48 +14,8 @@ const SEEK_TOLERANCE_SECONDS = 0.001
 export function useMediaPlayback({
   mediaRef,
 }: UseMediaPlaybackOptions) {
-  const mediaElement = mediaRef.current
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const isPlayingRef = useRef(false)
   const playbackTokenRef = useRef(0)
   const rangeCleanupRef = useRef<(() => void) | null>(null)
-
-  useEffect(() => {
-    const media = mediaRef.current
-    if (!media) {
-      return
-    }
-
-    const syncPlaybackState = () => {
-      const playing = !media.paused && !media.ended
-      isPlayingRef.current = playing
-      setIsPlaying(playing)
-      setCurrentTime(Number.isFinite(media.currentTime) ? media.currentTime : 0)
-      setDuration(Number.isFinite(media.duration) ? media.duration : 0)
-    }
-
-    syncPlaybackState()
-
-    media.addEventListener('play', syncPlaybackState)
-    media.addEventListener('pause', syncPlaybackState)
-    media.addEventListener('ended', syncPlaybackState)
-    media.addEventListener('timeupdate', syncPlaybackState)
-    media.addEventListener('seeking', syncPlaybackState)
-    media.addEventListener('loadedmetadata', syncPlaybackState)
-    media.addEventListener('durationchange', syncPlaybackState)
-
-    return () => {
-      media.removeEventListener('play', syncPlaybackState)
-      media.removeEventListener('pause', syncPlaybackState)
-      media.removeEventListener('ended', syncPlaybackState)
-      media.removeEventListener('timeupdate', syncPlaybackState)
-      media.removeEventListener('seeking', syncPlaybackState)
-      media.removeEventListener('loadedmetadata', syncPlaybackState)
-      media.removeEventListener('durationchange', syncPlaybackState)
-    }
-  }, [mediaElement, mediaRef])
 
   useEffect(
     () => () => {
@@ -89,9 +49,7 @@ export function useMediaPlayback({
     playbackTokenRef.current += 1
     rangeCleanupRef.current?.()
     rangeCleanupRef.current = null
-    isPlayingRef.current = false
     mediaRef.current?.pause()
-    setIsPlaying(false)
   }
 
   const playMedia = async (startAt?: number) => {
@@ -118,7 +76,6 @@ export function useMediaPlayback({
       await media.play()
       return true
     } catch {
-      setIsPlaying(false)
       return false
     }
   }
@@ -161,8 +118,6 @@ export function useMediaPlayback({
       media.removeEventListener('error', finish)
       media.removeEventListener('timeupdate', checkRangeEnd)
       rangeCleanupRef.current = null
-      isPlayingRef.current = false
-      setIsPlaying(false)
     }
 
     // 只按实际媒体时间判断终点。墙上时间会在缓冲、后台暂停或倍速播放时
@@ -209,8 +164,6 @@ export function useMediaPlayback({
 
     try {
       await media.play()
-      isPlayingRef.current = true
-      setIsPlaying(true)
       return true
     } catch {
       finish()
@@ -219,9 +172,6 @@ export function useMediaPlayback({
   }
 
   return {
-    currentTime,
-    duration,
-    isPlaying,
     pauseMedia,
     playMedia,
     playMediaRange,

@@ -37,6 +37,7 @@ import {
   getBrowserSnapshot,
   getMediaSnapshot,
   getWaveformDomSnapshot,
+  isMediaDiagnosticsVerbose,
   logMediaDiagnostic,
   observeMediaElement,
 } from '../../lib/mediaDiagnostics'
@@ -401,19 +402,15 @@ export function MediaWaveform({
         zoom: zoomRef.current,
       })
 
-      // 纯音频直接共用主播放器的媒体时钟，避免两个 audio 元素在元数据、可跳转范围
-      // 或解码状态上出现差异。视频仍单独解码音轨，避免影响主视频的播放管线。
-      const usesMainAudio = media instanceof HTMLAudioElement
-      const waveformMedia = usesMainAudio ? media : document.createElement('audio')
-      if (!usesMainAudio) {
-        waveformMedia.crossOrigin = 'anonymous'
-        waveformMedia.muted = true
-        waveformMedia.preload = 'auto'
-        waveformMedia.src = sourceUrl
-      }
-      const stopWaveformMediaDiagnostics = usesMainAudio
-        ? () => {}
-        : observeMediaElement(waveformMedia, 'waveform-decoder')
+      // 波形仅用独立、静音的媒体元素解码。若把主 audio 交给 WaveSurfer，
+      // WaveSurfer 自带的播放计时器会与下方的主播放器同步循环同时刷新画布。
+      // 两套进度循环叠加会使长音频播放与光标更新出现卡顿。
+      const waveformMedia = document.createElement('audio')
+      waveformMedia.crossOrigin = 'anonymous'
+      waveformMedia.muted = true
+      waveformMedia.preload = 'auto'
+      waveformMedia.src = sourceUrl
+      const stopWaveformMediaDiagnostics = observeMediaElement(waveformMedia, 'waveform-decoder')
 
       const regions = RegionsPlugin.create()
       const wavesurfer = WaveSurfer.create({
@@ -441,8 +438,8 @@ export function MediaWaveform({
         normalize: true,
         plugins: [regions],
         progressColor: '#0f766e',
-        // 16k 保留语音中更多高频细节，同时避免不被浏览器稳定支持的 4k 采样率。
-        sampleRate: 16000,
+        // 8k 足够绘制语音波形，并避免长音频解码与画布重绘占用过多主线程时间。
+        sampleRate: 8000,
         media: waveformMedia,
         waveColor: '#64748b',
       })
@@ -484,6 +481,9 @@ export function MediaWaveform({
 
       const captureWaveformHealth = (reason: string) => {
         if (disposed) return
+        // 读取 canvas 像素会同步占用主线程；播放时留给音频和光标更新，
+        // 暂停或下次空闲检查时再判断画布是否需要恢复。
+        if (!media.paused && !media.ended) return
         const dom = getWaveformDomSnapshot(waveformContainer)
         const currentActiveLineIndex = activeLineIndexRef.current
         const currentActiveLine = draftLinesRef.current[currentActiveLineIndex]
@@ -680,6 +680,7 @@ export function MediaWaveform({
           waveformFrameId = null
         }
         syncWaveformToMainMedia()
+        if (!disposed) scheduleHealth('playback-stopped', 500)
       }
 
       const syncDuration = () => {
@@ -709,7 +710,6 @@ export function MediaWaveform({
       }
 
       const releaseWaveformMedia = () => {
-        if (usesMainAudio) return
         waveformMedia.pause()
         waveformMedia.removeAttribute('src')
         waveformMedia.load()
@@ -763,6 +763,7 @@ export function MediaWaveform({
           logMediaDebug('wavesurfer-redraw-start', { recoveryAttempts, scrollLeft: wavesurfer.getScroll() })
         }),
 	        wavesurfer.on('redrawcomplete', () => {
+          if (!isMediaDiagnosticsVerbose) return
           logMediaDebug('wavesurfer-redraw-complete', {
             waveformDom: getWaveformDomSnapshot(waveformContainer),
             zoom: zoomRef.current,
@@ -778,12 +779,14 @@ export function MediaWaveform({
           })
         }),
 	        wavesurfer.on('zoom', (minPxPerSec) => {
+          if (!isMediaDiagnosticsVerbose) return
           logMediaDebug('wavesurfer-zoom', {
             minPxPerSec,
             waveformDom: getWaveformDomSnapshot(waveformContainer),
           })
         }),
 	        wavesurfer.on('resize', () => {
+          if (!isMediaDiagnosticsVerbose) return
           logMediaDebug('wavesurfer-resize', {
             waveformDom: getWaveformDomSnapshot(waveformContainer),
           })

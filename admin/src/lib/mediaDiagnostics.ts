@@ -2,6 +2,10 @@ const MEDIA_LOG_PREFIX = '[DuolinTing Admin Media]'
 const STORAGE_KEY = 'duolinting.admin.media-diagnostics.v1'
 const MAX_PERSISTED_ENTRIES = 400
 const MAX_CONSOLE_REPLAY_ENTRIES = 80
+// Detailed media traces are opt-in so routine editing does not serialize and persist
+// large snapshots for every waveform or media event. Add ?mediaDebug=1 when diagnosing.
+export const isMediaDiagnosticsVerbose =
+  new URLSearchParams(window.location.search).get('mediaDebug') === '1'
 
 type DiagnosticLevel = 'error' | 'info' | 'warn'
 
@@ -283,6 +287,7 @@ export const logMediaDiagnostic = (
   details?: Record<string, unknown>,
   level: DiagnosticLevel = 'info',
 ) => {
+  if (level === 'info' && !isMediaDiagnosticsVerbose) return
   const normalizedDetails = details
     ? normalizeDiagnosticValue(details) as Record<string, unknown>
     : undefined
@@ -357,7 +362,7 @@ export const installGlobalMediaDiagnostics = () => {
 
   const previousEntries = readPersistedEntries()
   entries.push(...previousEntries)
-  if (previousEntries.length > 0) {
+  if (isMediaDiagnosticsVerbose && previousEntries.length > 0) {
     const replay = previousEntries.slice(-MAX_CONSOLE_REPLAY_ENTRIES)
     console.warn(
       MEDIA_LOG_PREFIX,
