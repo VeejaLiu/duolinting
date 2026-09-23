@@ -1242,6 +1242,9 @@ export function AudioLessonImporter({
           onFileChange={(file) => {
             void handleFileChange(file)
           }}
+          onPlayFromTime={(seconds) => {
+            void playMedia(seconds)
+          }}
           onSaveLesson={() => void saveImportedLesson()}
           // 已提交或已通过的版本不再显示提交入口；只有审核退回后的工作稿可以重新提交。
           onSubmitSubtitleDraft={isSubmittedSubtitleDraft || isApprovedSubtitleDraft

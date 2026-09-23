@@ -89,6 +89,7 @@ type MediaCourseFormProps = {
   onManualDltjsonImport: () => void
   onNotify: (message: string, tone?: AdminNoticeTone) => void
   onFileChange: (file: File | null) => void
+  onPlayFromTime: (seconds: number) => void
   onSaveLesson: () => void
   onSubmitSubtitleDraft?: () => void
 }
@@ -163,12 +164,14 @@ export function MediaCourseForm({
   onManualDltjsonImport,
   onNotify,
   onFileChange,
+  onPlayFromTime,
   onSaveLesson,
   onSubmitSubtitleDraft,
 }: MediaCourseFormProps) {
   const { t, uiLocale } = useAdminLanguage()
   const [localizationLocale, setLocalizationLocale] = useState<ContentLocale>('zh-CN')
   const [previewTime, setPreviewTime] = useState(0)
+  const [audioStartMilliseconds, setAudioStartMilliseconds] = useState(0)
   const [isCourseMetaOpen, setIsCourseMetaOpen] = useState(false)
   const [isSubtitleImporterOpen, setIsSubtitleImporterOpen] = useState(false)
   const [videoColumnPercent, setVideoColumnPercent] = useState(66)
@@ -815,15 +818,64 @@ export function MediaCourseForm({
                     )}
                   </div>
                 ) : (
-                  <audio
-                    ref={setMediaElement}
-                    className="media-player audio-player"
-                    controls
-                    src={localMediaUrl}
-                    onError={handleMediaError}
-                    onTimeUpdate={(event) => setPreviewTime(event.currentTarget.currentTime)}
-                    onLoadedMetadata={(event) => updateDuration(event.currentTarget.duration)}
-                  />
+                  <div className="audio-preview-stage">
+                    <div className="audio-preview-card">
+                      <div className="audio-preview-heading">
+                        <span className="audio-preview-icon"><FileAudio size={22} aria-hidden="true" /></span>
+                        <div>
+                          <strong>{t('音频')} · {t('预览')}</strong>
+                          <span title={currentMediaName}>{currentMediaName}</span>
+                        </div>
+                      </div>
+                      <audio
+                        ref={setMediaElement}
+                        className="media-player audio-player"
+                        controls
+                        src={localMediaUrl}
+                        onError={handleMediaError}
+                        onTimeUpdate={(event) => setPreviewTime(event.currentTarget.currentTime)}
+                        onLoadedMetadata={(event) => {
+                          setPreviewTime(event.currentTarget.currentTime)
+                          updateDuration(event.currentTarget.duration)
+                        }}
+                      />
+                      <div className="audio-precise-playback">
+                        <label htmlFor="audio-start-milliseconds">{t('开始')} (ms)</label>
+                        <input
+                          id="audio-start-milliseconds"
+                          min="0"
+                          step="1"
+                          type="number"
+                          value={audioStartMilliseconds}
+                          onChange={(event) => setAudioStartMilliseconds(Number(event.target.value))}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const mediaDuration = mediaRef.current?.duration
+                            const start = Math.max(0, Math.round(audioStartMilliseconds)) / 1000
+                            onPlayFromTime(typeof mediaDuration === 'number' && Number.isFinite(mediaDuration) && mediaDuration > 0
+                              ? Math.min(start, mediaDuration)
+                              : start)
+                          }}
+                        >
+                          {t('试听')}
+                        </button>
+                      </div>
+                      <div className="audio-subtitle-preview" aria-live="polite">
+                        {previewLine ? (
+                          <>
+                            <strong>{previewLine.text}</strong>
+                            {previewLine.translations['zh-CN'] && (
+                              <span>{previewLine.translations['zh-CN']}</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="audio-subtitle-empty">{t('暂无字幕')}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ))}
             </div>
             <div

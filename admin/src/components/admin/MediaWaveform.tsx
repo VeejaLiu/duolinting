@@ -128,6 +128,23 @@ const roundToMilliseconds = (seconds: number) =>
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value))
 
+// WaveSurfer 用解码后的时长绘制画布，却用媒体元素报告的时长计算区域和点击位置。
+// 某些编码（尤其 VBR 音频）的两个时长会不同；在两种坐标间换算，避免越往后偏差越大。
+const waveformTimeScale = (wavesurfer: WaveSurfer) => {
+  const mediaDuration = wavesurfer.getDuration()
+  const decodedDuration = wavesurfer.getDecodedData()?.duration
+  return Number.isFinite(mediaDuration) && mediaDuration > 0 &&
+    decodedDuration && Number.isFinite(decodedDuration) && decodedDuration > 0
+    ? mediaDuration / decodedDuration
+    : 1
+}
+
+const toWaveformTime = (mediaTime: number, wavesurfer: WaveSurfer) =>
+  mediaTime * waveformTimeScale(wavesurfer)
+
+const toMediaTime = (waveformTime: number, wavesurfer: WaveSurfer) =>
+  waveformTime / waveformTimeScale(wavesurfer)
+
 const MIN_LINE_DURATION_SECONDS = 0.001
 const BASE_PIXELS_PER_SECOND = 80
 const MIN_ZOOM = 1
@@ -261,11 +278,15 @@ export function MediaWaveform({
   }
 
   const duration = useMemo(() => {
+    const mediaDuration = mediaRef.current?.duration
+    if (mediaDuration && Number.isFinite(mediaDuration) && mediaDuration > 0) {
+      return mediaDuration
+    }
     if (waveform.status === 'ready') {
       return waveform.duration
     }
 
-    return mediaRef.current?.duration ?? 0
+    return 0
   }, [mediaRef, waveform])
 
   useEffect(() => {
@@ -380,15 +401,19 @@ export function MediaWaveform({
         zoom: zoomRef.current,
       })
 
-      // 只为波形准备独立的音频元素。不能把主 video 交给 WaveSurfer：
-      // WaveSurfer 初始化时会读取、监听并解码媒体，主播放器因此可能被同一次
-      // 视频解码失败拖垮。这个元素不挂到页面，也不会参与实际播放。
-      const waveformMedia = document.createElement('audio')
-      waveformMedia.crossOrigin = 'anonymous'
-      waveformMedia.muted = true
-      waveformMedia.preload = 'auto'
-      waveformMedia.src = sourceUrl
-      const stopWaveformMediaDiagnostics = observeMediaElement(waveformMedia, 'waveform-decoder')
+      // 纯音频直接共用主播放器的媒体时钟，避免两个 audio 元素在元数据、可跳转范围
+      // 或解码状态上出现差异。视频仍单独解码音轨，避免影响主视频的播放管线。
+      const usesMainAudio = media instanceof HTMLAudioElement
+      const waveformMedia = usesMainAudio ? media : document.createElement('audio')
+      if (!usesMainAudio) {
+        waveformMedia.crossOrigin = 'anonymous'
+        waveformMedia.muted = true
+        waveformMedia.preload = 'auto'
+        waveformMedia.src = sourceUrl
+      }
+      const stopWaveformMediaDiagnostics = usesMainAudio
+        ? () => {}
+        : observeMediaElement(waveformMedia, 'waveform-decoder')
 
       const regions = RegionsPlugin.create()
       const wavesurfer = WaveSurfer.create({
@@ -416,9 +441,8 @@ export function MediaWaveform({
         normalize: true,
         plugins: [regions],
         progressColor: '#0f766e',
-        // 4k 不是浏览器稳定支持的 AudioContext 采样率，部分视频会因此报
-        // PIPELINE_ERROR_DECODE；8k 足够绘制编辑波形且兼容性更好。
-        sampleRate: 8000,
+        // 16k 保留语音中更多高频细节，同时避免不被浏览器稳定支持的 4k 采样率。
+        sampleRate: 16000,
         media: waveformMedia,
         waveColor: '#64748b',
       })
@@ -603,8 +627,8 @@ export function MediaWaveform({
           return
         }
 
-        const waveformDuration = wavesurfer.getDuration()
-        if (!Number.isFinite(waveformDuration) || waveformDuration <= 0) {
+        const decodedDuration = wavesurfer.getDecodedData()?.duration
+        if (!Number.isFinite(decodedDuration) || !decodedDuration || decodedDuration <= 0) {
           return
         }
 
@@ -613,7 +637,7 @@ export function MediaWaveform({
         // 会触发媒体事件和额外解码，导致波形指针一跳一跳。真正的 seek 只在用户主动
         // 点击/拖动波形时发生，由 seekMainMedia 负责同步主播放器。
         wavesurfer.getRenderer().renderProgress(
-          clamp(nextTime / waveformDuration, 0, 1),
+          clamp(nextTime / decodedDuration, 0, 1),
           isPlaying,
         )
       }
@@ -658,6 +682,12 @@ export function MediaWaveform({
         syncWaveformToMainMedia()
       }
 
+      const syncDuration = () => {
+        if (!wavesurfer.getDecodedData()) return
+        setWaveform({ status: 'ready', duration: wavesurfer.getDuration() })
+        syncWaveformToMainMedia()
+      }
+
       const seekMainMedia = (nextTime: number) => {
         const mediaDuration = Number.isFinite(media.duration) && media.duration > 0
           ? media.duration
@@ -679,12 +709,14 @@ export function MediaWaveform({
       }
 
       const releaseWaveformMedia = () => {
+        if (usesMainAudio) return
         waveformMedia.pause()
         waveformMedia.removeAttribute('src')
         waveformMedia.load()
       }
 
       media.addEventListener('loadedmetadata', syncWaveformToMainMedia)
+      media.addEventListener('durationchange', syncDuration)
       media.addEventListener('seeking', syncWaveformToMainMedia)
       media.addEventListener('timeupdate', syncWaveformToMainMedia)
       media.addEventListener('play', startWaveformCursorSync)
@@ -693,18 +725,21 @@ export function MediaWaveform({
 
 	      const cleanups = [
 	        () => media.removeEventListener('loadedmetadata', syncWaveformToMainMedia),
+	        () => media.removeEventListener('durationchange', syncDuration),
 	        () => media.removeEventListener('seeking', syncWaveformToMainMedia),
 	        () => media.removeEventListener('timeupdate', syncWaveformToMainMedia),
 	        () => media.removeEventListener('play', startWaveformCursorSync),
 	        () => media.removeEventListener('pause', stopWaveformCursorSync),
 	        () => media.removeEventListener('ended', stopWaveformCursorSync),
 	        () => stopWaveformCursorSync(),
-	        wavesurfer.on('interaction', (time) => {
-          seekMainMedia(time)
+        wavesurfer.on('interaction', (time) => {
+          seekMainMedia(toMediaTime(time, wavesurfer))
         }),
-	        wavesurfer.on('ready', (readyDuration) => {
+        wavesurfer.on('ready', (readyDuration) => {
+          const decodedDuration = wavesurfer.getDecodedData()?.duration
           logMediaDebug('wavesurfer-ready', {
             duration: readyDuration,
+            decodedDuration,
             media: getMediaSnapshot(media),
             regionCount: draftLinesRef.current.length,
           })
@@ -785,9 +820,9 @@ export function MediaWaveform({
             return
           }
 
-          const start = roundToMilliseconds(region.start)
+          const start = roundToMilliseconds(toMediaTime(region.start, wavesurfer))
           const end = roundToMilliseconds(
-            Math.max(region.end, region.start + MIN_LINE_DURATION_SECONDS),
+            toMediaTime(Math.max(region.end, region.start + MIN_LINE_DURATION_SECONDS), wavesurfer),
           )
           region.remove()
           onAddLineRef.current({ start, end })
@@ -808,12 +843,12 @@ export function MediaWaveform({
           const regionRect = region.element?.getBoundingClientRect()
           const regionDuration = region.end - region.start
           if (!regionRect || regionRect.width <= 0 || regionDuration <= 0) {
-            seekMainMedia(region.start)
+            seekMainMedia(toMediaTime(region.start, wavesurfer))
             return
           }
 
           const ratio = clamp((event.clientX - regionRect.left) / regionRect.width, 0, 1)
-          const nextTime = roundToMilliseconds(region.start + regionDuration * ratio)
+          const nextTime = roundToMilliseconds(toMediaTime(region.start + regionDuration * ratio, wavesurfer))
           seekMainMedia(nextTime)
         }),
 	        regions.on('region-update', (region) => {
@@ -824,31 +859,37 @@ export function MediaWaveform({
             return
           }
 
+	          if (!isDraggingRegionRef.current) media.pause()
 	          isDraggingRegionRef.current = true
 	          onUpdateLineRef.current(index, {
-	            end: roundToMilliseconds(region.end),
-	            start: roundToMilliseconds(region.start),
-	          }, region.id)
+	            end: roundToMilliseconds(toMediaTime(region.end, wavesurfer)),
+	            start: roundToMilliseconds(toMediaTime(region.start, wavesurfer)),
+          }, region.id)
 	        }),
-	        regions.on('region-updated', (region) => {
+	        regions.on('region-updated', (region, side) => {
           const index = draftLinesRef.current.findIndex(
             (line) => line.id === region.id,
           )
 	          if (index >= 0) {
             logMediaDebug('region-drag-finished', {
-              end: roundToMilliseconds(region.end),
+              end: roundToMilliseconds(toMediaTime(region.end, wavesurfer)),
               index,
               lineId: region.id,
               media: getMediaSnapshot(mediaRef.current),
-              start: roundToMilliseconds(region.start),
+              start: roundToMilliseconds(toMediaTime(region.start, wavesurfer)),
             })
 	            // 最终写回前解除拖动态，让这次重排触发 Region 标签同步；否则序号内容
 	            // 会等到下一次无关编辑才刷新。
 	            isDraggingRegionRef.current = false
 	            onUpdateLineRef.current(index, {
-	              end: roundToMilliseconds(region.end),
-	              start: roundToMilliseconds(region.start),
+	              end: roundToMilliseconds(toMediaTime(region.end, wavesurfer)),
+	              start: roundToMilliseconds(toMediaTime(region.start, wavesurfer)),
             }, region.id)
+            // 拖动结束后把播放器定位到刚编辑的边界。此前播放器停在旧位置，
+            // 用户继续按播放时会听到比新区域更早的声音。
+            seekMainMedia(roundToMilliseconds(toMediaTime(
+              side === 'end' ? region.end : region.start, wavesurfer,
+            )))
           }
           isDraggingRegionRef.current = false
           onEditEndRef.current?.()
@@ -958,7 +999,8 @@ export function MediaWaveform({
 
   useEffect(() => {
     const regions = regionsRef.current
-    if (!regions || waveform.status !== 'ready' || isDraggingRegionRef.current) {
+    const wavesurfer = waveSurferRef.current
+    if (!regions || !wavesurfer || waveform.status !== 'ready' || isDraggingRegionRef.current) {
       return
     }
 
@@ -983,12 +1025,14 @@ export function MediaWaveform({
         return
       }
 
-      const start = clamp(line.start, 0, duration)
-      const end = clamp(
-        Math.max(line.end, start + MIN_LINE_DURATION_SECONDS),
-        start + MIN_LINE_DURATION_SECONDS,
+      const mediaStart = clamp(line.start, 0, duration)
+      const mediaEnd = clamp(
+        Math.max(line.end, mediaStart + MIN_LINE_DURATION_SECONDS),
+        mediaStart + MIN_LINE_DURATION_SECONDS,
         duration,
       )
+      const start = toWaveformTime(mediaStart, wavesurfer)
+      const end = toWaveformTime(mediaEnd, wavesurfer)
       const color = index === activeLineIndex ? ACTIVE_REGION_COLOR : INACTIVE_REGION_COLOR
       const region = regionByIdRef.current[line.id]
 

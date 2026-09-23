@@ -9,7 +9,7 @@ type PlaybackRange = {
   start: number
 }
 
-const SEEK_TOLERANCE_SECONDS = 0.025
+const SEEK_TOLERANCE_SECONDS = 0.001
 
 export function useMediaPlayback({
   mediaRef,
@@ -71,12 +71,10 @@ export function useMediaPlayback({
       function finish() {
         window.clearTimeout(timeoutId)
         media.removeEventListener('seeked', finish)
-        media.removeEventListener('canplay', finish)
         resolve()
       }
 
       media.addEventListener('seeked', finish, { once: true })
-      media.addEventListener('canplay', finish, { once: true })
       media.currentTime = targetTime
 
       if (
@@ -103,6 +101,11 @@ export function useMediaPlayback({
     }
 
     if (typeof startAt === 'number') {
+      // 精确跳转会取代正在进行的逐句试听，先撤销旧的结束点监听，
+      // 避免新播放仍被上一句的范围计时器暂停。
+      playbackTokenRef.current += 1
+      rangeCleanupRef.current?.()
+      rangeCleanupRef.current = null
       await seekMediaTo(media, startAt)
     } else if (
       media.ended ||
@@ -145,7 +148,6 @@ export function useMediaPlayback({
 
     let finished = false
     let frameId = 0
-    let timeoutId = 0
 
     const finish = () => {
       if (finished) {
@@ -154,18 +156,20 @@ export function useMediaPlayback({
       finished = true
       playbackTokenRef.current += 1
       window.cancelAnimationFrame(frameId)
-      window.clearTimeout(timeoutId)
       media.removeEventListener('pause', finish)
       media.removeEventListener('ended', finish)
       media.removeEventListener('error', finish)
+      media.removeEventListener('timeupdate', checkRangeEnd)
       rangeCleanupRef.current = null
       isPlayingRef.current = false
       setIsPlaying(false)
     }
 
-    const stopAtEnd = () => {
+    // 只按实际媒体时间判断终点。墙上时间会在缓冲、后台暂停或倍速播放时
+    // 与音轨位置脱节，提前把播放器跳到字幕结束点。
+    const checkRangeEnd = () => {
       if (safeEnd === undefined) {
-        return
+        return false
       }
 
       if (media.currentTime >= safeEnd) {
@@ -174,18 +178,24 @@ export function useMediaPlayback({
           media.currentTime = safeEnd
         }
         finish()
-        return
+        return true
       }
 
-      frameId = window.requestAnimationFrame(stopAtEnd)
+      return false
+    }
+
+    const stopAtEnd = () => {
+      if (!checkRangeEnd()) {
+        frameId = window.requestAnimationFrame(stopAtEnd)
+      }
     }
 
     rangeCleanupRef.current = () => {
       window.cancelAnimationFrame(frameId)
-      window.clearTimeout(timeoutId)
       media.removeEventListener('pause', finish)
       media.removeEventListener('ended', finish)
       media.removeEventListener('error', finish)
+      media.removeEventListener('timeupdate', checkRangeEnd)
     }
 
     media.addEventListener('pause', finish)
@@ -193,17 +203,7 @@ export function useMediaPlayback({
     media.addEventListener('error', finish)
 
     if (safeEnd !== undefined) {
-      const remainingMilliseconds = Math.max(
-        0,
-        Math.round((safeEnd - safeStart) * 1000),
-      )
-      timeoutId = window.setTimeout(() => {
-        if (media.currentTime < safeEnd) {
-          media.currentTime = safeEnd
-        }
-        media.pause()
-        finish()
-      }, remainingMilliseconds)
+      media.addEventListener('timeupdate', checkRangeEnd)
       frameId = window.requestAnimationFrame(stopAtEnd)
     }
 
