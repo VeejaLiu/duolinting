@@ -482,9 +482,11 @@ export function SettingsScreen() {
             <View className="mt-2 min-h-[50px] flex-row items-center rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4">
               <TextInput
                 autoCapitalize="none"
+                autoComplete="current-password"
                 autoCorrect={false}
                 className="min-h-[50px] flex-1 text-base font-bold text-text-primary"
                 editable={!deleteAccountMutation.isPending}
+                importantForAutofill="yes"
                 onChangeText={setDeletePassword}
                 placeholder={t('password.placeholder')}
                 placeholderTextColor="#8191a6"

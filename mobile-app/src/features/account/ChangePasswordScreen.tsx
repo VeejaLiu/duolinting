@@ -1,7 +1,7 @@
 import { FontAwesome6 } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Pressable, Text, TextInput, View, type TextInputProps } from 'react-native'
 import { Button } from '@/components/foundation/Button'
 import { AppScrollView } from '@/components/primitives/AppScrollView'
 import { SafeScreen } from '@/components/primitives/SafeScreen'
@@ -9,10 +9,12 @@ import { useChangePasswordMutation } from '@/features/auth/hooks'
 import { useLanguage } from '@/i18n/LanguageProvider'
 
 function PasswordField({
+  autoComplete,
   label,
   value,
   onChangeText,
 }: {
+  autoComplete: TextInputProps['autoComplete']
   label: string
   value: string
   onChangeText: (value: string) => void
@@ -26,8 +28,10 @@ function PasswordField({
       <View className="min-h-[50px] flex-row items-center rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4">
         <TextInput
           autoCapitalize="none"
+          autoComplete={autoComplete}
           autoCorrect={false}
           className="min-h-[50px] flex-1 pr-3 text-base font-bold text-text-primary"
+          importantForAutofill="yes"
           onChangeText={onChangeText}
           placeholder={t('password.placeholder')}
           placeholderTextColor="#8191a6"
@@ -131,16 +135,19 @@ export function ChangePasswordScreen() {
             </View>
 
             <PasswordField
+              autoComplete="current-password"
               label={t('password.current')}
               onChangeText={setCurrentPassword}
               value={currentPassword}
             />
             <PasswordField
+              autoComplete="new-password"
               label={t('password.new')}
               onChangeText={setNewPassword}
               value={newPassword}
             />
             <PasswordField
+              autoComplete="new-password"
               label={t('password.confirmNew')}
               onChangeText={setConfirmedPassword}
               value={confirmedPassword}

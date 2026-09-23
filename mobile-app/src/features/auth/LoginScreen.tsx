@@ -2,7 +2,7 @@ import { FontAwesome6 } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
-import { Animated, Pressable, Text, TextInput, View } from 'react-native'
+import { Animated, Platform, Pressable, Text, TextInput, View } from 'react-native'
 import { SafeScreen } from '@/components/primitives/SafeScreen'
 import { AppScrollView } from '@/components/primitives/AppScrollView'
 import { Button } from '@/components/foundation/Button'
@@ -22,6 +22,7 @@ export function LoginScreen() {
   const [mode, setMode] = useState<AuthMode>('login')
   const [switcherWidth, setSwitcherWidth] = useState(0)
   const modeProgress = useRef(new Animated.Value(0)).current
+  const passwordInputRef = useRef<TextInput | null>(null)
   const loginMutation = useLoginMutation()
   const registerMutation = useRegisterMutation()
   const pendingPath = useNavigationStore((state) => state.pendingPath)
@@ -41,6 +42,11 @@ export function LoginScreen() {
   const visibleError = formError || submitError
   const switcherInnerWidth = Math.max(switcherWidth - 12, 0)
   const switcherThumbWidth = switcherInnerWidth / 2
+  // Android 区分新账号用户名与已有账号用户名；其他平台用通用 username。
+  // 密码字段同理区分当前密码和新密码，让系统能正确填充或提示保存。
+  const usernameAutoComplete =
+    mode === 'register' && Platform.OS === 'android' ? 'username-new' : 'username'
+  const passwordAutoComplete = mode === 'login' ? 'current-password' : 'new-password'
 
   useEffect(() => {
     Animated.spring(modeProgress, {
@@ -242,12 +248,20 @@ export function LoginScreen() {
                     {t('auth.email')}
                   </Text>
                   <TextInput
+                    key={`auth-${mode}-username`}
+                    accessibilityLabel={t('auth.email')}
                     autoCapitalize="none"
+                    autoComplete={usernameAutoComplete}
+                    autoCorrect={false}
                     className="min-h-[50px] rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4 text-base font-bold text-text-primary"
+                    importantForAutofill="yes"
                     keyboardType="email-address"
+                    nativeID={`auth-${mode}-username`}
                     onChangeText={setEmail}
+                    onSubmitEditing={() => passwordInputRef.current?.focus()}
                     placeholder={t('auth.emailPlaceholder')}
                     placeholderTextColor="#8191a6"
+                    returnKeyType="next"
                     value={email}
                   />
                 </View>
@@ -258,10 +272,20 @@ export function LoginScreen() {
                   </Text>
                   <View className="min-h-[50px] flex-row items-center rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4">
                     <TextInput
+                      key={`auth-${mode}-password`}
+                      ref={passwordInputRef}
+                      accessibilityLabel={t('auth.password')}
+                      autoCapitalize="none"
+                      autoComplete={passwordAutoComplete}
+                      autoCorrect={false}
                       className="min-h-[50px] flex-1 pr-3 text-base font-bold text-text-primary"
+                      importantForAutofill="yes"
+                      nativeID={`auth-${mode}-password`}
                       onChangeText={setPassword}
+                      onSubmitEditing={() => void submit()}
                       placeholder={t('auth.passwordPlaceholder')}
                       placeholderTextColor="#8191a6"
+                      returnKeyType="done"
                       secureTextEntry={!showPassword}
                       value={password}
                     />
