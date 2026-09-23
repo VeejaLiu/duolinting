@@ -264,8 +264,8 @@ export function ContentAdmin({
               await onRefreshCatalog()
               localizedNotify(
                 adminUserId
-                  ? `已更新“${exercise.title}”的${workflowRole === 'proofreader' ? '校对负责人' : '二审负责人'}`
-                  : `已取消“${exercise.title}”的${workflowRole === 'proofreader' ? '校对负责人' : '二审负责人'}`,
+                  ? t('已更新“{{title}}”的{{role}}', { title: exercise.title, role: t(workflowRole === 'proofreader' ? '校对负责人' : '二审负责人') })
+                  : t('已取消“{{title}}”的{{role}}', { title: exercise.title, role: t(workflowRole === 'proofreader' ? '校对负责人' : '二审负责人') }),
                 'success',
               )
             } catch (error) {

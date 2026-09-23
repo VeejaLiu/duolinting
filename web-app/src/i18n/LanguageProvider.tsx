@@ -4,6 +4,8 @@ import { messages, type MessageKey } from './messages'
 
 const UI_LOCALE_KEY = 'duolinting.web.ui-locale.v1'
 const CONTENT_LOCALE_KEY = 'duolinting.web.content-locale.v1'
+export const DEFAULT_UI_LOCALE: UiLocale = 'en-US'
+export const DEFAULT_CONTENT_LOCALE: ContentLocale = 'en-US'
 
 export const uiLocaleLabels: Record<UiLocale, string> = {
   'en-US': 'English',
@@ -36,14 +38,14 @@ const LanguageContext = createContext<LanguageContextValue | null>(null)
 const getInitialUiLocale = (): UiLocale => {
   const stored = localStorage.getItem(UI_LOCALE_KEY)
   if (stored === 'zh-CN' || stored === 'en-US' || stored === 'th-TH' || stored === 'ja-JP' || stored === 'fr-FR' || stored === 'es-ES') return stored
-  return 'en-US'
+  return DEFAULT_UI_LOCALE
 }
 
 const getInitialContentLocale = (): ContentLocale => {
   const stored = localStorage.getItem(CONTENT_LOCALE_KEY)
   return stored === 'zh-CN' || stored === 'en-US' || stored === 'th-TH' || stored === 'ja-JP' || stored === 'fr-FR' || stored === 'es-ES'
     ? stored
-    : 'en-US'
+    : DEFAULT_CONTENT_LOCALE
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {

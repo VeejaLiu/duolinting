@@ -4,6 +4,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { adminMessages } from '../admin/src/i18n/messages.ts'
+import { DEFAULT_ADMIN_UI_LOCALE, translateAdminMessage } from '../admin/src/i18n/AdminLanguageProvider.tsx'
+import { DEFAULT_CONTENT_LOCALE, DEFAULT_UI_LOCALE } from '../web-app/src/i18n/LanguageProvider.tsx'
+import { defaultLanguagePreferences } from '../mobile-app/src/i18n/locale.ts'
 import { directoryName, courseTitle, workflowCourseTitle } from '../admin/src/lib/localizedContent.ts'
 import { parseWorkflowLocalizations } from '../backend/src/general/admin/workflow-localizations.ts'
 
@@ -19,10 +22,25 @@ for (const key of keys) {
   }
 }
 
-// Check literal and conditional translation calls, plus menu label objects, so new UI copy cannot silently fall back.
+// Check literal and conditional translation calls, notification callbacks, and
+// thrown workflow errors so new UI copy cannot silently fall back to Chinese.
 const required = new Set()
+const requiredTemplates = new Set()
+const untranslatedJsx = []
+const translatedCallNames = new Set(['t', 'localizedNotify', 'onNotify', 'onStatusChange'])
+const templateSignature = (node) => {
+  if (!ts.isTemplateExpression(node)) return null
+  return `${node.head.text}${node.templateSpans.map((span) => `\${}${span.literal.text}`).join('')}`
+}
+const keyTemplateSignatures = new Set(
+  [...keys]
+    .filter((key) => key.includes('{{'))
+    .map((key) => key.replace(/\{\{[^}]+}}/g, '${}')),
+)
 function collect(node) {
   if (ts.isStringLiteral(node) && /[\u4e00-\u9fff]/.test(node.text)) required.add(node.text)
+  const signature = templateSignature(node)
+  if (signature && /[\u4e00-\u9fff]/.test(signature)) requiredTemplates.add(signature)
   ts.forEachChild(node, collect)
 }
 function inspect(dir) {
@@ -33,9 +51,16 @@ function inspect(dir) {
     } else if (/\.tsx?$/.test(file)) {
       const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true)
       function visit(node) {
-        if (ts.isCallExpression(node) && node.expression.getText(source) === 't' && node.arguments[0]) collect(node.arguments[0])
+        if (ts.isCallExpression(node) && translatedCallNames.has(node.expression.getText(source)) && node.arguments[0]) collect(node.arguments[0])
+        if (ts.isNewExpression(node) && node.expression.getText(source) === 'Error' && node.arguments?.[0]) collect(node.arguments[0])
         if (ts.isPropertyAssignment(node) && node.name.getText(source) === 'label' && ts.isStringLiteral(node.initializer)) collect(node.initializer)
         if (ts.isVariableDeclaration(node) && node.name.getText(source) === 'eventTagLabel' && node.initializer) collect(node.initializer)
+        if (ts.isJsxText(node) && /[\u4e00-\u9fff]/.test(node.text)) {
+          untranslatedJsx.push(`${path.relative(root, file)}:${source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1}`)
+        }
+        if (ts.isJsxAttribute(node) && node.initializer && ts.isStringLiteral(node.initializer) && /[\u4e00-\u9fff]/.test(node.initializer.text)) {
+          untranslatedJsx.push(`${path.relative(root, file)}:${source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1}`)
+        }
         ts.forEachChild(node, visit)
       }
       visit(source)
@@ -46,6 +71,27 @@ inspect(path.join(root, 'admin/src'))
 for (const key of required) {
   for (const locale of locales) assert.ok(adminMessages[locale][key], `UI key missing in ${locale}: ${key}`)
 }
+for (const signature of requiredTemplates) {
+  assert.ok(keyTemplateSignatures.has(signature), `UI template missing in message catalog: ${signature}`)
+}
+assert.deepEqual(untranslatedJsx, [], `Untranslated Chinese JSX: ${untranslatedJsx.join(', ')}`)
+
+// Notifications may reach the provider after their dynamic values have already
+// been inserted. Verify the reverse template lookup still localizes them.
+assert.equal(
+  translateAdminMessage('en-US', '媒体已上传：media/example.mp4'),
+  'Media uploaded: media/example.mp4',
+)
+assert.equal(
+  translateAdminMessage('en-US', '字幕稿已通过二次审核并发布'),
+  'Subtitle draft passed second review and was published',
+)
+
+// First launch and missing stored preferences must remain English on every app.
+assert.equal(DEFAULT_ADMIN_UI_LOCALE, 'en-US')
+assert.equal(DEFAULT_UI_LOCALE, 'en-US')
+assert.equal(DEFAULT_CONTENT_LOCALE, 'en-US')
+assert.deepEqual(defaultLanguagePreferences(), { uiLocale: 'en-US', contentLocale: 'en-US' })
 
 // The screenshots exposed display paths using raw names. Verify localized labels and safe English fallback.
 const directory = { name: 'Animation', localizations: { 'zh-CN': { name: '动画片' }, 'fr-FR': { name: 'Animation française' } } }
@@ -66,4 +112,4 @@ assert.deepEqual(parseWorkflowLocalizations({ 'fr-FR': { title: 12 }, 'es-ES': {
 assert.equal(adminMessages['zh-CN']['提交校对'], '提交校对')
 assert.equal(adminMessages['zh-CN']['全部动态'], '全部动态')
 assert.equal(adminMessages['zh-CN']['我的任务'], '我的任务')
-console.log(`Admin i18n checks passed: ${keys.size} keys across six languages, ${required.size} UI keys, localized content and workflow titles.`)
+console.log(`Admin i18n checks passed: ${keys.size} keys across six languages, ${required.size} UI keys, ${requiredTemplates.size} dynamic templates, English defaults, localized content and workflow titles.`)

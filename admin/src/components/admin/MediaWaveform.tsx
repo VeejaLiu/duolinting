@@ -1215,7 +1215,7 @@ export function MediaWaveform({
               onClick={() => setZoom((current) => clampZoom(current - ZOOM_STEP))}
             />
             <input
-              aria-label="波形缩放比例"
+              aria-label={t('波形缩放比例')}
               max={MAX_ZOOM}
               min={MIN_ZOOM}
               step={ZOOM_STEP}
@@ -1360,7 +1360,7 @@ export function MediaWaveform({
           </div>
 
           <span className="waveform-drag-preview" ref={dragPreviewRef} />
-          <div className="waveform-time-readout" aria-label="当前播放时间">
+          <div className="waveform-time-readout" aria-label={t('当前播放时间')}>
             {formatTimeWithMilliseconds(currentTime)} / {formatTimeWithMilliseconds(duration)}
           </div>
         </div>

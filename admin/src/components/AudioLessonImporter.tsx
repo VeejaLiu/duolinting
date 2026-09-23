@@ -520,11 +520,11 @@ export function AudioLessonImporter({
       createImporterSnapshot(nextCourseForm, nextDraftLines, ''),
     )
     const returnedNote = adminRole === 'subtitle_contributor' && exercise.subtitleDrafts?.[0]?.status === 'returned'
-      ? `；审核意见：${exercise.subtitleDrafts[0].reviewNote ?? '请按意见修改后重新提交'}`
+      ? t('；审核意见：{{note}}', { note: exercise.subtitleDrafts[0].reviewNote ?? t('请按意见修改后重新提交') })
       : ''
-    onStatusChange(`已载入课程：${exercise.title}${returnedNote}`, 'success')
+    onStatusChange(t('已载入课程：{{title}}{{note}}', { title: exercise.title, note: returnedNote }), 'success')
     onDraftConsumed()
-  }, [adminRole, draft, loadedExercise, onDraftConsumed, onStatusChange, resetSubtitles, setActiveLineIndex])
+  }, [adminRole, draft, loadedExercise, onDraftConsumed, onStatusChange, resetSubtitles, setActiveLineIndex, t])
 
   const activeLine = draftLines[activeLineIndex] ?? draftLines[0]
   const validLineCount = useMemo(() => {

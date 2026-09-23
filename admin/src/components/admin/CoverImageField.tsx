@@ -225,7 +225,7 @@ export function CoverImageField({
       onNotify('正在获取远程图片...', 'info')
       const response = await fetch(resolveApiUrl(nextUrl))
       if (!response.ok) {
-        throw new Error(`远程图片获取失败: ${response.status}`)
+        throw new Error(`远程图片获取失败：${response.status}`)
       }
       const contentType = response.headers.get('content-type')?.split(';')[0] ?? ''
       if (!contentType.startsWith('image/')) {

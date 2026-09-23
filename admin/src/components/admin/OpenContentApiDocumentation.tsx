@@ -68,37 +68,36 @@ function CodeExample({ code, language, onNotify }: CodeExampleProps) {
   )
 }
 
-const apiRequestHeaderColumns: ColumnsType<ApiRequestHeader> = [
-  {
-    dataIndex: 'name',
-    key: 'name',
-    title: '请求头',
-    width: '24%',
-    render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
-  },
-  {
-    dataIndex: 'required',
-    key: 'required',
-    title: '必填',
-    width: 64,
-    render: (value: string) => <Tag color="red">{value}</Tag>,
-  },
-  {
-    dataIndex: 'value',
-    key: 'value',
-    title: '值',
-    width: '30%',
-    render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
-  },
-  {
-    dataIndex: 'description',
-    key: 'description',
-    title: '说明',
-  },
-]
-
 function ApiRequestCard({ method, path, description, headers, pathParams }: ApiRequestCardProps) {
   const { t } = useAdminLanguage()
+  const apiRequestHeaderColumns: ColumnsType<ApiRequestHeader> = [
+    {
+      dataIndex: 'name',
+      key: 'name',
+      title: t('请求头'),
+      width: '24%',
+      render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
+    },
+    {
+      dataIndex: 'required',
+      key: 'required',
+      title: t('必填'),
+      width: 64,
+      render: (value: string) => <Tag color="red">{value}</Tag>,
+    },
+    {
+      dataIndex: 'value',
+      key: 'value',
+      title: t('值'),
+      width: '30%',
+      render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
+    },
+    {
+      dataIndex: 'description',
+      key: 'description',
+      title: t('说明'),
+    },
+  ]
   return (
     <div className="open-content-api-request-card">
       <div className="open-content-api-request-title">
@@ -149,41 +148,6 @@ function ApiRequestCard({ method, path, description, headers, pathParams }: ApiR
     </div>
   )
 }
-
-const dltjsonFields: DltjsonField[] = [
-  { field: 'version', description: '格式版本；当前固定为 "2.0"。' },
-  { field: 'type', description: '文件类型；当前固定为 "dltjson"。' },
-  { field: 'course', description: '课程元数据，包括标题、来源、难度、排序和本地化内容。' },
-  { field: 'lines[].id', description: '句子的稳定标识。外部仓库更新内容时应保留该值。' },
-  { field: 'lines[].start / end', description: '句子在原媒体时间轴上的起止秒数，均为 number。' },
-  { field: 'lines[].text', description: '英文原句。' },
-  { field: 'lines[].translation / translations', description: '兼容译文与按语言存放的多语言译文。' },
-  { field: 'lines[].answers / keywords', description: '可接受答案与关键词数组。' },
-]
-
-const dltjsonColumns: ColumnsType<DltjsonField> = [
-  {
-    dataIndex: 'field',
-    key: 'field',
-    title: '字段',
-    width: '34%',
-    render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
-  },
-  {
-    dataIndex: 'description',
-    key: 'description',
-    title: '说明',
-  },
-]
-
-const apiKeyHeaders: ApiRequestHeader[] = [
-  {
-    name: 'X-DuolinTing-API-Key',
-    required: '是',
-    value: '$DUOLINTING_OPEN_CONTENT_API_KEY',
-    description: '开放内容 API Key。请使用环境变量，不要把明文 Key 写进代码仓库。',
-  },
-]
 
 const catalogExample = [
   '{',
@@ -311,6 +275,34 @@ export function OpenContentApiDocumentation({
   onNotify,
 }: OpenContentApiDocumentationProps) {
   const { t } = useAdminLanguage()
+  const dltjsonFields: DltjsonField[] = [
+    { field: 'version', description: t('格式版本；当前固定为 "2.0"。') },
+    { field: 'type', description: t('文件类型；当前固定为 "dltjson"。') },
+    { field: 'course', description: t('课程元数据，包括标题、来源、难度、排序和本地化内容。') },
+    { field: 'lines[].id', description: t('句子的稳定标识。外部仓库更新内容时应保留该值。') },
+    { field: 'lines[].start / end', description: t('句子在原媒体时间轴上的起止秒数，均为 number。') },
+    { field: 'lines[].text', description: t('英文原句。') },
+    { field: 'lines[].translation / translations', description: t('兼容译文与按语言存放的多语言译文。') },
+    { field: 'lines[].answers / keywords', description: t('可接受答案与关键词数组。') },
+  ]
+  const dltjsonColumns: ColumnsType<DltjsonField> = [
+    {
+      dataIndex: 'field',
+      key: 'field',
+      title: t('字段'),
+      width: '34%',
+      render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
+    },
+    { dataIndex: 'description', key: 'description', title: t('说明') },
+  ]
+  const apiKeyHeaders: ApiRequestHeader[] = [
+    {
+      name: 'X-DuolinTing-API-Key',
+      required: t('是'),
+      value: '$DUOLINTING_OPEN_CONTENT_API_KEY',
+      description: t('开放内容 API Key。请使用环境变量，不要把明文 Key 写进代码仓库。'),
+    },
+  ]
   const apiOrigin = window.location.origin
   const environmentExample = [
     `export DUOLINTING_API_BASE="${apiOrigin}"`,
@@ -373,7 +365,7 @@ export function OpenContentApiDocumentation({
           {t('先请求目录，再依据')} <Typography.Text code>groupId</Typography.Text> {t('和')} <Typography.Text code>categoryId</Typography.Text> {t('组织“内容分类 / 学习系列 / 课程”三级目录。每门课程还会返回')} <Typography.Text code>mediaType</Typography.Text> {t('和')} <Typography.Text code>mediaUrl</Typography.Text>，{t('供本地生成器读取源媒体；字幕仍通过')} <Typography.Text code>dltjsonUrl</Typography.Text> {t('下载。')}
         </Typography.Paragraph>
         <ApiRequestCard
-          description="返回所有已发布课程的目录、字幕下载地址和源媒体读取地址。"
+          description={t('返回所有已发布课程的目录、字幕下载地址和源媒体读取地址。')}
           headers={apiKeyHeaders}
           method="GET"
           path="/api/v1/open-content/catalog"
@@ -391,11 +383,11 @@ export function OpenContentApiDocumentation({
           {t('把目录响应中的')} <Typography.Text code>dltjsonUrl</Typography.Text> {t('拼接到 API 域名后下载。下面的')} <Typography.Text code>123</Typography.Text> {t('仅为示例，请替换为目录返回的课程 ID。')}
         </Typography.Paragraph>
         <ApiRequestCard
-          description="返回一门已发布课程的 dltjson 字幕文件。"
+          description={t('返回一门已发布课程的 dltjson 字幕文件。')}
           headers={apiKeyHeaders}
           method="GET"
           path="/api/v1/open-content/courses/:courseId/dltjson"
-          pathParams={[{ name: 'courseId', example: '123', description: '目录响应中的课程 ID，必须是正整数。' }]}
+          pathParams={[{ name: 'courseId', example: '123', description: t('目录响应中的课程 ID，必须是正整数。') }]}
         />
         <CodeExample code={courseDownloadExample} language="shell" onNotify={onNotify} />
         <Typography.Text className="open-content-response-label" strong>{t('响应示例（200 OK）')}</Typography.Text>
@@ -452,11 +444,11 @@ export function OpenContentApiDocumentation({
       <section className="open-content-api-documentation-section">
         <Typography.Title level={4}>7. {t('鉴权与错误处理')}</Typography.Title>
         <Space direction="vertical" size={8} style={{ display: 'flex' }}>
-          <Typography.Text><Tag color="blue">请求头兼容</Tag> 新接入使用 <Typography.Text code>X-DuolinTing-API-Key</Typography.Text>；<Typography.Text code>X-API-Key</Typography.Text> 仅为兼容通用命令行工具保留。上面的请求卡片展示的是推荐写法。</Typography.Text>
-          <Typography.Text><Tag color="red">401</Tag> 未提供、无效、已过期或已删除的 API Key。请由超级管理员检查 Key 的状态，必要时新建 Key 或调整到期时间。</Typography.Text>
-          <Typography.Text><Tag color="orange">404</Tag> 课程不存在，或课程尚未发布，不能导出。</Typography.Text>
-          <Typography.Text><Tag color="gold">400</Tag> 课程 ID 不是正整数。</Typography.Text>
-          <Typography.Text type="secondary">目录和字幕接口使用 private, no-store 缓存策略；媒体对象沿用对象级长缓存。视频生成仍由本地任务完成，不会在服务器编码。</Typography.Text>
+          <Typography.Text><Tag color="blue">{t('请求头兼容')}</Tag> {t('新接入使用')} <Typography.Text code>X-DuolinTing-API-Key</Typography.Text>；<Typography.Text code>X-API-Key</Typography.Text> {t('仅为兼容通用命令行工具保留。上面的请求卡片展示的是推荐写法。')}</Typography.Text>
+          <Typography.Text><Tag color="red">401</Tag> {t('未提供、无效、已过期或已删除的 API Key。请由超级管理员检查 Key 的状态，必要时新建 Key 或调整到期时间。')}</Typography.Text>
+          <Typography.Text><Tag color="orange">404</Tag> {t('课程不存在，或课程尚未发布，不能导出。')}</Typography.Text>
+          <Typography.Text><Tag color="gold">400</Tag> {t('课程 ID 不是正整数。')}</Typography.Text>
+          <Typography.Text type="secondary">{t('目录和字幕接口使用 private, no-store 缓存策略；媒体对象沿用对象级长缓存。视频生成仍由本地任务完成，不会在服务器编码。')}</Typography.Text>
         </Space>
       </section>
     </main>
