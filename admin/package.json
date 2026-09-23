@@ -26,6 +26,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.17.0",
-    "wavesurfer.js": "^7.12.7"
+    "wavesurfer.js": "^7.12.7",
+    "@duolinting/playback": "0.1.0"
   }
 }

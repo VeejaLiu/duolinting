@@ -1,274 +1,120 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
+import { createPlaybackController, secondsToUs, type PlaybackResult, type PlaybackSession } from '@duolinting/playback'
+import { createWebPlaybackAdapter } from '@duolinting/playback/web'
 
 type UseMediaPlaybackOptions = {
   mediaRef: RefObject<HTMLMediaElement | null>
+  sourceKey: string
   playbackRate: number
 }
 
-export function useMediaPlayback({
-  mediaRef,
-  playbackRate,
-}: UseMediaPlaybackOptions) {
+export function useMediaPlayback({ mediaRef, sourceKey, playbackRate }: UseMediaPlaybackOptions) {
   const mediaElement = mediaRef.current
+  const sourceRef = useRef(sourceKey)
+  sourceRef.current = sourceKey
+  const controllerRef = useRef<ReturnType<typeof createPlaybackController> | null>(null)
+  if (!controllerRef.current) {
+    controllerRef.current = createPlaybackController(createWebPlaybackAdapter(() => mediaRef.current, () => sourceRef.current))
+  }
+  const controller = controllerRef.current
   const [isPlaying, setIsPlaying] = useState(false)
-  const isPlayingRef = useRef(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const stopPlaybackRef = useRef(false)
-  const playbackTokenRef = useRef(0)
-  const rangeCleanupRef = useRef<(() => void) | null>(null)
+  const [completion, setCompletion] = useState<{ sourceKey: string; result: PlaybackResult } | null>(null)
+  const [playbackError, setPlaybackError] = useState(false)
+  const latestSessionRef = useRef<PlaybackSession | null>(null)
+  const taskIdRef = useRef(0)
+  const busyRef = useRef(false)
 
   useEffect(() => {
     const media = mediaRef.current
-    if (!media) {
-      return
-    }
-
-    const syncPlaybackState = () => {
-      const playing = !media.paused && !media.ended
-      isPlayingRef.current = playing
-      setIsPlaying(playing)
+    if (!media) return
+    const sync = () => {
+      setIsPlaying(!media.paused && !media.ended)
       setCurrentTime(Number.isFinite(media.currentTime) ? media.currentTime : 0)
       setDuration(Number.isFinite(media.duration) ? media.duration : 0)
     }
-
-    syncPlaybackState()
-
-    media.addEventListener('play', syncPlaybackState)
-    media.addEventListener('pause', syncPlaybackState)
-    media.addEventListener('ended', syncPlaybackState)
-    media.addEventListener('timeupdate', syncPlaybackState)
-    media.addEventListener('loadedmetadata', syncPlaybackState)
-    media.addEventListener('durationchange', syncPlaybackState)
-
-    return () => {
-      media.removeEventListener('play', syncPlaybackState)
-      media.removeEventListener('pause', syncPlaybackState)
-      media.removeEventListener('ended', syncPlaybackState)
-      media.removeEventListener('timeupdate', syncPlaybackState)
-      media.removeEventListener('loadedmetadata', syncPlaybackState)
-      media.removeEventListener('durationchange', syncPlaybackState)
-    }
-  }, [mediaElement, mediaRef, playbackRate])
-
-  useEffect(
-    () => () => {
-      rangeCleanupRef.current?.()
-    },
-    [],
-  )
-
-  const applyPlaybackRate = () => {
+    const events = ['play', 'pause', 'ended', 'timeupdate', 'seeked', 'loadedmetadata', 'durationchange'] as const
+    events.forEach((event) => media.addEventListener(event, sync))
+    sync()
+    return () => events.forEach((event) => media.removeEventListener(event, sync))
+  }, [mediaElement, mediaRef, sourceKey])
+  useEffect(() => {
     if (mediaRef.current) {
       mediaRef.current.playbackRate = playbackRate
+      mediaRef.current.preservesPitch = true
     }
-  }
-
-  const seekMediaTo = (media: HTMLMediaElement, targetTime: number) =>
-    new Promise<void>((resolve) => {
-      const finish = () => {
-        globalThis.clearTimeout(timeoutId)
-        media.removeEventListener('seeked', finish)
-        media.removeEventListener('canplay', finish)
-        resolve()
-      }
-
-      const timeoutId = globalThis.setTimeout(finish, 800)
-      media.addEventListener('seeked', finish, { once: true })
-      media.addEventListener('canplay', finish, { once: true })
-      media.currentTime = targetTime
-
-      if (!media.seeking && Math.abs(media.currentTime - targetTime) < 0.025) {
-        finish()
-      }
-    })
+  }, [mediaElement, mediaRef, playbackRate, sourceKey])
+  useEffect(() => () => {
+    taskIdRef.current += 1
+    busyRef.current = false
+    controller.cancel()
+  }, [controller, sourceKey])
 
   const stopPlayback = () => {
-    playbackTokenRef.current += 1
-    rangeCleanupRef.current?.()
-    rangeCleanupRef.current = null
-    stopPlaybackRef.current = true
-    isPlayingRef.current = false
-    if (mediaRef.current) {
-      mediaRef.current.pause()
-    }
+    taskIdRef.current += 1
+    busyRef.current = false
+    controller.cancel()
     window.speechSynthesis?.cancel()
     setIsPlaying(false)
   }
-
-  const playMediaRange = (start: number, end?: number) =>
-    new Promise<void>((resolve) => {
-      const runPlaybackRange = async () => {
-        const media = mediaRef.current
-        if (!media) {
-          globalThis.setTimeout(resolve, 500)
-          return
-        }
-
-        const playbackToken = playbackTokenRef.current + 1
-        playbackTokenRef.current = playbackToken
-        rangeCleanupRef.current?.()
-        rangeCleanupRef.current = null
-
-        const safeStart = Math.max(0, start)
-        const safeEnd = end === undefined ? undefined : Math.max(safeStart, end)
-        media.pause()
-        await seekMediaTo(media, safeStart)
-        if (playbackTokenRef.current !== playbackToken) {
-          resolve()
-          return
-        }
-
-        let finished = false
-        let frameId = 0
-        let timeoutId = 0
-
-        const cleanup = () => {
-          window.cancelAnimationFrame(frameId)
-          window.clearTimeout(timeoutId)
-          media.removeEventListener('pause', finish)
-          media.removeEventListener('ended', finish)
-          media.removeEventListener('error', finish)
-        }
-        const finish = () => {
-          if (finished) {
-            return
-          }
-          finished = true
-          playbackTokenRef.current += 1
-          cleanup()
-          rangeCleanupRef.current = null
-          resolve()
-        }
-
-        const stopAtEnd = () => {
-          if (safeEnd === undefined) {
-            return
-          }
-
-          if (media.currentTime >= safeEnd) {
-            media.pause()
-            if (Math.abs(media.currentTime - safeEnd) <= 0.12) {
-              media.currentTime = safeEnd
-            }
-            finish()
-            return
-          }
-
-          frameId = window.requestAnimationFrame(stopAtEnd)
-        }
-
-        rangeCleanupRef.current = cleanup
-        media.playbackRate = playbackRate
-        media.addEventListener('pause', finish)
-        media.addEventListener('ended', finish)
-        media.addEventListener('error', finish)
-
-        if (safeEnd !== undefined) {
-          // 字幕时间是媒体时间轴上的秒数；真实等待时间要除以播放速度。
-          // rAF 负责贴近结束点停止，timeout 是后台标签页或低频回调时的兜底。
-          const effectivePlaybackRate =
-            Number.isFinite(playbackRate) && playbackRate > 0 ? playbackRate : 1
-          const remainingMilliseconds = Math.max(
-            0,
-            Math.round(((safeEnd - safeStart) / effectivePlaybackRate) * 1000),
-          )
-          timeoutId = window.setTimeout(() => {
-            if (media.currentTime < safeEnd) {
-              media.currentTime = safeEnd
-            }
-            media.pause()
-            finish()
-          }, remainingMilliseconds)
-          frameId = window.requestAnimationFrame(stopAtEnd)
-        }
-
-        void media.play().catch(finish)
-      }
-
-      void runPlaybackRange()
+  const watch = (session: PlaybackSession) => {
+    latestSessionRef.current = session
+    setPlaybackError(false)
+    const source = sourceRef.current
+    void session.finished.then((result) => {
+      if (latestSessionRef.current !== session || sourceRef.current !== source) return
+      setPlaybackError(result.reason === 'failed' || result.reason === 'timeout')
+      setCompletion({ sourceKey: source, result })
     })
-
+    return session
+  }
+  const playRangeSession = (start: number, end?: number) => {
+    if (mediaRef.current) mediaRef.current.playbackRate = playbackRate
+    return watch(controller.play({ sourceKey: sourceRef.current, startUs: secondsToUs(start),
+      endUs: end === undefined ? undefined : secondsToUs(end) }))
+  }
+  // 学习流程等待“完成”，取消/暂停/失败也会结束等待，但不伪装成正常播完。
+  const playMediaRange = (start: number, end?: number) => playRangeSession(start, end).finished
   const playMedia = async (startAt?: number) => {
     const media = mediaRef.current
-    if (!media) {
-      return false
-    }
-
-    if (typeof startAt === 'number') {
-      await seekMediaTo(media, startAt)
-    } else if (media.ended || (media.duration > 0 && media.currentTime >= media.duration)) {
-      await seekMediaTo(media, 0)
-    }
-
-    stopPlaybackRef.current = false
-    applyPlaybackRate()
-    try {
-      await media.play()
-      return true
-    } catch {
-      setIsPlaying(false)
-      return false
-    }
+    if (!media) return false
+    media.playbackRate = playbackRate
+    const source = sourceRef.current
+    const start = startAt ?? (media.ended ? 0 : undefined)
+    const session = watch(controller.play({ sourceKey: source, startUs: start === undefined ? undefined : secondsToUs(start) }))
+    return (await session.started).reason === 'started'
   }
-
   const pauseMedia = () => {
-    mediaRef.current?.pause()
+    taskIdRef.current += 1
+    busyRef.current = false
+    controller.cancel('paused')
   }
-
   const toggleMediaPlayback = async (options?: { restartAt?: number }) => {
     const media = mediaRef.current
-    if (!media) {
-      return
-    }
-
-    if (!media.paused && !media.ended) {
-      pauseMedia()
-      return
-    }
-
-    await playMedia(options?.restartAt)
+    if (!media) return
+    if (!media.paused && !media.ended) pauseMedia()
+    else await playMedia(options?.restartAt)
   }
-
   const seekMedia = (time: number) => {
     const media = mediaRef.current
-    if (!media) {
-      return
-    }
-
-    media.currentTime = Math.max(0, Math.min(time, media.duration || time))
-    setCurrentTime(media.currentTime)
+    if (!media) return
+    const target = secondsToUs(Math.max(0, Math.min(time, Number.isFinite(media.duration) ? media.duration : time)))
+    if (!media.paused && !media.ended) void playMedia(target / 1_000_000)
+    else watch(controller.seek(sourceRef.current, target))
   }
-
-  const runPlayback = async (task: () => Promise<void>) => {
-    if (isPlayingRef.current) {
-      return false
-    }
-
-    stopPlaybackRef.current = false
-    isPlayingRef.current = true
+  const runPlayback = async (task: () => Promise<PlaybackResult>) => {
+    if (busyRef.current) return false
+    const id = ++taskIdRef.current
+    busyRef.current = true
     window.speechSynthesis?.cancel()
-    setIsPlaying(true)
-    await task()
-    // 只有没有被外部 stopPlayback 打断，才重置播放状态
-    // （避免竞态：外部 stopPlayback 后新播放已开始，此处错误地把状态清零）
-    if (!stopPlaybackRef.current) {
-      isPlayingRef.current = false
-      setIsPlaying(false)
+    try {
+      const result = await task()
+      return id === taskIdRef.current && (result.reason === 'range-ended' || result.reason === 'media-ended')
+    } finally {
+      if (id === taskIdRef.current) busyRef.current = false
     }
-    return !stopPlaybackRef.current
   }
-
-  return {
-    currentTime,
-    duration,
-    isPlaying,
-    pauseMedia,
-    playMediaRange,
-    playMedia,
-    runPlayback,
-    seekMedia,
-    stopPlayback,
-    toggleMediaPlayback,
-  }
+  return { currentTime, duration, isPlaying, completion, playbackError, pauseMedia, playMediaRange, playRangeSession,
+    playMedia, runPlayback, seekMedia, stopPlayback, toggleMediaPlayback }
 }

@@ -1,3 +1,4 @@
+import type { CourseReleaseManifest, CourseWaveform } from './releases.js'
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
 export type LessonMediaType = 'audio' | 'video'
 export type ExerciseStatus = 'draft' | 'proofread' | 'published' | 'archived'
@@ -74,6 +75,9 @@ export type TranscriptLine = {
 }
 
 export type ListeningExercise = {
+  release?: CourseReleaseManifest
+  waveform?: CourseWaveform
+
   id: number
   categoryId: number
   title: string
@@ -103,7 +107,7 @@ export type ListeningExercise = {
   subtitleDrafts?: SubtitleDraft[]
 }
 
-export type CatalogExerciseSummary = Omit<ListeningExercise, 'lines'> & {
+export type CatalogExerciseSummary = Omit<ListeningExercise, 'lines' | 'waveform'> & {
   lineCount: number
   /** 仅管理后台列表使用，用来提示已发布课程仍有新的字幕稿等待审核。 */
   pendingSubtitleDraftCount?: number

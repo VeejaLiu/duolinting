@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "target": "ES2023", "lib": ["ES2023", "DOM"],
+    "module": "NodeNext", "moduleResolution": "NodeNext",
+    "composite": true, "declaration": true, "outDir": "dist", "rootDir": "src",
+    "strict": true, "skipLibCheck": true, "verbatimModuleSyntax": true
+  },
+  "include": ["src"]
+}

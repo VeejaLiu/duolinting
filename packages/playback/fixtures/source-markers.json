@@ -1,0 +1,9 @@
+{
+  "durationSeconds": 480,
+  "sentenceCount": 96,
+  "markerStartSeconds": [0.5, 240.5, 479.5],
+  "markerDurationSeconds": 0.1,
+  "frequencyHz": 440,
+  "waveformToleranceSeconds": 0.03,
+  "description": "Generate a mono AAC/M4A fixture. Silence plus known markers; no copyrighted course content."
+}

@@ -1,3 +1,4 @@
+import { LearnerPreviewButton } from './admin/LearnerPreviewButton'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type {
@@ -603,14 +604,14 @@ export function AudioLessonImporter({
     editSubtitles('添加字幕', (snapshot) => {
       const { lines, activeLineIndex: selected } = snapshot
       const nextLine: DraftLine = {
-        ...createEmptyDraftLine(lines.length), start: currentTime,
+        ...createEmptyDraftLine(), start: currentTime,
         end: roundToMilliseconds(range?.end ?? currentTime + 5),
       }
       const next = [...lines]
       const laterIndex = range ? next.findIndex((line) => line.start > nextLine.start) : -1
       const insertIndex = range ? (laterIndex >= 0 ? laterIndex : next.length) : Math.min(selected + 1, next.length)
       next.splice(insertIndex, 0, nextLine)
-      return { ...snapshot, lines: next.map((line, i) => ({ ...line, id: `l${i + 1}` })), activeLineIndex: insertIndex }
+      return { ...snapshot, lines: next, activeLineIndex: insertIndex }
     })
   }
 
@@ -618,7 +619,6 @@ export function AudioLessonImporter({
     editSubtitles('删除字幕', (snapshot) => {
       if (!snapshot.lines[index]) return snapshot
       const next = snapshot.lines.filter((_, i) => i !== index)
-        .map((line, i) => ({ ...line, id: `l${i + 1}` }))
       return {
         ...snapshot,
         lines: next.length ? next : [createEmptyDraftLine()],
@@ -634,7 +634,6 @@ export function AudioLessonImporter({
       const merged = mergeDraftLines(current[index], current[index + 1])
       const lines = current.map((line, i) => i === index ? merged : line)
         .filter((_, i) => i !== index + 1)
-        .map((line, i) => ({ ...line, id: `l${i + 1}` }))
       return { ...snapshot, lines, activeLineIndex: index }
     })
   }
@@ -758,6 +757,7 @@ export function AudioLessonImporter({
       ...courseForm,
       mediaType,
       audioUrl: '',
+      status: 'draft',
       ...(isEditing
         ? {}
         : {
@@ -780,7 +780,7 @@ export function AudioLessonImporter({
           adminToken,
         )
         await onRefreshCatalog()
-        onStatusChange('媒体已替换，课程信息、发布状态和字幕保持不变', 'success')
+        onStatusChange('媒体已替换，请重新校对；学习端继续使用原发布版本', 'success')
       } else {
         await persistDraftExercise(nextCourseForm, {
           mediaUrl: uploaded.publicUrl,
@@ -994,7 +994,7 @@ export function AudioLessonImporter({
         if (!hasTranscriptContent) {
           throw new Error('请至少保留一条有效字幕后再保存校对草稿')
         }
-        await apiClient.replaceTranscript(courseForm.id, transcript, adminToken)
+        await apiClient.replaceTranscript(courseForm.id, transcript, adminToken, courseForm.audioUrl)
         setSavedImporterSnapshot(
           createImporterSnapshot(courseForm, draftLines, subtitleDraft),
         )
@@ -1016,6 +1016,7 @@ export function AudioLessonImporter({
         ...courseForm,
         mediaType: uploaded.mediaType,
         audioUrl: uploaded.publicUrl,
+        status: courseForm.status === 'published' ? 'draft' : courseForm.status,
         sortOrder:
           courseForm.sortOrder > 0
             ? courseForm.sortOrder
@@ -1035,7 +1036,7 @@ export function AudioLessonImporter({
       }
       if (hasTranscriptContent) {
         onStatusChange('课程已保存，正在写入字幕...', 'info')
-        await apiClient.replaceTranscript(savedExerciseId, transcript, adminToken)
+        await apiClient.replaceTranscript(savedExerciseId, transcript, adminToken, uploaded.publicUrl)
       }
       await onRefreshCatalog()
       setSavedImporterSnapshot(
@@ -1089,7 +1090,7 @@ export function AudioLessonImporter({
         throw new Error('请至少保留一条时间范围和文本都有效的字幕后再提交')
       }
       // 提交时携带当前编辑内容，避免用户忘记先保存而丢失最后一次微调。
-      await apiClient.submitSubtitleDraft(courseForm.id, transcript, adminToken)
+      await apiClient.submitSubtitleDraft(courseForm.id, transcript, adminToken, courseForm.audioUrl)
       // 重新读取后端状态：首次提交时此前可能不存在草稿，本地不能凭空构造草稿 ID。
       setLoadedExercise(await apiClient.getAdminExercise(courseForm.id, adminToken))
       setSavedImporterSnapshot(
@@ -1152,12 +1153,15 @@ export function AudioLessonImporter({
           previewLines={draftLines}
           onNotify={onStatusChange}
           historyControls={
+            <>
+            <LearnerPreviewButton exerciseId={courseForm.id} audioUrl={courseForm.audioUrl} lines={toTranscriptLines(draftLines)} adminToken={adminToken} />
             <SubtitleHistoryControls
               history={history}
               disabled={isSaving || isDraggingTiming || isSubmittingSubtitleDraft || isSubmittedSubtitleDraft || isApprovedSubtitleDraft || Boolean(draft)}
               onUndo={(steps) => { if (!isDraggingTiming) { stopPlayback(); undo(steps) } }}
               onRedo={(steps) => { if (!isDraggingTiming) { stopPlayback(); redo(steps) } }}
             />
+            </>
           }
           statusBar={
             <div className="admin-footer media-workbench-status">
@@ -1226,6 +1230,7 @@ export function AudioLessonImporter({
                 draftLines={draftLines}
                 mediaRef={mediaRef}
                 sourceUrl={localMediaUrl}
+                sourceWaveform={!mediaFile && loadedExercise?.audioUrl === courseForm.audioUrl ? loadedExercise.waveform : undefined}
                 showInspector={false}
                 onActiveLineChange={setActiveLineIndex}
                 onAddLine={addLineAfterActive}

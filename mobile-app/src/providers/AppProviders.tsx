@@ -9,8 +9,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { LanguageProvider } from '@/i18n/LanguageProvider'
 
-// 目录查询键现在包含 contentLocale。换 key 避免旧版仅中文的持久化缓存
-// 在升级后被当作当前语言的数据复用；学习进度和认证存储不受此变更影响。
+// 目录与章节查询键分别包含 uiLocale / contentLocale。换 key 避免旧版
+// 的单语言缓存在升级后被当作当前语言数据复用；学习进度和认证存储不受影响。
 const QUERY_CACHE_STORAGE_KEY = 'duolinting.mobile.query-cache.v3'
 
 const webQueryPersister = {
@@ -77,7 +77,7 @@ export function AppProviders({ children }: PropsWithChildren) {
       <SafeAreaProvider>
         <PersistQueryClientProvider
           client={queryClient}
-          persistOptions={{ persister: queryPersister }}
+          persistOptions={{ persister: queryPersister, buster: 'course-releases-v1', dehydrateOptions: { shouldDehydrateQuery: (query) => query.state.status === 'success' && query.queryKey[0] !== 'course-preview' } }}
         >
           <LanguageProvider>
             <StatusBar style="dark" />

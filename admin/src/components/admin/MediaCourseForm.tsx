@@ -1,3 +1,4 @@
+import { activeTranscriptLines } from '@duolinting/shared'
 import { directoryName, courseTitle } from '../../lib/localizedContent'
 import * as Select from '@radix-ui/react-select'
 import { Button, Drawer, Progress, Tag } from 'antd'
@@ -13,6 +14,7 @@ import {
   Send,
 } from 'lucide-react'
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -310,18 +312,11 @@ export function MediaCourseForm({
 
   // 连续播放预览只展示当前时间范围内的字幕，帮助审核者快速发现字幕提前消失或吞掉句尾的问题。
   // 逐句试听与波形上的开始/结束点编辑仍然是最终精确校准手段。
-  const previewLine = previewLines.find(
-    (line) =>
-      line.text.trim() &&
-      previewTime >= line.start &&
-      previewTime < line.end,
-  )
+  const previewActiveLines = activeTranscriptLines(previewLines, previewTime).filter((line) => line.text.trim())
   const updatePreviewTime = (nextTime: number) => {
     // 预览区只显示当前字幕；同一句内的 timeupdate 无需重绘整张课程表单。
     setPreviewTime((previousTime) => {
-      const lineAt = (time: number) => previewLines.find(
-        (line) => line.text.trim() && time >= line.start && time < line.end,
-      )?.id
+      const lineAt = (time: number) => activeTranscriptLines(previewLines, time).filter((line) => line.text.trim()).map((line) => line.id).join(',')
       return lineAt(previousTime) === lineAt(nextTime) ? previousTime : nextTime
     })
   }
@@ -819,12 +814,14 @@ export function MediaCourseForm({
                         updateDuration(event.currentTarget.duration)
                       }}
                     />
-                    {previewLine && (
+                    {previewActiveLines.length > 0 && (
                       <div className="video-subtitle-preview" aria-live="polite">
+                        {previewActiveLines.map((previewLine) => <Fragment key={previewLine.id}>
                         <strong>{previewLine.text}</strong>
                         {previewLine.translations['zh-CN'] && (
                           <span>{previewLine.translations['zh-CN']}</span>
                         )}
+                        </Fragment>)}
                       </div>
                     )}
                   </div>
@@ -874,13 +871,11 @@ export function MediaCourseForm({
                         </button>
                       </div>
                       <div className="audio-subtitle-preview" aria-live="polite">
-                        {previewLine ? (
-                          <>
+                        {previewActiveLines.length > 0 ? (
+                          previewActiveLines.map((previewLine) => <Fragment key={previewLine.id}>
                             <strong>{previewLine.text}</strong>
-                            {previewLine.translations['zh-CN'] && (
-                              <span>{previewLine.translations['zh-CN']}</span>
-                            )}
-                          </>
+                            {previewLine.translations['zh-CN'] && <span>{previewLine.translations['zh-CN']}</span>}
+                          </Fragment>)
                         ) : (
                           <span className="audio-subtitle-empty">{t('暂无字幕')}</span>
                         )}

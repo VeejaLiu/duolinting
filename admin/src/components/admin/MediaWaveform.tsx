@@ -1,3 +1,4 @@
+import type { CourseWaveform } from '@duolinting/shared'
 import {
   Button,
   InputNumber,
@@ -55,6 +56,7 @@ type MediaWaveformProps = {
   draftLines: DraftLine[]
   mediaRef: React.MutableRefObject<HTMLMediaElement | null>
   sourceUrl: string
+  sourceWaveform?: CourseWaveform
   showInspector?: boolean
   showSubtitleList?: boolean
   onActiveLineChange: (index: number) => void
@@ -211,6 +213,7 @@ export function MediaWaveform({
   draftLines,
   mediaRef,
   sourceUrl,
+  sourceWaveform,
   showInspector = true,
   showSubtitleList = false,
   onActiveLineChange,
@@ -454,6 +457,7 @@ export function MediaWaveform({
         // 8k 足够绘制语音波形，并避免长音频解码与画布重绘占用过多主线程时间。
         sampleRate: 8000,
         media: waveformMedia,
+        ...(sourceWaveform ? { peaks: [sourceWaveform.peaks], duration: sourceWaveform.durationUs / 1_000_000 } : {}),
         waveColor: '#64748b',
       })
 
@@ -1034,7 +1038,7 @@ export function MediaWaveform({
       }
       clearTimeout(timeoutId)
     }
-  }, [isMediaReady, mediaRef, sourceUrl, t])
+  }, [isMediaReady, mediaRef, sourceUrl, sourceWaveform, t])
 
   useEffect(() => {
     zoomRef.current = zoom

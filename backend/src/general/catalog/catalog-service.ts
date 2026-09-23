@@ -1,3 +1,5 @@
+import { cachedMediaWaveform } from '../releases/media-analysis';
+import { publishedCourse, decodeRelease, releaseWaveform, assertExpectedMedia } from '../releases/release-service';
 import type {
     CatalogExerciseSummary,
     CatalogResponse,
@@ -33,14 +35,12 @@ import {
     getManagedMediaObjectName,
     statMediaObject,
 } from '../media/media-service';
-import { Logger } from '../../lib/logger';
 import { doRawQuery } from '../../models';
 import { sequelize } from '../../models/db-config-mysql';
 import { CategoryGroupModel } from '../../models/schema/CategoryGroupDB';
 import { CategoryModel } from '../../models/schema/CategoryDB';
 import { ExerciseModel } from '../../models/schema/ExerciseDB';
 
-const logger = new Logger(__filename);
 
 const emptyCatalog = (): CatalogResponse => ({
     categoryGroups: [],
@@ -704,13 +704,15 @@ const loadCategoryGroupRows = async () => {
 };
 
 const buildLearnerStatusFilter = (previewExerciseIds: number[] = []) => {
-    const ids = previewExerciseIds.filter((id) => Number.isInteger(id) && id > 0);
-    return ids.length > 0
-        ? `(status = 'published' or (id in (${ids.join(',')}) and status in ('draft', 'proofread', 'published')))`
-        : `status = 'published'`;
+    void previewExerciseIds; // Draft access now uses explicit, expiring release-preview links.
+    return `published_release_id is not null and status <> 'archived'`;
 };
 
 const loadCategoryIdsWithExercises = async (includeDrafts = false, previewExerciseIds: number[] = []) => {
+    if (!includeDrafts) {
+        const rows = await doRawQuery<{ category_id: number }>({ query: `select distinct cast(json_unquote(json_extract(r.snapshot_json,'$.categoryId')) as unsigned) as category_id from exercises e join course_releases r on r.id=e.published_release_id where e.status<>'archived' and r.state='published'` });
+        return new Set(rows.map((row) => Number(row.category_id)));
+    }
     const statusFilter = includeDrafts ? '' : `where ${buildLearnerStatusFilter(previewExerciseIds)}`;
     const rows = await doRawQuery<any>({
         query: `
@@ -812,7 +814,17 @@ export async function listCategoryExercises(
     includeDrafts = false,
     contentLocale?: ContentLocale,
     previewExerciseIds: number[] = [],
-): Promise<CatalogExerciseSummary[]> {
+ ): Promise<CatalogExerciseSummary[]> {
+    if (!includeDrafts) {
+        const releases = await doRawQuery<any>({ query: `select r.*,e.category_id as current_category_id,e.sort_order as current_sort_order from exercises e
+            join course_releases r on r.id=e.published_release_id
+            where cast(json_unquote(json_extract(r.snapshot_json,'$.categoryId')) as unsigned)=? and e.status<>'archived' and r.state='published' order by e.sort_order,e.id`, params: [categoryId] });
+        return releases.map((row) => {
+            const { lines, ...course } = decodeRelease(row, contentLocale);
+            delete course.waveform;
+            return { ...course, sortOrder: Number(row.current_sort_order), lineCount: lines.length };
+        });
+    }
     const statusFilter = includeDrafts ? '' : `and ${buildLearnerStatusFilter(previewExerciseIds)}`;
 
     try {
@@ -1002,7 +1014,15 @@ export async function getExercise(
     previewExerciseIds: number[] = [],
     adminActor?: AdminActor,
     previewLearnerUserId?: number,
-) {
+ ) {
+    if (!includeDrafts && !adminActor) {
+        const released = await publishedCourse(exerciseId, undefined, contentLocale);
+        if (!released) return null;
+        const [contributors, workflowCredits, waveform] = await Promise.all([
+            listExerciseContributors(exerciseId), getExerciseWorkflowCredits(exerciseId), releaseWaveform(released),
+        ]);
+        return { ...released, contributors, workflowCredits, waveform };
+    }
     const rows = await doRawQuery<ExerciseRow>({
         query: `
             select
@@ -1048,7 +1068,7 @@ export async function getExercise(
     const previewDraft = previewExerciseIds.includes(exerciseId) && !adminActor
         ? await getPreviewSubtitleDraftForLearner(exerciseId, previewLearnerUserId)
         : undefined;
-    return buildExerciseDetail(
+    const detail = buildExerciseDetail(
         row,
         previewDraft
             ? previewDraft.lines
@@ -1059,6 +1079,7 @@ export async function getExercise(
         workflowCredits,
         subtitleDrafts,
     );
+    return { ...detail, waveform: await cachedMediaWaveform(row.audio_url) };
 }
 
 /**
@@ -1066,48 +1087,12 @@ export async function getExercise(
  * 原因是后者还会检查 MinIO 媒体大小并加载协作信息；这些数据不应成为字幕同步的依赖。
  */
 export async function getPublishedExerciseForOpenContent(exerciseId: number) {
-    const rows = await doRawQuery<ExerciseRow>({
-        query: `
-            select
-              id,
-              category_id,
-              title,
-              source,
-              source_url,
-              difficulty,
-              duration_label,
-              media_type,
-              audio_url,
-              summary,
-              localizations_json,
-              transcript_json,
-              sort_order
-            from exercises
-            where id = ? and status = 'published'
-            limit 1
-        `,
-        params: [exerciseId],
-    });
-    const row = rows[0];
-    if (!row) {
-        return null;
-    }
-
-    return {
-        id: Number(row.id),
-        categoryId: Number(row.category_id),
-        title: row.title,
-        source: row.source,
-        sourceUrl: normalizeSourceUrl(row.source_url) || undefined,
-        difficulty: row.difficulty,
-        durationLabel: row.duration_label,
-        mediaType: row.media_type ?? 'audio',
-        mediaUrl: toDeliveryMediaUrl(row.audio_url),
-        summary: row.summary,
-        sortOrder: Number(row.sort_order ?? 0),
-        localizations: normalizeExerciseLocalizations(row.localizations_json),
-        lines: parseTranscriptJson(row.transcript_json),
-    };
+    const course = await publishedCourse(exerciseId);
+    if (!course) return null;
+    return { id: course.id, categoryId: course.categoryId, title: course.title, source: course.source,
+        sourceUrl: course.sourceUrl, difficulty: course.difficulty, durationLabel: course.durationLabel,
+        mediaType: course.mediaType, mediaUrl: course.audioUrl, summary: course.summary,
+        sortOrder: course.sortOrder, localizations: course.localizations, lines: course.lines };
 }
 
 export async function upsertCategory(category: CreateCategoryRequest) {
@@ -1176,8 +1161,9 @@ export async function deleteCategory(categoryId: number) {
         where: { category_id: categoryId },
     });
 
-    if (exerciseCount > 0) {
-        throw new Error('请先删除或移动这个学习系列下的课程');
+    const publishedReferences = await doRawQuery<{ count: number }>({ query: `select count(*) as count from exercises e join course_releases r on r.id=e.published_release_id where e.status<>'archived' and cast(json_unquote(json_extract(r.snapshot_json,'$.categoryId')) as unsigned)=?`, params: [categoryId] });
+    if (exerciseCount > 0 || Number(publishedReferences[0]?.count ?? 0) > 0) {
+        throw new Error('请先删除、下架或发布移动这个学习系列下的课程');
     }
 
     await CategoryModel.destroy({
@@ -1207,18 +1193,7 @@ export async function deleteExercise(exerciseId: number) {
         throw new Error('课程不存在');
     }
 
-    const objectName =
-        exercise.audio_object_name ||
-        getObjectNameFromUrl(exercise.audio_url ?? '');
-    if (objectName) {
-        await deleteMediaObject(objectName);
-    }
-    const coverObjectName = getObjectNameFromUrl(
-        exercise.cover_image_url ?? '',
-    );
-    if (coverObjectName) {
-        await deleteMediaObject(coverObjectName);
-    }
+    // 历史发布包仍可能被离线学习者使用；媒体清理由独立保留策略负责。
 
     await sequelize.transaction(async (transaction) => {
         await sequelize.query(
@@ -1249,51 +1224,17 @@ export async function deleteExercise(exerciseId: number) {
     });
 }
 
-export async function updateExerciseMedia(
-    exerciseId: number,
-    mediaType: ListeningExercise['mediaType'],
-    audioUrl: string,
-) {
-    const existing = (await ExerciseModel.findOne({
-        where: { id: exerciseId },
-        attributes: ['audio_object_name', 'audio_url'],
-        raw: true,
-    })) as {
-        audio_object_name?: string | null;
-        audio_url?: string | null;
-    } | null;
-
-    if (!existing) {
-        throw new Error('课程不存在');
-    }
-
-    const storedAudioUrl = toStoredMediaUrl(audioUrl);
-    const newAudioObjectName = getObjectNameFromUrl(storedAudioUrl);
-    await ExerciseModel.update(
-        {
-            media_type: mediaType,
-            audio_object_name: newAudioObjectName || null,
-            audio_url: storedAudioUrl,
-        },
-        {
-            where: { id: exerciseId },
-        },
-    );
-
-    // 媒体替换接口只修改媒体字段，避免上传文件时覆盖课程的元数据、发布状态或字幕。
-    const oldAudioObjectName =
-        existing.audio_object_name ||
-        getObjectNameFromUrl(existing.audio_url ?? '');
-    if (oldAudioObjectName && oldAudioObjectName !== newAudioObjectName) {
-        try {
-            await deleteMediaObject(oldAudioObjectName);
-        } catch (error) {
-            logger.warn(
-                `清理旧课程媒体失败 object=${oldAudioObjectName}`,
-                error,
-            );
-        }
-    }
+export async function updateExerciseMedia(exerciseId: number, mediaType: ListeningExercise['mediaType'], audioUrl: string) {
+    await sequelize.transaction(async (transaction) => {
+        const existing = await ExerciseModel.findByPk(exerciseId, { transaction, lock: transaction.LOCK.UPDATE });
+        if (!existing) throw new Error('课程不存在');
+        const stored = toStoredMediaUrl(audioUrl);
+        await existing.update({ media_type: mediaType, audio_url: stored,
+            audio_object_name: getObjectNameFromUrl(stored) || null, status: 'draft' }, { transaction });
+        await sequelize.query(`update exercise_subtitle_drafts set status='returned',review_note='媒体已替换，请重新校对后提交',reviewed_at=null,reviewed_by_admin_user_id=null
+            where exercise_id=:exerciseId`, { replacements: { exerciseId }, transaction });
+        // Retain prior objects referenced by published/preview release snapshots.
+    });
 }
 
 export async function upsertExercise(exercise: CreateExerciseRequest) {
@@ -1341,44 +1282,14 @@ export async function upsertExercise(exercise: CreateExerciseRequest) {
             : (existing?.localizations_json ?? {}),
         transcript_json: existing?.transcript_json ?? [],
         sort_order: exercise.sortOrder,
-        status: exercise.status,
+        status: existing && exercise.status === 'published' ? 'draft' : exercise.status,
     } as any;
 
     if (existing && exercise.id) {
         await ExerciseModel.upsert(payload);
+        if (payload.status === 'draft') await sequelize.query(`update exercise_subtitle_drafts set status='editing',reviewed_at=null,reviewed_by_admin_user_id=null where exercise_id=:exerciseId and status='approved'`, { replacements: { exerciseId: exercise.id } });
 
-        // 媒体/封面被替换后，删除 MinIO 中的旧对象，避免孤儿文件。
-        // 仅当旧值非空、与新值不同、且能解析出本系统 MinIO 对象名时才删除；
-        // 删除失败只记日志，不影响主流程（与 deleteExercise 的清理口径一致）。
-        const oldAudioObjectName =
-            existing.audio_object_name ||
-            getObjectNameFromUrl(existing.audio_url ?? '');
-        const newAudioObjectName =
-            audioObjectName || getObjectNameFromUrl(storedAudioUrl);
-        if (oldAudioObjectName && oldAudioObjectName !== newAudioObjectName) {
-            try {
-                await deleteMediaObject(oldAudioObjectName);
-            } catch (error) {
-                logger.warn(
-                    `清理旧课程媒体失败 object=${oldAudioObjectName}`,
-                    error,
-                );
-            }
-        }
-        const oldCoverObjectName = getObjectNameFromUrl(
-            existing.cover_image_url ?? '',
-        );
-        const newCoverObjectName = getObjectNameFromUrl(storedCoverImageUrl);
-        if (oldCoverObjectName && oldCoverObjectName !== newCoverObjectName) {
-            try {
-                await deleteMediaObject(oldCoverObjectName);
-            } catch (error) {
-                logger.warn(
-                    `清理旧课程封面失败 object=${oldCoverObjectName}`,
-                    error,
-                );
-            }
-        }
+        // 已发布快照继续引用原媒体和封面，保留原对象。
 
         return Number(exercise.id);
     }
@@ -1414,25 +1325,12 @@ export async function upsertExercise(exercise: CreateExerciseRequest) {
 export async function replaceTranscriptLines(
     exerciseId: number,
     lines: CreateTranscriptLineRequest[],
-    nextStatus?: ListeningExercise['status'],
+    expectedMediaUrl: string,
 ) {
-    const exercise = await ExerciseModel.findByPk(exerciseId, {
-        attributes: ['id'],
+    await sequelize.transaction(async (transaction) => {
+        const exercise = await ExerciseModel.findByPk(exerciseId, { transaction, lock: transaction.LOCK.UPDATE });
+        if (!exercise) throw new Error('课程不存在');
+        assertExpectedMedia(exercise.audio_url, expectedMediaUrl);
+        await exercise.update({ transcript_json: serializeTranscriptLines(lines), status: exercise.status === 'published' ? 'draft' : exercise.status }, { transaction });
     });
-    if (!exercise) {
-        throw new Error('课程不存在');
-    }
-
-    // MySQL updates that write identical JSON may report zero affected rows. The
-    // existence check above distinguishes that harmless no-op from a missing course.
-    await ExerciseModel.update(
-        {
-            transcript_json: serializeTranscriptLines(lines),
-            // 字幕贡献者提交校对时和字幕内容一次写入，避免出现新字幕仍标记为已发布的短暂窗口。
-            ...(nextStatus ? { status: nextStatus } : {}),
-        } as any,
-        {
-            where: { id: exerciseId },
-        },
-    );
 }

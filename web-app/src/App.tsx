@@ -1,3 +1,4 @@
+import { coursePlaybackKey } from '@duolinting/domain'
 import { BookOpenText } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -134,7 +135,7 @@ function LearnerAppShell() {
   )
   const hasExercise = Boolean(activeExerciseSummary)
 
-  const { activeExercise, exerciseLoading, exerciseLoadFailed } =
+  const { activeExercise, exerciseLoading, exerciseLoadFailed, releaseUpdateAvailable, refreshRelease } =
     useExerciseDetail({
       activeExerciseSummary,
       setStore,
@@ -172,6 +173,8 @@ function LearnerAppShell() {
     currentTime,
     duration,
     isPlaying,
+    completion,
+    playbackError,
     playMediaRange,
     seekMedia,
     runPlayback,
@@ -179,6 +182,7 @@ function LearnerAppShell() {
     toggleMediaPlayback,
   } = useMediaPlayback({
     mediaRef,
+    sourceKey: activeExercise ? coursePlaybackKey(activeExercise) : '',
     playbackRate: progress?.playbackRate ?? 1,
   })
 
@@ -401,14 +405,15 @@ function LearnerAppShell() {
       !activeExercise ||
       isPlaying ||
       duration <= 0 ||
-      currentTime < duration ||
+      completion?.sourceKey !== coursePlaybackKey(activeExercise) ||
+      completion.result.reason !== 'media-ended' ||
       completedStages.extensive
     ) {
       return
     }
 
     setCompletedStages((current) => ({ ...current, extensive: true }))
-  }, [activeExercise, completedStages.extensive, currentTime, duration, isPlaying])
+  }, [activeExercise, completedStages.extensive, completion, duration, isPlaying])
 
   const playSingleLine = async (line: TranscriptLine) => {
     if (!activeExercise) {
@@ -418,7 +423,7 @@ function LearnerAppShell() {
     stopPlayback()
     selectLine(line.id)
     await runPlayback(async () => {
-      await playMediaRange(line.start, line.end)
+      return playMediaRange(line.start, line.end)
     })
   }
 
@@ -563,6 +568,8 @@ function LearnerAppShell() {
               <EmptyStudyState />
             ) : (
               <>
+                {releaseUpdateAvailable && <button type="button" onClick={() => { stopPlayback(); refreshRelease() }}>{t('app.releaseUpdateAvailable')}</button>}
+                {playbackError && <p role="alert">{t('app.playbackFailed')}</p>}
                 <StudyHero
                   exercise={activeExercise}
                   masteryPercent={masteryPercent}

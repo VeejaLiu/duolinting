@@ -38,8 +38,10 @@ export type SubtitleDraftAnalysis = {
   suggestedMode: SubtitleImportMode
 }
 
-export const createEmptyDraftLine = (index = 0): DraftLine => ({
-  id: `l${index + 1}`,
+const newDraftLineId = () => `line-${typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint32Array(4)), (value) => value.toString(16).padStart(8, '0')).join('')}`
+
+export const createEmptyDraftLine = (): DraftLine => ({
+  id: newDraftLineId(),
   start: 0,
   end: 5,
   text: '',
@@ -466,7 +468,7 @@ export const parseSubtitleDraft = (
       const nextBlockStart = nextMatch ? parseTimestamp(nextMatch[1]) : undefined
       const { start, end, contentLines } = parseSubtitleBlock(block, index, format, nextBlockStart)
       return {
-        id: `l${index + 1}`,
+        id: newDraftLineId(),
         start,
         end,
         text: contentLines.join(' '),
@@ -480,7 +482,7 @@ export const parseSubtitleDraft = (
 
   if (format === 'ass') {
     const grouped = groupAssByTiming(blocks as string[])
-    return grouped.map(({ start, end, contentLines }, index) => {
+    return grouped.map(({ start, end, contentLines }) => {
       let text = contentLines.join(' ')
       let translation = ''
 
@@ -492,7 +494,7 @@ export const parseSubtitleDraft = (
       }
 
       return {
-        id: `l${index + 1}`,
+        id: newDraftLineId(),
         start,
         end,
         text,
@@ -517,7 +519,7 @@ export const parseSubtitleDraft = (
     }
 
     return {
-      id: `l${index + 1}`,
+      id: newDraftLineId(),
       start,
       end,
       text,

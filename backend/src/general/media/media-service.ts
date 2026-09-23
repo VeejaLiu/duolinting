@@ -31,6 +31,7 @@ const extensionByContentType: Record<string, string> = {
     'audio/aac': 'aac',
     'audio/flac': 'flac',
     'audio/m4a': 'm4a',
+    'audio/mp4': 'm4a',
     'audio/mpeg': 'mp3',
     'audio/ogg': 'ogg',
     'audio/wav': 'wav',
@@ -306,6 +307,7 @@ export async function statMediaObject(objectName: string) {
         contentType:
             stat.metaData?.['content-type'] ?? 'application/octet-stream',
         size: stat.size,
+        etag: stat.etag,
     };
 }
 
@@ -359,4 +361,12 @@ export async function deleteMediaObject(objectName: string) {
         }
         throw error;
     }
+}
+
+/** Store exactly the analysed bytes at a content-addressed location never issued for presigned PUT. */
+export async function storeReleaseMediaFile(revision: string, contentType: string, filePath: string) {
+    if (!/^[a-f0-9]{64}$/.test(revision)) throw new Error('Invalid media revision');
+    const objectName = `releases/${revision}.${extensionByContentType[contentType] ?? 'media'}`;
+    await objectStorage.fPutObject(env.minio.bucket, objectName, filePath, { 'Content-Type': contentType });
+    return buildStoredMediaUrl(objectName);
 }

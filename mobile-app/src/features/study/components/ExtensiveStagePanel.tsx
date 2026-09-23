@@ -42,6 +42,13 @@ export function ExtensiveStagePanel({
           <View className="h-24 w-24 items-center justify-center rounded-[32px] bg-white">
             <FontAwesome6 color="#1cb0f6" name="headphones" size={38} />
           </View>
+          {exercise.waveform && <View style={{ width: '100%', height: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            {Array.from({ length: 80 }, (_, i) => {
+              const peaks = exercise.waveform!.peaks; let peak = 0
+              for (let j = Math.floor(i*peaks.length/80); j < Math.floor((i+1)*peaks.length/80); j++) peak = Math.max(peak, peaks[j])
+              return <View key={i} style={{ width: 2, height: Math.max(1,peak*40), backgroundColor: '#1cb0f6' }} />
+            })}
+          </View>}
           <Text className="mt-4 text-center text-lg font-black text-text-primary">
             {exercise.title}
           </Text>

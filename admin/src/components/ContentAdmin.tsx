@@ -1,3 +1,4 @@
+import { LearnerPreviewButton } from './admin/LearnerPreviewButton'
 import type { CatalogExerciseSummary } from '@duolinting/shared'
 import { ConfigProvider, Input, Layout, Modal, Space, Typography } from 'antd'
 import { useCallback, useState } from 'react'
@@ -380,6 +381,7 @@ export function ContentAdmin({
           <section key={subtitleDraft.id} style={{ borderTop: '1px solid #f0f0f0', marginTop: 16, paddingTop: 16 }}>
             <Space direction="vertical" size={10} style={{ display: 'flex' }}>
               <Typography.Text><strong>{subtitleDraft.contributorDisplayName}</strong> {t('提交的校对稿，共 {{count}} 句。', { count: subtitleDraft.lines.length })}</Typography.Text>
+              <LearnerPreviewButton exerciseId={reviewingExercise.id} audioUrl={reviewingExercise.audioUrl} lines={subtitleDraft.lines} adminToken={adminToken} />
               <Typography.Paragraph style={{ maxHeight: 230, overflow: 'auto', whiteSpace: 'pre-wrap' }}>
                 {subtitleDraft.lines.map((line) => `[${line.start.toFixed(3)}–${line.end.toFixed(3)}] ${line.text}`).join('\n')}
               </Typography.Paragraph>

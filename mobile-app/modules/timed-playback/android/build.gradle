@@ -1,0 +1,23 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+group = 'expo.modules.timedplayback'
+version = '1.0.0'
+android { namespace 'expo.modules.timedplayback'; defaultConfig { versionCode 1; versionName '1.0.0' } }
+def expoDependency = { packageName ->
+  def sourceProject = findProject(":${packageName}")
+  if (sourceProject != null) return project(path: sourceProject.path)
+  // SDK 54 may autolink prebuilt Maven artifacts instead of source projects.
+  def configPath = providers.exec {
+    workingDir rootDir
+    commandLine 'node', '--print', "require.resolve('${packageName}/expo-module.config.json')"
+  }.standardOutput.asText.get().trim()
+  def publication = new groovy.json.JsonSlurper().parse(new File(configPath)).android.publication
+  return "${publication.groupId}:${publication.artifactId}:${publication.version}"
+}
+dependencies {
+  implementation expoDependency('expo-audio')
+  implementation expoDependency('expo-video')
+  implementation 'androidx.media3:media3-exoplayer:1.8.0'
+}

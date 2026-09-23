@@ -708,7 +708,7 @@ export function BatchCourseImporter({
               exerciseId,
               transcriptLineCount: transcript.length,
             })
-            await apiClient.replaceTranscript(exerciseId, transcript, adminToken)
+            await apiClient.replaceTranscript(exerciseId, transcript, adminToken, uploaded.publicUrl)
             logAdminInfo('BatchUpload', 'subtitle-upload-success', {
               operationId,
               itemId: item.id,

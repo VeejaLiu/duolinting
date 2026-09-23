@@ -60,7 +60,13 @@ export function ExtensiveStage({
                 src={resolveApiUrl(exercise.audioUrl)}
                 preload="metadata"
               />
-              <img src={waveformSrc} alt="" />
+              {exercise.waveform ? <svg viewBox="0 0 800 160" role="img" aria-label={exercise.title} style={{ width: '100%', height: '100%' }}>
+                {Array.from({ length: 160 }, (_, i) => {
+                  const peaks = exercise.waveform!.peaks; let peak = 0
+                  for (let j = Math.floor(i*peaks.length/160); j < Math.floor((i+1)*peaks.length/160); j++) peak = Math.max(peak, peaks[j])
+                  return <rect key={i} x={i*5} y={80-peak*75} width={3} height={Math.max(1,peak*150)} fill={i/160 < progressPercent/100 ? '#1cb0f6' : '#94a3b8'} />
+                })}
+              </svg> : <img src={waveformSrc} alt="" />}
             </>
           )}
           {/* 浮动控制栏：视频/音频底部叠加进度条和播放按钮 */}

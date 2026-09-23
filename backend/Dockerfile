@@ -5,6 +5,7 @@ COPY backend/package.json backend/package.json
 COPY web-app/package.json web-app/package.json
 COPY admin/package.json admin/package.json
 COPY mobile-app/package.json mobile-app/package.json
+COPY packages/playback/package.json packages/playback/package.json
 COPY packages/domain/package.json packages/domain/package.json
 COPY packages/app-config/package.json packages/app-config/package.json
 COPY packages/ui-tokens/package.json packages/ui-tokens/package.json
@@ -33,6 +34,7 @@ COPY backend/package.json backend/package.json
 COPY web-app/package.json web-app/package.json
 COPY admin/package.json admin/package.json
 COPY mobile-app/package.json mobile-app/package.json
+COPY packages/playback/package.json packages/playback/package.json
 COPY packages/domain/package.json packages/domain/package.json
 COPY packages/app-config/package.json packages/app-config/package.json
 COPY packages/ui-tokens/package.json packages/ui-tokens/package.json
@@ -43,6 +45,7 @@ RUN --mount=type=cache,id=duolinting-npm,target=/root/.npm,sharing=locked \
     --workspace @duolinting/domain --workspace @duolinting/shared
 
 FROM node:22-bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=production-deps /app/node_modules node_modules

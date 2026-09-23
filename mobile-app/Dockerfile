@@ -5,6 +5,7 @@ COPY backend/package.json backend/package.json
 COPY web-app/package.json web-app/package.json
 COPY admin/package.json admin/package.json
 COPY mobile-app/package.json mobile-app/package.json
+COPY packages/playback/package.json packages/playback/package.json
 COPY packages/domain/package.json packages/domain/package.json
 COPY packages/app-config/package.json packages/app-config/package.json
 COPY packages/ui-tokens/package.json packages/ui-tokens/package.json
@@ -13,11 +14,13 @@ COPY packages/shared/package.json packages/shared/package.json
 # Bound npm heap under the production builder limit; audit runs separately from image builds.
 RUN --mount=type=cache,id=duolinting-npm,target=/root/.npm,sharing=locked \
     NODE_OPTIONS=--max-old-space-size=512 npm ci --workspaces --include-workspace-root --no-audit --no-fund
+COPY packages/playback packages/playback
 COPY packages/domain packages/domain
 COPY packages/app-config packages/app-config
 COPY packages/ui-tokens packages/ui-tokens
 COPY packages/api-client packages/api-client
 COPY packages/shared packages/shared
+RUN npm run build --workspace @duolinting/playback
 RUN npm run build --workspace @duolinting/domain
 RUN npm run build --workspace @duolinting/app-config
 RUN npm run build --workspace @duolinting/ui-tokens

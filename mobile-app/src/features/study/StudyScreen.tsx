@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
-import { View, useWindowDimensions } from 'react-native'
+import { View, Text, Pressable, useWindowDimensions } from 'react-native'
 import {
   createLineProgress,
   ensureExerciseProgress,
@@ -49,7 +49,7 @@ export function StudyScreen() {
     stage?: string
   }>()
   const numericExerciseId = Number(exerciseId)
-  const { data: exercise, isLoading, isError, error } =
+  const { data: exercise, isLoading, isError, error, releaseUpdateAvailable, refreshRelease } =
     useExerciseDetailQuery(numericExerciseId)
   const store = useStudyStore((state) => state.store)
   const setStore = useStudyStore((state) => state.setStore)
@@ -113,6 +113,8 @@ export function StudyScreen() {
     duration,
     isPlaying,
     isPreparingPlayback,
+    playbackError,
+    nativePlaybackAvailable,
     pause,
     playLine,
     seekTo,
@@ -339,6 +341,8 @@ export function StudyScreen() {
           }}
         />
 
+        {releaseUpdateAvailable && <Pressable onPress={() => { pause(); refreshRelease() }}><Text>{t('study.releaseUpdateAvailable')}</Text></Pressable>}
+        {playbackError && <ErrorState message={t(nativePlaybackAvailable ? 'study.playbackFailed' : 'preview.updateRequired')} />}
         {stage === 'intensive' || stage === 'review' ? (
           <AppScrollView
             className="flex-1"
