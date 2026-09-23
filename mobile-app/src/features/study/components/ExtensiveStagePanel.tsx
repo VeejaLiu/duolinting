@@ -12,6 +12,7 @@ export function ExtensiveStagePanel({
   isPlaying,
   onSeek,
   onTogglePlayback,
+  videoAspectRatio,
   videoPlayer,
 }: {
   currentTime: number
@@ -21,20 +22,22 @@ export function ExtensiveStagePanel({
   isPlaying: boolean
   onSeek: (seconds: number) => void
   onTogglePlayback: () => void
+  videoAspectRatio: number
   videoPlayer: VideoPlayer
 }) {
   return (
     <View>
       {exercise.mediaType === 'video' ? (
-        <View className="bg-black">
+        <View className="items-center overflow-hidden bg-black">
           <VideoView
-            contentFit="cover"
+            contentFit="contain"
             // Safari 需要显式标记内联视频，否则一次播放手势会接管为系统全屏。
             fullscreenOptions={{ enable: false }}
             nativeControls={false}
             player={videoPlayer}
             playsInline
-            style={{ width: '100%', height: 220 }}
+            // 用源视频轨道的宽高比驱动容器，竖屏视频不再被固定横屏高度裁切。
+            style={{ width: '100%', aspectRatio: videoAspectRatio }}
           />
         </View>
       ) : (

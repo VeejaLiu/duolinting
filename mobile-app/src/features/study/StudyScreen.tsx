@@ -119,6 +119,7 @@ export function StudyScreen() {
     playLine,
     seekTo,
     togglePlayAll,
+    videoAspectRatio,
     videoPlayer,
   } = useExercisePlayback({
     exercise,
@@ -387,6 +388,7 @@ export function StudyScreen() {
               isPlaying={isPlaying}
               onSeek={(seconds) => void seekTo(seconds)}
               onTogglePlayback={togglePlayAll}
+              videoAspectRatio={videoAspectRatio}
               videoPlayer={videoPlayer}
             />
           </AppScrollView>

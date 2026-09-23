@@ -4,12 +4,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ListeningExercise, TranscriptLine } from '@duolinting/domain'
 import { createPlaybackController, secondsToUs, type PlaybackSession } from '@duolinting/playback'
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio'
-import { useVideoPlayer, type VideoSource } from 'expo-video'
+import { useVideoPlayer, type VideoSource, type VideoTrack } from 'expo-video'
 import { AppState, Platform } from 'react-native'
 import { apiClient } from '@/lib/apiClient'
 import { createExpoPlaybackAdapter, isReleasedPlayerError } from '@/lib/expoPlaybackAdapter'
 
 type UseExercisePlaybackOptions = { exercise?: ListeningExercise; playbackRate: number }
+
+const DEFAULT_VIDEO_ASPECT_RATIO = 16 / 9
+
+const videoTrackAspectRatio = (track: VideoTrack | null | undefined) => {
+  const width = Number(track?.size.width)
+  const height = Number(track?.size.height)
+
+  // Expo 的轨道尺寸以视频像素为单位；宽除以高得到 React Native
+  // aspectRatio 所需的无单位比值。元数据尚未加载时先用 16:9，避免布局崩塌。
+  return width > 0 && height > 0 ? width / height : DEFAULT_VIDEO_ASPECT_RATIO
+}
 
 export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlaybackOptions) {
   const source = useMemo(() => exercise?.audioUrl ? apiClient.resolveApiUrl(exercise.audioUrl) : null, [exercise?.audioUrl])
@@ -30,6 +41,7 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
   const [isPreparingPlayback, setIsPreparingPlayback] = useState(false)
   const [playbackError, setPlaybackError] = useState(false)
   const [videoState, setVideoState] = useState({ currentTime: 0, duration: 0, playing: false })
+  const [videoAspectRatio, setVideoAspectRatio] = useState(DEFAULT_VIDEO_ASPECT_RATIO)
 
   useEffect(() => {
     audioPlayer.shouldCorrectPitch = true
@@ -46,10 +58,21 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
         setVideoState({ currentTime: snapshot.positionUs / 1_000_000, duration: snapshot.durationUs / 1_000_000, playing: snapshot.playing })
       } catch (error) { if (!isReleasedPlayerError(error)) setPlaybackError(true) }
     }
-    const subscriptions = [videoPlayer.addListener('timeUpdate', sync), videoPlayer.addListener('playingChange', sync),
-      videoPlayer.addListener('sourceLoad', sync)]
+    const subscriptions = [
+      videoPlayer.addListener('timeUpdate', sync),
+      videoPlayer.addListener('playingChange', sync),
+      videoPlayer.addListener('sourceLoad', ({ availableVideoTracks }) => {
+        sync()
+        setVideoAspectRatio(videoTrackAspectRatio(videoPlayer.videoTrack ?? availableVideoTracks[0]))
+      }),
+      videoPlayer.addListener('videoTrackChange', ({ videoTrack }) => {
+        setVideoAspectRatio(videoTrackAspectRatio(videoTrack))
+      }),
+    ]
+    // 监听器挂载前媒体可能已命中缓存并完成轨道选择，先读一次当前值避免错过事件。
+    setVideoAspectRatio(videoTrackAspectRatio(kind === 'video' ? videoPlayer.videoTrack : null))
     return () => subscriptions.forEach((subscription) => subscription.remove())
-  }, [adapter, kind, videoPlayer])
+  }, [adapter, kind, sourceKey, videoPlayer])
 
   const pause = useCallback(() => {
     sessionRef.current = null
@@ -131,6 +154,7 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
     currentTime: kind === 'video' ? videoState.currentTime : audioStatus.currentTime,
     duration: kind === 'video' ? videoState.duration : audioStatus.duration,
     isPlaying: kind === 'video' ? videoState.playing : audioStatus.playing,
+    videoAspectRatio,
     nativePlaybackAvailable: Platform.OS === 'web' || Boolean(TimedPlayback),
     activeLineId, isPreparingPlayback, playbackError, pause, playAll, playLine, playRangeSession, seekTo, togglePlayAll, videoPlayer,
   }

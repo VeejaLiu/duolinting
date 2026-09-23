@@ -220,34 +220,11 @@ export function IntensiveStagePanel({
                 {t('study.sentence', { count: displayLineNumber })}
               </Text>
             </View>
-            {sentenceVisible ? (
-              <View className="absolute inset-x-4 bottom-4 rounded-[16px] bg-black/45 px-4 py-3">
-                <Text
-                  adjustsFontSizeToFit
-                  className="text-center text-[24px] font-black leading-8 text-white"
-                  minimumFontScale={0.75}
-                  numberOfLines={4}
-                >
-                  {selectedLine.text}
-                </Text>
-                {selectedLine.translation ? (
-                  <Text
-                    adjustsFontSizeToFit
-                    className="mt-2 text-center text-base font-bold leading-5 text-white/85"
-                    minimumFontScale={0.82}
-                    numberOfLines={2}
-                  >
-                    {selectedLine.translation}
-                  </Text>
-                ) : null}
+            <View className="flex-1 items-center justify-center">
+              <View className="h-20 w-20 items-center justify-center rounded-[28px] bg-white/10">
+                <FontAwesome6 color="#1cb0f6" name="headphones" size={32} />
               </View>
-            ) : (
-              <View className="absolute inset-x-6 bottom-8">
-                <Text className="text-center text-base font-black text-white/70">
-                  {t('study.tapSubtitle')}
-                </Text>
-              </View>
-            )}
+            </View>
           </View>
         )}
         <View
@@ -438,8 +415,9 @@ export function IntensiveStagePanel({
             </Text>
           </Pressable>
         </View>
-        {exercise.mediaType === 'video' && sentenceVisible ? (
-          // Safari 的内联播放器可用高度较小，字幕不覆盖视频且不截断内容。
+        {sentenceVisible ? (
+          // 音频和视频共用同一个独立字幕区：不覆盖媒体，也不设行数上限，
+          // 长原文和长译文都能自然换行并通过页面滚动完整阅读。
           <View
             className="rounded-[16px] border-2 border-[#d7e4ef] bg-[#f8fbff] px-4 py-3"
             style={{ marginTop: secondaryControlTopMargin }}
