@@ -1,6 +1,7 @@
+import { CoverCropModal } from './CoverCropModal'
 import { Camera, Clipboard, ImagePlus, LoaderCircle, Upload } from 'lucide-react'
 import { Modal, Progress } from 'antd'
-import { useMemo, useRef, useState, type ClipboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react'
 import type { AdminNoticeTone } from './AdminFeedback'
 import {
   apiClient,
@@ -24,52 +25,11 @@ type CoverImageFieldProps = {
 const toImageFile = (file: File) =>
   file.type.startsWith('image/') ? file : null
 
-// 封面在浏览器内统一输出为 JPEG；尺寸与此前服务端规则保持一致，
-// 避免大图先完整占用上行带宽、再由服务端压缩丢弃。若以后要保留原图，再另设上传路径。
-const COVER_IMAGE_MAX_WIDTH = 120
-const COVER_IMAGE_JPEG_QUALITY = 0.8
-
 const formatFileSize = (bytes: number) => {
   if (bytes === 0) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB']
   const index = Math.floor(Math.log(bytes) / Math.log(1024))
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`
-}
-
-const compressCoverImage = async (file: File) => {
-  let image: ImageBitmap
-  try {
-    // createImageBitmap 解码时会读取图片自身方向，适合手机拍摄的封面。
-    image = await createImageBitmap(file, { imageOrientation: 'from-image' })
-  } catch (error) {
-    throw new Error(
-      error instanceof Error ? `无法读取图片：${error.message}` : '无法读取图片',
-      { cause: error },
-    )
-  }
-
-  try {
-    const width = Math.min(image.width, COVER_IMAGE_MAX_WIDTH)
-    const height = Math.max(1, Math.round((image.height / image.width) * width))
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const context = canvas.getContext('2d')
-    if (!context) {
-      throw new Error('当前浏览器无法处理图片')
-    }
-    context.drawImage(image, 0, 0, width, height)
-
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, 'image/jpeg', COVER_IMAGE_JPEG_QUALITY),
-    )
-    if (!blob) {
-      throw new Error('图片压缩失败')
-    }
-    return new File([blob], 'cover.jpg', { type: 'image/jpeg' })
-  } finally {
-    image.close()
-  }
 }
 
 const inferExtension = (contentType: string) => {
@@ -133,7 +93,9 @@ export function CoverImageField({
     [largePreview],
   )
 
-  const isBusy = isPreparing || isUploading || isImporting
+  const [crop, setCrop] = useState<{ image: ImageBitmap; successMessage: string } | null>(null)
+  useEffect(() => () => { crop?.image.close() }, [crop])
+  const isBusy = isPreparing || isUploading || isImporting || Boolean(crop)
 
   const discardCapturedFrame = () => {
     if (capturedFrameUrl) {
@@ -214,8 +176,18 @@ export function CoverImageField({
     }
     setIsPreparing(true)
     try {
-      const compressedImage = await compressCoverImage(imageFile)
-      setIsPreparing(false)
+      const image = await createImageBitmap(imageFile, { imageOrientation: 'from-image' })
+      setCrop({ image, successMessage })
+      return true
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : '无法读取图片', 'error')
+      return false
+    } finally { setIsPreparing(false) }
+  }
+
+  const uploadCrop = async (compressedImage: File) => {
+    if (!crop) return
+    try {
       setIsUploading(true)
       // 进度按实际发送给服务端的压缩文件计算，不再显示原图字节数。
       setUploadProgress({
@@ -230,11 +202,10 @@ export function CoverImageField({
         setUploadProgress,
       )
       onChange(uploaded.publicUrl)
-      onNotify(successMessage, 'success')
-      return true
+      onNotify(crop.successMessage, 'success')
+      setCrop(null)
     } catch (error) {
       onNotify(error instanceof Error ? error.message : '封面上传失败', 'error')
-      return false
     } finally {
       setIsPreparing(false)
       setIsUploading(false)
@@ -271,23 +242,7 @@ export function CoverImageField({
           type: contentType || blob.type || 'image/*',
         },
       )
-      setIsPreparing(true)
-      const compressedImage = await compressCoverImage(imageFile)
-      setIsPreparing(false)
-      setIsUploading(true)
-      setUploadProgress({
-        phase: 'sending',
-        loaded: 0,
-        total: compressedImage.size || null,
-        percent: 0,
-      })
-      const uploaded = await apiClient.uploadImage(
-        compressedImage,
-        adminToken,
-        setUploadProgress,
-      )
-      onChange(uploaded.publicUrl)
-      onNotify('已抓取远程图片并上传', 'success')
+      await uploadFile(imageFile, '已抓取远程图片并上传')
     } catch (error) {
       onNotify(
         error instanceof Error ? error.message : '远程图片抓取失败',
@@ -432,6 +387,9 @@ export function CoverImageField({
           event.currentTarget.value = ''
         }}
       />
+
+      {crop && <CoverCropModal image={crop.image} busy={isUploading} onCancel={() => { if (!isUploading) setCrop(null) }}
+        onConfirm={uploadCrop} onError={(message) => onNotify(message, 'error')} />}
 
       <Modal
         afterClose={discardCapturedFrame}

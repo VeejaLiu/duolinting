@@ -153,13 +153,30 @@
   border: 1px solid #dbe3ee;
   border-radius: 8px;
   display: block;
-  height: 72px;
+  height: 96px;
   margin-top: 8px;
   object-fit: cover;
   width: 96px;
 }
 
 .cover-thumb.large {
-  height: 112px;
+  height: 160px;
   width: 160px;
 }
+
+.cover-crop-canvas {
+  display: block;
+  width: min(100%, 352px);
+  height: auto;
+  aspect-ratio: 1;
+  margin: 0 auto;
+  background: #f1f5f9;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  cursor: grab;
+  touch-action: none;
+}
+.cover-crop-canvas:active { cursor: grabbing; }
+.cover-crop-canvas:hover, .cover-crop-canvas:focus-visible { border-color: #1cb0f6; }
+.cover-crop-zoom { display: grid; gap: 8px; margin-top: 16px; }
+.cover-crop-zoom input { width: 100%; accent-color: #1cb0f6; }

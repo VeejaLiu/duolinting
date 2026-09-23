@@ -2547,3 +2547,63 @@ for (const [locale, message] of [
 ] as const) {
   Object.assign(adminMessages[locale], { '媒体已替换，课程和个人字幕稿已保留，请核对字幕时间': message })
 }
+
+Object.assign(adminMessages["zh-CN"], {
+  "裁剪封面": "裁剪封面",
+  "裁剪并上传": "裁剪并上传",
+  "拖动图片调整位置，缩放后裁剪为正方形。输出 512 × 512 WebP。": "拖动图片调整位置，缩放后裁剪为正方形。输出 512 × 512 WebP。",
+  "拖动或使用方向键调整裁剪位置": "拖动或使用方向键调整裁剪位置",
+  "缩放": "缩放",
+  "当前浏览器无法生成 WebP 图片，请使用新版浏览器": "当前浏览器无法生成 WebP 图片，请使用新版浏览器",
+  "图片压缩失败": "图片压缩失败"
+})
+
+Object.assign(adminMessages["en-US"], {
+  "裁剪封面": "Crop cover",
+  "裁剪并上传": "Crop and upload",
+  "拖动图片调整位置，缩放后裁剪为正方形。输出 512 × 512 WebP。": "Drag to reposition and zoom to crop a square. Output: 512 × 512 WebP.",
+  "拖动或使用方向键调整裁剪位置": "Drag or use arrow keys to adjust the crop",
+  "缩放": "Zoom",
+  "当前浏览器无法生成 WebP 图片，请使用新版浏览器": "This browser cannot encode WebP. Please use an updated browser.",
+  "图片压缩失败": "Image compression failed"
+})
+
+Object.assign(adminMessages["ja-JP"], {
+  "裁剪封面": "カバーを切り抜く",
+  "裁剪并上传": "切り抜いてアップロード",
+  "拖动图片调整位置，缩放后裁剪为正方形。输出 512 × 512 WebP。": "ドラッグとズームで正方形に切り抜きます。出力：512 × 512 WebP。",
+  "拖动或使用方向键调整裁剪位置": "ドラッグまたは方向キーで位置を調整",
+  "缩放": "ズーム",
+  "当前浏览器无法生成 WebP 图片，请使用新版浏览器": "WebP を生成できません。新しいブラウザーを使用してください。",
+  "图片压缩失败": "画像の圧縮に失敗しました"
+})
+
+Object.assign(adminMessages["th-TH"], {
+  "裁剪封面": "ครอบตัดภาพปก",
+  "裁剪并上传": "ครอบตัดและอัปโหลด",
+  "拖动图片调整位置，缩放后裁剪为正方形。输出 512 × 512 WebP。": "ลากเพื่อจัดตำแหน่งและซูมเพื่อตัดเป็นสี่เหลี่ยมจัตุรัส ผลลัพธ์: WebP 512 × 512",
+  "拖动或使用方向键调整裁剪位置": "ลากหรือใช้ปุ่มลูกศรเพื่อปรับตำแหน่ง",
+  "缩放": "ซูม",
+  "当前浏览器无法生成 WebP 图片，请使用新版浏览器": "เบราว์เซอร์นี้สร้าง WebP ไม่ได้ โปรดใช้เบราว์เซอร์รุ่นใหม่",
+  "图片压缩失败": "บีบอัดภาพไม่สำเร็จ"
+})
+
+Object.assign(adminMessages["fr-FR"], {
+  "裁剪封面": "Recadrer la couverture",
+  "裁剪并上传": "Recadrer et importer",
+  "拖动图片调整位置，缩放后裁剪为正方形。输出 512 × 512 WebP。": "Déplacez et zoomez pour un recadrage carré. Sortie : WebP 512 × 512.",
+  "拖动或使用方向键调整裁剪位置": "Déplacez ou utilisez les flèches pour ajuster le cadrage",
+  "缩放": "Zoom",
+  "当前浏览器无法生成 WebP 图片，请使用新版浏览器": "Ce navigateur ne peut pas créer de WebP. Utilisez un navigateur récent.",
+  "图片压缩失败": "Échec de la compression"
+})
+
+Object.assign(adminMessages["es-ES"], {
+  "裁剪封面": "Recortar portada",
+  "裁剪并上传": "Recortar y subir",
+  "拖动图片调整位置，缩放后裁剪为正方形。输出 512 × 512 WebP。": "Arrastra y ajusta el zoom para recortar un cuadrado. Salida: WebP de 512 × 512.",
+  "拖动或使用方向键调整裁剪位置": "Arrastra o usa las flechas para ajustar el recorte",
+  "缩放": "Zoom",
+  "当前浏览器无法生成 WebP 图片，请使用新版浏览器": "Este navegador no puede generar WebP. Usa un navegador actualizado.",
+  "图片压缩失败": "Error al comprimir la imagen"
+})
