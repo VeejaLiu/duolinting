@@ -135,6 +135,7 @@
   color: #52637a;
   display: grid;
   gap: 14px;
+  grid-column: 1 / -1;
   justify-items: center;
   justify-self: center;
   min-width: min(100%, 360px);
