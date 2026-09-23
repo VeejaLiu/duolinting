@@ -73,6 +73,9 @@ type MediaCourseFormProps = {
   proofreadingStatus?: string
   saveDisabledReason?: string
   localMediaUrl: string
+  isPreparingAudioPreview?: boolean
+  audioPreviewError?: string
+  onRetryAudioPreview?: () => void
   mediaSize: number | null
   mediaFile: File | null
   mediaUploadProgress: FileUploadProgress | null
@@ -148,6 +151,9 @@ export function MediaCourseForm({
   proofreadingStatus,
   saveDisabledReason,
   localMediaUrl,
+  isPreparingAudioPreview = false,
+  audioPreviewError = '',
+  onRetryAudioPreview,
   mediaSize,
   mediaFile,
   mediaUploadProgress,
@@ -803,6 +809,15 @@ export function MediaCourseForm({
             style={mediaEditorUpperStyle}
           >
             <div className="media-editor-video-column">
+              {(isPreparingAudioPreview || audioPreviewError) && (
+                <div className="audio-preview-stage">
+                  <div className="audio-preview-card" role={audioPreviewError ? 'alert' : 'status'}>
+                    <strong>{t(isPreparingAudioPreview ? '正在准备精确音频预览…' : '音频预览不可用')}</strong>
+                    {audioPreviewError && <span>{t(audioPreviewError)}</span>}
+                    {audioPreviewError && <Button onClick={onRetryAudioPreview}>{t('重新准备预览')}</Button>}
+                  </div>
+                </div>
+              )}
               {localMediaUrl &&
                 (courseForm.mediaType === 'video' ? (
                   <div className="video-preview-stage">

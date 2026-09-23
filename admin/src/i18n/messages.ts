@@ -2436,3 +2436,51 @@ const workflowUiMessages: Record<UiLocale, Record<string, string>> = {
 for (const locale of Object.keys(workflowUiMessages) as UiLocale[]) {
   Object.assign(adminMessages[locale], workflowUiMessages[locale])
 }
+
+const preciseAudioPreviewMessages: Record<UiLocale, Record<string, string>> = {
+  'zh-CN': {
+    '正在准备精确音频预览…': '正在准备精确音频预览…',
+    '音频预览不可用': '音频预览不可用',
+    '重新准备预览': '重新准备预览',
+    '音频过长，无法准备精确预览。请使用 WAV 文件进行校对。': '音频过长，无法准备精确预览。请使用 WAV 文件进行校对。',
+    '精确音频预览准备失败，请重试。': '精确音频预览准备失败，请重试。',
+  },
+  'en-US': {
+    '正在准备精确音频预览…': 'Preparing precise audio preview…',
+    '音频预览不可用': 'Audio preview unavailable',
+    '重新准备预览': 'Retry preview',
+    '音频过长，无法准备精确预览。请使用 WAV 文件进行校对。': 'This audio is too long for a precise browser preview. Use a WAV file for proofreading.',
+    '精确音频预览准备失败，请重试。': 'Could not prepare the precise audio preview. Please retry.',
+  },
+  'th-TH': {
+    '正在准备精确音频预览…': 'กำลังเตรียมเสียงตัวอย่างที่แม่นยำ…',
+    '音频预览不可用': 'ไม่สามารถเล่นเสียงตัวอย่างได้',
+    '重新准备预览': 'ลองเตรียมตัวอย่างอีกครั้ง',
+    '音频过长，无法准备精确预览。请使用 WAV 文件进行校对。': 'เสียงยาวเกินกว่าจะเตรียมตัวอย่างที่แม่นยำในเบราว์เซอร์ได้ โปรดใช้ไฟล์ WAV ในการตรวจทาน',
+    '精确音频预览准备失败，请重试。': 'เตรียมเสียงตัวอย่างไม่สำเร็จ โปรดลองอีกครั้ง',
+  },
+  'ja-JP': {
+    '正在准备精确音频预览…': '正確な音声プレビューを準備中…',
+    '音频预览不可用': '音声をプレビューできません',
+    '重新准备预览': 'プレビューを再試行',
+    '音频过长，无法准备精确预览。请使用 WAV 文件进行校对。': '音声が長すぎるため、ブラウザー内で正確なプレビューを準備できません。校正には WAV ファイルを使用してください。',
+    '精确音频预览准备失败，请重试。': '音声プレビューの準備に失敗しました。再試行してください。',
+  },
+  'fr-FR': {
+    '正在准备精确音频预览…': 'Préparation de l’aperçu audio précis…',
+    '音频预览不可用': 'Aperçu audio indisponible',
+    '重新准备预览': 'Réessayer l’aperçu',
+    '音频过长，无法准备精确预览。请使用 WAV 文件进行校对。': 'Cet audio est trop long pour un aperçu précis dans le navigateur. Utilisez un fichier WAV pour la relecture.',
+    '精确音频预览准备失败，请重试。': 'Impossible de préparer l’aperçu audio précis. Veuillez réessayer.',
+  },
+  'es-ES': {
+    '正在准备精确音频预览…': 'Preparando la vista previa de audio precisa…',
+    '音频预览不可用': 'Vista previa de audio no disponible',
+    '重新准备预览': 'Reintentar vista previa',
+    '音频过长，无法准备精确预览。请使用 WAV 文件进行校对。': 'El audio es demasiado largo para una vista previa precisa en el navegador. Utiliza un archivo WAV para la revisión.',
+    '精确音频预览准备失败，请重试。': 'No se pudo preparar la vista previa de audio precisa. Vuelve a intentarlo.',
+  },
+}
+for (const locale of Object.keys(preciseAudioPreviewMessages) as UiLocale[]) {
+  Object.assign(adminMessages[locale], preciseAudioPreviewMessages[locale])
+}
