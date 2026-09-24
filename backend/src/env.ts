@@ -128,6 +128,9 @@ export const env = {
     },
     resend: {
         API_KEY: getOsEnvOptional('RESEND_API_KEY') ?? '',
+        FROM_EMAIL: getOsEnvOptional('RESEND_FROM_EMAIL') ?? '',
+        FROM_NAME: optional('RESEND_FROM_NAME', 'DuolinTing'),
+        REPLY_TO: getOsEnvOptional('RESEND_REPLY_TO') ?? '',
     },
     localUploadTesting: {
         // 以 KB/s 配置而不是 bytes，便于手动调节；生产环境始终强制为 0。
