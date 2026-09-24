@@ -11,6 +11,12 @@ dotenv.config({
 
 const optional = (key: string, fallback: string) =>
     getOsEnvOptional(key) ?? fallback;
+// Compose passes optional override variables as empty strings when they are omitted.
+// Storage overrides treat that as "not configured" so existing MINIO_* fallbacks remain valid.
+const optionalNonEmpty = (key: string, fallback: string) => {
+    const value = getOsEnvOptional(key);
+    return value && value.trim() ? value : fallback;
+};
 const nodeEnv = process.env.NODE_ENV || 'development';
 const jwtSecret = optional(
     'SECRET_JWT',
@@ -22,6 +28,16 @@ const localUploadThrottleKbps = Number(
 const localUploadConfirmationDelayMs = Number(
     getOsEnvOptional('LOCAL_UPLOAD_CONFIRMATION_DELAY_MS') ?? '0',
 );
+const mediaStorageProvider = optional(
+    'MEDIA_STORAGE_PROVIDER',
+    'minio',
+).trim().toLowerCase();
+
+if (!['minio', 'cos', 'r2'].includes(mediaStorageProvider)) {
+    throw new Error(
+        'MEDIA_STORAGE_PROVIDER must be one of: minio, cos, r2.',
+    );
+}
 
 // 媒体 CDN 地址可以带一个固定路径前缀（例如 https://learner.example.com/media）。
 // 只接受无凭据、无 query/hash 的 HTTP(S) URL，避免把错误的 URL 配置写进课程响应。
@@ -110,21 +126,63 @@ export const env = {
         password: getOsEnvOptional('MYSQL_PASSWORD') ?? '',
         logging: toBool(optional('MYSQL_LOGGING', 'false')),
     },
-    minio: {
-        endpoint: optional('MINIO_ENDPOINT', 'localhost'),
-        port: toNumber(optional('MINIO_PORT', '9000')),
-        useSSL: toBool(optional('MINIO_USE_SSL', 'false')),
-        accessKey: optional('MINIO_ACCESS_KEY', 'minioadmin'),
-        secretKey: optional('MINIO_SECRET_KEY', 'minioadmin'),
-        bucket: optional('MINIO_BUCKET', 'duolinting-media'),
-        region: optional('MINIO_REGION', 'us-east-1'),
-    },
     media: {
         // 留空时保持历史 /api/v1/media/objects?key=... 路径；配置后课程 API
         // 返回 CDN 直连地址，媒体流不再经过 Express。
         publicBaseUrl: normalizeOptionalPublicUrl(
             optional('MEDIA_PUBLIC_BASE_URL', ''),
         ),
+        storage: {
+            // MinIO、腾讯 COS 和 Cloudflare R2 都通过 S3 兼容接口访问。
+            // 新变量优先；MINIO_* 回退保证本地开发和旧生产配置无需同步改名。
+            provider: mediaStorageProvider as 'minio' | 'cos' | 'r2',
+            endpoint: optionalNonEmpty(
+                'MEDIA_STORAGE_ENDPOINT',
+                optional('MINIO_ENDPOINT', 'localhost'),
+            ),
+            port: toNumber(
+                optionalNonEmpty(
+                    'MEDIA_STORAGE_PORT',
+                    optional('MINIO_PORT', '9000'),
+                ),
+            ),
+            useSSL: toBool(
+                optionalNonEmpty(
+                    'MEDIA_STORAGE_USE_SSL',
+                    optional('MINIO_USE_SSL', 'false'),
+                ),
+            ),
+            accessKey: optionalNonEmpty(
+                'MEDIA_STORAGE_ACCESS_KEY',
+                optional('MINIO_ACCESS_KEY', 'minioadmin'),
+            ),
+            secretKey: optionalNonEmpty(
+                'MEDIA_STORAGE_SECRET_KEY',
+                optional('MINIO_SECRET_KEY', 'minioadmin'),
+            ),
+            bucket: optionalNonEmpty(
+                'MEDIA_STORAGE_BUCKET',
+                optional('MINIO_BUCKET', 'duolinting-media'),
+            ),
+            region: optionalNonEmpty(
+                'MEDIA_STORAGE_REGION',
+                optional('MINIO_REGION', 'us-east-1'),
+            ),
+            // MinIO 默认 path-style；COS/R2 使用各自的虚拟主机式 S3 endpoint。
+            pathStyle: toBool(
+                optionalNonEmpty(
+                    'MEDIA_STORAGE_PATH_STYLE',
+                    mediaStorageProvider === 'minio' ? 'true' : 'false',
+                ),
+            ),
+            // 旧 MinIO CDN 路径包含 bucket；COS/R2 自定义域名直接映射对象键。
+            publicUrlIncludesBucket: toBool(
+                optionalNonEmpty(
+                    'MEDIA_PUBLIC_URL_INCLUDES_BUCKET',
+                    mediaStorageProvider === 'minio' ? 'true' : 'false',
+                ),
+            ),
+        },
     },
     resend: {
         API_KEY: getOsEnvOptional('RESEND_API_KEY') ?? '',

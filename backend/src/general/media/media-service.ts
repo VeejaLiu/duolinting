@@ -5,13 +5,16 @@ import { env } from '../../env';
 import { Logger } from '../../lib/logger';
 
 const logger = new Logger(__filename);
+const storage = env.media.storage;
 
 const objectStorage = new Client({
-    endPoint: env.minio.endpoint,
-    port: env.minio.port,
-    useSSL: env.minio.useSSL,
-    accessKey: env.minio.accessKey,
-    secretKey: env.minio.secretKey,
+    endPoint: storage.endpoint,
+    port: storage.port,
+    useSSL: storage.useSSL,
+    accessKey: storage.accessKey,
+    secretKey: storage.secretKey,
+    region: storage.region,
+    pathStyle: storage.pathStyle,
 });
 
 const publicReadPolicy = (bucket: string) =>
@@ -81,9 +84,9 @@ export const buildStoredMediaUrl = (objectName: string) =>
     `${legacyObjectRoute}?key=${encodeURIComponent(objectName)}`;
 
 /**
- * 把系统管理的对象键解析出来。CDN 路径固定为
- * <MEDIA_PUBLIC_BASE_URL>/<bucket>/<objectName>，objectName 包含媒体类型/日期等
- * 层级；只有匹配当前受控前缀的 URL 才会被当作可删除的 MinIO 对象。
+ * 把系统管理的对象键解析出来。MinIO 的历史 CDN 路径包含 bucket，COS/R2
+ * 自定义域名则直接映射 objectName；只有匹配当前受控入口的 URL 才会被当作
+ * 可删除的托管对象。
  */
 export const getManagedMediaObjectName = (value: string | null | undefined) => {
     const rawValue = String(value ?? '').trim();
@@ -106,7 +109,10 @@ export const getManagedMediaObjectName = (value: string | null | undefined) => {
 
         if (env.media.publicBaseUrl) {
             const publicBase = new URL(env.media.publicBaseUrl);
-            const publicPathPrefix = `${publicBase.pathname.replace(/\/$/, '')}/${env.minio.bucket}/`;
+            const basePath = publicBase.pathname.replace(/\/$/, '');
+            const publicPathPrefix = storage.publicUrlIncludesBucket
+                ? `${basePath}/${storage.bucket}/`
+                : `${basePath}/`;
             if (
                 parsed.origin === publicBase.origin &&
                 parsed.pathname.startsWith(publicPathPrefix)
@@ -132,25 +138,34 @@ export const buildPublicMediaUrl = (objectName: string) => {
         return buildStoredMediaUrl(objectName);
     }
 
-    return `${env.media.publicBaseUrl}/${env.minio.bucket}/${objectName}`;
+    const publicObjectPath = storage.publicUrlIncludesBucket
+        ? `${storage.bucket}/${objectName}`
+        : objectName;
+    return `${env.media.publicBaseUrl}/${publicObjectPath}`;
 };
 
 /**
- * CDN 模式下 nginx 以匿名 GET 向 MinIO 回源。媒体地址在学习端本来就是公开的，
- * 此策略仅开放已知对象键的读取权限，未授予 ListBucket、上传或删除权限。外部流量
- * 必须仍经 nginx / Cloudflare；生产编排不应把 MinIO 的服务端口作为播放入口暴露。
+ * 本地/旧 MinIO CDN 模式需要应用创建 bucket 并写匿名只读策略。托管 COS/R2
+ * bucket 必须预先由基础设施创建；其公开策略、CDN 私有回源和服务授权不能由
+ * 应用启动过程修改，避免运行凭据拥有 bucket 管理权限。
  */
 const ensureMediaBucket = async () => {
-    const exists = await objectStorage.bucketExists(env.minio.bucket);
+    // 托管对象存储由云端基础设施预创建，应用凭据只拥有对象级权限。
+    // 不对 COS/R2 调用 bucketExists，可避免为运行时账号授予存储桶读取或管理权限。
+    if (storage.provider !== 'minio') {
+        return;
+    }
+
+    const exists = await objectStorage.bucketExists(storage.bucket);
     if (!exists) {
-        logger.info(`[media] create bucket bucket=${env.minio.bucket}`);
-        await objectStorage.makeBucket(env.minio.bucket, env.minio.region);
+        logger.info(`[media] create bucket bucket=${storage.bucket}`);
+        await objectStorage.makeBucket(storage.bucket, storage.region);
     }
 
     if (env.media.publicBaseUrl) {
         await objectStorage.setBucketPolicy(
-            env.minio.bucket,
-            publicReadPolicy(env.minio.bucket),
+            storage.bucket,
+            publicReadPolicy(storage.bucket),
         );
     }
 };
@@ -162,7 +177,9 @@ export const preparePublicMediaDelivery = async () => {
     }
 
     await ensureMediaBucket();
-    logger.info(`[media] public delivery ready bucket=${env.minio.bucket}`);
+    logger.info(
+        `[media] public delivery ready provider=${storage.provider} bucket=${storage.bucket}`,
+    );
 };
 
 export const isMissingObjectError = (error: unknown) => {
@@ -210,13 +227,13 @@ export async function createUploadIntent({
 
     const objectName = buildObjectName(mediaType, contentType);
     const uploadUrl = await objectStorage.presignedPutObject(
-        env.minio.bucket,
+        storage.bucket,
         objectName,
         60 * 10,
     );
 
     return {
-        bucket: env.minio.bucket,
+        bucket: storage.bucket,
         objectName,
         uploadUrl,
         publicUrl: buildPublicMediaUrl(objectName),
@@ -278,7 +295,7 @@ export async function uploadMediaObject({
     await ensureMediaBucket();
 
     const objectName = buildObjectName(mediaType, contentType);
-    await objectStorage.putObject(env.minio.bucket, objectName, buffer, size, {
+    await objectStorage.putObject(storage.bucket, objectName, buffer, size, {
         'Content-Type': contentType,
     });
     logger.info(
@@ -286,7 +303,7 @@ export async function uploadMediaObject({
     );
 
     return {
-        bucket: env.minio.bucket,
+        bucket: storage.bucket,
         objectName,
         publicUrl: buildPublicMediaUrl(objectName),
         contentType,
@@ -301,7 +318,7 @@ type MediaObjectRange = {
 };
 
 export async function statMediaObject(objectName: string) {
-    const stat = await objectStorage.statObject(env.minio.bucket, objectName);
+    const stat = await objectStorage.statObject(storage.bucket, objectName);
 
     return {
         contentType:
@@ -323,7 +340,7 @@ export async function getMediaObject(
         const end = Math.max(start, Math.min(range.end, stat.size - 1));
         const length = end - start + 1;
         const stream = await objectStorage.getPartialObject(
-            env.minio.bucket,
+            storage.bucket,
             objectName,
             start,
             length,
@@ -341,7 +358,7 @@ export async function getMediaObject(
         };
     }
 
-    const stream = await objectStorage.getObject(env.minio.bucket, objectName);
+    const stream = await objectStorage.getObject(storage.bucket, objectName);
 
     return {
         stream,
@@ -353,7 +370,7 @@ export async function getMediaObject(
 export async function deleteMediaObject(objectName: string) {
     logger.info(`[media] delete object=${objectName}`);
     try {
-        await objectStorage.removeObject(env.minio.bucket, objectName);
+        await objectStorage.removeObject(storage.bucket, objectName);
     } catch (error) {
         if (isMissingObjectError(error)) {
             logger.warn(`[media] object already missing object=${objectName}`);
