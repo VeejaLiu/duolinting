@@ -457,7 +457,7 @@ export function CourseManager({
     {
       title: t('课程'), dataIndex: 'title', key: 'title', width: 250,
       render: (_, exercise) => <Space align="start" size={8}>
-        {exercise.coverImageUrl ? <Image alt={`${exercise.title} ${t('封面')}`} height={40} preview={false} src={resolveApiUrl(exercise.coverImageUrl)} width={56} style={{ borderRadius: 4, objectFit: 'cover' }} /> : <div className="course-table-cover">{exercise.mediaType === 'video' ? 'V' : 'A'}</div>}
+        {exercise.coverImageUrl ? <Image alt={`${exercise.title} ${t('封面')}`} height={40} preview={false} src={resolveApiUrl(exercise.coverImageUrl)} width={40} style={{ borderRadius: 4, objectFit: 'cover' }} /> : <div className="course-table-cover">{exercise.mediaType === 'video' ? 'V' : 'A'}</div>}
         <Space direction="vertical" size={2}>
           <Space size={4}><Typography.Text strong>{courseTitle(exercise, uiLocale)}</Typography.Text>{canManageCourses && <Tooltip title={t('快速修改名称')}><Button icon={<Pencil size={13} />} onClick={() => openRenameDialog(exercise)} size="small" type="text" /></Tooltip>}</Space>
           <Typography.Text ellipsis={{ tooltip: exercise.summary }} type="secondary" style={{ maxWidth: 170 }}>{exercise.summary || exercise.source}</Typography.Text>

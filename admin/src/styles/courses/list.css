@@ -26,7 +26,7 @@
 .course-filter-form .ant-select { min-width: 160px; }
 .course-filter-form .ant-input-affix-wrapper { min-width: 260px; }
 .course-table-summary { display: grid; }
-.course-table-cover { align-items: center; background: #e2e8f0; border-radius: 4px; color: #475569; display: grid; font-size: 12px; font-weight: 800; height: 40px; place-items: center; width: 56px; }
+.course-table-cover { align-items: center; aspect-ratio: 1; background: #e2e8f0; border-radius: 4px; color: #475569; display: grid; flex: 0 0 40px; font-size: 12px; font-weight: 800; height: 40px; place-items: center; width: 40px; }
 .course-table-wrap { min-width: 0; overflow-x: auto; }
 .course-table-wrap .ant-table-cell { padding-inline: 10px; }
 .course-table-wrap .ant-tag { margin-inline-end: 2px; padding-inline: 5px; }
