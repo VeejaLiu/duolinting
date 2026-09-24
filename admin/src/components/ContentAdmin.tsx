@@ -301,6 +301,7 @@ export function ContentAdmin({
 
       {activeSection === 'users' && (
         <UserActivityPanel
+          adminToken={adminToken}
           report={growthReport}
           isLoading={growthLoading}
           onRefresh={() => {

@@ -1,3 +1,5 @@
+import { AnalyticsConsent } from './components/AnalyticsConsent'
+import { analytics } from './lib/analytics'
 import { coursePlaybackKey } from '@duolinting/domain'
 import { BookOpenText } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -186,6 +188,10 @@ function LearnerAppShell() {
     playbackRate: progress?.playbackRate ?? 1,
   })
 
+  useEffect(() => { if (activeExercise) void analytics.setCourse(Number(activeExercise.id), activeExercise.mediaType, activeExercise.lines) }, [activeExercise])
+
+  useEffect(() => { analytics.setMode(studyStage) }, [studyStage])
+
   const syncRoute = useCallback((
     nextSeriesId: number,
     nextExerciseId: number,
@@ -313,6 +319,7 @@ function LearnerAppShell() {
   }, [activeExerciseSummary])
 
   const toggleRevealLine = (lineId: string) => {
+    if (!revealedLineIds[lineId]) analytics.practice(lineId, 'answer_check')
     setRevealedLineIds((current) => {
       if (!current[lineId]) {
         return {
@@ -530,6 +537,7 @@ function LearnerAppShell() {
 
   return (
     <main className="app-shell">
+      <AnalyticsConsent token={authToken} owner={authUser ? String(authUser.id) : 'anonymous'} ready={!authLoading} />
       <TopBar
         user={authUser}
         onLogout={handleLogout}

@@ -1,3 +1,4 @@
+import { analytics } from '@/lib/analytics'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import { View, Text, Pressable, useWindowDimensions } from 'react-native'
@@ -67,6 +68,8 @@ export function StudyScreen() {
   )
   const [selectedReviewLineId, setSelectedReviewLineId] = useState<string>('')
   const compactStudyLayout = viewportHeight < 780
+
+  useEffect(() => { analytics.setMode(stage) }, [stage])
 
   useEffect(() => {
     if (!exercise) {
@@ -306,7 +309,7 @@ export function StudyScreen() {
         onNoteChange: updateNote,
         onPause: pause,
         onPlayLine: () => playLineOnce(activeLine),
-        onRevealLine: setRevealed,
+        onRevealLine: (lineId: string) => { analytics.practice(lineId, 'answer_check'); setRevealed(lineId) },
         onSelectLine: playActiveLine,
         onSubmitAcceptedAnswerFeedback: (answer: string) =>
           handleSubmitAcceptedAnswerFeedback(activeLine.id, answer),

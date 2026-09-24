@@ -1,3 +1,4 @@
+import { analyticsMessages } from './analytics'
 import thSupplement from './supplement-th-TH'
 import jaSupplement from './supplement-ja-JP'
 import frFR from './fr-FR'
@@ -2744,4 +2745,8 @@ for (const [key, enUS, thTH, jaJP, frFR, esES] of auditedAdminErrorMessages) {
   Object.assign(adminMessages['ja-JP'], { [key]: jaJP })
   Object.assign(adminMessages['fr-FR'], { [key]: frFR })
   Object.assign(adminMessages['es-ES'], { [key]: esES })
+}
+
+for (const [key, values] of Object.entries(analyticsMessages)) {
+  for (const [index, locale] of (['zh-CN', 'en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const).entries()) adminMessages[locale][key] = values[index]
 }

@@ -1,3 +1,4 @@
+import adminAnalyticsRouter from './admin-analytics';
 import express from 'express';
 import { body, param } from 'express-validator';
 import type { AdminWorkflowActivityType, FeedbackStatus } from '../../domain';
@@ -175,6 +176,11 @@ router.put(
 
 // 除了认证资料和改密接口外，所有后台能力都要求成员完成初始密码修改。
 router.use(requireAdminToken, requireAdminPasswordChanged);
+router.use('/analytics', (req, res, next) => {
+    // Contributors may report their own upload outcome; all reports and controls remain super-admin only.
+    if (req.method === 'POST' && req.path === '/upload-finished') return next();
+    return requireSuperAdmin(req, res, next);
+}, adminAnalyticsRouter);
 
 /** 团队共享的工作流时间线。所有完成初始密码设置的后台成员都可查看，但无写权限。 */
 router.get('/workflow-activity', async (req: any, res) => {

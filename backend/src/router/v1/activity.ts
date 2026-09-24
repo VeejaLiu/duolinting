@@ -17,10 +17,11 @@ router.post(
     '/mastered',
     verifyTokenMiddleware,
     body('day').isString().matches(/^\d{4}-\d{2}-\d{2}$/),
+    body('operationId').optional().isUUID(),
     body('masteredDelta').optional().isInt({ min: 1, max: 100 }).toInt(),
     validateErrorCheck,
     async (req: any, res) => {
-        await recordMasteredActivity(req.user.userId, req.body.day, req.body.masteredDelta ?? 1);
+        await recordMasteredActivity(req.user.userId, req.body.day, req.body.masteredDelta ?? 1, req.body.operationId);
         res.status(200).send({ ok: true });
     },
 );

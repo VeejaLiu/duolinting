@@ -1,3 +1,4 @@
+import { analytics } from '../lib/analytics'
 import type {
   ExerciseProgress,
   LineProgress,
@@ -135,6 +136,7 @@ export function useStudyProgress({
     // 用 getState() 直调而非 hook 订阅，避免与 store 形成依赖循环
     if (activeExercise) {
       if (becomingMastered) {
+      analytics.practice(lineId, 'mastery')
         useActivityStore.getState().recordMastered()
       } else {
         useActivityStore.getState().logStudyActivity()

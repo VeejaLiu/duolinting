@@ -22,6 +22,9 @@ export default function EnglishPrivacyPage() {
         <h1>We process only the data needed to provide DuolinTing.</h1>
         <p className="legal-updated">Last updated: August 29, 2026</p>
 
+        <h2>Optional first-party product analytics</h2>
+        <p>With your consent, random browser or installation identifiers measure page and course visits, sanitized campaign sources, country-level network regions, effective playback intervals, practice action types and media quality. Analytics exclude dictation and note text, full referring URLs, raw IP addresses and hardware identifiers. Network region does not establish nationality or residence. You can disable optional analytics in the website or app without losing account, progress or learning features. Registration network region and essential security logs are handled separately.</p>
+        <p>Raw analytics events are retained for 90 days; analytics sessions and user-day facts for up to 13 months. Disabling analytics stops collection and clears the local queue. Account deletion removes associated analytics events, sessions, profiles and daily facts. Reports are restricted to authorized administrators.</p>
         <h2>Operator and contact</h2>
         <p>DuolinTing is an independent open-source project maintained by Veeja Liu as an individual developer. For privacy questions, data requests, or account issues, contact <a href="mailto:veejaliu@outlook.com">veejaliu@outlook.com</a> or visit the <a href="/en/support">support page</a> for other contact options.</p>
 

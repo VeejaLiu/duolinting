@@ -1,3 +1,4 @@
+import analyticsRouter from './analytics';
 import express from 'express';
 import adminRouter from './admin';
 import authRouter from './auth';
@@ -13,6 +14,7 @@ import userRouter from './user';
 
 const router = express.Router();
 
+router.use('/analytics', analyticsRouter);
 router.use('/catalog', catalogRouter);
 router.use('/activity', activityRouter);
 router.use('/exercises', exercisesRouter);

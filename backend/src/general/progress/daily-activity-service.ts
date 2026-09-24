@@ -26,16 +26,27 @@ export const recordMasteredActivity = async (
     userId: number | string,
     day: string,
     masteredDelta = 1,
+    operationId?: string,
 ): Promise<void> => {
     if (!DAY_PATTERN.test(day) || !Number.isInteger(masteredDelta) || masteredDelta < 1) {
         return;
     }
-    await sequelize.query(
-        `insert into user_daily_activity (user_id, day, mastered_count)
-         values (:userId, :day, :masteredDelta)
-         on duplicate key update mastered_count = mastered_count + values(mastered_count)`,
-        { replacements: { userId, day, masteredDelta } },
-    );
+    await sequelize.transaction(async (transaction) => {
+        // A retry retains the operation UUID; a separate intentional toggle is still a separate legacy action.
+        if (operationId) {
+            const [, inserted] = await sequelize.query(
+                'insert ignore into user_activity_operations(user_id,operation_id,created_at) values(:userId,:operationId,UTC_TIMESTAMP(3))',
+                { replacements: { userId, operationId }, transaction },
+            );
+            if (Number((inserted as { affectedRows?: number }).affectedRows) === 0) return;
+        }
+        await sequelize.query(
+            `insert into user_daily_activity (user_id, day, mastered_count)
+             values (:userId, :day, :masteredDelta)
+             on duplicate key update mastered_count = mastered_count + values(mastered_count)`,
+            { replacements: { userId, day, masteredDelta }, transaction },
+        );
+    });
 };
 
 /** 读取用户全部每日活动记录，返回 { 'yyyy-MM-dd': masteredCount } 供 streak/今日进度计算。 */

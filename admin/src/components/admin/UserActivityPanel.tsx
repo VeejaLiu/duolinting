@@ -1,3 +1,4 @@
+import { AnalyticsV2Panel } from './AnalyticsV2Panel'
 import { ReloadOutlined } from '@ant-design/icons'
 import { Line } from '@ant-design/charts'
 import { Alert, Button, Card, Col, Empty, Progress, Row, Space, Statistic, Tag, Typography } from 'antd'
@@ -5,6 +6,7 @@ import type { AdminGrowthClientDistribution, AdminGrowthReport, AdminGrowthTrend
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type GrowthAnalyticsPanelProps = {
+  adminToken: string
   report: AdminGrowthReport | null
   isLoading: boolean
   onRefresh: () => void
@@ -110,23 +112,24 @@ function ClientDistributionCard({ item, mau }: { item: AdminGrowthClientDistribu
   )
 }
 
-export function UserActivityPanel({ report, isLoading, onRefresh }: GrowthAnalyticsPanelProps) {
+export function UserActivityPanel({ report, isLoading, onRefresh, adminToken }: GrowthAnalyticsPanelProps) {
   const { t, uiLocale } = useAdminLanguage()
   const cards = report
     ? [
-        { title: t('累计注册用户'), value: report.summary.totalUsers },
+        { title: t('analytics.existingUsers'), value: report.summary.totalUsers },
         { title: t('今日新增注册'), value: report.summary.registeredTodayCount, color: '#1cb0f6' },
         { title: t('近 7 天新增'), value: report.summary.registered7dCount, color: '#0d8f74' },
         { title: t('近 30 天新增'), value: report.summary.registered30dCount, color: '#b45309' },
-        { title: 'DAU', value: report.summary.dau, color: '#1cb0f6' },
-        { title: 'WAU', value: report.summary.wau, color: '#0d8f74' },
-        { title: 'MAU', value: report.summary.mau, color: '#b45309' },
+        { title: t('analytics.legacyDau'), value: report.summary.dau, color: '#1cb0f6' },
+        { title: t('analytics.legacyWau'), value: report.summary.wau, color: '#0d8f74' },
+        { title: t('analytics.legacyMau'), value: report.summary.mau, color: '#b45309' },
         { title: 'DAU / MAU', value: report.summary.dauMauPercent, suffix: '%', color: '#7c3aed' },
       ]
     : []
 
   return (
     <section className="admin-section">
+      <AnalyticsV2Panel adminToken={adminToken} />
       <div className="panel-title"><span>{t('增长分析')}</span></div>
       <Space wrap size="middle" style={{ width: '100%', justifyContent: 'space-between' }}>
         <Typography.Text type="secondary">{t('关注注册增长、日活留存和产品端侧分布，不展示个人学习内容。')}</Typography.Text>
@@ -138,7 +141,7 @@ export function UserActivityPanel({ report, isLoading, onRefresh }: GrowthAnalyt
           description={t('注册趋势可立即查看；DAU、WAU、MAU 与端侧活跃分布会从本次上线后的已登录访问开始形成准确历史。')} />
       ) : null}
       {report?.trackingStartedAt ? (
-        <Alert showIcon type="info" message={`${t('访问追踪开始于')} ${report.trackingStartedAt}`}
+        <Alert showIcon type="info" message={`${t('analytics.firstObservedAccess')} ${report.trackingStartedAt}`}
           description={t('DAU、WAU、MAU 按已登录用户去重；端侧分布允许同一用户同时出现在多个端。')} />
       ) : null}
 

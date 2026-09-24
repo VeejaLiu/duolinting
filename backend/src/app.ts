@@ -1,3 +1,5 @@
+import { startAnalyticsMaintenance } from './general/analytics/operations';
+import { trustedProxyRanges, loadCountryDatabase } from './general/analytics/geo';
 import express, { ErrorRequestHandler } from 'express';
 import http from 'http';
 import cookieParser from 'cookie-parser';
@@ -16,9 +18,9 @@ const logger = new Logger(__filename);
 
 async function Main() {
     const app = express();
-    // Production traffic reaches Express through one nginx hop. This makes req.ip
-    // use nginx's sanitized X-Forwarded-For value for authentication rate limits.
-    app.set('trust proxy', 1);
+    // Trust only explicitly configured proxy addresses, including each controlled ingress layer.
+    // An empty list safely uses the socket peer until the deployment topology is verified.
+    app.set('trust proxy', trustedProxyRanges());
     const server = http.createServer(app);
     const allowedOrigins = env.cors.origins
         .split(',')
@@ -32,6 +34,8 @@ async function Main() {
     // CDN 直连媒体必须先确保 MinIO 仅开放匿名读取，才能让 nginx 绕过
     // Express 取得对象。未设置 MEDIA_PUBLIC_BASE_URL 时该调用是无操作。
     await preparePublicMediaDelivery();
+    await loadCountryDatabase();
+    startAnalyticsMaintenance();
 
     app.use(requestLogger);
     app.use((req, res, next) => {
@@ -66,6 +70,7 @@ async function Main() {
     });
 
     app.use(cookieParser());
+    app.use('/api/v1/analytics', express.json({ limit: '64kb' }));
     app.use(express.json({ limit: '10mb' }));
     app.use(express.urlencoded({ extended: true }));
     app.use('/api', index);
@@ -80,9 +85,10 @@ async function Main() {
     const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
         void _next;
         logger.error(
-            `[APP][Error] id=${res.locals.requestId ?? '-'} ${req.method} ${req.originalUrl} ${err.stack}`,
+            `[APP][Error] id=${res.locals.requestId ?? '-'} ${req.method} ${req.originalUrl.split('?')[0]} ${err.stack}`,
         );
-        res.status(500).send({ success: false, message: 'Something broke!' });
+        const status = [400, 401, 403, 413, 429].includes(Number(err.status)) ? Number(err.status) : 500;
+        res.status(status).send({ success: false, message: status === 413 ? 'Request body too large' : status === 400 ? 'Invalid request body' : 'Something broke!' });
     };
     app.use(errorHandler);
 

@@ -1,4 +1,10 @@
 export default {
+  "analytics.title": "Analyse facultative",
+  "analytics.description": "Améliorez le produit grâce aux visites, à la région réseau et à la qualité de lecture. Les réponses et notes sont exclues. Le refus ne bloque pas les cours.",
+  "analytics.allow": "Autoriser",
+  "analytics.decline": "Refuser",
+  "analytics.disable": "Désactiver",
+
   "preview.updateRequired": "Mettez à jour l’application.",
   "study.playbackFailed": "La lecture n’a pas abouti. Veuillez réessayer.",
   "tabs.study": "Étudier",

@@ -5,6 +5,7 @@ COPY backend/package.json backend/package.json
 COPY web-app/package.json web-app/package.json
 COPY admin/package.json admin/package.json
 COPY mobile-app/package.json mobile-app/package.json
+COPY packages/analytics/package.json packages/analytics/package.json
 COPY packages/playback/package.json packages/playback/package.json
 COPY packages/domain/package.json packages/domain/package.json
 COPY packages/app-config/package.json packages/app-config/package.json
@@ -34,6 +35,7 @@ COPY backend/package.json backend/package.json
 COPY web-app/package.json web-app/package.json
 COPY admin/package.json admin/package.json
 COPY mobile-app/package.json mobile-app/package.json
+COPY packages/analytics/package.json packages/analytics/package.json
 COPY packages/playback/package.json packages/playback/package.json
 COPY packages/domain/package.json packages/domain/package.json
 COPY packages/app-config/package.json packages/app-config/package.json
@@ -48,6 +50,7 @@ FROM node:22-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=production-deps /app/node_modules node_modules
+COPY --from=production-deps /app/backend/node_modules backend/node_modules
 COPY --from=build /app/package.json package.json
 COPY --from=build /app/packages/domain/package.json packages/domain/package.json
 COPY --from=build /app/packages/domain/dist packages/domain/dist

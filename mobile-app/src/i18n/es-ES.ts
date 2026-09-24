@@ -1,4 +1,10 @@
 export default {
+  "analytics.title": "Análisis opcional",
+  "analytics.description": "Ayuda a mejorar el producto con visitas, región de red y calidad de reproducción. No se recopilan respuestas ni notas. Puedes estudiar sin aceptar.",
+  "analytics.allow": "Permitir",
+  "analytics.decline": "Rechazar",
+  "analytics.disable": "Desactivar",
+
   "preview.updateRequired": "Actualiza la aplicación.",
   "study.playbackFailed": "La reproducción no se completó. Vuelve a intentarlo.",
   "tabs.study": "Estudiar",

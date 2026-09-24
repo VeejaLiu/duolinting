@@ -180,7 +180,7 @@ test \"\$actual_cpu_quota\" = \"\$builder_cpu_quota\" || {
   exit 1
 }
 printf 'Using BuildKit builder %s memory=%s cpu-quota=%s\\n' \"\$builder\" \"\$builder_memory\" \"\$builder_cpu_quota\"
-sudo docker compose --progress plain -p duolinting -f docker-compose.prod.yml --env-file .env \\
+sudo env RELEASE_REVISION='$release_revision' docker compose --progress plain -p duolinting -f docker-compose.prod.yml --env-file .env \\
   build --builder \"\$builder\" --pull=false $services_quoted
 "
 

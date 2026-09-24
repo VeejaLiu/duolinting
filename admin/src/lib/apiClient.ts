@@ -180,6 +180,14 @@ const uploadFile = async <T>(
   // XMLHttpRequest 的 upload.onprogress，在不改变接口或 multipart 格式的前提下反馈进度。
   return new Promise<T>((resolve, reject) => {
     const request = new XMLHttpRequest()
+    const analyticsOperationId = crypto.randomUUID()
+    const analyticsStartedAt = performance.now()
+    let analyticsReported = false
+    const reportUpload = (reason: 'success' | 'failed' | 'timeout' | 'cancelled') => {
+      if (analyticsReported || !options?.adminToken) return
+      analyticsReported = true
+      void fetchJson('/api/v1/admin/analytics/upload-finished', { method: 'POST', body: JSON.stringify({ operationId: analyticsOperationId, reason, durationMs: Math.round(performance.now() - analyticsStartedAt), logicalBytes: file.size, retryCount: 0, appBuild: import.meta.env.VITE_APP_BUILD ?? 'development' }) }, { adminToken: options.adminToken }).catch(() => undefined)
+    }
     let confirmationTimeoutId: number | null = null
     let confirmationTimedOut = false
 
@@ -237,13 +245,16 @@ const uploadFile = async <T>(
 
       if (request.status >= 200 && request.status < 300) {
         if (body === undefined) {
+          reportUpload('failed')
           reject(new Error('上传接口返回了无法识别的响应'))
           return
         }
+        reportUpload('success')
         resolve(body as T)
         return
       }
 
+      reportUpload('failed')
       reportUnauthorizedIfNeeded(request.status, options)
       reject(
         new ApiClientError(
@@ -253,10 +264,12 @@ const uploadFile = async <T>(
       )
     }
     request.onerror = () => {
+      reportUpload('failed')
       clearConfirmationTimeout()
       reject(new Error('上传请求失败，请检查网络后重试'))
     }
     request.onabort = () => {
+      reportUpload(confirmationTimedOut ? 'timeout' : 'cancelled')
       clearConfirmationTimeout()
       reject(new Error(confirmationTimedOut ? '服务器保存文件超时，请稍后重试' : '上传已取消'))
     }
@@ -286,6 +299,15 @@ const fetchApiResult = async <T>(
 }
 
 export const apiClient = {
+  setAnalyticsCoverage: (coverage: Record<string, unknown>, adminToken: string) => fetchJson('/api/v1/admin/analytics/coverage', { method: 'POST', body: JSON.stringify(coverage) }, { adminToken }),
+  getAnalyticsReport: <T,>(kind: string, query: string, adminToken: string) => fetchJson<T>(`/api/v1/admin/analytics/${kind}?${query}`, undefined, { adminToken }),
+  setAnalyticsInternal: (userId: number, isInternal: boolean, adminToken: string) => fetchJson(`/api/v1/admin/analytics/internal/${userId}`, { method: 'PUT', body: JSON.stringify({ isInternal }) }, { adminToken }),
+  downloadAnalyticsCsv: async (kind: string, query: string, adminToken: string) => {
+    const response = await fetch(apiUrl(`/api/v1/admin/analytics/${kind}?${query}&format=csv`), { headers: { Authorization: `Bearer ${adminToken}` } })
+    if (!response.ok) throw new Error('Export unavailable')
+    const url = URL.createObjectURL(await response.blob()); const link = document.createElement('a'); link.href = url; link.download = `analytics-${kind}.csv`; link.click(); URL.revokeObjectURL(url)
+  },
+
   getAdminCatalog: (adminToken: string) =>
     fetchJson<CatalogResponse>(
       '/api/v1/admin/catalog',

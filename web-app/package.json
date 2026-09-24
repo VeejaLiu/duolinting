@@ -27,6 +27,7 @@
     "react-dom": "^19.2.6",
     "react-icons": "^5.7.0",
     "react-router-dom": "^7.17.0",
-    "@duolinting/playback": "0.1.0"
+    "@duolinting/playback": "0.1.0",
+    "@duolinting/analytics": "0.1.0"
   }
 }

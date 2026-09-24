@@ -112,7 +112,7 @@ export async function revokeAllUserSessions(userId: string | number) {
     );
 }
 
-export async function verifyUserSession(token: string): Promise<VerifyUserSessionResult> {
+export async function verifyUserSession(token: string, options: { recordAccess?: boolean } = {}): Promise<VerifyUserSessionResult> {
     const decoded = jwt.verify(token, env.secret.jwt) as SessionTokenPayload;
     const userId = Number(decoded.id);
     const sessionId = Number(decoded.sessionId);
@@ -140,7 +140,7 @@ export async function verifyUserSession(token: string): Promise<VerifyUserSessio
     }
 
     await UserSessionModel.update({ last_seen_at: new Date() }, { where: { id: sessionId } });
-    await recordUserDailyAccess(userId, clientType);
+    if (options.recordAccess !== false) await recordUserDailyAccess(userId, clientType);
 
     return { success: true, userId };
 }

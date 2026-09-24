@@ -1,3 +1,4 @@
+import { resolveRequestGeoContext } from '../../general/analytics/geo';
 import express, { type Request } from 'express';
 import { body } from 'express-validator';
 import { validateErrorCheck } from '../../lib/express-validator/express-validator-middleware';
@@ -70,7 +71,7 @@ router.post(
         const result = await registerUser({
             ...req.body,
             clientType: getRequestClientType(req),
-        });
+        }, resolveRequestGeoContext(req), req.get('x-analytics-context'));
         res.status(result.success ? 201 : 409).send(result);
     },
 );

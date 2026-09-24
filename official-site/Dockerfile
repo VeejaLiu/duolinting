@@ -12,6 +12,8 @@ COPY . ./
 
 # Vite exposes VITE_* values to browser code at build time. The Compose file
 # supplies the public learner-web URL only for the production image build.
+ARG VITE_APP_BUILD="unknown"
+ENV VITE_APP_BUILD=$VITE_APP_BUILD
 ARG VITE_LEARNER_APP_URL=""
 ENV VITE_LEARNER_APP_URL=$VITE_LEARNER_APP_URL
 ARG VITE_OFFICIAL_SITE_URL="https://www.duolinting.cn"

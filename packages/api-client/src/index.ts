@@ -1,4 +1,6 @@
 import type {
+  AnalyticsContext,
+  AnalyticsEvent,
   AuthResponse,
   AuthClientType,
   AuthUser,
@@ -40,6 +42,7 @@ export class ApiClientError extends Error {
 
 export type ApiClientConfig = {
   apiBaseUrl: string
+  analyticsContext?: () => string | undefined
   authClientType?: AuthClientType
   fetchImpl?: typeof fetch
 }
@@ -72,6 +75,7 @@ export const resolveApiUrl = (
 export const createApiClient = ({
   apiBaseUrl,
   authClientType = 'web_app',
+  analyticsContext,
   fetchImpl = globalThis.fetch.bind(globalThis),
 }: ApiClientConfig) => {
   const normalizedBaseUrl = normalizeApiBaseUrl(apiBaseUrl)
@@ -89,6 +93,7 @@ export const createApiClient = ({
       headers: {
         'content-type': 'application/json',
         'x-duolinting-client-type': authClientType,
+        ...(analyticsContext?.() ? { 'x-analytics-context': analyticsContext()! } : {}),
         ...(options?.authToken
           ? { authorization: `Bearer ${options.authToken}` }
           : {}),
@@ -154,11 +159,13 @@ export const createApiClient = ({
       }, { authToken }),
     getDailyActivity: (authToken: string) =>
       fetchJson<DailyActivitySummary>('/api/v1/activity', { method: 'GET' }, { authToken }),
-    recordDailyActivity: (day: string, masteredDelta: number, authToken: string) =>
+    recordDailyActivity: (day: string, masteredDelta: number, authToken: string, operationId?: string) =>
       fetchJson<{ ok: boolean }>('/api/v1/activity/mastered', {
         method: 'POST',
-        body: JSON.stringify({ day, masteredDelta }),
+        body: JSON.stringify({ day, masteredDelta, operationId }),
       }, { authToken }),
+    createAnalyticsContext: (consent: boolean, surface: 'learner' | 'official', authToken?: string) => fetchJson<AnalyticsContext>('/api/v1/analytics/context', { method: 'POST', body: JSON.stringify({ consent, surface, clientType: authClientType }) }, { authToken }),
+    sendAnalyticsEvents: (events: AnalyticsEvent[], authToken?: string) => fetchJson<{ results: { eventId: string; status: 'accepted' | 'duplicate' | 'rejected'; code?: string }[] }>('/api/v1/analytics/events', { method: 'POST', body: JSON.stringify({ schemaVersion: 1, events }) }, { authToken }),
     register: (request: RegisterRequest) =>
       fetchApiResult<AuthResponse>('/api/v1/auth/register', {
         method: 'POST',

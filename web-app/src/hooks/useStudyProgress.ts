@@ -1,3 +1,4 @@
+import { analytics } from '../lib/analytics'
 import { useMemo } from 'react'
 import type {
   ExerciseProgress,
@@ -31,7 +32,7 @@ const reportMasteredActivity = () => {
   }
 
   apiClient
-    .recordDailyActivity(formatLocalDay(new Date()), 1, authToken)
+    .recordDailyActivity(formatLocalDay(new Date()), 1, authToken, crypto.randomUUID())
     .catch(() => {
       // 上报失败不影响学习流程，静默忽略
     })
@@ -169,6 +170,7 @@ export function useStudyProgress({
     }))
 
     if (becomingMastered) {
+      analytics.practice(lineId, 'mastery')
       reportMasteredActivity()
     }
   }

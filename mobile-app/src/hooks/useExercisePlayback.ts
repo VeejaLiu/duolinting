@@ -1,3 +1,4 @@
+import { analytics } from '@/lib/analytics'
 import TimedPlayback from '../../modules/timed-playback'
 import { coursePlaybackKey } from '@duolinting/domain'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -89,13 +90,24 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
     return () => { sessionRef.current = null; controller.cancel() }
   }, [controller, sourceKey])
 
-  const track = useCallback(async (session: PlaybackSession, lineId: string | null, onEnded?: () => void) => {
+  useEffect(() => {
+    if (exercise) void analytics.setCourse(Number(exercise.id), exercise.mediaType, exercise.lines)
+    const timer = setInterval(() => {
+      try { const snapshot = adapter.snapshot(); analytics.sample(snapshot.positionUs / 1000, AppState.currentState === 'active' && snapshot.playing, snapshot.buffering && AppState.currentState === 'active', playbackRate) } catch { /* Released player. */ }
+    }, 250)
+    const flush = setInterval(() => void analytics.flush(), 15000)
+    return () => { clearInterval(timer); clearInterval(flush); analytics.endStudy() }
+  }, [adapter, exercise, playbackRate])
+
+  const track = useCallback(async (session: PlaybackSession, lineId: string | null, onEnded?: () => void, requestedPosition?: number) => {
+    analytics.beginAttempt(requestedPosition ?? exercise?.lines.find(line => line.id === lineId)?.start ?? 0, lineId || requestedPosition !== undefined ? 'sentence' : 'first')
     sessionRef.current = session
     setActiveLineId(lineId)
     setPlaybackError(false)
     setIsPreparingPlayback(true)
     void session.finished.then((result) => {
       if (sessionRef.current !== session) return
+      analytics.finishAttempt(result.reason)
       sessionRef.current = null
       setActiveLineId(null)
       setIsPreparingPlayback(false)
@@ -110,7 +122,7 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
     if (started.reason !== 'started') return undefined
     if (kind === 'video') setVideoState((current) => ({ ...current, playing: true }))
     return () => session.cancel()
-  }, [kind])
+  }, [kind, exercise])
 
   const playAll = useCallback(() => {
     if (!sourceRef.current) return
@@ -126,7 +138,7 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
   const seekTo = useCallback(async (seconds: number) => {
     let playing = false
     try { playing = adapter.snapshot().playing } catch { return }
-    if (playing) await track(controller.play({ sourceKey: sourceRef.current, startUs: secondsToUs(seconds) }), null)
+    if (playing) await track(controller.play({ sourceKey: sourceRef.current, startUs: secondsToUs(seconds) }), null, undefined, seconds)
     else {
       sessionRef.current = null
       setActiveLineId(null)

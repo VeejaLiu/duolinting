@@ -1,3 +1,4 @@
+import { AnalyticsConsent } from '@/components/AnalyticsConsent'
 import '../global.css'
 import { SplashScreen, Stack } from 'expo-router'
 import { useEffect } from 'react'
@@ -41,6 +42,8 @@ function RootNavigator() {
   }, [])
 
   return (
+    <>
+    <AnalyticsConsent />
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="auth/login" />
@@ -67,6 +70,7 @@ function RootNavigator() {
       />
       <Stack.Screen name="study/[seriesId]/[exerciseId]" />
     </Stack>
+    </>
   )
 }
 

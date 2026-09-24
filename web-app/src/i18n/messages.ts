@@ -1,3 +1,4 @@
+import { analyticsMessages } from './messages/analytics'
 import type { UiLocale } from '@duolinting/domain'
 import { appMessages } from './messages/app'
 import { authDialogMessages } from './messages/authDialog'
@@ -15,6 +16,7 @@ import { studyStatesMessages } from './messages/studyStates'
 // 各模块维护自己的消息表（web-app/src/i18n/messages/*.ts），这里按语言合并成
 // 一张扁平表供 useLanguage().t(key) 查询。key 以模块名做前缀避免冲突。
 const modules: Record<UiLocale, Record<string, string>>[] = [
+  analyticsMessages,
   appMessages,
   authDialogMessages,
   coreMessages,

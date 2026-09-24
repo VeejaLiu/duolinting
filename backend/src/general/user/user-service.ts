@@ -1,3 +1,6 @@
+import { createHash, randomUUID } from 'node:crypto';
+import type { GeoContext } from '../analytics/geo';
+import { rows, write, json, utcValue } from '../analytics/service';
 import bcrypt from 'bcryptjs';
 import type { AuthUser, RegisterRequest } from '../../domain';
 import { sequelize } from '../../models/db-config-mysql';
@@ -42,18 +45,29 @@ export async function findUserByEmail(email: string) {
     });
 }
 
-export async function registerUser(request: RegisterRequest): Promise<AuthResult> {
+export async function registerUser(request: RegisterRequest, geo?: GeoContext, analyticsEpoch?: string): Promise<AuthResult> {
     const existing = await findUserByEmail(request.email);
     if (existing) {
         return { success: false, message: 'Email already registered' };
     }
 
     const passwordHash = await bcrypt.hash(request.password, 10);
-    const createdUser = await UserModel.create({
+    const createdUser = await sequelize.transaction(async (transaction) => {
+      const account = await UserModel.create({
         email: request.email.toLowerCase(),
         display_name: request.displayName,
         password_hash: passwordHash,
-    } as any);
+    } as any, { transaction });
+      await write('insert into analytics_user_profiles(user_id,registration_country) values(:id,:country)', { id: plainUser(account).id, country: geo?.countryCode ?? 'unknown' }, transaction);
+      const context = analyticsEpoch && /^[a-f0-9]{64}$/.test(analyticsEpoch) ? (await rows('select * from analytics_sessions where identity_epoch=:epoch and user_id is null and revoked_at is null and expires_at>UTC_TIMESTAMP(3) for update', {epoch:createHash('sha256').update(analyticsEpoch).digest('hex')}, transaction))[0] : undefined;
+      if(context && Date.now()-utcValue(context.last_activity_at)<30*60000) {
+        const source=json<Record<string,string>>(context.attribution).utm_source ?? 'direct_or_unknown';
+        await write('update analytics_user_profiles set registration_source=:source where user_id=:id',{source,id:plainUser(account).id},transaction);
+        await write(`insert into analytics_events(event_id,event_name,user_id,anonymous_id,identity_epoch,analytics_session_id,seq,event_at,received_at,stat_date,client_type,surface,environment,country_code,geo_source,app_build,properties) values(:id,'signup_completed',:userId,:anon,:epoch,:session,0,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3),date(UTC_TIMESTAMP()+interval 8 hour),:client,'learner',:environment,:country,:source,'server','{}')`,{id:randomUUID(),userId:plainUser(account).id,anon:context.anonymous_id,epoch:context.identity_epoch,session:context.analytics_session_id,client:context.client_type,environment:context.environment,country:geo?.countryCode??'unknown',source:geo?.source??'unknown'},transaction);
+      }
+
+      return account;
+    });
 
     const row = plainUser(createdUser);
     const user = {
@@ -199,9 +213,16 @@ export async function deleteUserAccount({
     }
 
     await sequelize.transaction(async (transaction) => {
+        // Serialize account deletion with analytics ingestion so no events can arrive after cleanup.
+        await sequelize.query('select id from users where id = ? for update', { replacements: [numericUserId], transaction });
         // Keep this list explicit: each table is an account-owned data store,
         // and the fixed names avoid turning user input into SQL identifiers.
         const userOwnedTables = [
+            'analytics_events',
+            'analytics_sessions',
+            'analytics_user_profiles',
+            'analytics_user_daily',
+            'analytics_user_dimension_daily',
             'user_sessions',
             'exercise_progress',
             'line_progress',
@@ -209,6 +230,7 @@ export async function deleteUserAccount({
             'accepted_answer_feedback',
             'user_preferences',
             'user_daily_activity',
+            'user_activity_operations',
             'user_access_daily',
         ];
 

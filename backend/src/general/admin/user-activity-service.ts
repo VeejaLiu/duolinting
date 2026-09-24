@@ -49,39 +49,41 @@ export async function getAdminGrowthReport() {
     const [summaryRows, trendRows, clientDistributionRows] = await Promise.all([
         doRawQuery<GrowthSummaryRow>({
             query: `
+                with eligible_users as (select u.* from users u left join analytics_user_profiles p on p.user_id=u.id where coalesce(p.is_internal,0)=0), eligible_access as (select a.* from user_access_daily a left join analytics_user_profiles p on p.user_id=a.user_id where coalesce(p.is_internal,0)=0)
+
                 select
-                    (select count(*) from users) as total_users,
-                    (select count(*) from users where date(created_at) = curdate()) as registered_today_count,
-                    (select count(*) from users where created_at >= curdate() - interval 6 day) as registered_7d_count,
-                    (select count(*) from users where created_at >= curdate() - interval 29 day) as registered_30d_count,
-                    (select count(distinct user_id) from user_access_daily where activity_date = curdate()) as dau,
-                    (select count(distinct user_id) from user_access_daily where activity_date >= curdate() - interval 6 day) as wau,
-                    (select count(distinct user_id) from user_access_daily where activity_date >= curdate() - interval 29 day) as mau,
-                    (select min(activity_date) from user_access_daily) as tracking_started_at
+                    (select count(*) from eligible_users) as total_users,
+                    (select count(*) from eligible_users where date(created_at) = curdate()) as registered_today_count,
+                    (select count(*) from eligible_users where created_at >= curdate() - interval 6 day) as registered_7d_count,
+                    (select count(*) from eligible_users where created_at >= curdate() - interval 29 day) as registered_30d_count,
+                    (select count(distinct user_id) from eligible_access where activity_date = curdate()) as dau,
+                    (select count(distinct user_id) from eligible_access where activity_date >= curdate() - interval 6 day) as wau,
+                    (select count(distinct user_id) from eligible_access where activity_date >= curdate() - interval 29 day) as mau,
+                    (select min(activity_date) from eligible_access) as tracking_started_at
             `,
         }),
         doRawQuery<GrowthTrendRow>({
             query: `
-                with recursive days as (
+                with recursive eligible_users as (select u.* from users u left join analytics_user_profiles p on p.user_id=u.id where coalesce(p.is_internal,0)=0), eligible_access as (select a.* from user_access_daily a left join analytics_user_profiles p on p.user_id=a.user_id where coalesce(p.is_internal,0)=0), days as (
                     select curdate() - interval 29 day as activity_date
                     union all
                     select activity_date + interval 1 day from days where activity_date < curdate()
                 )
                 select
                     days.activity_date,
-                    (select count(*) from users where date(created_at) = days.activity_date) as registered_user_count,
-                    (select count(*) from users where created_at < days.activity_date + interval 1 day) as total_registered_user_count,
-                    (select count(distinct user_id) from user_access_daily
+                    (select count(*) from eligible_users where date(created_at) = days.activity_date) as registered_user_count,
+                    (select count(*) from eligible_users where created_at < days.activity_date + interval 1 day) as total_registered_user_count,
+                    (select count(distinct user_id) from eligible_access
                         where activity_date = days.activity_date) as active_user_count,
-                    (select count(distinct user_id) from user_access_daily
+                    (select count(distinct user_id) from eligible_access
                         where activity_date between days.activity_date - interval 6 day and days.activity_date) as weekly_active_user_count,
-                    (select count(distinct user_id) from user_access_daily
+                    (select count(distinct user_id) from eligible_access
                         where activity_date between days.activity_date - interval 29 day and days.activity_date) as monthly_active_user_count,
-                    (select count(distinct user_id) from user_access_daily
+                    (select count(distinct user_id) from eligible_access
                         where activity_date = days.activity_date and client_type = 'web_app') as web_app_active_user_count,
-                    (select count(distinct user_id) from user_access_daily
+                    (select count(distinct user_id) from eligible_access
                         where activity_date = days.activity_date and client_type = 'mobile_web') as mobile_web_active_user_count,
-                    (select count(distinct user_id) from user_access_daily
+                    (select count(distinct user_id) from eligible_access
                         where activity_date = days.activity_date and client_type = 'mobile_app') as mobile_app_active_user_count
                 from days
                 order by days.activity_date asc
@@ -89,12 +91,14 @@ export async function getAdminGrowthReport() {
         }),
         doRawQuery<ClientDistributionRow>({
             query: `
+                with eligible_users as (select u.* from users u left join analytics_user_profiles p on p.user_id=u.id where coalesce(p.is_internal,0)=0), eligible_access as (select a.* from user_access_daily a left join analytics_user_profiles p on p.user_id=a.user_id where coalesce(p.is_internal,0)=0)
+
                 select client_types.client_type,
                     count(distinct case when activity_date = curdate() then access_days.user_id end) as active_today_count,
                     count(distinct case when activity_date >= curdate() - interval 6 day then access_days.user_id end) as active_7d_count,
                     count(distinct case when activity_date >= curdate() - interval 29 day then access_days.user_id end) as active_30d_count
                 from (select 'web_app' as client_type union all select 'mobile_web' union all select 'mobile_app') client_types
-                left join user_access_daily access_days on access_days.client_type = client_types.client_type
+                left join eligible_access access_days on access_days.client_type = client_types.client_type
                     and access_days.activity_date >= curdate() - interval 29 day
                 group by client_types.client_type
                 order by field(client_types.client_type, 'web_app', 'mobile_web', 'mobile_app')

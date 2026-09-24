@@ -87,6 +87,11 @@ services:
     environment:
       NODE_ENV: production
       APP_ENV: production
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-}
+      ANALYTICS_COOKIE_DOMAIN: ${ANALYTICS_COOKIE_DOMAIN:-}
+      ANALYTICS_TRUST_GEO_HEADER: ${ANALYTICS_TRUST_GEO_HEADER:-false}
+      ANALYTICS_GEO_DB_PATH: ${ANALYTICS_GEO_DB_PATH:-}
+      ANALYTICS_MAINTENANCE_ENABLED: ${ANALYTICS_MAINTENANCE_ENABLED:-true}
       APP_HOST: 0.0.0.0
       APP_PORT: 4000
       APP_BACKEND_URL: ${PUBLIC_API_BASE_URL}
@@ -111,6 +116,8 @@ services:
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
       RESEND_FROM_NAME: ${RESEND_FROM_NAME:-DuolinTing}
       RESEND_REPLY_TO: ${RESEND_REPLY_TO:-}
+    volumes:
+      - ./temp/geoip:/var/lib/duolinting-geoip:ro
     logging: *default-logging
     networks:
       - duolinting-network
@@ -121,6 +128,7 @@ services:
       context: .
       dockerfile: web-app/Dockerfile
       args:
+        VITE_APP_BUILD: ${RELEASE_REVISION:-unknown}
         VITE_API_BASE_URL: ""
         VITE_MOBILE_APP_URL: ${MOBILE_APP_URL:-}
     restart: unless-stopped
@@ -136,6 +144,7 @@ services:
       context: .
       dockerfile: admin/Dockerfile
       args:
+        VITE_APP_BUILD: ${RELEASE_REVISION:-unknown}
         VITE_API_BASE_URL: ""
     restart: unless-stopped
     ports:
@@ -150,6 +159,7 @@ services:
       context: .
       dockerfile: mobile-app/Dockerfile
       args:
+        EXPO_PUBLIC_APP_BUILD: ${RELEASE_REVISION:-unknown}
         EXPO_PUBLIC_API_BASE_URL: ""
     restart: unless-stopped
     ports:
@@ -168,6 +178,7 @@ services:
       context: ./official-site
       dockerfile: Dockerfile
       args:
+        VITE_APP_BUILD: ${RELEASE_REVISION:-unknown}
         VITE_LEARNER_APP_URL: ${OFFICIAL_SITE_LEARNER_APP_URL:?Set OFFICIAL_SITE_LEARNER_APP_URL in the production .env file}
     restart: unless-stopped
     ports:

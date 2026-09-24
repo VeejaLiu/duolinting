@@ -1,3 +1,5 @@
+import { analytics } from '../lib/analytics'
+import { observeMedia } from '@duolinting/analytics/web'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { createPlaybackController, secondsToUs, type PlaybackResult, type PlaybackSession } from '@duolinting/playback'
 import { createWebPlaybackAdapter } from '@duolinting/playback/web'
@@ -29,6 +31,7 @@ export function useMediaPlayback({ mediaRef, sourceKey, playbackRate }: UseMedia
   useEffect(() => {
     const media = mediaRef.current
     if (!media) return
+    const stopAnalytics = observeMedia(analytics, media)
     const sync = () => {
       setIsPlaying(!media.paused && !media.ended)
       setCurrentTime(Number.isFinite(media.currentTime) ? media.currentTime : 0)
@@ -37,7 +40,7 @@ export function useMediaPlayback({ mediaRef, sourceKey, playbackRate }: UseMedia
     const events = ['play', 'pause', 'ended', 'timeupdate', 'seeked', 'loadedmetadata', 'durationchange'] as const
     events.forEach((event) => media.addEventListener(event, sync))
     sync()
-    return () => events.forEach((event) => media.removeEventListener(event, sync))
+    return () => { stopAnalytics(); events.forEach((event) => media.removeEventListener(event, sync)) }
   }, [mediaElement, mediaRef, sourceKey])
   useEffect(() => {
     if (mediaRef.current) {
@@ -58,12 +61,14 @@ export function useMediaPlayback({ mediaRef, sourceKey, playbackRate }: UseMedia
     window.speechSynthesis?.cancel()
     setIsPlaying(false)
   }
-  const watch = (session: PlaybackSession) => {
+  const watch = (session: PlaybackSession, position = mediaRef.current?.currentTime ?? 0, trigger: 'first' | 'sentence' = 'first', observe = true) => {
+    if (observe) analytics.beginAttempt(position, trigger)
     latestSessionRef.current = session
     setPlaybackError(false)
     const source = sourceRef.current
     void session.finished.then((result) => {
       if (latestSessionRef.current !== session || sourceRef.current !== source) return
+      if (observe) analytics.finishAttempt(result.reason)
       setPlaybackError(result.reason === 'failed' || result.reason === 'timeout')
       setCompletion({ sourceKey: source, result })
     })
@@ -72,7 +77,7 @@ export function useMediaPlayback({ mediaRef, sourceKey, playbackRate }: UseMedia
   const playRangeSession = (start: number, end?: number) => {
     if (mediaRef.current) mediaRef.current.playbackRate = playbackRate
     return watch(controller.play({ sourceKey: sourceRef.current, startUs: secondsToUs(start),
-      endUs: end === undefined ? undefined : secondsToUs(end) }))
+      endUs: end === undefined ? undefined : secondsToUs(end) }), start, 'sentence')
   }
   // 学习流程等待“完成”，取消/暂停/失败也会结束等待，但不伪装成正常播完。
   const playMediaRange = (start: number, end?: number) => playRangeSession(start, end).finished
@@ -101,7 +106,7 @@ export function useMediaPlayback({ mediaRef, sourceKey, playbackRate }: UseMedia
     if (!media) return
     const target = secondsToUs(Math.max(0, Math.min(time, Number.isFinite(media.duration) ? media.duration : time)))
     if (!media.paused && !media.ended) void playMedia(target / 1_000_000)
-    else watch(controller.seek(sourceRef.current, target))
+    else watch(controller.seek(sourceRef.current, target), time, 'sentence', false)
   }
   const runPlayback = async (task: () => Promise<PlaybackResult>) => {
     if (busyRef.current) return false

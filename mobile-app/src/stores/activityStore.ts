@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto'
 import { create } from 'zustand'
 import { apiClient } from '@/lib/apiClient'
 import { progressStorage } from '@/services/progressStorage'
@@ -143,7 +144,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
     // yyyy-MM-dd）；未登录或网络失败都不影响本地计数，静默吞掉
     const token = getAuthToken()
     if (token) {
-      void apiClient.recordDailyActivity(today, 1, token).catch(() => undefined)
+      void apiClient.recordDailyActivity(today, 1, token, Crypto.randomUUID()).catch(() => undefined)
     }
   },
 
