@@ -1,5 +1,11 @@
 import { Client } from 'minio';
-import { randomUUID } from 'node:crypto';
+import {
+    createHash,
+    createHmac,
+    randomBytes,
+    randomUUID,
+    timingSafeEqual,
+} from 'node:crypto';
 import sharp from 'sharp';
 import { env } from '../../env';
 import { Logger } from '../../lib/logger';
@@ -129,11 +135,7 @@ export const getManagedMediaObjectName = (value: string | null | undefined) => {
     return '';
 };
 
-/**
- * 播放器使用 CDN 直连地址时，Cloudflare 可按不可变对象键缓存完整媒体及 Range
- * 响应；未配置 CDN 时回退至历史 API 路径，保证本地和旧部署无需改动。
- */
-export const buildPublicMediaUrl = (objectName: string) => {
+const buildUnsignedPublicMediaUrl = (objectName: string) => {
     if (!env.media.publicBaseUrl) {
         return buildStoredMediaUrl(objectName);
     }
@@ -141,7 +143,102 @@ export const buildPublicMediaUrl = (objectName: string) => {
     const publicObjectPath = storage.publicUrlIncludesBucket
         ? `${storage.bucket}/${objectName}`
         : objectName;
-    return `${env.media.publicBaseUrl}/${publicObjectPath}`;
+    const encodedPath = publicObjectPath
+        .split('/')
+        .map((segment) => encodeURIComponent(segment))
+        .join('/');
+    return `${env.media.publicBaseUrl}/${encodedPath}`;
+};
+
+const buildBackendTokenUrl = (objectName: string, now: Date) => {
+    // 后端回退地址将过期时间和对象键一起签名。Token 只允许十六进制字符，
+    // expires 使用 Unix 秒，便于路由层在不解析会话 JWT 的情况下恒定时间校验。
+    const expires = Math.floor(now.getTime() / 1000) + env.media.access.ttlSeconds;
+    const token = createHmac('sha256', env.media.access.key)
+        .update(`${objectName}\n${expires}`)
+        .digest('hex');
+    const params = new URLSearchParams({
+        key: objectName,
+        expires: String(expires),
+        mediaToken: token,
+    });
+    return `${legacyObjectRoute}?${params.toString()}`;
+};
+
+const buildTencentTypeAUrl = (objectName: string, now: Date) => {
+    const unsignedUrl = new URL(buildUnsignedPublicMediaUrl(objectName));
+    const timestamp = Math.floor(now.getTime() / 1000);
+    const random = randomBytes(8).toString('hex');
+    const uid = '0';
+    // 腾讯云 CDN Type A: md5(path-timestamp-rand-uid-key)。path 使用浏览器
+    // 实际请求的百分号编码 pathname，避免 Unicode/空格在签名端与 CDN 端不一致。
+    const digest = createHash('md5')
+        .update(
+            `${unsignedUrl.pathname}-${timestamp}-${random}-${uid}-${env.media.access.key}`,
+        )
+        .digest('hex');
+    unsignedUrl.searchParams.set(
+        'sign',
+        `${timestamp}-${random}-${uid}-${digest}`,
+    );
+    return unsignedUrl.toString();
+};
+
+/**
+ * 只有认证后的 API 组装响应时才调用此函数。生产 CDN 使用腾讯 Type A 短时签名；
+ * 没有 CDN 的受保护环境使用后端 HMAC 回退，保证 audio/video/img 都能直接消费 URL。
+ */
+export const buildPublicMediaUrl = (
+    objectName: string,
+    now = new Date(),
+) => {
+    if (!env.media.access.requireAuth) {
+        return buildUnsignedPublicMediaUrl(objectName);
+    }
+
+    if (env.media.access.mode === 'tencent-type-a') {
+        return buildTencentTypeAUrl(objectName, now);
+    }
+
+    return buildBackendTokenUrl(objectName, now);
+};
+
+export const isAuthorizedBackendMediaRequest = ({
+    objectName,
+    expires,
+    token,
+    now = new Date(),
+}: {
+    objectName: string;
+    expires: string;
+    token: string;
+    now?: Date;
+}) => {
+    if (!env.media.access.requireAuth) {
+        return true;
+    }
+    if (env.media.access.mode !== 'backend-token') {
+        return false;
+    }
+
+    const expiresAt = Number(expires);
+    const nowSeconds = Math.floor(now.getTime() / 1000);
+    if (
+        !Number.isSafeInteger(expiresAt) ||
+        expiresAt < nowSeconds ||
+        expiresAt > nowSeconds + env.media.access.ttlSeconds
+    ) {
+        return false;
+    }
+
+    const expected = createHmac('sha256', env.media.access.key)
+        .update(`${objectName}\n${expiresAt}`)
+        .digest('hex');
+    if (!/^[a-f0-9]{64}$/.test(token)) {
+        return false;
+    }
+
+    return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(token, 'hex'));
 };
 
 /**

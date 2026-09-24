@@ -8,7 +8,13 @@ const toId = (value: string) => Number.parseInt(value, 10);
 
 router.get('/', optionalUserTokenMiddleware, async (req: any, res) => {
     const previewExerciseIds = await getPreviewExerciseIdsForLearner(req.user?.userId);
-    res.status(200).send(await listCatalog(false, false, (parseContentLocale(req.query.contentLocale) ?? 'en-US'), previewExerciseIds));
+    res.status(200).send(await listCatalog(
+        false,
+        false,
+        (parseContentLocale(req.query.contentLocale) ?? 'en-US'),
+        previewExerciseIds,
+        Boolean(req.user?.userId),
+    ));
 });
 
 router.get('/category/:categoryId/exercises', optionalUserTokenMiddleware, async (req: any, res) => {
@@ -18,7 +24,13 @@ router.get('/category/:categoryId/exercises', optionalUserTokenMiddleware, async
     }
 
     const previewExerciseIds = await getPreviewExerciseIdsForLearner(req.user?.userId);
-    const exercises = await listCategoryExercises(categoryId, false, (parseContentLocale(req.query.contentLocale) ?? 'en-US'), previewExerciseIds);
+    const exercises = await listCategoryExercises(
+        categoryId,
+        false,
+        (parseContentLocale(req.query.contentLocale) ?? 'en-US'),
+        previewExerciseIds,
+        Boolean(req.user?.userId),
+    );
     res.status(200).send(exercises);
 });
 

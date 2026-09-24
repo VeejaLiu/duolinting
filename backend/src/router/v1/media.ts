@@ -5,6 +5,7 @@ import { requireAdminToken, requireSuperAdmin } from '../../general/admin/admin-
 import {
     createUploadIntent,
     getMediaObject,
+    isAuthorizedBackendMediaRequest,
     isInvalidStorageCredentialError,
     isMissingObjectError,
     statMediaObject,
@@ -153,7 +154,12 @@ const sendMediaObject = async (req: express.Request, res: express.Response, obje
 
     // 对象名在上传时带时间戳前缀天然唯一，内容不会原地变化，
     // 可按 immutable 长缓存：客户端磁盘缓存 + 浏览器缓存可直接复用，节省带宽。
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader(
+        'Cache-Control',
+        env.media.access.requireAuth
+            ? `private, max-age=${env.media.access.ttlSeconds}, immutable`
+            : 'public, max-age=31536000, immutable',
+    );
     // 媒体响应的 Content-Type 来自服务端白名单/规范化结果；同时禁止浏览器
     // 根据内容重新嗅探为 HTML 或脚本，阻断同源主动内容执行。
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -185,9 +191,39 @@ const sendMediaObject = async (req: express.Request, res: express.Response, obje
     partialMedia.stream.pipe(res);
 };
 
-router.get('/objects/:objectName', async (req, res) => {
+const requireBackendMediaAccess: express.RequestHandler = (req, res, next) => {
+    if (!env.media.access.requireAuth) {
+        next();
+        return;
+    }
+
+    const objectName =
+        typeof req.query.key === 'string'
+            ? req.query.key
+            : String(req.params.objectName ?? '');
+    const expires =
+        typeof req.query.expires === 'string' ? req.query.expires : '';
+    const token =
+        typeof req.query.mediaToken === 'string' ? req.query.mediaToken : '';
+    if (
+        !objectName ||
+        !isAuthorizedBackendMediaRequest({ objectName, expires, token })
+    ) {
+        res.status(401).send({
+            success: false,
+            message: 'A valid signed media URL is required',
+        });
+        return;
+    }
+
+    next();
+};
+
+router.get('/objects/:objectName', requireBackendMediaAccess, async (req, res) => {
     try {
-        const objectName = req.params.objectName;
+        const objectName = Array.isArray(req.params.objectName)
+            ? req.params.objectName[0]
+            : req.params.objectName;
         await sendMediaObject(req, res, objectName);
     } catch (error) {
         logger.error(
@@ -203,7 +239,7 @@ router.get('/objects/:objectName', async (req, res) => {
     }
 });
 
-router.get('/objects', async (req, res) => {
+router.get('/objects', requireBackendMediaAccess, async (req, res) => {
     try {
         const objectName = typeof req.query.key === 'string' ? req.query.key : '';
         if (!objectName) {
