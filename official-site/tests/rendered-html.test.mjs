@@ -41,7 +41,7 @@ test("publishes the signed Android release on the download page", async () => {
   assert.match(html, /1\.0<!-- --> · Build <!-- -->9/);
   assert.match(html, /84\.58 MB/);
   assert.match(html, /8d95348fdc671b272e15bdbd9fea91310867e9bcde4e915ae5eeca989fbf1b0d/);
-  assert.match(html, /href="\/api\/v1\/media\/android-apk"/);
+  assert.match(html, /href="https:\/\/app\.duolinting\.cn\/api\/v1\/media\/android-apk"/);
   assert.match(html, /chrome-product-browser/);
   assert.match(html, /安装 Android APK/);
   assert.match(html, /下载 Android APK/);

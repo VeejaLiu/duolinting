@@ -13,7 +13,7 @@ export const androidRelease = {
   releasedAt: "2026-09-24" as string | null,
   fileSize: "84.58 MB" as string | null,
   sha256: "8d95348fdc671b272e15bdbd9fea91310867e9bcde4e915ae5eeca989fbf1b0d" as string | null,
-  downloadUrl: "/api/v1/media/android-apk" as string | null,
+  downloadUrl: "https://app.duolinting.cn/api/v1/media/android-apk" as string | null,
   certificateSha256: "443b4401be99065ed1ad62c98ab1bf15f9d80494d90dace48f42488f5460fd2d" as string | null,
   notes: {
     zh: ["首个官网 Android 正式版本。", "支持登录后同步学习进度、浏览课程并进行逐句精听。"],
