@@ -114,6 +114,7 @@ export function StudyScreen() {
     activeLineId,
     currentTime,
     duration,
+    isMediaLoading,
     isPlaying,
     isPreparingPlayback,
     playbackError,
@@ -293,6 +294,7 @@ export function StudyScreen() {
         feedbackErrorMessage,
         feedbackSubmitted,
         formatClock,
+        isMediaLoading,
         isPreparingPlayback,
         isPlaying,
         lineProgress: progress.lines[activeLine.id] ?? createLineProgress(),
@@ -387,6 +389,8 @@ export function StudyScreen() {
               duration={duration}
               exercise={exercise}
               formatClock={formatClock}
+              isMediaLoading={isMediaLoading}
+              isPreparingPlayback={isPreparingPlayback}
               isPlaying={isPlaying}
               onSeek={(seconds) => void seekTo(seconds)}
               onTogglePlayback={togglePlayAll}

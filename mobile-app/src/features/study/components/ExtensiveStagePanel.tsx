@@ -1,14 +1,17 @@
 import { FontAwesome6 } from '@expo/vector-icons'
 import type { ListeningExercise } from '@duolinting/domain'
-import { Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { VideoView, type VideoPlayer } from 'expo-video'
 import { MediaProgressBar } from './MediaProgressBar'
+import { MediaLoadingOverlay } from './MediaLoadingOverlay'
 
 export function ExtensiveStagePanel({
   currentTime,
   duration,
   exercise,
   formatClock,
+  isMediaLoading,
+  isPreparingPlayback,
   isPlaying,
   onSeek,
   onTogglePlayback,
@@ -19,16 +22,20 @@ export function ExtensiveStagePanel({
   duration: number
   exercise: ListeningExercise
   formatClock: (seconds: number) => string
+  isMediaLoading: boolean
+  isPreparingPlayback: boolean
   isPlaying: boolean
   onSeek: (seconds: number) => void
   onTogglePlayback: () => void
   videoAspectRatio: number
   videoPlayer: VideoPlayer
 }) {
+  const showPlaybackLoading = isMediaLoading || isPreparingPlayback
+
   return (
     <View>
       {exercise.mediaType === 'video' ? (
-        <View className="items-center overflow-hidden bg-black">
+        <View className="relative items-center overflow-hidden bg-black">
           <VideoView
             contentFit="contain"
             // Safari 需要显式标记内联视频，否则一次播放手势会接管为系统全屏。
@@ -36,12 +43,16 @@ export function ExtensiveStagePanel({
             nativeControls={false}
             player={videoPlayer}
             playsInline
+            // Android 的 SurfaceView 可能盖住 React Native 兄弟视图；TextureView
+            // 确保 loading 浮层始终显示在视频画面之上。
+            surfaceType="textureView"
             // 用源视频轨道的宽高比驱动容器，竖屏视频不再被固定横屏高度裁切。
             style={{ width: '100%', aspectRatio: videoAspectRatio }}
           />
+          {showPlaybackLoading && <MediaLoadingOverlay />}
         </View>
       ) : (
-        <View className="h-[220px] items-center justify-center bg-[#edf7ff] px-6">
+        <View className="relative h-[220px] items-center justify-center bg-[#edf7ff] px-6">
           <View className="h-24 w-24 items-center justify-center rounded-[32px] bg-white">
             <FontAwesome6 color="#1cb0f6" name="headphones" size={38} />
           </View>
@@ -55,6 +66,7 @@ export function ExtensiveStagePanel({
           <Text className="mt-4 text-center text-lg font-black text-text-primary">
             {exercise.title}
           </Text>
+          {showPlaybackLoading && <MediaLoadingOverlay />}
         </View>
       )}
 
@@ -71,6 +83,7 @@ export function ExtensiveStagePanel({
         <View className="flex-row items-center gap-3">
           <Pressable
             className="h-12 w-12 items-center justify-center rounded-[16px] bg-success"
+            disabled={isPreparingPlayback}
             onPress={onTogglePlayback}
             style={{
               shadowColor: '#46a302',
@@ -78,13 +91,18 @@ export function ExtensiveStagePanel({
               shadowOpacity: 1,
               shadowRadius: 0,
               elevation: 3,
+              opacity: isPreparingPlayback ? 0.72 : 1,
             }}
           >
-            <FontAwesome6
-              color="#ffffff"
-              name={isPlaying ? 'pause' : 'play'}
-              size={18}
-            />
+            {showPlaybackLoading ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <FontAwesome6
+                color="#ffffff"
+                name={isPlaying ? 'pause' : 'play'}
+                size={18}
+              />
+            )}
           </Pressable>
           <MediaProgressBar
             currentTime={currentTime}

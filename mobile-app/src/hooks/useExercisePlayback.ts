@@ -41,7 +41,7 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
   const [activeLineId, setActiveLineId] = useState<string | null>(null)
   const [isPreparingPlayback, setIsPreparingPlayback] = useState(false)
   const [playbackError, setPlaybackError] = useState(false)
-  const [videoState, setVideoState] = useState({ currentTime: 0, duration: 0, playing: false })
+  const [videoState, setVideoState] = useState({ currentTime: 0, duration: 0, playing: false, loading: kind === 'video' && Boolean(source) })
   const [videoAspectRatio, setVideoAspectRatio] = useState(DEFAULT_VIDEO_ASPECT_RATIO)
 
   useEffect(() => {
@@ -56,12 +56,24 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
       if (kind !== 'video') return
       try {
         const snapshot = adapter.snapshot()
-        setVideoState({ currentTime: snapshot.positionUs / 1_000_000, duration: snapshot.durationUs / 1_000_000, playing: snapshot.playing })
+        setVideoState((current) => ({
+          ...current,
+          currentTime: snapshot.positionUs / 1_000_000,
+          duration: snapshot.durationUs / 1_000_000,
+          playing: snapshot.playing,
+        }))
       } catch (error) { if (!isReleasedPlayerError(error)) setPlaybackError(true) }
     }
     const subscriptions = [
       videoPlayer.addListener('timeUpdate', sync),
       videoPlayer.addListener('playingChange', sync),
+      videoPlayer.addListener('statusChange', ({ status }) => {
+        // expo-video 的 loading 同时覆盖首次准备和播放中的重新缓冲；同步到
+        // React 状态后，画面与播放按钮都能及时给出可见反馈。
+        setVideoState((current) => ({ ...current, loading: status === 'loading' }))
+        if (status === 'error') setPlaybackError(true)
+        sync()
+      }),
       videoPlayer.addListener('sourceLoad', ({ availableVideoTracks }) => {
         sync()
         setVideoAspectRatio(videoTrackAspectRatio(videoPlayer.videoTrack ?? availableVideoTracks[0]))
@@ -87,8 +99,12 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
     setActiveLineId(null)
     setIsPreparingPlayback(false)
     setPlaybackError(false)
+    setVideoState((current) => ({
+      ...current,
+      loading: kind === 'video' && Boolean(source) && videoPlayer.status === 'loading',
+    }))
     return () => { sessionRef.current = null; controller.cancel() }
-  }, [controller, sourceKey])
+  }, [controller, kind, source, sourceKey, videoPlayer])
 
   useEffect(() => {
     if (exercise) void analytics.setCourse(Number(exercise.id), exercise.mediaType, exercise.lines)
@@ -166,6 +182,10 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
     currentTime: kind === 'video' ? videoState.currentTime : audioStatus.currentTime,
     duration: kind === 'video' ? videoState.duration : audioStatus.duration,
     isPlaying: kind === 'video' ? videoState.playing : audioStatus.playing,
+    // 首次加载与播放中缓冲使用同一状态，避免媒体尚不可用时界面静止无反馈。
+    isMediaLoading: Boolean(source) && (kind === 'video'
+      ? videoState.loading
+      : !audioStatus.isLoaded || audioStatus.isBuffering),
     videoAspectRatio,
     nativePlaybackAvailable: Platform.OS === 'web' || Boolean(TimedPlayback),
     activeLineId, isPreparingPlayback, playbackError, pause, playAll, playLine, playRangeSession, seekTo, togglePlayAll, videoPlayer,

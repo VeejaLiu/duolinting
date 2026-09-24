@@ -6,6 +6,7 @@ import type {
 } from '@duolinting/domain'
 import { useEffect, useRef, useState } from 'react'
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
@@ -17,6 +18,7 @@ import { AcceptedAnswerFeedbackSheet } from '@/components/composites/AcceptedAns
 import { TranscriptLineRow } from '@/components/composites/TranscriptLineRow'
 import { AppTextInput } from '@/components/primitives/AppTextInput'
 import { useLanguage } from '@/i18n/LanguageProvider'
+import { MediaLoadingOverlay } from './MediaLoadingOverlay'
 
 const transcriptRowHeight = 72
 const statusButtonNeutralBackground = '#f7fafd'
@@ -41,6 +43,7 @@ export function IntensiveStagePanel({
   feedbackErrorMessage,
   feedbackSubmitted,
   formatClock,
+  isMediaLoading,
   isPreparingPlayback,
   isPlaying,
   lineProgress,
@@ -75,6 +78,7 @@ export function IntensiveStagePanel({
   feedbackErrorMessage?: string
   feedbackSubmitted: boolean
   formatClock: (seconds: number) => string
+  isMediaLoading: boolean
   isPreparingPlayback: boolean
   isPlaying: boolean
   lineProgress: ExerciseProgress['lines'][string]
@@ -131,7 +135,8 @@ export function IntensiveStagePanel({
   const currentLineIsActive = activeLineId === selectedLine.id
   const currentLineIsPreparing = isPreparingPlayback && currentLineIsActive
   const currentLineIsPlaying = isPlaying && currentLineIsActive
-  const canToggleCurrentLine = !currentLineIsPreparing
+  const showPlaybackLoading = isMediaLoading || currentLineIsPreparing
+  const canToggleCurrentLine = !showPlaybackLoading
   const sentenceVisible = Boolean(revealedLineIds[selectedLine.id])
 
   // ===== 练习工具分段 =====
@@ -207,8 +212,11 @@ export function IntensiveStagePanel({
               nativeControls={false}
               player={videoPlayer}
               playsInline
+              // loading 浮层需要稳定覆盖 Android 视频原生视图。
+              surfaceType="textureView"
               style={{ width: '100%', height: videoHeight }}
             />
+            {showPlaybackLoading && <MediaLoadingOverlay />}
           </View>
         ) : (
           <View
@@ -225,6 +233,7 @@ export function IntensiveStagePanel({
                 <FontAwesome6 color="#1cb0f6" name="headphones" size={32} />
               </View>
             </View>
+            {showPlaybackLoading && <MediaLoadingOverlay />}
           </View>
         )}
         <View
@@ -295,11 +304,15 @@ export function IntensiveStagePanel({
               opacity: canToggleCurrentLine ? 1 : 0.6,
             }}
           >
-            <FontAwesome6
-              color="#ffffff"
-              name={currentLineIsPlaying ? 'pause' : 'play'}
-              size={primaryControlIconSize}
-            />
+            {showPlaybackLoading ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <FontAwesome6
+                color="#ffffff"
+                name={currentLineIsPlaying ? 'pause' : 'play'}
+                size={primaryControlIconSize}
+              />
+            )}
             <Text
               adjustsFontSizeToFit
               className="text-center font-black text-white"
