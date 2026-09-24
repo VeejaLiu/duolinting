@@ -34,7 +34,7 @@ const copy: Record<Locale, Copy> = {
       body: "从整体理解开始，再逐句精听，把真正听不懂的部分留下来反复练习。用你关心的播客、访谈和新闻，练出听力的底气。",
       web: "网页立即体验",
       apk: "下载 Android APK",
-      note: "无需安装即可体验 · Android 版可从官网获取",
+      note: "Android 现已可直接下载 · iOS 等待 App Store 上架",
     },
     practice: {
       eyebrow: "一套能坚持下去的练习路径",
@@ -60,12 +60,12 @@ const copy: Record<Locale, Copy> = {
       action: "查看制课流程",
     },
     download: {
-      eyebrow: "网页与移动端",
-      title: "把逐句练习，带在身边。",
-      body: "先在网页开始，或在 Android 手机上继续泛听、逐句精听和难点复习。",
-      web: "网页立即体验",
-      apk: "前往 Android 下载页",
-      ios: "iOS 版正在准备中",
+      eyebrow: "Android 现已发布",
+      title: "下载 APK，把逐句练习带在身边。",
+      body: "Android 用户可以直接下载安装包；网页体验作为备用入口。",
+      web: "使用网页版",
+      apk: "直接下载 Android APK",
+      ios: "iOS 版正在等待 App Store 上架",
     },
     source: {
       eyebrow: "开放构建",
@@ -99,7 +99,7 @@ const copy: Record<Locale, Copy> = {
       body: "Start with the big picture, then listen closely line by line and return to the parts that still feel hard. Build confidence with the podcasts, interviews, and news you care about.",
       web: "Try on the web",
       apk: "Download Android APK",
-      note: "No install needed to try it · Android is available from our website",
+      note: "Android available now · iOS awaiting App Store release",
     },
     practice: {
       eyebrow: "A practice path you can keep going with",
@@ -125,12 +125,12 @@ const copy: Record<Locale, Copy> = {
       action: "See the creation workflow",
     },
     download: {
-      eyebrow: "Web and mobile",
-      title: "Take line-by-line practice with you.",
-      body: "Start on the web, or keep warming up, listening closely, and reviewing difficult lines on Android.",
-      web: "Try on the web",
-      apk: "Go to Android download",
-      ios: "iOS is in preparation",
+      eyebrow: "Android available now",
+      title: "Download the APK and take practice with you.",
+      body: "Android users can install the app directly; the web version remains a secondary option.",
+      web: "Use the web version",
+      apk: "Download Android APK",
+      ios: "iOS is awaiting its App Store release",
     },
     source: {
       eyebrow: "Built in the open",
@@ -209,7 +209,7 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
           <div className="header-actions">
             <Link className="language-switch desktop-only" href={languagePath}>{languageLabel}</Link>
             <a className="header-source" href="https://github.com/VeejaLiu/duolinting" target="_blank" rel="noreferrer"><GitHubMark /> GitHub {t.nav.openSource} <b aria-hidden="true">↗</b></a>
-            {learnerWebUrl ? <a className="header-cta" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.hero.web}<span className="external-link-icon" aria-hidden="true">↗</span></a> : <button className="header-cta" type="button" disabled>{t.hero.web}</button>}
+            <Link className="header-cta header-download-cta" href={downloadPath}>{t.hero.apk}</Link>
             <button className="menu-trigger" type="button" aria-expanded={menuOpen} aria-label="Toggle navigation menu" onClick={() => setMenuOpen(!menuOpen)}><span></span><span></span><span></span></button>
           </div>
         </div>
@@ -221,7 +221,7 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
             <p className="eyebrow"><span></span>{t.hero.eyebrow}</p>
             <h1>{t.hero.titleStart} <em>{t.hero.titleAccent}</em>{t.hero.titleEnd}</h1>
             <p className="hero-description">{t.hero.body}</p>
-            <div className="hero-actions">{learnerWebUrl ? <a className="button button-primary" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.hero.web}<span className="external-link-icon" aria-hidden="true">↗</span></a> : <button className="button button-primary" type="button" disabled>{t.hero.web}</button>}<Link className="button button-secondary" href={downloadPath}>{t.hero.apk}</Link></div>
+            <div className="hero-actions"><a className="button button-primary" href={androidRelease.downloadUrl ?? downloadPath} download>{t.hero.apk}</a>{learnerWebUrl ? <a className="button button-secondary" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.hero.web}<span className="external-link-icon" aria-hidden="true">↗</span></a> : null}</div>
             <p className="platform-note"><span>✓</span>{t.hero.note}</p>
           </div>
           <div className="hero-preview" aria-label="DuolinTing line-by-line listening practice preview">
@@ -249,7 +249,7 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
       </section>
 
       <section id="download" className="download-section section-pad">
-        <div className="site-shell download-panel"><div className="download-phone"><Image src="/learner-mobile.webp" alt={locale === "zh" ? "DuolinTing Android 移动端逐句精听界面" : "DuolinTing Android line-by-line practice interface"} width={556} height={1200} sizes="(max-width: 900px) 190px, 255px" /></div><div className="download-copy"><p className="eyebrow"><span></span>{t.download.eyebrow}</p><h2>{t.download.title}</h2><p>{t.download.body}</p><div className="download-actions">{learnerWebUrl ? <a className="button button-primary" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.download.web}<span className="external-link-icon" aria-hidden="true">↗</span></a> : <button className="button button-primary" type="button" disabled>{t.download.web}</button>}<Link className="button button-secondary" href={downloadPath}>{t.download.apk}</Link></div><p className="ios-note"><span>●</span>{t.download.ios}</p></div><aside className="release-card" aria-label="Android release details"><div className="release-heading"><strong>DuolinTing for Android</strong><span>{locale === "zh" ? "官方发布" : "Official release"}</span></div><dl><div><dt>{locale === "zh" ? "当前版本" : "Current version"}</dt><dd>{androidRelease.version} · Build {androidRelease.build}</dd></div><div><dt>{locale === "zh" ? "Android 包名" : "Android package"}</dt><dd>{androidRelease.packageName}</dd></div><div><dt>{locale === "zh" ? "发行信息" : "Release details"}</dt><dd>{androidRelease.releasedAt} · {androidRelease.fileSize}</dd></div><div><dt>SHA-256</dt><dd>{androidRelease.sha256?.slice(0, 16)}…</dd></div></dl><Link className="apk-button" href={downloadPath}>{t.hero.apk}</Link><p><span>✓</span>HTTPS <span>✓</span>{locale === "zh" ? "签名版本" : "Signed release"} <span>✓</span>SHA-256</p></aside></div>
+        <div className="site-shell download-panel"><div className="download-phone"><Image src="/learner-mobile.webp" alt={locale === "zh" ? "DuolinTing Android 移动端逐句精听界面" : "DuolinTing Android line-by-line practice interface"} width={556} height={1200} sizes="(max-width: 900px) 190px, 255px" /></div><div className="download-copy"><p className="eyebrow"><span></span>{t.download.eyebrow}</p><h2>{t.download.title}</h2><p>{t.download.body}</p><div className="download-actions"><a className="button button-primary" href={androidRelease.downloadUrl ?? downloadPath} download>{t.download.apk}</a>{learnerWebUrl ? <a className="button button-secondary" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.download.web}<span className="external-link-icon" aria-hidden="true">↗</span></a> : null}</div><p className="ios-note"><span>●</span>{t.download.ios}</p></div><aside className="release-card" aria-label="Android release details"><div className="release-heading"><strong>DuolinTing for Android</strong><span>{locale === "zh" ? "官方发布" : "Official release"}</span></div><dl><div><dt>{locale === "zh" ? "当前版本" : "Current version"}</dt><dd>{androidRelease.version} · Build {androidRelease.build}</dd></div><div><dt>{locale === "zh" ? "Android 包名" : "Android package"}</dt><dd>{androidRelease.packageName}</dd></div><div><dt>{locale === "zh" ? "发行信息" : "Release details"}</dt><dd>{androidRelease.releasedAt} · {androidRelease.fileSize}</dd></div><div><dt>SHA-256</dt><dd>{androidRelease.sha256?.slice(0, 16)}…</dd></div></dl><a className="apk-button" href={androidRelease.downloadUrl ?? downloadPath} download>{t.hero.apk}</a><p><span>✓</span>HTTPS <span>✓</span>{locale === "zh" ? "签名版本" : "Signed release"} <span>✓</span>SHA-256</p></aside></div>
       </section>
 
       <section id="open-source" className="open-source-section section-pad">

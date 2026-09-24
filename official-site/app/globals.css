@@ -31,6 +31,8 @@ button:focus-visible { outline: 3px solid rgba(28, 176, 246, .42); outline-offse
 .header-cta, .button, .apk-button { min-height: 44px; border: 2px solid; border-radius: 14px; cursor: pointer; font-weight: 900; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 .header-cta { padding: 0 15px; background: #fff; border-color: #d7e7f1; box-shadow: 0 3px 0 #d7e4ef; color: #31415c; font-size: 13px; }
 .header-cta:hover { border-color: var(--brand); color: var(--brand-strong); }
+.header-download-cta { border-color: var(--brand); background: var(--brand); box-shadow: 0 3px 0 #1488c4; color: #fff; }
+.header-download-cta:hover { border-color: #0ea2e8; background: #0ea2e8; color: #fff; }
 .header-source, .docs-header-source { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border: 1px solid #26374d; border-radius: 12px; background: linear-gradient(135deg, #172033, #30405a); box-shadow: 0 3px 0 #172033; color: #fff; font-size: 12px; font-weight: 900; text-decoration: none; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
 .header-source .github-mark, .docs-header-source .github-mark { width: 16px; height: 16px; flex: 0 0 auto; }
 .header-source b { font-size: 13px; }
@@ -176,6 +178,9 @@ h1 em { color: var(--brand-strong); font-style: normal; }
 .chrome-primary-action { min-height: 50px; margin-top: 28px; padding: 0 24px; border: 2px solid var(--brand); border-radius: 999px; box-shadow: none; font-size: 16px; }
 .chrome-primary-action:hover { background: #0ea2e8; border-color: #0ea2e8; }
 .chrome-primary-action:disabled { background: #e8f1f6; border-color: #d7e7f1; color: #718096; cursor: not-allowed; }
+.chrome-secondary-action { margin-top: 16px; color: #607185; font-size: 13px; font-weight: 850; text-decoration: none; }
+.chrome-secondary-action:hover { color: var(--brand-strong); }
+.chrome-secondary-action.is-disabled { color: #9aa7b3; }
 .chrome-start-note { display: flex; align-items: center; gap: 7px; margin: 14px 0 0; color: #68788a; font-size: 12px; font-weight: 800; }
 .chrome-start-note span { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px #e1f8d4; }
 .chrome-scroll-link { display: inline-flex; gap: 8px; margin: 35px 0 42px; color: var(--brand-strong); font-size: 13px; font-weight: 900; text-decoration: none; }
@@ -198,6 +203,8 @@ h1 em { color: var(--brand-strong); font-style: normal; }
 .platform-status { display: grid; grid-template-columns: 43px minmax(0, 1fr); gap: 14px; padding: 28px; border-left: 1px solid #dbe7ef; }
 .platform-status:first-child { border-left: 0; }
 .platform-status:hover { background: #fbfeff; }
+.platform-status-primary { background: #f6fff0; box-shadow: inset 0 0 0 2px #ccefb6; }
+.platform-status-primary:hover { background: #f0ffe7; }
 .platform-status-icon { display: grid; width: 41px; height: 41px; place-items: center; border-radius: 13px; font-size: 22px; font-weight: 900; }
 .web-icon { border: 1px solid #bde8fb; background: #edf9ff; color: var(--brand-strong); }
 .android-icon { border: 1px solid #d9efc7; background: #f2fbe9; color: #459c0e; font-size: 17px; }

@@ -13,15 +13,15 @@ type Locale = "zh" | "en";
 const messages = {
   zh: {
     home: "返回首页",
-    title: "听懂每一句，从现在开始。",
-    lead: "在网页端开始泛听、逐句精听与难点复习。无需安装，打开即可学习。",
-    webAction: "网页立即体验",
+    title: "DuolinTing Android 版，立即下载。",
+    lead: "Android 用户可以直接下载官方 APK 安装；iPhone 版正在等待 App Store 上架。",
+    webAction: "也可以使用网页版",
     webUnavailable: "网页端地址正在配置中",
-    startNote: "现在可用 · 无需安装",
-    scroll: "了解移动端",
-    mobileEyebrow: "网页与移动端",
-    mobileTitle: "从网页开始，学习自然延续。",
-    mobileBody: "先在任意设备的浏览器中使用 DuolinTing，或直接下载 Android APK。iOS 版准备完成后也会在这个官方页面发布。",
+    startNote: "Android 现已可下载 · iOS 等待 App Store 上架",
+    scroll: "查看版本与安装说明",
+    mobileEyebrow: "移动端下载",
+    mobileTitle: "Android 直接安装，iOS 敬请期待。",
+    mobileBody: "Android APK 已正式发布，可从官网直接下载。iPhone 与 iPad 版本正在准备 App Store 上架；网页版仍可作为备用入口。",
     web: "网页学习端",
     webStatus: "现在可用",
     webMeta: "电脑和手机浏览器均可使用",
@@ -31,8 +31,8 @@ const messages = {
     androidMetaPreparing: "发布后提供官方 HTTPS 下载与完整核验信息",
     androidMetaAvailable: "官方 HTTPS 下载与文件核验信息",
     ios: "iOS",
-    iosStatus: "准备中",
-    iosMeta: "官方安装方式可用后在此更新",
+    iosStatus: "等待上架",
+    iosMeta: "正在准备 App Store 上架",
     releaseEyebrow: "Android 发布中心",
     releasePreparingTitle: "Android APK 正在准备中。",
     releaseAvailableTitle: "获取 Android APK。",
@@ -66,15 +66,15 @@ const messages = {
   },
   en: {
     home: "Back to home",
-    title: "Understand every line. Start now.",
-    lead: "Warm up, listen closely line by line, and review difficult lines on the web. No installation needed—just open and learn.",
-    webAction: "Try the web app",
+    title: "Download DuolinTing for Android.",
+    lead: "Android users can install the official APK now. The iPhone version is waiting for its App Store release.",
+    webAction: "Use the web version instead",
     webUnavailable: "The web address is being configured",
-    startNote: "Available now · No installation needed",
-    scroll: "Explore mobile apps",
-    mobileEyebrow: "Web and mobile",
-    mobileTitle: "Start on the web. Let your learning follow naturally.",
-    mobileBody: "Use DuolinTing in any browser, or download the Android APK now. The iOS app will also be published through this official page when ready.",
+    startNote: "Android available now · iOS awaiting App Store release",
+    scroll: "View version and installation details",
+    mobileEyebrow: "Mobile download",
+    mobileTitle: "Install on Android now. iOS is coming later.",
+    mobileBody: "The official Android APK is ready to download. The iPhone and iPad version is being prepared for the App Store; the web version remains available as a secondary option.",
     web: "Web learner",
     webStatus: "Available now",
     webMeta: "Works in desktop and mobile browsers",
@@ -84,8 +84,8 @@ const messages = {
     androidMetaPreparing: "Official HTTPS download and verification details at release",
     androidMetaAvailable: "Official HTTPS download and file verification details",
     ios: "iOS",
-    iosStatus: "In preparation",
-    iosMeta: "Updated here when an official option is available",
+    iosStatus: "Awaiting release",
+    iosMeta: "Being prepared for the App Store",
     releaseEyebrow: "Android release center",
     releasePreparingTitle: "The Android APK is in preparation.",
     releaseAvailableTitle: "Get the Android APK.",
@@ -147,7 +147,8 @@ export default function DownloadPage({ initialLocale = "zh" }: { initialLocale?:
           <Image className="chrome-hero-logo" src="/duolinting-logo-ear.png" alt="" width={104} height={100} priority />
           <h1>{t.title}</h1>
           <p>{t.lead}</p>
-          {learnerWebUrl ? <a className="button button-primary chrome-primary-action" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.webAction}<span className="external-link-icon" aria-hidden="true">↗</span></a> : <button className="chrome-primary-action" type="button" disabled>{t.webUnavailable}</button>}
+          {isAvailable ? <a className="button button-primary chrome-primary-action" href={androidRelease.downloadUrl ?? undefined} download>{t.download}</a> : <button className="chrome-primary-action" type="button" disabled>{t.androidStatusPreparing}</button>}
+          {learnerWebUrl ? <a className="chrome-secondary-action" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.webAction}<span className="external-link-icon" aria-hidden="true">↗</span></a> : <span className="chrome-secondary-action is-disabled">{t.webUnavailable}</span>}
           <p className="chrome-start-note"><span></span>{t.startNote}</p>
           <a className="chrome-scroll-link" href="#platforms">{t.scroll}<span aria-hidden="true">↓</span></a>
         </div>
@@ -161,8 +162,8 @@ export default function DownloadPage({ initialLocale = "zh" }: { initialLocale?:
         <div className="site-shell">
           <header><p className="eyebrow"><span></span>{t.mobileEyebrow}</p><h2>{t.mobileTitle}</h2><p>{t.mobileBody}</p></header>
           <div className="platform-status-list">
-            <article className="platform-status platform-status-live"><div className="platform-status-icon web-icon" aria-hidden="true">⌁</div><div><h3>{t.web}</h3><p>{t.webMeta}</p></div><span className="platform-availability live"><i></i>{t.webStatus}</span></article>
-            <article className="platform-status"><div className="platform-status-icon android-icon" aria-hidden="true">▣</div><div><h3>{t.android}</h3><p>{isAvailable ? t.androidMetaAvailable : t.androidMetaPreparing}</p></div><a className={`platform-availability ${isAvailable ? "live" : "pending"}`} href="#android-release"><i></i>{isAvailable ? t.androidStatusAvailable : t.androidStatusPreparing}</a></article>
+            <article className="platform-status platform-status-primary"><div className="platform-status-icon android-icon" aria-hidden="true">▣</div><div><h3>{t.android}</h3><p>{isAvailable ? t.androidMetaAvailable : t.androidMetaPreparing}</p></div><a className={`platform-availability ${isAvailable ? "live" : "pending"}`} href={isAvailable ? androidRelease.downloadUrl ?? "#android-release" : "#android-release"} download={isAvailable || undefined}><i></i>{isAvailable ? t.download : t.androidStatusPreparing}</a></article>
+            <article className="platform-status"><div className="platform-status-icon web-icon" aria-hidden="true">⌁</div><div><h3>{t.web}</h3><p>{t.webMeta}</p></div><span className="platform-availability live"><i></i>{t.webStatus}</span></article>
             <article className="platform-status"><div className="platform-status-icon ios-icon" aria-hidden="true">●</div><div><h3>{t.ios}</h3><p>{t.iosMeta}</p></div><span className="platform-availability pending"><i></i>{t.iosStatus}</span></article>
           </div>
         </div>
