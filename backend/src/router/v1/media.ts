@@ -3,6 +3,7 @@ import { body } from 'express-validator';
 import multer from 'multer';
 import { requireAdminToken, requireSuperAdmin } from '../../general/admin/admin-auth';
 import {
+    buildPublicMediaUrl,
     createUploadIntent,
     getMediaObject,
     isAuthorizedBackendMediaRequest,
@@ -19,6 +20,9 @@ import { Logger } from '../../lib/logger';
 const router = express.Router();
 const logger = new Logger(__filename);
 const MAX_MEDIA_FILE_SIZE_BYTES = 120 * 1024 * 1024;
+// 官网 APK 是刻意公开发布的版本化文件。这里只允许跳转到这一条固定对象键，
+// 不接受用户传入路径，避免把该公开入口变成任意受保护媒体的签名服务。
+const ANDROID_RELEASE_OBJECT_NAME = 'releases/android/app-release.apk';
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
@@ -190,6 +194,13 @@ const sendMediaObject = async (req: express.Request, res: express.Response, obje
     res.setHeader('Content-Range', `bytes ${partialRange.start}-${partialRange.end}/${partialMedia.size}`);
     partialMedia.stream.pipe(res);
 };
+
+router.get('/android-apk', (_req, res) => {
+    // 每次请求生成短时 CDN 签名，既保留其余媒体的登录鉴权，也让官网 APK
+    // 无需暴露鉴权密钥即可公开下载。no-store 防止代理缓存即将过期的跳转地址。
+    res.setHeader('Cache-Control', 'no-store');
+    res.redirect(302, buildPublicMediaUrl(ANDROID_RELEASE_OBJECT_NAME));
+});
 
 const requireBackendMediaAccess: express.RequestHandler = (req, res, next) => {
     if (!env.media.access.requireAuth) {

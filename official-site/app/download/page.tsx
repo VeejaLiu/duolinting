@@ -21,7 +21,7 @@ const messages = {
     scroll: "了解移动端",
     mobileEyebrow: "网页与移动端",
     mobileTitle: "从网页开始，学习自然延续。",
-    mobileBody: "先在任意设备的浏览器中使用 DuolinTing。Android APK 与 iOS 版准备完成后，也会只在这个官方页面发布。",
+    mobileBody: "先在任意设备的浏览器中使用 DuolinTing，或直接下载 Android APK。iOS 版准备完成后也会在这个官方页面发布。",
     web: "网页学习端",
     webStatus: "现在可用",
     webMeta: "电脑和手机浏览器均可使用",
@@ -74,7 +74,7 @@ const messages = {
     scroll: "Explore mobile apps",
     mobileEyebrow: "Web and mobile",
     mobileTitle: "Start on the web. Let your learning follow naturally.",
-    mobileBody: "Use DuolinTing in any browser today. The Android APK and iOS app will be published only through this official page when they are ready.",
+    mobileBody: "Use DuolinTing in any browser, or download the Android APK now. The iOS app will also be published through this official page when ready.",
     web: "Web learner",
     webStatus: "Available now",
     webMeta: "Works in desktop and mobile browsers",
@@ -188,7 +188,7 @@ export default function DownloadPage({ initialLocale = "zh" }: { initialLocale?:
                   <div className="checksum"><dt>{t.checksum}</dt><dd>{valueOrFallback(androidRelease.sha256)}</dd></div>
                   <div><dt>{t.certificateChecksum}</dt><dd>{valueOrFallback(androidRelease.certificateSha256)}</dd></div>
                 </dl>
-                <a className="apk-button download-link" href={androidRelease.downloadUrl ?? undefined}>{t.download}</a>
+                <a className="apk-button download-link" href={androidRelease.downloadUrl ?? undefined} download>{t.download}</a>
                 {releaseNotes.length > 0 && <div className="release-notes"><strong>{t.releaseNotes}</strong><ul>{releaseNotes.map((note) => <li key={note}>{note}</li>)}</ul></div>}
               </>
             ) : (

@@ -29,19 +29,22 @@ test("server-renders the DuolinTing official site", async () => {
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/);
 });
 
-test("uses a product-led web learner call to action on the download page", async () => {
+test("publishes the signed Android release on the download page", async () => {
   const response = await render("/download");
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /听懂每一句，从现在开始/);
   assert.match(html, /网页学习端/);
   assert.match(html, /网页立即体验/);
-  assert.match(html, /Android APK 正在准备中/);
-  assert.match(html, /当前暂无可下载文件/);
-  assert.match(html, /发布时，本页会同步提供/);
+  assert.match(html, /获取 Android APK/);
+  assert.match(html, /官方文件已发布/);
+  assert.match(html, /1\.0<!-- --> · Build <!-- -->9/);
+  assert.match(html, /84\.58 MB/);
+  assert.match(html, /8d95348fdc671b272e15bdbd9fea91310867e9bcde4e915ae5eeca989fbf1b0d/);
+  assert.match(html, /href="\/api\/v1\/media\/android-apk"/);
   assert.match(html, /chrome-product-browser/);
-  assert.doesNotMatch(html, /三步安装/);
-  assert.doesNotMatch(html, /下载 Android APK/);
+  assert.match(html, /安装 Android APK/);
+  assert.match(html, /下载 Android APK/);
 });
 
 test("server-renders the contribution guide with the real production workflow", async () => {

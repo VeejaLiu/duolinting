@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { learnerWebUrl } from "./content/learner-web";
+import { androidRelease } from "./content/android-release";
 import { organizationSchema, softwareApplicationSchema, StructuredData, websiteSchema } from "./components/structured-data";
 import { GitHubMark } from "./components/github-mark";
 
@@ -155,8 +156,6 @@ const copy: Record<Locale, Copy> = {
   },
 };
 
-const release = { version: "0.1.0", build: "5", packageName: "com.duolinting.app" };
-
 function scrollToSection(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -250,7 +249,7 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
       </section>
 
       <section id="download" className="download-section section-pad">
-        <div className="site-shell download-panel"><div className="download-phone"><Image src="/learner-mobile.webp" alt={locale === "zh" ? "DuolinTing Android 移动端逐句精听界面" : "DuolinTing Android line-by-line practice interface"} width={556} height={1200} sizes="(max-width: 900px) 190px, 255px" /></div><div className="download-copy"><p className="eyebrow"><span></span>{t.download.eyebrow}</p><h2>{t.download.title}</h2><p>{t.download.body}</p><div className="download-actions">{learnerWebUrl ? <a className="button button-primary" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.download.web}<span className="external-link-icon" aria-hidden="true">↗</span></a> : <button className="button button-primary" type="button" disabled>{t.download.web}</button>}<Link className="button button-secondary" href={downloadPath}>{t.download.apk}</Link></div><p className="ios-note"><span>●</span>{t.download.ios}</p></div><aside className="release-card" aria-label="Android release details"><div className="release-heading"><strong>DuolinTing for Android</strong><span>{locale === "zh" ? "官方发布" : "Official release"}</span></div><dl><div><dt>{locale === "zh" ? "当前版本" : "Current version"}</dt><dd>{release.version} · Build {release.build}</dd></div><div><dt>{locale === "zh" ? "Android 包名" : "Android package"}</dt><dd>{release.packageName}</dd></div><div><dt>{locale === "zh" ? "发行信息" : "Release details"}</dt><dd>{locale === "zh" ? "发布时显示日期与文件大小" : "Release details shown when published"}</dd></div><div><dt>SHA-256</dt><dd>{locale === "zh" ? "发布时显示最终校验值" : "Final checksum shown on release"}</dd></div></dl><Link className="apk-button" href={downloadPath}>{t.hero.apk}</Link><p><span>✓</span>HTTPS <span>✓</span>{locale === "zh" ? "签名版本" : "Signed release"} <span>✓</span>SHA-256</p></aside></div>
+        <div className="site-shell download-panel"><div className="download-phone"><Image src="/learner-mobile.webp" alt={locale === "zh" ? "DuolinTing Android 移动端逐句精听界面" : "DuolinTing Android line-by-line practice interface"} width={556} height={1200} sizes="(max-width: 900px) 190px, 255px" /></div><div className="download-copy"><p className="eyebrow"><span></span>{t.download.eyebrow}</p><h2>{t.download.title}</h2><p>{t.download.body}</p><div className="download-actions">{learnerWebUrl ? <a className="button button-primary" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.download.web}<span className="external-link-icon" aria-hidden="true">↗</span></a> : <button className="button button-primary" type="button" disabled>{t.download.web}</button>}<Link className="button button-secondary" href={downloadPath}>{t.download.apk}</Link></div><p className="ios-note"><span>●</span>{t.download.ios}</p></div><aside className="release-card" aria-label="Android release details"><div className="release-heading"><strong>DuolinTing for Android</strong><span>{locale === "zh" ? "官方发布" : "Official release"}</span></div><dl><div><dt>{locale === "zh" ? "当前版本" : "Current version"}</dt><dd>{androidRelease.version} · Build {androidRelease.build}</dd></div><div><dt>{locale === "zh" ? "Android 包名" : "Android package"}</dt><dd>{androidRelease.packageName}</dd></div><div><dt>{locale === "zh" ? "发行信息" : "Release details"}</dt><dd>{androidRelease.releasedAt} · {androidRelease.fileSize}</dd></div><div><dt>SHA-256</dt><dd>{androidRelease.sha256?.slice(0, 16)}…</dd></div></dl><Link className="apk-button" href={downloadPath}>{t.hero.apk}</Link><p><span>✓</span>HTTPS <span>✓</span>{locale === "zh" ? "签名版本" : "Signed release"} <span>✓</span>SHA-256</p></aside></div>
       </section>
 
       <section id="open-source" className="open-source-section section-pad">

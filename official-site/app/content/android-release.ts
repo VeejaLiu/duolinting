@@ -6,17 +6,17 @@
  * from that exact uploaded file—not copied from a previous build.
  */
 export const androidRelease = {
-  status: "preparing" as "preparing" | "published",
-  version: "0.1.0",
-  build: "5",
+  status: "published" as "preparing" | "published",
+  version: "1.0",
+  build: "9",
   packageName: "com.duolinting.app",
-  releasedAt: null as string | null,
-  fileSize: null as string | null,
-  sha256: null as string | null,
-  downloadUrl: null as string | null,
-  certificateSha256: null as string | null,
+  releasedAt: "2026-09-24" as string | null,
+  fileSize: "84.58 MB" as string | null,
+  sha256: "8d95348fdc671b272e15bdbd9fea91310867e9bcde4e915ae5eeca989fbf1b0d" as string | null,
+  downloadUrl: "/api/v1/media/android-apk" as string | null,
+  certificateSha256: "443b4401be99065ed1ad62c98ab1bf15f9d80494d90dace48f42488f5460fd2d" as string | null,
   notes: {
-    zh: ["首个官网 APK 发布时填写经过真机核验的更新说明。"],
-    en: ["Add release notes verified on a physical device when the first official APK is published."],
+    zh: ["首个官网 Android 正式版本。", "支持登录后同步学习进度、浏览课程并进行逐句精听。"],
+    en: ["First official Android release from the DuolinTing website.", "Sign in to sync progress, browse courses, and practice line by line."],
   },
 };
