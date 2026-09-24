@@ -2,9 +2,11 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { GeoContext } from '../analytics/geo';
 import { rows, write, json, utcValue } from '../analytics/service';
 import bcrypt from 'bcryptjs';
-import type { AuthUser, RegisterRequest } from '../../domain';
+import type { AuthUser, RegisterRequest, ResetPasswordRequest } from '../../domain';
 import { sequelize } from '../../models/db-config-mysql';
 import { UserModel } from '../../models/schema/UserDB';
+import { UserSessionModel } from '../../models/schema/UserSessionDB';
+import { consumeUserEmailChallenge, emailVerificationRequired } from './user-email-challenge-service';
 import {
     issueUserSession,
     normalizeAuthClientType,
@@ -14,6 +16,7 @@ import {
 export type AuthResult = {
     success: boolean;
     message: string;
+    code?: string;
     data?: {
         user: AuthUser;
         token: string;
@@ -25,6 +28,15 @@ export type DeleteAccountResult = {
     message: string;
     data?: {
         deleted: true;
+    };
+};
+
+export type PasswordResetResult = {
+    success: boolean;
+    message: string;
+    code?: string;
+    data?: {
+        reset: true;
     };
 };
 
@@ -46,15 +58,24 @@ export async function findUserByEmail(email: string) {
 }
 
 export async function registerUser(request: RegisterRequest, geo?: GeoContext, analyticsEpoch?: string): Promise<AuthResult> {
-    const existing = await findUserByEmail(request.email);
+    const normalizedEmail = request.email.toLowerCase();
+    const existing = await findUserByEmail(normalizedEmail);
     if (existing) {
-        return { success: false, message: 'Email already registered' };
+        return { success: false, message: 'Email already registered', code: 'EMAIL_ALREADY_REGISTERED' };
     }
 
     const passwordHash = await bcrypt.hash(request.password, 10);
     const createdUser = await sequelize.transaction(async (transaction) => {
+      if (emailVerificationRequired()) {
+        await consumeUserEmailChallenge({
+          email: normalizedEmail,
+          purpose: 'register',
+          code: request.verificationCode,
+          transaction,
+        });
+      }
       const account = await UserModel.create({
-        email: request.email.toLowerCase(),
+        email: normalizedEmail,
         display_name: request.displayName,
         password_hash: passwordHash,
     } as any, { transaction });
@@ -72,7 +93,7 @@ export async function registerUser(request: RegisterRequest, geo?: GeoContext, a
     const row = plainUser(createdUser);
     const user = {
         id: Number(row.id),
-        email: request.email.toLowerCase(),
+        email: normalizedEmail,
         displayName: request.displayName,
     };
     const token = await issueUserSession({
@@ -84,6 +105,46 @@ export async function registerUser(request: RegisterRequest, geo?: GeoContext, a
         success: true,
         message: 'success',
         data: { user, token },
+    };
+}
+
+/**
+ * Password recovery consumes a single-use email code, replaces the bcrypt
+ * password hash, and revokes every existing session in one transaction. A
+ * recovered account therefore cannot keep an attacker logged in elsewhere.
+ */
+export async function resetUserPassword(request: ResetPasswordRequest): Promise<PasswordResetResult> {
+    const normalizedEmail = request.email.trim().toLowerCase();
+    const userRecord = await UserModel.findOne({ where: { email: normalizedEmail } });
+    if (!userRecord) {
+        return {
+            success: false,
+            message: 'Email code is invalid.',
+            code: 'EMAIL_CODE_INVALID',
+        };
+    }
+
+    await sequelize.transaction(async (transaction) => {
+        await consumeUserEmailChallenge({
+            email: normalizedEmail,
+            purpose: 'password_reset',
+            code: request.verificationCode,
+            transaction,
+        });
+        await UserModel.update(
+            { password_hash: await bcrypt.hash(request.newPassword, 10) },
+            { where: { id: userRecord.id }, transaction },
+        );
+        await UserSessionModel.update(
+            { revoked_at: new Date() },
+            { where: { user_id: userRecord.id }, transaction },
+        );
+    });
+
+    return {
+        success: true,
+        message: 'success',
+        data: { reset: true },
     };
 }
 
@@ -250,6 +311,13 @@ export async function deleteUserAccount({
                 transaction,
             },
         );
+
+        // Email challenges are keyed by normalized address instead of user_id
+        // so they can exist before registration. Remove them with the account.
+        await sequelize.query('delete from user_email_challenges where email = ?', {
+            replacements: [String(row.email).toLowerCase()],
+            transaction,
+        });
 
         await sequelize.query('delete from users where id = ?', {
             replacements: [numericUserId],

@@ -32,6 +32,26 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.passwordTooShort': '密码至少需要 8 个字符',
     'auth.passwordNeedsLetter': '密码必须包含字母',
     'auth.passwordNeedsDigit': '密码必须包含数字',
+    'auth.resetPasswordTitle': '通过邮箱重置密码',
+    'auth.backToLogin': '返回登录',
+    'auth.verificationCode': '邮箱验证码',
+    'auth.codePlaceholder': '6 位验证码',
+    'auth.sendCode': '发送验证码',
+    'auth.sendingCode': '发送中…',
+    'auth.codeInvalid': '请输入 6 位邮箱验证码',
+    'auth.codeSent': '验证码已发送，请检查邮箱',
+    'auth.codeCooldown': '验证码刚刚已发送，请在 {{seconds}} 秒后重试',
+    'auth.codeNotRequired': '当前环境未启用邮箱验证，可直接继续',
+    'auth.codeSendFailed': '验证码发送失败',
+    'auth.forgotPassword': '忘记密码？',
+    'auth.newPassword': '新密码',
+    'auth.resetPassword': '重置密码',
+    'auth.passwordResetComplete': '密码已重置，请使用新密码登录',
+    'auth.emailAlreadyRegistered': '该邮箱已经注册，请直接登录',
+    'auth.codeIncorrect': '验证码不正确，请重新输入',
+    'auth.codeExpired': '验证码已过期，请重新发送',
+    'auth.codeLocked': '验证码错误次数过多，请重新发送',
+    'auth.emailServiceUnavailable': '邮箱服务暂时不可用，请稍后重试',
   },
   'en-US': {
     'auth.accountCenter': 'Account',
@@ -62,6 +82,26 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.passwordTooShort': 'Password must be at least 8 characters',
     'auth.passwordNeedsLetter': 'Password must include a letter',
     'auth.passwordNeedsDigit': 'Password must include a number',
+    'auth.resetPasswordTitle': 'Reset your password by email',
+    'auth.backToLogin': 'Back to login',
+    'auth.verificationCode': 'Email verification code',
+    'auth.codePlaceholder': '6-digit code',
+    'auth.sendCode': 'Send code',
+    'auth.sendingCode': 'Sending…',
+    'auth.codeInvalid': 'Enter the 6-digit email code',
+    'auth.codeSent': 'Code sent. Check your inbox.',
+    'auth.codeCooldown': 'A code was just sent. Try again in {{seconds}} seconds.',
+    'auth.codeNotRequired': 'Email verification is disabled here. You can continue.',
+    'auth.codeSendFailed': 'Unable to send the verification code',
+    'auth.forgotPassword': 'Forgot password?',
+    'auth.newPassword': 'New password',
+    'auth.resetPassword': 'Reset password',
+    'auth.passwordResetComplete': 'Password reset. Log in with your new password.',
+    'auth.emailAlreadyRegistered': 'This email is already registered. Log in instead.',
+    'auth.codeIncorrect': 'That code is incorrect. Try again.',
+    'auth.codeExpired': 'That code has expired. Send a new one.',
+    'auth.codeLocked': 'Too many incorrect attempts. Send a new code.',
+    'auth.emailServiceUnavailable': 'Email service is temporarily unavailable. Try again later.',
   },
   'th-TH': {
     'auth.accountCenter': 'บัญชี',
@@ -92,6 +132,26 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.passwordTooShort': 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร',
     'auth.passwordNeedsLetter': 'รหัสผ่านต้องมีตัวอักษรอย่างน้อย 1 ตัว',
     'auth.passwordNeedsDigit': 'รหัสผ่านต้องมีตัวเลขอย่างน้อย 1 ตัว',
+    'auth.resetPasswordTitle': 'รีเซ็ตรหัสผ่านทางอีเมล',
+    'auth.backToLogin': 'กลับไปเข้าสู่ระบบ',
+    'auth.verificationCode': 'รหัสยืนยันอีเมล',
+    'auth.codePlaceholder': 'รหัส 6 หลัก',
+    'auth.sendCode': 'ส่งรหัส',
+    'auth.sendingCode': 'กำลังส่ง…',
+    'auth.codeInvalid': 'กรอกรหัสอีเมล 6 หลัก',
+    'auth.codeSent': 'ส่งรหัสแล้ว โปรดตรวจสอบกล่องจดหมาย',
+    'auth.codeCooldown': 'เพิ่งส่งรหัส โปรดลองอีกครั้งใน {{seconds}} วินาที',
+    'auth.codeNotRequired': 'สภาพแวดล้อมนี้ไม่ได้เปิดใช้การยืนยันอีเมล คุณดำเนินการต่อได้',
+    'auth.codeSendFailed': 'ส่งรหัสยืนยันไม่สำเร็จ',
+    'auth.forgotPassword': 'ลืมรหัสผ่าน?',
+    'auth.newPassword': 'รหัสผ่านใหม่',
+    'auth.resetPassword': 'รีเซ็ตรหัสผ่าน',
+    'auth.passwordResetComplete': 'รีเซ็ตรหัสผ่านแล้ว โปรดเข้าสู่ระบบด้วยรหัสผ่านใหม่',
+    'auth.emailAlreadyRegistered': 'อีเมลนี้ลงทะเบียนแล้ว โปรดเข้าสู่ระบบ',
+    'auth.codeIncorrect': 'รหัสไม่ถูกต้อง โปรดลองอีกครั้ง',
+    'auth.codeExpired': 'รหัสหมดอายุแล้ว โปรดส่งรหัสใหม่',
+    'auth.codeLocked': 'กรอกรหัสผิดหลายครั้งเกินไป โปรดส่งรหัสใหม่',
+    'auth.emailServiceUnavailable': 'บริการอีเมลไม่พร้อมใช้งานชั่วคราว โปรดลองภายหลัง',
   },
   'ja-JP': {
     'auth.accountCenter': 'アカウント',
@@ -122,6 +182,26 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.passwordTooShort': 'パスワードは8文字以上で入力してください',
     'auth.passwordNeedsLetter': 'パスワードには英字を含めてください',
     'auth.passwordNeedsDigit': 'パスワードには数字を含めてください',
+    'auth.resetPasswordTitle': 'メールでパスワードを再設定',
+    'auth.backToLogin': 'ログインに戻る',
+    'auth.verificationCode': 'メール認証コード',
+    'auth.codePlaceholder': '6桁のコード',
+    'auth.sendCode': 'コードを送信',
+    'auth.sendingCode': '送信中…',
+    'auth.codeInvalid': '6桁のメール認証コードを入力してください',
+    'auth.codeSent': 'コードを送信しました。メールを確認してください。',
+    'auth.codeCooldown': 'コードは送信済みです。{{seconds}}秒後に再試行してください。',
+    'auth.codeNotRequired': 'この環境ではメール認証が無効です。そのまま続行できます。',
+    'auth.codeSendFailed': '認証コードを送信できませんでした',
+    'auth.forgotPassword': 'パスワードをお忘れですか？',
+    'auth.newPassword': '新しいパスワード',
+    'auth.resetPassword': 'パスワードを再設定',
+    'auth.passwordResetComplete': 'パスワードを再設定しました。新しいパスワードでログインしてください。',
+    'auth.emailAlreadyRegistered': 'このメールアドレスは登録済みです。ログインしてください。',
+    'auth.codeIncorrect': 'コードが正しくありません。もう一度入力してください。',
+    'auth.codeExpired': 'コードの有効期限が切れました。新しいコードを送信してください。',
+    'auth.codeLocked': '入力回数が上限に達しました。新しいコードを送信してください。',
+    'auth.emailServiceUnavailable': 'メールサービスを一時的に利用できません。後でもう一度お試しください。',
   },
   "fr-FR": {
     "auth.accountCenter": "Compte",
@@ -152,6 +232,26 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     "auth.passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
     "auth.passwordNeedsLetter": "Le mot de passe doit contenir une lettre",
     "auth.passwordNeedsDigit": "Le mot de passe doit contenir un chiffre"
+    ,"auth.resetPasswordTitle": "Réinitialiser le mot de passe par e-mail"
+    ,"auth.backToLogin": "Retour à la connexion"
+    ,"auth.verificationCode": "Code de vérification par e-mail"
+    ,"auth.codePlaceholder": "Code à 6 chiffres"
+    ,"auth.sendCode": "Envoyer le code"
+    ,"auth.sendingCode": "Envoi…"
+    ,"auth.codeInvalid": "Saisissez le code à 6 chiffres"
+    ,"auth.codeSent": "Code envoyé. Consultez votre boîte de réception."
+    ,"auth.codeCooldown": "Un code vient d’être envoyé. Réessayez dans {{seconds}} secondes."
+    ,"auth.codeNotRequired": "La vérification par e-mail est désactivée ici. Vous pouvez continuer."
+    ,"auth.codeSendFailed": "Impossible d’envoyer le code de vérification"
+    ,"auth.forgotPassword": "Mot de passe oublié ?"
+    ,"auth.newPassword": "Nouveau mot de passe"
+    ,"auth.resetPassword": "Réinitialiser le mot de passe"
+    ,"auth.passwordResetComplete": "Mot de passe réinitialisé. Connectez-vous avec le nouveau mot de passe."
+    ,"auth.emailAlreadyRegistered": "Cette adresse est déjà enregistrée. Connectez-vous."
+    ,"auth.codeIncorrect": "Ce code est incorrect. Réessayez."
+    ,"auth.codeExpired": "Ce code a expiré. Envoyez-en un nouveau."
+    ,"auth.codeLocked": "Trop de tentatives incorrectes. Envoyez un nouveau code."
+    ,"auth.emailServiceUnavailable": "Le service de messagerie est temporairement indisponible. Réessayez plus tard."
 },
   "es-ES": {
     "auth.accountCenter": "Cuenta",
@@ -182,5 +282,25 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     "auth.passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
     "auth.passwordNeedsLetter": "La contraseña debe incluir una letra",
     "auth.passwordNeedsDigit": "La contraseña debe incluir un número"
+    ,"auth.resetPasswordTitle": "Restablecer la contraseña por correo"
+    ,"auth.backToLogin": "Volver al inicio de sesión"
+    ,"auth.verificationCode": "Código de verificación por correo"
+    ,"auth.codePlaceholder": "Código de 6 dígitos"
+    ,"auth.sendCode": "Enviar código"
+    ,"auth.sendingCode": "Enviando…"
+    ,"auth.codeInvalid": "Introduce el código de 6 dígitos"
+    ,"auth.codeSent": "Código enviado. Revisa tu bandeja de entrada."
+    ,"auth.codeCooldown": "Acabamos de enviar un código. Inténtalo de nuevo en {{seconds}} segundos."
+    ,"auth.codeNotRequired": "La verificación por correo está desactivada aquí. Puedes continuar."
+    ,"auth.codeSendFailed": "No se pudo enviar el código de verificación"
+    ,"auth.forgotPassword": "¿Olvidaste la contraseña?"
+    ,"auth.newPassword": "Nueva contraseña"
+    ,"auth.resetPassword": "Restablecer contraseña"
+    ,"auth.passwordResetComplete": "Contraseña restablecida. Inicia sesión con la nueva contraseña."
+    ,"auth.emailAlreadyRegistered": "Este correo ya está registrado. Inicia sesión."
+    ,"auth.codeIncorrect": "El código es incorrecto. Inténtalo de nuevo."
+    ,"auth.codeExpired": "El código ha caducado. Envía uno nuevo."
+    ,"auth.codeLocked": "Demasiados intentos incorrectos. Envía un código nuevo."
+    ,"auth.emailServiceUnavailable": "El servicio de correo no está disponible temporalmente. Inténtalo más tarde."
 },
 }

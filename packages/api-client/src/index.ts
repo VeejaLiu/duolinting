@@ -14,6 +14,10 @@ import type {
   LeaderboardResponse,
   ListeningExercise,
   LoginRequest,
+  RequestEmailCodeRequest,
+  RequestEmailCodeResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
   ProgressSyncResponse,
   RegisterRequest,
   StudyStore,
@@ -181,6 +185,16 @@ export const createApiClient = ({
           ...request,
           clientType: request.clientType ?? authClientType,
         }),
+      }),
+    requestEmailCode: (request: RequestEmailCodeRequest) =>
+      fetchApiResult<RequestEmailCodeResponse>('/api/v1/auth/email-code', {
+        method: 'POST',
+        body: JSON.stringify(request),
+      }),
+    resetPassword: (request: ResetPasswordRequest) =>
+      fetchApiResult<ResetPasswordResponse>('/api/v1/auth/password-reset', {
+        method: 'POST',
+        body: JSON.stringify(request),
       }),
     getCurrentUser: (authToken: string) =>
       fetchJson<AuthUser>('/api/v1/auth/me', { method: 'GET' }, { authToken }),

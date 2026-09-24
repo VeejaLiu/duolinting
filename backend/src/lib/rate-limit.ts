@@ -10,6 +10,7 @@ type RateLimitOptions = {
     windowMs: number;
     maxAttempts: number;
     keys: (req: Request) => string[];
+    resetOnSuccess?: boolean;
 };
 
 const attempts = new Map<string, RateLimitEntry>();
@@ -19,7 +20,7 @@ const attempts = new Map<string, RateLimitEntry>();
  * 对同一账号无限猜测，也避免只按账号限流时被攻击者用来锁死其他用户。
  * 当前部署是单后端实例；若扩展为多实例，应把计数器迁移到 Redis 等共享存储。
  */
-export const createRateLimit = ({ namespace, windowMs, maxAttempts, keys }: RateLimitOptions) => {
+export const createRateLimit = ({ namespace, windowMs, maxAttempts, keys, resetOnSuccess = true }: RateLimitOptions) => {
     return (req: Request, res: Response, next: NextFunction) => {
         const now = Date.now();
         let blockedUntil = 0;
@@ -47,7 +48,7 @@ export const createRateLimit = ({ namespace, windowMs, maxAttempts, keys }: Rate
         // 成功的登录或注册不是攻击尝试：请求成功后清空本次来源和账号桶，
         // 避免正常用户主动重登多次后被固定窗口误伤。失败响应仍保留计数。
         res.on('finish', () => {
-            if (res.statusCode >= 200 && res.statusCode < 300) {
+            if (resetOnSuccess && res.statusCode >= 200 && res.statusCode < 300) {
                 for (const bucketKey of bucketKeys) attempts.delete(bucketKey);
             }
         });

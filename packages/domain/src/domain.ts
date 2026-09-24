@@ -583,6 +583,8 @@ export type RegisterRequest = {
   email: string
   displayName: string
   password: string
+  /** Six-digit code sent to the registration email when email delivery is configured. */
+  verificationCode?: string
   clientType?: AuthClientType
 }
 
@@ -590,6 +592,31 @@ export type LoginRequest = {
   email: string
   password: string
   clientType?: AuthClientType
+}
+
+export type EmailChallengePurpose = 'register' | 'password_reset'
+
+export type RequestEmailCodeRequest = {
+  email: string
+  purpose: EmailChallengePurpose
+  uiLocale?: UiLocale
+}
+
+export type RequestEmailCodeResponse = {
+  verificationRequired: boolean
+  delivery: 'sent' | 'cooldown' | 'disabled'
+  expiresInSeconds: number
+  retryAfterSeconds?: number
+}
+
+export type ResetPasswordRequest = {
+  email: string
+  verificationCode: string
+  newPassword: string
+}
+
+export type ResetPasswordResponse = {
+  reset: true
 }
 
 /** 已登录用户修改密码时提交的凭据；当前密码用于阻止拿到 token 后直接接管账号。 */

@@ -1,5 +1,5 @@
 import { resolveRequestGeoContext } from '../../general/analytics/geo';
-import express, { type Request } from 'express';
+import express, { type Request, type Response } from 'express';
 import { body } from 'express-validator';
 import { validateErrorCheck } from '../../lib/express-validator/express-validator-middleware';
 import { verifyTokenMiddleware } from '../../lib/token/verifyTokenMiddleware';
@@ -9,7 +9,12 @@ import {
     getUserInfo,
     loginUser,
     registerUser,
+    resetUserPassword,
 } from '../../general/user/user-service';
+import {
+    EmailChallengeError,
+    requestUserEmailChallenge,
+} from '../../general/user/user-email-challenge-service';
 import { inferAuthClientTypeFromRequest } from '../../general/user/user-session-service';
 import { getUserPreferences, updateUserPreferences } from '../../general/user/user-preference-service';
 import { authenticationRateLimitKeys, createRateLimit } from '../../lib/rate-limit';
@@ -27,6 +32,29 @@ const registrationRateLimit = createRateLimit({
     maxAttempts: 10,
     keys: authenticationRateLimitKeys('email'),
 });
+const emailCodeRateLimit = createRateLimit({
+    namespace: 'learner-email-code',
+    windowMs: 60 * 60 * 1000,
+    maxAttempts: 6,
+    keys: authenticationRateLimitKeys('email'),
+    // A successful send still consumes quota; otherwise attackers could issue
+    // unlimited paid email requests because the generic auth limiter resets.
+    resetOnSuccess: false,
+});
+const passwordResetRateLimit = createRateLimit({
+    namespace: 'learner-password-reset',
+    windowMs: 60 * 60 * 1000,
+    maxAttempts: 10,
+    keys: authenticationRateLimitKeys('email'),
+});
+
+const sendEmailChallengeError = (res: Response, error: unknown) => {
+    if (error instanceof EmailChallengeError) {
+        res.status(error.status).send({ success: false, message: error.message, code: error.code });
+        return true;
+    }
+    return false;
+};
 
 router.get('/preferences', verifyTokenMiddleware, async (req: any, res) => {
     res.status(200).send(await getUserPreferences(req.user.userId));
@@ -61,25 +89,49 @@ const getRequestClientType = (req: Request) => {
 };
 
 router.post(
+    '/email-code',
+    emailCodeRateLimit,
+    body('email').trim().toLowerCase().isEmail().withMessage('Email must be a valid email'),
+    body('purpose').isIn(['register', 'password_reset']).withMessage('Invalid email code purpose'),
+    body('uiLocale').optional().isIn(['zh-CN', 'en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES']),
+    validateErrorCheck,
+    async (req, res, next) => {
+        try {
+            const data = await requestUserEmailChallenge(req.body);
+            res.status(200).send({ success: true, message: 'success', data });
+        } catch (error) {
+            if (sendEmailChallengeError(res, error)) return;
+            next(error);
+        }
+    },
+);
+
+router.post(
     '/register',
     registrationRateLimit,
-    body('email').isEmail().withMessage('Email must be a valid email'),
+    body('email').trim().toLowerCase().isEmail().withMessage('Email must be a valid email'),
     body('displayName').isString().isLength({ min: 1 }).withMessage('Display name is required'),
     body('password').isString().isLength({ min: 8 }).withMessage('Password must be at least 8 chars'),
+    body('verificationCode').optional().isString().matches(/^\d{6}$/).withMessage('Email code must contain six digits'),
     validateErrorCheck,
     async (req, res) => {
-        const result = await registerUser({
-            ...req.body,
-            clientType: getRequestClientType(req),
-        }, resolveRequestGeoContext(req), req.get('x-analytics-context'));
-        res.status(result.success ? 201 : 409).send(result);
+        try {
+            const result = await registerUser({
+                ...req.body,
+                clientType: getRequestClientType(req),
+            }, resolveRequestGeoContext(req), req.get('x-analytics-context'));
+            res.status(result.success ? 201 : 409).send(result);
+        } catch (error) {
+            if (sendEmailChallengeError(res, error)) return;
+            throw error;
+        }
     },
 );
 
 router.post(
     '/login',
     learnerLoginRateLimit,
-    body('email').isEmail().withMessage('Email must be a valid email'),
+    body('email').trim().toLowerCase().isEmail().withMessage('Email must be a valid email'),
     body('password').isString().withMessage('Password must be a string'),
     validateErrorCheck,
     async (req, res) => {
@@ -88,6 +140,24 @@ router.post(
             clientType: getRequestClientType(req),
         });
         res.status(result.success ? 200 : 401).send(result);
+    },
+);
+
+router.post(
+    '/password-reset',
+    passwordResetRateLimit,
+    body('email').trim().toLowerCase().isEmail().withMessage('Email must be a valid email'),
+    body('verificationCode').isString().matches(/^\d{6}$/).withMessage('Email code must contain six digits'),
+    body('newPassword').isString().isLength({ min: 8 }).withMessage('Password must be at least 8 chars'),
+    validateErrorCheck,
+    async (req, res) => {
+        try {
+            const result = await resetUserPassword(req.body);
+            res.status(result.success ? 200 : 400).send(result);
+        } catch (error) {
+            if (sendEmailChallengeError(res, error)) return;
+            throw error;
+        }
     },
 );
 

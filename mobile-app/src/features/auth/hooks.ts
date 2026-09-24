@@ -3,6 +3,8 @@ import type {
   DeleteAccountRequest,
   LoginRequest,
   RegisterRequest,
+  RequestEmailCodeRequest,
+  ResetPasswordRequest,
 } from '@duolinting/domain'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/apiClient'
@@ -31,6 +33,18 @@ export function useRegisterMutation() {
       await applyAuthenticated(response)
       await queryClient.invalidateQueries({ queryKey: ['progress'] })
     },
+  })
+}
+
+export function useRequestEmailCodeMutation() {
+  return useMutation({
+    mutationFn: (request: RequestEmailCodeRequest) => apiClient.requestEmailCode(request),
+  })
+}
+
+export function useResetPasswordMutation() {
+  return useMutation({
+    mutationFn: (request: ResetPasswordRequest) => apiClient.resetPassword(request),
   })
 }
 

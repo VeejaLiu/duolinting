@@ -7,12 +7,17 @@ import { SafeScreen } from '@/components/primitives/SafeScreen'
 import { AppScrollView } from '@/components/primitives/AppScrollView'
 import { Button } from '@/components/foundation/Button'
 import { BottomSheet } from '@/components/foundation/BottomSheet'
-import { useLoginMutation, useRegisterMutation } from './hooks'
+import {
+  useLoginMutation,
+  useRegisterMutation,
+  useRequestEmailCodeMutation,
+  useResetPasswordMutation,
+} from './hooks'
 import { useNavigationStore } from '@/stores/navigationStore'
 import { useLanguage } from '@/i18n/LanguageProvider'
 import { UI_LOCALES, uiLocaleFlags, uiLocaleLabels } from '@/i18n/locale'
 
-type AuthMode = 'login' | 'register'
+type AuthMode = 'login' | 'register' | 'forgot'
 
 // 认证页优先展示国际化语言，简体中文固定放在最后，方便新用户快速扫读选择。
 const authUiLocales = [...UI_LOCALES.filter((locale) => locale !== 'zh-CN'), 'zh-CN'] as const
@@ -25,19 +30,30 @@ export function LoginScreen() {
   const passwordInputRef = useRef<TextInput | null>(null)
   const loginMutation = useLoginMutation()
   const registerMutation = useRegisterMutation()
+  const requestEmailCodeMutation = useRequestEmailCodeMutation()
+  const resetPasswordMutation = useResetPasswordMutation()
   const pendingPath = useNavigationStore((state) => state.pendingPath)
   const setPendingPath = useNavigationStore((state) => state.setPendingPath)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [verificationCode, setVerificationCode] = useState('')
+  const [verificationRequired, setVerificationRequired] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [formError, setFormError] = useState('')
+  const [formNotice, setFormNotice] = useState('')
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false)
   const { setUiLocale, t, uiLocale } = useLanguage()
-  const activeMutation = mode === 'login' ? loginMutation : registerMutation
+  const activeMutation = mode === 'login'
+    ? loginMutation
+    : mode === 'register'
+      ? registerMutation
+      : resetPasswordMutation
   const submitError = activeMutation.error
     ? mode === 'login'
       ? t('auth.loginFailed')
-      : t('auth.registerFailed')
+      : mode === 'register'
+        ? t('auth.registerFailed')
+        : t('auth.resetFailed')
     : ''
   const visibleError = formError || submitError
   const switcherInnerWidth = Math.max(switcherWidth - 12, 0)
@@ -64,10 +80,42 @@ export function LoginScreen() {
     }
 
     setFormError('')
+    setFormNotice('')
+    setVerificationCode('')
+    setVerificationRequired(true)
+    if (nextMode === 'forgot') setPassword('')
     setMode(nextMode)
   }
 
-  // modeProgress: 0 表示登录，1 表示注册；中间值驱动标题和滑块同步过渡。
+  const requestCode = async () => {
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      setFormError(t('auth.invalidEmail'))
+      return
+    }
+
+    setFormError('')
+    setFormNotice('')
+    try {
+      const result = await requestEmailCodeMutation.mutateAsync({
+        email: normalizedEmail,
+        purpose: mode === 'forgot' ? 'password_reset' : 'register',
+        uiLocale,
+      })
+      setVerificationRequired(result.verificationRequired)
+      setFormNotice(
+        result.delivery === 'disabled'
+          ? t('auth.codeNotRequired')
+          : result.delivery === 'cooldown'
+            ? t('auth.codeCooldown', { seconds: result.retryAfterSeconds ?? 60 })
+            : t('auth.codeSent'),
+      )
+    } catch {
+      setFormError(t('auth.codeSendFailed'))
+    }
+  }
+
+  // modeProgress: 0 表示登录，1 表示注册或找回密码；中间值驱动标题同步过渡。
   const switcherThumbStyle = {
     width: switcherThumbWidth,
     height: 44,
@@ -129,12 +177,18 @@ export function LoginScreen() {
       return
     }
 
-    if (password.trim().length < 6) {
+    if (password.trim().length < 8) {
       setFormError(t('auth.passwordMinSix'))
       return
     }
 
+    if (mode !== 'login' && verificationRequired && !/^\d{6}$/.test(verificationCode)) {
+      setFormError(t('auth.codeInvalid'))
+      return
+    }
+
     setFormError('')
+    setFormNotice('')
 
     try {
       if (mode === 'login') {
@@ -142,7 +196,7 @@ export function LoginScreen() {
           email: normalizedEmail,
           password,
         })
-      } else {
+      } else if (mode === 'register') {
         const emailName = normalizedEmail.split('@')[0]?.trim() || 'learner'
         const randomSuffix = Math.floor(1000 + Math.random() * 9000)
         await registerMutation.mutateAsync({
@@ -152,7 +206,19 @@ export function LoginScreen() {
             suffix: randomSuffix,
           }),
           password,
+          ...(verificationRequired ? { verificationCode } : {}),
         })
+      } else {
+        await resetPasswordMutation.mutateAsync({
+          email: normalizedEmail,
+          verificationCode,
+          newPassword: password,
+        })
+        setPassword('')
+        setVerificationCode('')
+        setMode('login')
+        setFormNotice(t('auth.passwordResetComplete'))
+        return
       }
     } catch {
       return
@@ -213,35 +279,47 @@ export function LoginScreen() {
                     <Text className="text-3xl font-black leading-9 text-white">{t('auth.welcomeBack')}</Text>
                   </Animated.View>
                   <Animated.View style={registerTitleStyle}>
-                    <Text className="text-3xl font-black leading-9 text-white">{t('auth.createAccount')}</Text>
+                    <Text className="text-3xl font-black leading-9 text-white">
+                      {mode === 'forgot' ? t('auth.resetPassword') : t('auth.createAccount')}
+                    </Text>
                   </Animated.View>
                 </View>
               </View>
 
               <View className="px-5 pb-5 pt-4">
-                <View
-                  className="relative flex-row rounded-[18px] border-2 border-[#dcebf7] bg-[#edf7ff] p-1.5"
-                  onLayout={(event) => setSwitcherWidth(event.nativeEvent.layout.width)}
-                >
-                  {switcherThumbWidth > 0 ? (
-                    <Animated.View pointerEvents="none" style={switcherThumbStyle} />
-                  ) : null}
-                  {(['login', 'register'] as const).map((value) => (
-                    <Pressable
-                      key={value}
-                      className="z-10 min-h-[44px] flex-1 items-center justify-center rounded-[13px] px-4"
-                      onPress={() => selectMode(value)}
-                    >
-                      <Text
-                        className={`text-center text-base font-black ${
-                          mode === value ? 'text-text-primary' : 'text-text-secondary'
-                        }`}
+                {mode === 'forgot' ? (
+                  <Pressable
+                    className="min-h-[44px] flex-row items-center self-start rounded-[14px] px-2 active:scale-95"
+                    onPress={() => selectMode('login')}
+                  >
+                    <FontAwesome6 color="#1cb0f6" name="arrow-left" size={15} />
+                    <Text className="ml-2 text-sm font-black text-[#1688bd]">{t('auth.backToLogin')}</Text>
+                  </Pressable>
+                ) : (
+                  <View
+                    className="relative flex-row rounded-[18px] border-2 border-[#dcebf7] bg-[#edf7ff] p-1.5"
+                    onLayout={(event) => setSwitcherWidth(event.nativeEvent.layout.width)}
+                  >
+                    {switcherThumbWidth > 0 ? (
+                      <Animated.View pointerEvents="none" style={switcherThumbStyle} />
+                    ) : null}
+                    {(['login', 'register'] as const).map((value) => (
+                      <Pressable
+                        key={value}
+                        className="z-10 min-h-[44px] flex-1 items-center justify-center rounded-[13px] px-4"
+                        onPress={() => selectMode(value)}
                       >
-                        {value === 'login' ? t('auth.login') : t('auth.register')}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                        <Text
+                          className={`text-center text-base font-black ${
+                            mode === value ? 'text-text-primary' : 'text-text-secondary'
+                          }`}
+                        >
+                          {value === 'login' ? t('auth.login') : t('auth.register')}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
 
                 <View className="mt-4">
                   <Text className="mb-2 text-base font-black text-text-primary">
@@ -266,9 +344,40 @@ export function LoginScreen() {
                   />
                 </View>
 
+                {mode !== 'login' && verificationRequired ? (
+                  <View className="mt-3">
+                    <Text className="mb-2 text-base font-black text-text-primary">
+                      {t('auth.verificationCode')}
+                    </Text>
+                    <View className="flex-row items-center gap-2">
+                      <TextInput
+                        accessibilityLabel={t('auth.verificationCode')}
+                        autoComplete="one-time-code"
+                        className="min-h-[50px] flex-1 rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4 text-base font-black tracking-[4px] text-text-primary"
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        onChangeText={(value) => setVerificationCode(value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder={t('auth.codePlaceholder')}
+                        placeholderTextColor="#8191a6"
+                        value={verificationCode}
+                      />
+                      <Pressable
+                        className="min-h-[50px] flex-row items-center rounded-[16px] border-2 border-[#cfe7f7] bg-[#edf7ff] px-3 active:border-[#1cb0f6] active:scale-95"
+                        disabled={requestEmailCodeMutation.isPending}
+                        onPress={() => void requestCode()}
+                      >
+                        <FontAwesome6 color="#1cb0f6" name="envelope" size={14} />
+                        <Text className="ml-2 text-sm font-black text-[#1688bd]">
+                          {requestEmailCodeMutation.isPending ? t('auth.sendingCode') : t('auth.sendCode')}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : null}
+
                 <View className="mt-3">
                   <Text className="mb-2 text-base font-black text-text-primary">
-                    {t('auth.password')}
+                    {mode === 'forgot' ? t('auth.newPassword') : t('auth.password')}
                   </Text>
                   <View className="min-h-[50px] flex-row items-center rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4">
                     <TextInput
@@ -302,17 +411,27 @@ export function LoginScreen() {
                   </View>
                 </View>
 
+                {mode === 'login' ? (
+                  <Pressable className="mt-2 min-h-[34px] justify-center self-end px-1" onPress={() => selectMode('forgot')}>
+                    <Text className="text-sm font-black text-[#1688bd]">{t('auth.forgotPassword')}</Text>
+                  </Pressable>
+                ) : null}
+
                 <View className="mt-4">
                   <Button
-                    disabled={activeMutation.isPending}
+                    disabled={activeMutation.isPending || requestEmailCodeMutation.isPending}
                     label={
                       activeMutation.isPending
                         ? mode === 'login'
                           ? t('auth.loggingIn')
-                          : t('auth.registering')
+                          : mode === 'register'
+                            ? t('auth.registering')
+                            : t('auth.resettingPassword')
                         : mode === 'login'
                           ? t('auth.startLearning')
-                          : t('auth.registerAndStart')
+                          : mode === 'register'
+                            ? t('auth.registerAndStart')
+                            : t('auth.resetPassword')
                     }
                     onPress={() => void submit()}
                   />
@@ -321,9 +440,13 @@ export function LoginScreen() {
                 <View className="mt-3 min-h-[42px] justify-center">
                   {visibleError ? (
                     <View className="rounded-[14px] border-2 border-[#ffb59f] bg-[#fff0eb] px-3 py-2">
-                      <Text className="text-sm font-black text-[#c2410c]" numberOfLines={1}>
+                      <Text className="text-sm font-black text-[#c2410c]">
                         {visibleError}
                       </Text>
+                    </View>
+                  ) : formNotice ? (
+                    <View className="rounded-[14px] border-2 border-[#bfe5ff] bg-[#edf8ff] px-3 py-2">
+                      <Text className="text-sm font-black text-[#1688bd]">{formNotice}</Text>
                     </View>
                   ) : null}
                 </View>

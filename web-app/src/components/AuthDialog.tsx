@@ -1,4 +1,4 @@
-import { LogIn, LogOut, UserPlus, X } from 'lucide-react'
+import { ArrowLeft, KeyRound, LogIn, LogOut, Mail, UserPlus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { AuthResponse, AuthUser } from '@duolinting/shared'
 import { apiClient } from '../lib/apiClient'
@@ -13,6 +13,8 @@ type AuthDialogProps = {
   onLogout: () => void
 }
 
+type AuthMode = 'login' | 'register' | 'forgot'
+
 export function AuthDialog({
   open,
   user,
@@ -21,17 +23,21 @@ export function AuthDialog({
   onAuthenticated,
   onLogout,
 }: AuthDialogProps) {
-  const { t } = useLanguage()
+  const { t, uiLocale } = useLanguage()
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [verificationCode, setVerificationCode] = useState('')
+  const [verificationRequired, setVerificationRequired] = useState(true)
+  const [mode, setMode] = useState<AuthMode>('login')
   const [isBusy, setIsBusy] = useState(false)
+  const [isSendingCode, setIsSendingCode] = useState(false)
   const [message, setMessage] = useState('')
   const [errors, setErrors] = useState<{
     email?: string
     displayName?: string
     password?: string
+    verificationCode?: string
   }>({})
 
   const validateEmail = (email: string) => {
@@ -58,11 +64,31 @@ export function AuthDialog({
     return ''
   }
 
+  const localizedAuthError = (error: unknown, fallbackKey: Parameters<typeof t>[0]) => {
+    const code = typeof error === 'object' && error && 'code' in error
+      ? String((error as { code?: unknown }).code ?? '')
+      : ''
+    const keyByCode: Record<string, Parameters<typeof t>[0]> = {
+      EMAIL_ALREADY_REGISTERED: 'auth.emailAlreadyRegistered',
+      EMAIL_CODE_REQUIRED: 'auth.codeInvalid',
+      EMAIL_CODE_INVALID: 'auth.codeIncorrect',
+      EMAIL_CODE_EXPIRED: 'auth.codeExpired',
+      EMAIL_CODE_LOCKED: 'auth.codeLocked',
+      EMAIL_SERVICE_UNAVAILABLE: 'auth.emailServiceUnavailable',
+    }
+    return code && keyByCode[code]
+      ? t(keyByCode[code])
+      : error instanceof Error
+        ? error.message
+        : t(fallbackKey)
+  }
+
   const validateForm = () => {
     const newErrors: {
       email?: string
       displayName?: string
       password?: string
+      verificationCode?: string
     } = {}
 
     const emailError = validateEmail(email)
@@ -75,6 +101,10 @@ export function AuthDialog({
 
     const passwordError = validatePassword(password)
     if (passwordError) newErrors.password = passwordError
+
+    if (mode !== 'login' && verificationRequired && !/^\d{6}$/.test(verificationCode)) {
+      newErrors.verificationCode = t('auth.codeInvalid')
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -99,6 +129,45 @@ export function AuthDialog({
     return null
   }
 
+  const selectMode = (nextMode: AuthMode) => {
+    setMode(nextMode)
+    setMessage('')
+    setErrors({})
+    setVerificationCode('')
+    setVerificationRequired(true)
+    if (nextMode === 'forgot') setPassword('')
+  }
+
+  const requestCode = async () => {
+    const emailError = validateEmail(email)
+    if (emailError) {
+      setErrors((current) => ({ ...current, email: emailError }))
+      return
+    }
+
+    setIsSendingCode(true)
+    setMessage('')
+    try {
+      const result = await apiClient.requestEmailCode({
+        email: email.trim().toLowerCase(),
+        purpose: mode === 'forgot' ? 'password_reset' : 'register',
+        uiLocale,
+      })
+      setVerificationRequired(result.verificationRequired)
+      setMessage(
+        result.delivery === 'disabled'
+          ? t('auth.codeNotRequired')
+          : result.delivery === 'cooldown'
+            ? t('auth.codeCooldown', { seconds: result.retryAfterSeconds ?? 60 })
+            : t('auth.codeSent'),
+      )
+    } catch (error) {
+      setMessage(localizedAuthError(error, 'auth.codeSendFailed'))
+    } finally {
+      setIsSendingCode(false)
+    }
+  }
+
   const submit = async () => {
     if (!validateForm()) {
       return
@@ -108,14 +177,31 @@ export function AuthDialog({
     setMessage('')
 
     try {
-      const response =
-        mode === 'login'
-          ? await apiClient.login({ email, password })
-          : await apiClient.register({ email, displayName, password })
+      if (mode === 'forgot') {
+        await apiClient.resetPassword({
+          email: email.trim().toLowerCase(),
+          verificationCode,
+          newPassword: password,
+        })
+        setPassword('')
+        setVerificationCode('')
+        setMode('login')
+        setMessage(t('auth.passwordResetComplete'))
+        return
+      }
+
+      const response = mode === 'login'
+        ? await apiClient.login({ email, password })
+        : await apiClient.register({
+            email,
+            displayName,
+            password,
+            ...(verificationRequired ? { verificationCode } : {}),
+          })
       onAuthenticated(response)
       setMessage(mode === 'login' ? t('auth.loggedIn') : t('auth.accountCreated'))
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : t('auth.actionFailed'))
+      setMessage(localizedAuthError(error, 'auth.actionFailed'))
     } finally {
       setIsBusy(false)
     }
@@ -142,7 +228,11 @@ export function AuthDialog({
         <div className="dialog-hero">
           <p>{t('auth.accountCenter')}</p>
           <h2 id="auth-dialog-title">
-            {user ? t('auth.linkedToAccount') : t('auth.loginToSave')}
+            {user
+              ? t('auth.linkedToAccount')
+              : mode === 'forgot'
+                ? t('auth.resetPasswordTitle')
+                : t('auth.loginToSave')}
           </h2>
           <span>{message || accountStatus}</span>
         </div>
@@ -159,22 +249,29 @@ export function AuthDialog({
           </div>
         ) : (
           <div className="auth-form">
-            <div className="auth-segmented" aria-label={t('auth.loginOrSignup')}>
-              <button
-                className={mode === 'login' ? 'active' : ''}
-                onClick={() => setMode('login')}
-                type="button"
-              >
-                {t('auth.login')}
+            {mode === 'forgot' ? (
+              <button className="auth-back" onClick={() => selectMode('login')} type="button">
+                <ArrowLeft size={16} aria-hidden="true" />
+                {t('auth.backToLogin')}
               </button>
-              <button
-                className={mode === 'register' ? 'active' : ''}
-                onClick={() => setMode('register')}
-                type="button"
-              >
-                {t('auth.signup')}
-              </button>
-            </div>
+            ) : (
+              <div className="auth-segmented" aria-label={t('auth.loginOrSignup')}>
+                <button
+                  className={mode === 'login' ? 'active' : ''}
+                  onClick={() => selectMode('login')}
+                  type="button"
+                >
+                  {t('auth.login')}
+                </button>
+                <button
+                  className={mode === 'register' ? 'active' : ''}
+                  onClick={() => selectMode('register')}
+                  type="button"
+                >
+                  {t('auth.signup')}
+                </button>
+              </div>
+            )}
 
             <label className="field">
               <span>{t('auth.email')}</span>
@@ -205,8 +302,31 @@ export function AuthDialog({
                 {errors.displayName && <span className="field-error">{errors.displayName}</span>}
               </label>
             )}
+            {mode !== 'login' && verificationRequired && (
+              <label className="field">
+                <span>{t('auth.verificationCode')}</span>
+                <div className="auth-code-row">
+                  <input
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder={t('auth.codePlaceholder')}
+                    value={verificationCode}
+                    onChange={(event) => {
+                      setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))
+                      setErrors((current) => ({ ...current, verificationCode: '' }))
+                    }}
+                  />
+                  <button disabled={isSendingCode} onClick={() => void requestCode()} type="button">
+                    <Mail size={16} aria-hidden="true" />
+                    {isSendingCode ? t('auth.sendingCode') : t('auth.sendCode')}
+                  </button>
+                </div>
+                {errors.verificationCode && <span className="field-error">{errors.verificationCode}</span>}
+              </label>
+            )}
             <label className="field">
-              <span>{t('auth.password')}</span>
+              <span>{mode === 'forgot' ? t('auth.newPassword') : t('auth.password')}</span>
               <input
                 autoComplete={
                   mode === 'login' ? 'current-password' : 'new-password'
@@ -221,6 +341,11 @@ export function AuthDialog({
               />
               {errors.password && <span className="field-error">{errors.password}</span>}
             </label>
+            {mode === 'login' && (
+              <button className="auth-forgot" onClick={() => selectMode('forgot')} type="button">
+                {t('auth.forgotPassword')}
+              </button>
+            )}
           </div>
         )}
 
@@ -233,16 +358,22 @@ export function AuthDialog({
           ) : (
             <button
               className="command-button large full"
-              disabled={isBusy}
+              disabled={isBusy || isSendingCode}
               onClick={() => void submit()}
               type="button"
             >
               {mode === 'login' ? (
                 <LogIn size={18} aria-hidden="true" />
+              ) : mode === 'forgot' ? (
+                <KeyRound size={18} aria-hidden="true" />
               ) : (
                 <UserPlus size={18} aria-hidden="true" />
               )}
-              {mode === 'login' ? t('auth.login') : t('auth.createAccount')}
+              {mode === 'login'
+                ? t('auth.login')
+                : mode === 'forgot'
+                  ? t('auth.resetPassword')
+                  : t('auth.createAccount')}
             </button>
           )}
         </div>
