@@ -45,11 +45,6 @@ RUN --mount=type=cache,id=duolinting-npm,target=/root/.npm,sharing=locked \
     --workspace @duolinting/domain --workspace @duolinting/shared
 
 FROM node:22-bookworm-slim
-# The production builder has IPv6 DNS answers but no reliable IPv6 egress.
-# Force Debian package traffic over IPv4 so media builds do not stall on retries.
-RUN apt-get -o Acquire::ForceIPv4=true update && \
-    apt-get -o Acquire::ForceIPv4=true install -y --no-install-recommends ffmpeg && \
-    rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=production-deps /app/node_modules node_modules
