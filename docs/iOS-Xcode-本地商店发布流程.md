@@ -22,7 +22,7 @@
 ### 2.1 代码和版本
 
 - 确认工作区只包含本次发布需要的改动，并完成发布提交。
-- 在 `mobile-app/app.json` 中更新 `expo.version`（产品版本变化时）和 `expo.ios.buildNumber`（每次上传都必须递增）。当前配置为 `1.0 (11)`。
+- 在 `mobile-app/app.json` 中更新 `expo.version`（产品版本变化时）和 `expo.ios.buildNumber`（每次上传都必须递增）。当前配置为 `1.0 (12)`。
 - 不复用旧 Archive 或旧 IPA。每次上传都要从本次发布提交重新生成并核验。
 - 生成的 `mobile-app/ios` 原生工程是本地 Xcode 发布入口。若 `app.json` 的原生配置或 Expo 插件有变化，先同步原生工程，再打开工作区：
 
@@ -131,3 +131,13 @@ iPad 冒烟测试：
 - 已在 App Store Connect 保存商店文案、版权、分类、审核信息和年龄分级，并发布 App Privacy。
 - `1.0 (11)` 通过命令行调用 Xcode 上传时提示当前 Xcode 没有可用于团队 `N5U2XLM3LW` 的 App Store Connect 账号；需先在 Xcode 的 Accounts 设置中重新登录，再按本文 Organizer 流程上传。
 - 待完成：Xcode 账号恢复、Build 11 上传与 Processing、价格和销售地区设置、选择构建，以及最终提交审核。
+
+## 9. 当前 `1.0 (12)` 执行记录
+
+截至 2026-09-24：
+
+- 已使用正式 HTTPS API 配置重新生成 iOS 原生工程，并核对 `com.duolinting.app`、`1.0 (12)`、iPhone+iPad 设备族和非豁免加密声明。
+- 已通过本地 Xcode Archive、商店校验和 Apple Distribution 签名；Archive 位于忽略目录 `mobile-app/temp/ios-archives/`。
+- 已确认归档成品包含正式 API 配置。
+- App Store Connect 上传仍被 Xcode 的 App Store Connect 账号状态阻断，错误为 `Failed to Use Accounts`；浏览器登录不能替代 Xcode Accounts 登录。
+- 待完成：恢复 Xcode App Store Connect 账号、上传 Build 12、等待 Processing、选择构建并提交审核。
