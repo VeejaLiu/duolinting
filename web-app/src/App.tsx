@@ -1,4 +1,4 @@
-import { AnalyticsConsent } from './components/AnalyticsConsent'
+import { AnalyticsTracker } from './components/AnalyticsTracker'
 import { analytics } from './lib/analytics'
 import { coursePlaybackKey } from '@duolinting/domain'
 import { BookOpenText } from 'lucide-react'
@@ -537,7 +537,7 @@ function LearnerAppShell() {
 
   return (
     <main className="app-shell">
-      <AnalyticsConsent token={authToken} owner={authUser ? String(authUser.id) : 'anonymous'} ready={!authLoading} />
+      <AnalyticsTracker token={authToken} owner={authUser ? String(authUser.id) : 'anonymous'} ready={!authLoading} />
       <TopBar
         user={authUser}
         onLogout={handleLogout}

@@ -1,7 +1,6 @@
-import { AnalyticsV2Panel } from './AnalyticsV2Panel'
-import { ReloadOutlined } from '@ant-design/icons'
+import { GrowthAnalyticsPanel } from './GrowthAnalyticsPanel'
 import { Line } from '@ant-design/charts'
-import { Alert, Button, Card, Col, Empty, Progress, Row, Space, Statistic, Tag, Typography } from 'antd'
+import { Alert, Card, Col, Empty, Progress, Row, Space, Statistic, Tag, Typography } from 'antd'
 import type { AdminGrowthClientDistribution, AdminGrowthReport, AdminGrowthTrendPoint } from '@duolinting/shared'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
@@ -112,7 +111,21 @@ function ClientDistributionCard({ item, mau }: { item: AdminGrowthClientDistribu
   )
 }
 
+/** One analytics workspace; historical access facts remain distinct from measured learning. */
 export function UserActivityPanel({ report, isLoading, onRefresh, adminToken }: GrowthAnalyticsPanelProps) {
+  return (
+    <section className="admin-section">
+      <GrowthAnalyticsPanel
+        adminToken={adminToken}
+        accessLoading={isLoading}
+        onRefreshAccess={onRefresh}
+        accessOverview={<AccessOverview report={report} isLoading={isLoading} />}
+      />
+    </section>
+  )
+}
+
+function AccessOverview({ report, isLoading }: Pick<GrowthAnalyticsPanelProps, 'report' | 'isLoading'>) {
   const { t, uiLocale } = useAdminLanguage()
   const cards = report
     ? [
@@ -128,13 +141,9 @@ export function UserActivityPanel({ report, isLoading, onRefresh, adminToken }: 
     : []
 
   return (
-    <section className="admin-section">
-      <AnalyticsV2Panel adminToken={adminToken} />
-      <div className="panel-title"><span>{t('增长分析')}</span></div>
-      <Space wrap size="middle" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Text type="secondary">{t('关注注册增长、日活留存和产品端侧分布，不展示个人学习内容。')}</Typography.Text>
-        <Button icon={<ReloadOutlined />} loading={isLoading} onClick={onRefresh} type="default">{t('刷新')}</Button>
-      </Space>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+      <Typography.Title level={5}>{t('analytics.accessHistory')}</Typography.Title>
+      <Typography.Text type="secondary">{t('analytics.accessHistoryDescription')}</Typography.Text>
 
       {report && !report.trackingStartedAt ? (
         <Alert showIcon type="info" message={t('访问追踪将在用户完成登录后开始积累')}
@@ -205,6 +214,6 @@ export function UserActivityPanel({ report, isLoading, onRefresh, adminToken }: 
           </Typography.Text>
         </>
       ) : <Empty description={isLoading ? t('增长数据加载中…') : t('暂无增长数据。')} />}
-    </section>
+    </Space>
   )
 }

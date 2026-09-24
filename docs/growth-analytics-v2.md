@@ -7,7 +7,7 @@ Definition: `growth_v2_1`. New events store explicit UTC timestamps; operational
 | Phase | Implementation |
 | --- | --- |
 | P0 | Existing growth API remains available; internal/test accounts excluded explicitly; existing-account and authenticated-access labels clarified. New date filters, strict D1/D7/D30 access cohorts, weekly access-day distribution and explicit coverage records. Historical buckets retain their verified source timezone. |
-| P1 | Server-issued analytics sessions/identity epochs; separate bearer verification without legacy access writes; anonymous/install IDs; optional consent and withdrawal; same-parent first-party signed cookie; sanitized 30-day attribution; server-side registration event after successful account insert in the same transaction. |
+| P1 | Server-issued analytics sessions/identity epochs; separate bearer verification without legacy access writes; anonymous/install IDs; default background collection; same-parent first-party signed cookie; sanitized 30-day attribution; server-side registration event after successful account insert in the same transaction. |
 | P1 | Shared bounded persistent SDK, 50-event/64-KiB batches, original event IDs on retry, operation/sequence uniqueness, exponential backoff, account isolation, seven-day offline limit, idle session rotation. Web, Mobile Web, Native and independent official website integrations. |
 | P1 | Published course-content version validation; actual foreground media progression; wall-clock interval union across devices and statistics-day boundaries; three-minute activation; qualified learning days; unique practiced course/version/sentence facts, mastery and answer-check events. |
 | P1 | Unified trusted-proxy request IP, local MMDB country reader with bounded cache/reload, trusted-ingress country only behind configured peers; historical offline events use unknown geography. Raw IP, full UA, dictation and notes are absent from analytics storage. |
@@ -78,3 +78,7 @@ Supply admin base URL and bearer token only through private environment variable
 - Wait for real cohort observation periods; D7/D30 maturity cannot be created by implementation or backfilled from progress snapshots.
 
 These are deployment/source/device acceptance requirements, not claims of verified production results.
+
+## Collection interface update
+
+The Web, Mobile and official-site analytics trackers render no UI. Collection starts in the background without an authorization banner. All three trackers initialize collection unconditionally and no longer read `duolinting.analytics.consent`, including old denied values. There is no user-facing collection setting. The public privacy pages describe default background collection.

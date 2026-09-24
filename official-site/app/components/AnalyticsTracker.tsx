@@ -1,14 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { AnalyticsClient, webAttribution } from "../lib/analytics/web";
 let client: AnalyticsClient | undefined;
-export function AnalyticsConsent() {
+export function AnalyticsTracker() {
   const path = usePathname();
-  const en = path.startsWith("/en");
-  const [choice, setChoice] = useState<string | null | undefined>(undefined);
   useEffect(() => {
-    setChoice(localStorage.getItem("duolinting.analytics.consent"));
     client ??= new AnalyticsClient({
       storage: localStorage,
       uuid: () => crypto.randomUUID(),
@@ -19,9 +16,9 @@ export function AnalyticsConsent() {
     });
   }, []);
   useEffect(() => {
-    if (choice === undefined || !client) return;
+    if (!client) return;
     void client
-      .configure(choice === "granted", "", "anonymous", webAttribution())
+      .configure(true, "", "anonymous", webAttribution())
       .then(() => client?.page(path));
     const timer = setInterval(() => void client?.flush(), 15000);
     const flush = () => void client?.flush();
@@ -30,9 +27,8 @@ export function AnalyticsConsent() {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", flush);
     };
-  }, [choice, path]);
+  }, [path]);
   useEffect(() => {
-    if (choice !== "granted") return;
     const attribution = webAttribution();
     // Propagate only allow-listed campaign values to the configured learner destination; no authentication data.
     const learner = import.meta.env.VITE_LEARNER_APP_URL;
@@ -57,41 +53,6 @@ export function AnalyticsConsent() {
     };
     document.addEventListener("click", click);
     return () => document.removeEventListener("click", click);
-  }, [choice, path]);
-  if (choice === undefined) return null;
-  const choose = (v: string) => {
-    localStorage.setItem("duolinting.analytics.consent", v);
-    setChoice(v);
-  };
-  return (
-    <aside
-      style={{ padding: 12, fontSize: 13, background: "#f5f9fc" }}
-      aria-label={en ? "Optional analytics" : "可选分析"}
-    >
-      {choice === null
-        ? en
-          ? "Allow first-party visits, network region and playback analytics? Declining does not affect learning."
-          : "允许第一方访问、网络地区和播放体验分析？拒绝不影响学习。"
-        : en
-          ? "Optional analytics"
-          : "可选分析"}{" "}
-      <button
-        type="button"
-        onClick={() => choose(choice === "granted" ? "denied" : "granted")}
-      >
-        {choice === "granted"
-          ? en
-            ? "Disable"
-            : "关闭"
-          : en
-            ? "Allow"
-            : "允许"}
-      </button>{" "}
-      {choice === null && (
-        <button type="button" onClick={() => choose("denied")}>
-          {en ? "Decline" : "拒绝"}
-        </button>
-      )}
-    </aside>
-  );
+  }, [path]);
+  return null;
 }

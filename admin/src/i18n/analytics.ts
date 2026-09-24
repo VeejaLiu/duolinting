@@ -1,4 +1,21 @@
 export const analyticsMessages = {
+  "analytics.accessHistory": [
+    "注册与已登录访问 · 最近30天",
+    "Registration & authenticated visits · Last 30 days",
+    "การสมัครและการเข้าชมที่เข้าสู่ระบบ · 30 วันล่าสุด",
+    "登録とログインアクセス · 過去30日",
+    "Inscriptions et visites connectées · 30 derniers jours",
+    "Registros y visitas autenticadas · Últimos 30 días",
+  ],
+  "analytics.accessHistoryDescription": [
+    "按访问统计时区展示今日及近7/30天数据；此固定窗口不受上方筛选影响。访问活跃与实际学习分别统计。",
+    "Today and rolling 7/30-day figures use the access-report timezone. This fixed window is independent of the filters above. Visits and actual learning are measured separately.",
+    "ข้อมูลวันนี้และ 7/30 วันล่าสุดใช้เขตเวลารายงานการเข้าชม ช่วงคงที่นี้ไม่เปลี่ยนตามตัวกรองด้านบน การเข้าชมและการเรียนจริงแยกกันนับ",
+    "今日と直近7・30日の値はアクセス集計の時間帯に基づきます。この固定期間は上のフィルターの影響を受けません。アクセスと実際の学習は別集計です。",
+    "Les chiffres du jour et sur 7/30 jours utilisent le fuseau du rapport d’accès. Cette période fixe est indépendante des filtres ci-dessus. Les visites et l’apprentissage effectif sont mesurés séparément.",
+    "Las cifras de hoy y de 7/30 días usan la zona horaria del informe de acceso. Este período fijo es independiente de los filtros superiores. Las visitas y el aprendizaje real se miden por separado.",
+  ],
+
   "analytics.successPercent": [
     "首播成功率",
     "Start success (%)",
@@ -267,12 +284,12 @@ export const analyticsMessages = {
   ],
 
   "analytics.title": [
-    "增长分析 V2",
-    "Growth analytics V2",
-    "การวิเคราะห์การเติบโต V2",
-    "成長分析 V2",
-    "Analyse de croissance V2",
-    "Análisis de crecimiento V2",
+    "增长分析",
+    "Growth analytics",
+    "การวิเคราะห์การเติบโต",
+    "成長分析",
+    "Analyse de croissance",
+    "Análisis de crecimiento",
   ],
   "analytics.overview": [
     "增长概览",

@@ -43,7 +43,7 @@
     "typecheck": "npm run typecheck --workspace @duolinting/playback && npm run typecheck --workspace @duolinting/domain && npm run typecheck --workspace @duolinting/app-config && npm run typecheck --workspace @duolinting/ui-tokens && npm run typecheck --workspace @duolinting/api-client && npm run typecheck --workspace @duolinting/shared && npm run typecheck --workspace @duolinting/backend && npm run typecheck --workspace @duolinting/web-app && npm run typecheck --workspace @duolinting/admin",
     "check:playback": "npm run test --workspace @duolinting/playback",
     "check:waveform-timing": "NODE_ENV=test node --import tsx scripts/check-waveform-timing.mjs",
-    "check:analytics": "node scripts/sync-analytics-contracts.mjs --check && node --import tsx --test packages/analytics/tests/*.test.ts",
+    "check:analytics": "node scripts/sync-analytics-contracts.mjs --check && node --import tsx --test packages/analytics/tests/*.test.ts && node --import tsx scripts/check-analytics-report-state.mjs",
     "check:analytics:database": "node --import tsx scripts/check-analytics-database.mjs"
   },
   "devDependencies": {

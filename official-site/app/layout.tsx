@@ -1,4 +1,4 @@
-import { AnalyticsConsent } from "./components/AnalyticsConsent";
+import { AnalyticsTracker } from "./components/AnalyticsTracker";
 import type { Metadata } from "next";
 import "./globals.css";
 import { officialSiteUrl } from "./content/site-url";
@@ -48,7 +48,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body><AnalyticsConsent />{children}</body>
+      <body><AnalyticsTracker />{children}</body>
     </html>
   );
 }

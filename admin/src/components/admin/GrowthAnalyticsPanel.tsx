@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Alert,
   Button,
@@ -13,6 +13,11 @@ import {
   Typography,
   Switch,
 } from "antd";
+import {
+  analyticsRows,
+  currentAnalyticsReport,
+  type AnalyticsReportResult,
+} from "../../lib/analyticsReportState";
 import { apiClient } from "../../lib/apiClient";
 import { useAdminLanguage } from "../../i18n/AdminLanguageProvider";
 type Row = Record<string, unknown>;
@@ -43,7 +48,17 @@ const metricKeys = [
   "learningUsers",
   "legacyAccessUsers",
 ];
-export function AnalyticsV2Panel({ adminToken }: { adminToken: string }) {
+export function GrowthAnalyticsPanel({
+  adminToken,
+  accessOverview,
+  accessLoading,
+  onRefreshAccess,
+}: {
+  adminToken: string;
+  accessOverview: ReactNode;
+  accessLoading: boolean;
+  onRefreshAccess: () => void;
+}) {
   const { t } = useAdminLanguage();
   const [tab, setTab] = useState("overview");
   const [from, setFrom] = useState(day(-29));
@@ -56,8 +71,10 @@ export function AnalyticsV2Panel({ adminToken }: { adminToken: string }) {
   const [region, setRegion] = useState("all");
   const [cohort, setCohort] = useState("access");
   const [refresh, setRefresh] = useState(0);
-  const [report, setReport] = useState<Report | null>(null);
-  const [traffic, setTraffic] = useState<Report | null>(null);
+  const [reportResult, setReportResult] =
+    useState<AnalyticsReportResult<Report> | null>(null);
+  const [trafficResult, setTrafficResult] =
+    useState<AnalyticsReportResult<Report> | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [internalId, setInternalId] = useState<number | null>(null);
@@ -73,15 +90,20 @@ export function AnalyticsV2Panel({ adminToken }: { adminToken: string }) {
     ...(exercise ? { exerciseId: String(exercise) } : {}),
     ...(media ? { mediaType: media } : {}),
   }).toString();
+  // Include identity and refresh generation so old responses cannot reappear after reloading.
+  const requestKey = JSON.stringify([tab, query, adminToken, refresh]);
+  const report = currentAnalyticsReport(reportResult, requestKey);
+  const traffic = currentAnalyticsReport(trafficResult, requestKey);
   useEffect(() => {
     let current = true;
     setLoading(true);
     setError(false);
-    setReport(null);
+    setReportResult(null);
+    setTrafficResult(null);
     void apiClient
       .getAnalyticsReport<Report>(tab, query, adminToken)
       .then((r) => {
-        if (current) setReport(r);
+        if (current) setReportResult({ requestKey, report: r });
       })
       .catch(() => {
         if (current) setError(true);
@@ -93,15 +115,15 @@ export function AnalyticsV2Panel({ adminToken }: { adminToken: string }) {
       void apiClient
         .getAnalyticsReport<Report>("traffic", query, adminToken)
         .then((r) => {
-          if (current) setTraffic(r);
+          if (current) setTrafficResult({ requestKey, report: r });
         })
         .catch(() => {
-          if (current) setTraffic(null);
+          if (current) setTrafficResult(null);
         });
     return () => {
       current = false;
     };
-  }, [tab, query, adminToken, refresh]);
+  }, [tab, query, adminToken, refresh, requestKey]);
   const show = (value: unknown): string =>
     value === null || value === undefined
       ? t("analytics.unavailable")
@@ -113,7 +135,7 @@ export function AnalyticsV2Panel({ adminToken }: { adminToken: string }) {
           ? JSON.stringify(value)
           : String(value);
   const table = (values: unknown, key: string) => {
-    const data = Array.isArray(values) ? (values as Row[]) : [];
+    const data = analyticsRows(values);
     const keys = [...new Set(data.flatMap(Object.keys))];
     return (
       <Table
@@ -132,7 +154,7 @@ export function AnalyticsV2Panel({ adminToken }: { adminToken: string }) {
       />
     );
   };
-  const retention = report?.data.cohorts as
+  const retention = analyticsRows(report?.data.cohorts) as
     | (Row & {
         windowRetention: {
           status: string;
@@ -222,7 +244,13 @@ export function AnalyticsV2Panel({ adminToken }: { adminToken: string }) {
               />
             </>
           )}
-          <Button onClick={() => setRefresh((v) => v + 1)} loading={loading}>
+          <Button
+            onClick={() => {
+              setRefresh((v) => v + 1);
+              onRefreshAccess();
+            }}
+            loading={loading || (tab === "overview" && accessLoading)}
+          >
             {t("刷新")}
           </Button>
           <Button onClick={() => void exportCsv()} disabled={!report}>
@@ -300,9 +328,12 @@ export function AnalyticsV2Panel({ adminToken }: { adminToken: string }) {
                         _: unknown,
                         row: NonNullable<typeof retention>[number],
                       ) =>
-                        row.windowRetention.status === "complete"
+                        row.windowRetention?.status === "complete"
                           ? `${row.windowRetention.retained} / ${row.windowRetention.denominator}`
-                          : t("analytics." + row.windowRetention.status),
+                          : t(
+                              "analytics." +
+                                (row.windowRetention?.status ?? "unavailable"),
+                            ),
                     },
                     ...[1, 7, 30].map((offset) => ({
                       title: `D${offset}`,
@@ -310,7 +341,9 @@ export function AnalyticsV2Panel({ adminToken }: { adminToken: string }) {
                         _: unknown,
                         row: NonNullable<typeof retention>[number],
                       ) => {
-                        const cell = row.cells.find((c) => c.offset === offset);
+                        const cell = row.cells?.find(
+                          (c) => c.offset === offset,
+                        );
                         return !cell
                           ? t("analytics.unavailable")
                           : cell.status !== "complete"
@@ -366,6 +399,7 @@ export function AnalyticsV2Panel({ adminToken }: { adminToken: string }) {
             </Typography.Text>
           </>
         )}
+        {tab === "overview" && accessOverview}
         <Space wrap>
           <Typography.Text>{t("analytics.internalAccount")}</Typography.Text>
           <InputNumber
@@ -380,7 +414,10 @@ export function AnalyticsV2Panel({ adminToken }: { adminToken: string }) {
             onClick={() =>
               void apiClient
                 .setAnalyticsInternal(internalId!, internal, adminToken)
-                .then(() => setRefresh((v) => v + 1))
+                .then(() => {
+                  setRefresh((v) => v + 1);
+                  onRefreshAccess();
+                })
                 .catch(() => setError(true))
             }
           >
@@ -399,21 +436,26 @@ function AcquisitionTable({
   adminToken: string;
 }) {
   const { t } = useAdminLanguage();
-  const [data, setData] = useState<Row[]>([]);
+  const [result, setResult] = useState<AnalyticsReportResult<Row[]> | null>(
+    null,
+  );
+  const requestKey = JSON.stringify([query, adminToken]);
+  const data = currentAnalyticsReport(result, requestKey) ?? [];
   useEffect(() => {
     let active = true;
     void apiClient
       .getAnalyticsReport<Report>("acquisition", query, adminToken)
       .then((r) => {
-        if (active) setData(r.data.channels as Row[]);
+        if (active)
+          setResult({ requestKey, report: analyticsRows(r.data.channels) });
       })
       .catch(() => {
-        if (active) setData([]);
+        if (active) setResult({ requestKey, report: [] });
       });
     return () => {
       active = false;
     };
-  }, [query, adminToken]);
+  }, [query, adminToken, requestKey]);
   return (
     <Card title={t("analytics.acquisition")}>
       <Table
