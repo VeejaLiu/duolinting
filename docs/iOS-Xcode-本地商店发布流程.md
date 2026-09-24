@@ -140,4 +140,6 @@ iPad 冒烟测试：
 - 已通过本地 Xcode Archive、商店校验和 Apple Distribution 签名；Archive 位于忽略目录 `mobile-app/temp/ios-archives/`。
 - 已确认归档成品包含正式 API 配置。
 - App Store Connect 上传仍被 Xcode 的 App Store Connect 账号状态阻断，错误为 `Failed to Use Accounts`；浏览器登录不能替代 Xcode Accounts 登录。
-- 待完成：恢复 Xcode App Store Connect 账号、上传 Build 12、等待 Processing、选择构建并提交审核。
+- 2026-09-24 已创建 Developer 角色的 App Store Connect API Key，通过 `xcodebuild` 命令行认证成功上传 Build 12；Apple Processing 完成且状态为 `VALID`。
+- Build 12 已自动关联 TestFlight 内部组 `Duolinting`（该组启用全部构建访问），App Store Connect 页面显示 `Ready to Submit`。
+- 待完成：完成 Build 12 内部测试验收；正式上架前再选择构建并提交 App Review。

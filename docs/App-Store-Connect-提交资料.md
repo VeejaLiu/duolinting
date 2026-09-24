@@ -132,5 +132,6 @@ DuolinTing 是一款使用真实音频和视频进行语言听力训练的学习
 - [x] App Privacy 已发布：6 类数据均仅用于 App 功能、与用户身份关联、不用于追踪。
 - [x] 审核联系人、测试账号和审核备注在 App Store Connect 填写完成。
 - [ ] 免费价格和销售地区尚未设置；需确认目标地区及是否关闭未经验证的 Mac/Vision Pro 兼容分发。
-- [ ] `1.0 (12)` 构建上传、Processing 完成并选入版本；本地发行归档已完成，当前等待恢复 Xcode App Store Connect 账号。
+- [x] `1.0 (12)` 已完成本地发行归档、命令行上传和 Processing，并进入 TestFlight 内部组 `Duolinting`。
+- [ ] 正式提交 App Review 前，将 Build 12 选入 iOS 1.0 商店版本并完成最终复核。
 - [ ] 完成提交审核前的最终复核与授权。
