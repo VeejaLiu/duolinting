@@ -132,6 +132,13 @@ export function AccountScreen() {
                 title={t('account.contribute')}
                 onPress={() => router.push('/contribute')}
               />
+              <View className="border-t-2 border-[#e4eef8]" />
+              <NavigationRow
+                description={t('sponsors.settingsDescription')}
+                icon="handshake"
+                title={t('sponsors.title')}
+                onPress={() => router.push('/settings/sponsors')}
+              />
             </View>
           </View>
         </AppScrollView>

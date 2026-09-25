@@ -39,6 +39,12 @@ export function useImporterNavigation({
     if (location.pathname.startsWith('/account-settings')) {
       return 'account-settings'
     }
+    if (location.pathname.startsWith('/sponsors')) {
+      return 'sponsors'
+    }
+    if (location.pathname.startsWith('/donations')) {
+      return 'donations'
+    }
     if (location.pathname.startsWith('/directory')) {
       return 'directory'
     }
@@ -120,6 +126,8 @@ export function useImporterNavigation({
       location.pathname === '/activity' ||
       location.pathname === '/pool' ||
       location.pathname === '/account-settings' ||
+      location.pathname === '/sponsors' ||
+      location.pathname === '/donations' ||
       location.pathname === '/recorder' ||
       location.pathname === '/feedback' ||
       location.pathname === '/users' ||
@@ -270,8 +278,12 @@ export function useImporterNavigation({
           ? '/activity'
         : section === 'pool'
           ? '/pool'
-        : section === 'courses'
+          : section === 'courses'
           ? '/courses'
+          : section === 'sponsors'
+            ? '/sponsors'
+          : section === 'donations'
+            ? '/donations'
           : section === 'recorder'
             ? '/recorder'
           : section === 'feedback'
@@ -320,4 +332,3 @@ export function useImporterNavigation({
     openImporterForExercise,
   }
 }
-

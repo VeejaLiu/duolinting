@@ -1,0 +1,26 @@
+.sponsors-page { min-height: 100vh; background: #f6fbff; padding: 28px 20px 70px; color: #183153; }
+.sponsors-container { max-width: 920px; margin: 0 auto; }
+.sponsors-back { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; color: #37516d; font-weight: 800; cursor: pointer; padding: 8px 0; }
+.sponsors-hero { margin: 22px 0 30px; padding: 34px; border: 2px solid #d9e8f4; border-bottom-width: 6px; border-radius: 28px; background: white; }
+.sponsors-hero-icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 19px; background: #e7f7ff; color: #1cb0f6; }
+.sponsors-hero h1 { font-size: clamp(28px, 4vw, 42px); margin: 16px 0 8px; }
+.sponsors-hero p { color: #62768e; margin: 0; line-height: 1.6; }
+.sponsors-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 18px; }
+.sponsor-card { background: white; border: 2px solid #d9e8f4; border-bottom-width: 5px; border-radius: 24px; padding: 24px; }
+.sponsor-logo { display: grid; place-items: center; width: 76px; height: 76px; border-radius: 18px; background: #eff9ff; color: #1cb0f6; overflow: hidden; }
+.sponsor-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.sponsor-card h2 { font-size: 20px; margin: 18px 0 7px; }
+.sponsor-card p { margin: 0 0 15px; color: #62768e; line-height: 1.55; overflow-wrap: anywhere; }
+.sponsor-card a { display: inline-flex; align-items: center; gap: 6px; color: #087caf; font-weight: 800; text-decoration: none; }
+.sponsor-card a:hover, .sponsors-back:hover { color: #1cb0f6; }
+.sponsors-state { text-align: center; background: white; border: 2px solid #d9e8f4; border-radius: 20px; padding: 30px; color: #62768e; }
+.sponsors-section-title { font-size: 22px; margin: 28px 0 14px; }
+.sponsors-corporate { margin-top: 34px; }
+.donation-list { display: grid; gap: 10px; }
+.donation-row { display: flex; align-items: center; gap: 14px; padding: 15px 18px; border: 2px solid #d9e8f4; border-bottom-width: 4px; border-radius: 19px; background: white; }
+.donation-avatar { display: grid; place-items: center; flex: 0 0 42px; height: 42px; border-radius: 14px; color: #1cb0f6; background: #eaf8ff; }
+.donation-identity { min-width: 0; flex: 1; display: grid; gap: 3px; }
+.donation-identity strong { overflow-wrap: anywhere; }
+.donation-identity time { color: #62768e; font-size: 13px; }
+.donation-amount { color: #168534; white-space: nowrap; }
+@media (max-width: 480px) { .donation-row { gap: 10px; padding: 12px; } .donation-amount { font-size: 14px; } }

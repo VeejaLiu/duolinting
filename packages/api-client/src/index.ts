@@ -23,6 +23,8 @@ import type {
   StudyStore,
   UserPreferences,
   SubmitAcceptedAnswerFeedbackRequest,
+  Sponsor,
+  Donation,
 } from '@duolinting/domain'
 import { normalizeApiBaseUrl } from '@duolinting/app-config'
 
@@ -137,6 +139,8 @@ export const createApiClient = ({
     apiBaseUrl: normalizedBaseUrl,
     resolveApiUrl: (value: string | undefined | null) =>
       resolveApiUrl(normalizedBaseUrl, value),
+    getSponsors: () => fetchJson<{ items: Sponsor[] }>('/api/v1/sponsors'),
+    getDonations: () => fetchJson<{ items: Donation[] }>('/api/v1/sponsors/donations'),
     getCatalog: (contentLocale?: ContentLocale, authToken?: string) => fetchJson<CatalogResponse>(
       `/api/v1/catalog${contentLocale ? `?contentLocale=${encodeURIComponent(contentLocale)}` : ''}`,
       undefined,

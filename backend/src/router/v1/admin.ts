@@ -1,5 +1,5 @@
 import adminAnalyticsRouter from './admin-analytics';
-import express from 'express';
+import express, { type Request, type Response } from 'express';
 import { body, param } from 'express-validator';
 import type { AdminWorkflowActivityType, FeedbackStatus } from '../../domain';
 import { requireAdminPasswordChanged, requireAdminToken, requireSuperAdmin } from '../../general/admin/admin-auth';
@@ -70,6 +70,9 @@ import {
 } from '../../general/open-content/open-content-api-key-service';
 import { validateErrorCheck } from '../../lib/express-validator/express-validator-middleware';
 import { doRawQuery } from '../../models';
+import { deleteSponsor, listAdminSponsors, saveSponsor } from '../../general/sponsor/sponsor-service';
+import { deleteDonation, deleteDonationReceipt, getDonationReceipt, listAdminDonations, saveDonation, saveDonationReceipt } from '../../general/sponsor/donation-service';
+import multer from 'multer';
 import { authenticationRateLimitKeys, createRateLimit } from '../../lib/rate-limit';
 
 const router = express.Router();
@@ -176,6 +179,134 @@ router.put(
 
 // 除了认证资料和改密接口外，所有后台能力都要求成员完成初始密码修改。
 router.use(requireAdminToken, requireAdminPasswordChanged);
+// Sponsor publication is a super-admin editorial action. Learner clients use /sponsors.
+router.get('/sponsors', requireSuperAdmin, async (_req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.status(200).send({ items: await listAdminSponsors() });
+});
+
+const sponsorValidators = [
+    body('name').isString().trim().isLength({ min: 1, max: 160 }),
+    body('description').isString().trim().isLength({ max: 600 }),
+    body('logoUrl').custom((value) => value === null || value === '' || isStoredAssetUrl(value)),
+    body('websiteUrl').custom((value) => value === null || value === '' || isExternalHttpUrl(value)),
+    body('sortOrder').isInt({ min: 0, max: 1000000 }),
+    body('isPublished').isBoolean(),
+    body('startsAt').custom((value) => value === null || (typeof value === 'string' && !Number.isNaN(Date.parse(value)))),
+    body('endsAt').custom((value, { req }) => value === null || (typeof value === 'string' && !Number.isNaN(Date.parse(value)) && (!req.body.startsAt || Date.parse(value) > Date.parse(req.body.startsAt)))),
+    body('bannerImageUrl').custom((value) => value === null || value === '' || isStoredAssetUrl(value)),
+    body('bannerTargetUrl').custom((value) => value === null || value === '' || isExternalHttpUrl(value)),
+];
+
+router.post('/sponsors', requireSuperAdmin, sponsorValidators, validateErrorCheck, async (req: Request, res: Response) => {
+    const sponsor = await saveSponsor(req.body);
+    res.status(201).send(sponsor);
+});
+
+router.put('/sponsors/:sponsorId', requireSuperAdmin,
+    param('sponsorId').isInt({ min: 1 }), sponsorValidators, validateErrorCheck,
+    async (req: Request, res: Response) => {
+        const sponsor = await saveSponsor(req.body, toId(req.params.sponsorId));
+        if (!sponsor) return res.status(404).send({ message: 'Sponsor not found' });
+        res.status(200).send(sponsor);
+    });
+
+router.delete('/sponsors/:sponsorId', requireSuperAdmin,
+    param('sponsorId').isInt({ min: 1 }), validateErrorCheck,
+    async (req: Request, res: Response) => {
+        if (!(await deleteSponsor(toId(req.params.sponsorId)))) {
+            return res.status(404).send({ message: 'Sponsor not found' });
+        }
+        res.status(200).send({ ok: true });
+    });
+
+const donationValidators = [
+    body('donorName').custom((value, { req }) => req.body.isAnonymous === true
+        ? value === null || (typeof value === 'string' && value.trim().length <= 120)
+        : typeof value === 'string' && value.trim().length >= 1 && value.trim().length <= 120),
+    body('isAnonymous').isBoolean(),
+    // Keep money as a decimal string so binary floating-point never rounds a donation.
+    body('amount').isString().matches(/^(?:0|[1-9]\d{0,9})\.\d{2}$/).custom((value) => Number(value) > 0),
+    body('currency').isIn(['CNY', 'USD', 'THB', 'EUR']),
+    body('donationItem').isString().trim().isLength({ max: 160 }),
+    body('donatedAt').isISO8601().custom((value) => !Number.isNaN(Date.parse(value))),
+    body('referenceNote').isString().trim().isLength({ max: 255 }),
+    body('isPublished').isBoolean(),
+];
+
+router.get('/donations', requireSuperAdmin, async (_req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.status(200).send({ items: await listAdminDonations() });
+});
+
+router.post('/donations', requireSuperAdmin, donationValidators, validateErrorCheck, async (req: Request, res: Response) => {
+    res.status(201).send(await saveDonation(req.body));
+});
+
+router.put('/donations/:donationId', requireSuperAdmin,
+    param('donationId').isInt({ min: 1 }), donationValidators, validateErrorCheck,
+    async (req: Request, res: Response) => {
+        const donation = await saveDonation(req.body, toId(req.params.donationId));
+        if (!donation) return res.status(404).send({ message: 'Donation not found' });
+        res.status(200).send(donation);
+    });
+
+router.delete('/donations/:donationId', requireSuperAdmin,
+    param('donationId').isInt({ min: 1 }), validateErrorCheck,
+    async (req: Request, res: Response) => {
+        if (!(await deleteDonation(toId(req.params.donationId)))) {
+            return res.status(404).send({ message: 'Donation not found' });
+        }
+        res.status(200).send({ ok: true });
+    });
+
+const receiptUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const receiveReceipt: express.RequestHandler = (req, res, next) => {
+    receiptUpload.single('receipt')(req, res, (error: unknown) => {
+        if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+            res.status(413).send({ message: 'Receipt image exceeds 5 MB' });
+            return;
+        }
+        if (error) return next(error);
+        next();
+    });
+};
+
+const isSafeReceiptImage = (file: Express.Multer.File) => {
+    const bytes = file.buffer;
+    if (file.mimetype === 'image/png') return bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    if (file.mimetype === 'image/jpeg') return bytes.length >= 3 && bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]));
+    if (file.mimetype === 'image/webp') return bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP';
+    return false;
+};
+
+router.post('/donations/:donationId/receipt', requireSuperAdmin,
+    param('donationId').isInt({ min: 1 }), validateErrorCheck, receiveReceipt,
+    async (req: Request, res: Response) => {
+        if (!req.file || !isSafeReceiptImage(req.file)) return res.status(400).send({ message: 'A PNG, JPEG, or WebP receipt image is required' });
+        if (!(await saveDonationReceipt(toId(req.params.donationId), req.file))) return res.status(404).send({ message: 'Donation not found' });
+        res.status(200).send({ ok: true });
+    });
+
+router.get('/donations/:donationId/receipt', requireSuperAdmin,
+    param('donationId').isInt({ min: 1 }), validateErrorCheck,
+    async (req: Request, res: Response) => {
+        const receipt = await getDonationReceipt(toId(req.params.donationId));
+        if (!receipt) return res.status(404).send({ message: 'Receipt not found' });
+        res.set('Cache-Control', 'private, no-store');
+        res.set('X-Content-Type-Options', 'nosniff');
+        res.set('Content-Security-Policy', "default-src 'none'; sandbox");
+        res.set('Content-Type', receipt.content_type);
+        res.set('Content-Disposition', 'attachment; filename="receipt"');
+        res.status(200).send(receipt.file_data);
+    });
+
+router.delete('/donations/:donationId/receipt', requireSuperAdmin,
+    param('donationId').isInt({ min: 1 }), validateErrorCheck,
+    async (req: Request, res: Response) => {
+        if (!(await deleteDonationReceipt(toId(req.params.donationId)))) return res.status(404).send({ message: 'Receipt not found' });
+        res.status(200).send({ ok: true });
+    });
 router.use('/analytics', (req, res, next) => {
     // Contributors may report their own upload outcome; all reports and controls remain super-admin only.
     if (req.method === 'POST' && req.path === '/upload-finished') return next();

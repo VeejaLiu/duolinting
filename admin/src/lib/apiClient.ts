@@ -33,6 +33,10 @@ import type {
   MediaUploadResponse,
   UpdateAcceptedAnswerFeedbackStatusRequest,
   UpdateOpenContentApiKeyRequest,
+  AdminSponsor,
+  SaveSponsorRequest,
+  AdminDonation,
+  SaveDonationRequest,
 } from '@duolinting/shared'
 
 // 生产与本地开发都走同源（空字符串）：生产由前端 nginx 容器把 /api/ 代理到 backend，
@@ -299,6 +303,48 @@ const fetchApiResult = async <T>(
 }
 
 export const apiClient = {
+  getSponsors: (adminToken: string) =>
+    fetchJson<{ items: AdminSponsor[] }>('/api/v1/admin/sponsors', { method: 'GET' }, { adminToken }),
+  createSponsor: (request: SaveSponsorRequest, adminToken: string) =>
+    fetchJson<AdminSponsor>('/api/v1/admin/sponsors', { method: 'POST', body: JSON.stringify(request) }, { adminToken }),
+  updateSponsor: (id: number, request: SaveSponsorRequest, adminToken: string) =>
+    fetchJson<AdminSponsor>(`/api/v1/admin/sponsors/${id}`, { method: 'PUT', body: JSON.stringify(request) }, { adminToken }),
+  deleteSponsor: (id: number, adminToken: string) =>
+    fetchJson<{ ok: boolean }>(`/api/v1/admin/sponsors/${id}`, { method: 'DELETE' }, { adminToken }),
+  getDonations: (adminToken: string) =>
+    fetchJson<{ items: AdminDonation[] }>('/api/v1/admin/donations', { method: 'GET' }, { adminToken }),
+  createDonation: (request: SaveDonationRequest, adminToken: string) =>
+    fetchJson<AdminDonation>('/api/v1/admin/donations', { method: 'POST', body: JSON.stringify(request) }, { adminToken }),
+  updateDonation: (id: number, request: SaveDonationRequest, adminToken: string) =>
+    fetchJson<AdminDonation>(`/api/v1/admin/donations/${id}`, { method: 'PUT', body: JSON.stringify(request) }, { adminToken }),
+  deleteDonation: (id: number, adminToken: string) =>
+    fetchJson<{ ok: boolean }>(`/api/v1/admin/donations/${id}`, { method: 'DELETE' }, { adminToken }),
+  uploadDonationReceipt: async (id: number, file: File, adminToken: string) => {
+    const form = new FormData()
+    form.append('receipt', file)
+    const response = await fetch(apiUrl(`/api/v1/admin/donations/${id}/receipt`), {
+      method: 'POST', headers: { authorization: `Bearer ${adminToken}` }, body: form,
+    })
+    reportUnauthorizedIfNeeded(response.status, { adminToken })
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => undefined) as ApiErrorBody | undefined
+      throw new ApiClientError(formatApiError(errorBody, response.status), response.status)
+    }
+    return response.json() as Promise<{ ok: boolean }>
+  },
+  getDonationReceipt: async (id: number, adminToken: string) => {
+    const response = await fetch(apiUrl(`/api/v1/admin/donations/${id}/receipt`), {
+      headers: { authorization: `Bearer ${adminToken}` }, cache: 'no-store',
+    })
+    reportUnauthorizedIfNeeded(response.status, { adminToken })
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => undefined) as ApiErrorBody | undefined
+      throw new ApiClientError(formatApiError(errorBody, response.status), response.status)
+    }
+    return response.blob()
+  },
+  deleteDonationReceipt: (id: number, adminToken: string) =>
+    fetchJson<{ ok: boolean }>(`/api/v1/admin/donations/${id}/receipt`, { method: 'DELETE' }, { adminToken }),
   setAnalyticsCoverage: (coverage: Record<string, unknown>, adminToken: string) => fetchJson('/api/v1/admin/analytics/coverage', { method: 'POST', body: JSON.stringify(coverage) }, { adminToken }),
   getAnalyticsReport: <T,>(kind: string, query: string, adminToken: string) => fetchJson<T>(`/api/v1/admin/analytics/${kind}?${query}`, undefined, { adminToken }),
   setAnalyticsInternal: (userId: number, isInternal: boolean, adminToken: string) => fetchJson(`/api/v1/admin/analytics/internal/${userId}`, { method: 'PUT', body: JSON.stringify({ isInternal }) }, { adminToken }),

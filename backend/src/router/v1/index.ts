@@ -3,6 +3,7 @@ import express from 'express';
 import adminRouter from './admin';
 import authRouter from './auth';
 import catalogRouter from './catalog';
+import sponsorsRouter from './sponsors';
 import activityRouter from './activity';
 import exercisesRouter from './exercises';
 import feedbackRouter from './feedback';
@@ -16,6 +17,7 @@ const router = express.Router();
 
 router.use('/analytics', analyticsRouter);
 router.use('/catalog', catalogRouter);
+router.use('/sponsors', sponsorsRouter);
 router.use('/activity', activityRouter);
 router.use('/exercises', exercisesRouter);
 router.use('/user', userRouter);

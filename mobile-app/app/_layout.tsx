@@ -65,6 +65,10 @@ function RootNavigator() {
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen
+        name="settings/sponsors"
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
         name="contribute"
         options={{ animation: 'slide_from_right' }}
       />

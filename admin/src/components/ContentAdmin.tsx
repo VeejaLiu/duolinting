@@ -18,6 +18,8 @@ import { ListeningVideoRecorder } from './admin/ListeningVideoRecorder'
 import { OpenContentApiDocumentation } from './admin/OpenContentApiDocumentation'
 import { OpenContentApiKeyManager } from './admin/OpenContentApiKeyManager'
 import { TaskPoolManager } from './admin/TaskPoolManager'
+import { SponsorManager } from './admin/SponsorManager'
+import { DonationManager } from './admin/DonationManager'
 import { UserActivityPanel } from './admin/UserActivityPanel'
 import { WorkflowActivityPanel } from './admin/WorkflowActivityPanel'
 import type { ContentAdminProps } from './admin/content-workspace/types'
@@ -191,6 +193,14 @@ export function ContentAdmin({
           onRefresh={onRefreshCatalog}
           onRequestConfirm={onRequestConfirm}
         />
+      )}
+
+      {activeSection === 'sponsors' && adminUser.role === 'super_admin' && (
+        <SponsorManager adminToken={adminToken} onNotify={localizedNotify} onRequestConfirm={onRequestConfirm} />
+      )}
+
+      {activeSection === 'donations' && adminUser.role === 'super_admin' && (
+        <DonationManager adminToken={adminToken} onNotify={localizedNotify} onRequestConfirm={onRequestConfirm} />
       )}
 
       {activeSection === 'courses' && (

@@ -23,6 +23,8 @@ import {
 } from './components/StudyStates'
 import { TopBar } from './components/TopBar'
 import { ContributePage } from './components/ContributePage'
+import { SponsorsPage } from './components/SponsorsPage'
+import './styles/sponsors.css'
 import { MobileExperiencePrompt } from './components/MobileExperiencePrompt'
 import { useCatalog } from './hooks/useCatalog'
 import { useCategoryExercises } from './hooks/useCategoryExercises'
@@ -702,6 +704,7 @@ function App() {
         <Route path="/courses/:seriesId/chapters/:exerciseId" element={<LearnerAppShell />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/contribute" element={<ContributePage />} />
+        <Route path="/sponsors" element={<SponsorsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

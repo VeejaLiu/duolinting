@@ -2717,6 +2717,108 @@ for (const [key, enUS, thTH, jaJP, frFR, esES] of auditedAdminMessages) {
   Object.assign(adminMessages['es-ES'], { [key]: esES })
 }
 
+const sponsorAdminMessages = [
+  ['赞助管理', 'Sponsor management', 'จัดการผู้สนับสนุน', 'スポンサー管理', 'Gestion des sponsors', 'Gestión de patrocinadores'],
+  ['只有已发布的赞助方会展示在网页和移动端。', 'Only published sponsors appear on the web and mobile apps.', 'เฉพาะผู้สนับสนุนที่เผยแพร่แล้วจะแสดงบนเว็บและมือถือ', '公開済みのスポンサーのみWebとモバイルに表示されます。', 'Seuls les sponsors publiés apparaissent sur le web et le mobile.', 'Solo los patrocinadores publicados aparecen en web y móvil.'],
+  ['赞助方加载失败', 'Failed to load sponsors', 'โหลดผู้สนับสนุนไม่สำเร็จ', 'スポンサーを読み込めませんでした', 'Échec du chargement des sponsors', 'No se pudieron cargar los patrocinadores'],
+  ['赞助方已保存', 'Sponsor saved', 'บันทึกผู้สนับสนุนแล้ว', 'スポンサーを保存しました', 'Sponsor enregistré', 'Patrocinador guardado'],
+  ['赞助方保存失败', 'Failed to save sponsor', 'บันทึกผู้สนับสนุนไม่สำเร็จ', 'スポンサーを保存できませんでした', 'Échec de l’enregistrement du sponsor', 'No se pudo guardar el patrocinador'],
+  ['赞助方已删除', 'Sponsor deleted', 'ลบผู้สนับสนุนแล้ว', 'スポンサーを削除しました', 'Sponsor supprimé', 'Patrocinador eliminado'],
+  ['赞助方删除失败', 'Failed to delete sponsor', 'ลบผู้สนับสนุนไม่สำเร็จ', 'スポンサーを削除できませんでした', 'Échec de la suppression du sponsor', 'No se pudo eliminar el patrocinador'],
+  ['删除赞助方', 'Delete sponsor', 'ลบผู้สนับสนุน', 'スポンサーを削除', 'Supprimer le sponsor', 'Eliminar patrocinador'],
+  ['确定删除这条赞助记录？', 'Delete this sponsor record?', 'ลบข้อมูลผู้สนับสนุนนี้หรือไม่', 'このスポンサー情報を削除しますか？', 'Supprimer ce sponsor ?', '¿Eliminar este patrocinador?'],
+  ['新增赞助方', 'Add sponsor', 'เพิ่มผู้สนับสนุน', 'スポンサーを追加', 'Ajouter un sponsor', 'Añadir patrocinador'],
+  ['编辑赞助方', 'Edit sponsor', 'แก้ไขผู้สนับสนุน', 'スポンサーを編集', 'Modifier le sponsor', 'Editar patrocinador'],
+  ['请填写赞助方名称', 'Enter a sponsor name', 'กรอกชื่อผู้สนับสนุน', 'スポンサー名を入力してください', 'Saisissez le nom du sponsor', 'Introduce el nombre del patrocinador'],
+  ['简介', 'Description', 'คำอธิบาย', '説明', 'Description', 'Descripción'],
+  ['Logo 地址', 'Logo URL', 'URL โลโก้', 'ロゴURL', 'URL du logo', 'URL del logo'],
+  ['上传 Logo', 'Upload logo', 'อัปโหลดโลโก้', 'ロゴをアップロード', 'Importer un logo', 'Subir logo'],
+  ['Logo 预览', 'Logo preview', 'ตัวอย่างโลโก้', 'ロゴのプレビュー', 'Aperçu du logo', 'Vista previa del logo'],
+  ['Logo 已上传', 'Logo uploaded', 'อัปโหลดโลโก้แล้ว', 'ロゴをアップロードしました', 'Logo importé', 'Logo subido'],
+  ['Logo 上传失败', 'Failed to upload logo', 'อัปโหลดโลโก้ไม่สำเร็จ', 'ロゴをアップロードできませんでした', 'Échec de l’import du logo', 'No se pudo subir el logo'],
+  ['请选择图片文件', 'Choose an image file', 'เลือกไฟล์รูปภาพ', '画像ファイルを選択してください', 'Choisissez une image', 'Elige un archivo de imagen'],
+  ['官网链接', 'Website URL', 'URL เว็บไซต์', '公式サイトURL', 'URL du site', 'URL del sitio'],
+  ['请输入有效的链接', 'Enter a valid URL', 'กรอก URL ที่ถูกต้อง', '有効なURLを入力してください', 'Saisissez une URL valide', 'Introduce una URL válida'],
+  ['排序', 'Order', 'ลำดับ', '表示順', 'Ordre', 'Orden'],
+  ['状态', 'Status', 'สถานะ', '状態', 'Statut', 'Estado'],
+  ['操作', 'Actions', 'การดำเนินการ', '操作', 'Actions', 'Acciones'],
+  ['发布状态', 'Publication', 'การเผยแพร่', '公開状態', 'Publication', 'Publicación'],
+  ['已发布', 'Published', 'เผยแพร่แล้ว', '公開済み', 'Publié', 'Publicado'],
+  ['草稿', 'Draft', 'ฉบับร่าง', '下書き', 'Brouillon', 'Borrador'],
+] as const
+
+for (const [key, enUS, thTH, jaJP, frFR, esES] of sponsorAdminMessages) {
+  Object.assign(adminMessages['zh-CN'], { [key]: key })
+  Object.assign(adminMessages['en-US'], { [key]: enUS })
+  Object.assign(adminMessages['th-TH'], { [key]: thTH })
+  Object.assign(adminMessages['ja-JP'], { [key]: jaJP })
+  Object.assign(adminMessages['fr-FR'], { [key]: frFR })
+  Object.assign(adminMessages['es-ES'], { [key]: esES })
+}
+
+const sponsorshipMessages = [
+  ['捐赠项目', 'Donation item', 'รายการบริจาค', '寄付項目', 'Objet du don', 'Concepto de la donación'],
+  ['捐赠项目（可选）', 'Donation item (optional)', 'รายการบริจาค (ไม่บังคับ)', '寄付項目（任意）', 'Objet du don (facultatif)', 'Concepto de la donación (opcional)'],
+  ['企业赞助商', 'Corporate sponsors', 'ผู้สนับสนุนองค์กร', '企業スポンサー', 'Sponsors entreprises', 'Patrocinadores empresariales'],
+  ['可设置展示排期与横幅素材；横幅暂不在学习端展示。', 'Set display dates and banner assets. Banners are not shown in learner apps yet.', 'กำหนดช่วงเวลาและภาพแบนเนอร์ได้ แต่ยังไม่แสดงแบนเนอร์ในแอปผู้เรียน', '表示期間とバナー素材を設定できます。学習画面にはまだバナーを表示しません。', 'Définissez les dates et bannières. Les bannières ne sont pas encore affichées aux apprenants.', 'Configura fechas y banners. Los banners aún no se muestran a los alumnos.'],
+  ['展示开始时间（可选）', 'Display start (optional)', 'เวลาเริ่มแสดง (ไม่บังคับ)', '表示開始（任意）', 'Début d’affichage (facultatif)', 'Inicio de visualización (opcional)'],
+  ['展示结束时间（可选）', 'Display end (optional)', 'เวลาสิ้นสุดการแสดง (ไม่บังคับ)', '表示終了（任意）', 'Fin d’affichage (facultatif)', 'Fin de visualización (opcional)'],
+  ['结束时间必须晚于开始时间', 'End time must be after start time', 'เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่ม', '終了日時は開始日時より後にしてください', 'La fin doit suivre le début', 'El fin debe ser posterior al inicio'],
+  ['横幅图片地址（预留）', 'Banner image URL (reserved)', 'URL ภาพแบนเนอร์ (สำรองไว้)', 'バナー画像URL（予約）', 'URL de la bannière (réservé)', 'URL de imagen de banner (reservado)'],
+  ['横幅跳转链接（预留）', 'Banner destination URL (reserved)', 'URL ปลายทางแบนเนอร์ (สำรองไว้)', 'バナーリンク先URL（予約）', 'URL de destination (réservé)', 'URL de destino del banner (reservado)'],
+  ['上传横幅', 'Upload banner', 'อัปโหลดแบนเนอร์', 'バナーをアップロード', 'Importer une bannière', 'Subir banner'],
+  ['横幅预览', 'Banner preview', 'ตัวอย่างแบนเนอร์', 'バナープレビュー', 'Aperçu de la bannière', 'Vista previa del banner'],
+  ['图片已上传', 'Image uploaded', 'อัปโหลดรูปภาพแล้ว', '画像をアップロードしました', 'Image importée', 'Imagen subida'],
+  ['图片上传失败', 'Failed to upload image', 'อัปโหลดรูปภาพไม่สำเร็จ', '画像をアップロードできませんでした', 'Échec de l’import de l’image', 'No se pudo subir la imagen'],
+  ['捐赠赞助', 'Donation sponsorships', 'การสนับสนุนด้วยการบริจาค', '寄付による支援', 'Dons de soutien', 'Donaciones de apoyo'],
+  ['匿名捐赠公开时只显示“匿名”；订单凭证仅后台可查看。', 'Anonymous donations show only “Anonymous” publicly. Receipts are visible only in the admin console.', 'การบริจาคแบบไม่ระบุชื่อจะแสดงเพียง “ไม่ระบุชื่อ” ใบเสร็จดูได้เฉพาะในระบบผู้ดูแล', '匿名の寄付は公開画面で「匿名」とだけ表示します。領収画像は管理画面のみで閲覧できます。', 'Les dons anonymes affichent « Anonyme ». Les justificatifs sont réservés à l’administration.', 'Las donaciones anónimas muestran « Anónimo ». Los comprobantes solo se ven en administración.'],
+  ['登记捐赠', 'Record donation', 'บันทึกการบริจาค', '寄付を登録', 'Enregistrer un don', 'Registrar donación'],
+  ['编辑捐赠', 'Edit donation', 'แก้ไขการบริจาค', '寄付を編集', 'Modifier le don', 'Editar donación'],
+  ['捐赠者', 'Donor', 'ผู้บริจาค', '寄付者', 'Donateur', 'Donante'],
+  ['捐赠者姓名', 'Donor name', 'ชื่อผู้บริจาค', '寄付者名', 'Nom du donateur', 'Nombre del donante'],
+  ['捐赠者姓名（仅后台可见，可选）', 'Donor name (admin only, optional)', 'ชื่อผู้บริจาค (ผู้ดูแลเท่านั้น ไม่บังคับ)', '寄付者名（管理者のみ、任意）', 'Nom du donateur (administration, facultatif)', 'Nombre del donante (solo administración, opcional)'],
+  ['请填写捐赠者姓名', 'Enter the donor name', 'กรอกชื่อผู้บริจาค', '寄付者名を入力してください', 'Saisissez le nom du donateur', 'Introduce el nombre del donante'],
+  ['匿名', 'Anonymous', 'ไม่ระบุชื่อ', '匿名', 'Anonyme', 'Anónimo'],
+  ['匿名捐赠', 'Anonymous donation', 'บริจาคแบบไม่ระบุชื่อ', '匿名の寄付', 'Don anonyme', 'Donación anónima'],
+  ['金额', 'Amount', 'จำนวนเงิน', '金額', 'Montant', 'Importe'],
+  ['请输入有效金额', 'Enter a valid amount', 'กรอกจำนวนเงินที่ถูกต้อง', '有効な金額を入力してください', 'Saisissez un montant valide', 'Introduce un importe válido'],
+  ['金额必须大于零', 'Amount must be greater than zero', 'จำนวนเงินต้องมากกว่าศูนย์', '金額は0より大きくしてください', 'Le montant doit être supérieur à zéro', 'El importe debe ser mayor que cero'],
+  ['币种', 'Currency', 'สกุลเงิน', '通貨', 'Devise', 'Moneda'],
+  ['捐赠时间', 'Donation time', 'เวลาบริจาค', '寄付日時', 'Date du don', 'Fecha de donación'],
+  ['请选择捐赠时间', 'Select the donation time', 'เลือกเวลาบริจาค', '寄付日時を選択してください', 'Choisissez la date du don', 'Selecciona la fecha de donación'],
+  ['请输入有效的捐赠时间', 'Enter a valid donation time', 'กรอกเวลาบริจาคที่ถูกต้อง', '有効な寄付日時を入力してください', 'Saisissez une date de don valide', 'Introduce una fecha de donación válida'],
+  ['订单备注（仅后台）', 'Payment note (admin only)', 'หมายเหตุการชำระเงิน (ผู้ดูแลเท่านั้น)', '決済メモ（管理者のみ）', 'Note de paiement (administration)', 'Nota de pago (administración)'],
+  ['订单凭证', 'Payment receipt', 'หลักฐานการชำระเงิน', '決済証明', 'Justificatif de paiement', 'Comprobante de pago'],
+  ['订单截图（仅后台）', 'Receipt image (admin only)', 'ภาพหลักฐาน (ผู้ดูแลเท่านั้น)', '決済画像（管理者のみ）', 'Image du justificatif (administration)', 'Imagen del comprobante (administración)'],
+  ['上传订单截图', 'Upload receipt image', 'อัปโหลดภาพหลักฐาน', '決済画像をアップロード', 'Importer le justificatif', 'Subir comprobante'],
+  ['凭证须为 5 MB 内的 PNG、JPEG 或 WebP 图片', 'Receipt must be a PNG, JPEG, or WebP image under 5 MB', 'หลักฐานต้องเป็นภาพ PNG, JPEG หรือ WebP ขนาดไม่เกิน 5 MB', '証明画像は5 MB以下のPNG・JPEG・WebPにしてください', 'Le justificatif doit être une image PNG, JPEG ou WebP de moins de 5 Mo', 'El comprobante debe ser una imagen PNG, JPEG o WebP de menos de 5 MB'],
+  ['公开展示', 'Show publicly', 'แสดงสาธารณะ', '公開表示', 'Afficher publiquement', 'Mostrar públicamente'],
+  ['未填写', 'Not provided', 'ไม่ได้ระบุ', '未入力', 'Non renseigné', 'Sin indicar'],
+  ['捐赠记录加载失败', 'Failed to load donations', 'โหลดรายการบริจาคไม่สำเร็จ', '寄付記録を読み込めませんでした', 'Échec du chargement des dons', 'No se pudieron cargar las donaciones'],
+  ['捐赠记录已保存', 'Donation saved', 'บันทึกการบริจาคแล้ว', '寄付を保存しました', 'Don enregistré', 'Donación guardada'],
+  ['捐赠记录保存失败', 'Failed to save donation', 'บันทึกการบริจาคไม่สำเร็จ', '寄付を保存できませんでした', 'Échec de l’enregistrement du don', 'No se pudo guardar la donación'],
+  ['捐赠已保存，凭证上传失败，请重试', 'Donation saved, but receipt upload failed. Please retry.', 'บันทึกการบริจาคแล้ว แต่อัปโหลดหลักฐานไม่สำเร็จ โปรดลองอีกครั้ง', '寄付は保存されましたが、証明画像のアップロードに失敗しました。再試行してください。', 'Don enregistré, mais l’import du justificatif a échoué. Réessayez.', 'Donación guardada, pero falló la subida del comprobante. Reinténtalo.'],
+  ['捐赠记录已删除', 'Donation deleted', 'ลบการบริจาคแล้ว', '寄付を削除しました', 'Don supprimé', 'Donación eliminada'],
+  ['捐赠记录删除失败', 'Failed to delete donation', 'ลบการบริจาคไม่สำเร็จ', '寄付を削除できませんでした', 'Échec de la suppression du don', 'No se pudo eliminar la donación'],
+  ['删除捐赠记录', 'Delete donation', 'ลบการบริจาค', '寄付を削除', 'Supprimer le don', 'Eliminar donación'],
+  ['确定删除这条捐赠记录及其凭证？', 'Delete this donation and its receipt?', 'ลบการบริจาคและหลักฐานนี้หรือไม่', 'この寄付と証明画像を削除しますか？', 'Supprimer ce don et son justificatif ?', '¿Eliminar esta donación y su comprobante?'],
+  ['查看', 'View', 'ดู', '表示', 'Voir', 'Ver'],
+  ['凭证加载失败', 'Failed to load receipt', 'โหลดหลักฐานไม่สำเร็จ', '証明画像を読み込めませんでした', 'Échec du chargement du justificatif', 'No se pudo cargar el comprobante'],
+  ['凭证已删除', 'Receipt deleted', 'ลบหลักฐานแล้ว', '証明画像を削除しました', 'Justificatif supprimé', 'Comprobante eliminado'],
+  ['凭证删除失败', 'Failed to delete receipt', 'ลบหลักฐานไม่สำเร็จ', '証明画像を削除できませんでした', 'Échec de la suppression du justificatif', 'No se pudo eliminar el comprobante'],
+  ['删除订单凭证', 'Delete receipt', 'ลบหลักฐานการชำระเงิน', '決済証明を削除', 'Supprimer le justificatif', 'Eliminar comprobante'],
+  ['确定删除这张订单凭证？', 'Delete this receipt image?', 'ลบภาพหลักฐานนี้หรือไม่', 'この決済画像を削除しますか？', 'Supprimer cette image du justificatif ?', '¿Eliminar esta imagen del comprobante?'],
+] as const
+
+for (const [key, enUS, thTH, jaJP, frFR, esES] of sponsorshipMessages) {
+  Object.assign(adminMessages['zh-CN'], { [key]: key })
+  Object.assign(adminMessages['en-US'], { [key]: enUS })
+  Object.assign(adminMessages['th-TH'], { [key]: thTH })
+  Object.assign(adminMessages['ja-JP'], { [key]: jaJP })
+  Object.assign(adminMessages['fr-FR'], { [key]: frFR })
+  Object.assign(adminMessages['es-ES'], { [key]: esES })
+}
+
 const auditedAdminErrorMessages = [
   ["已发布课程：{{title}}", "Course published: {{title}}", "เผยแพร่หลักสูตรแล้ว: {{title}}", "コースを公開しました：{{title}}", "Cours publié : {{title}}", "Curso publicado: {{title}}"],
   ["已保存草稿：{{title}}", "Draft saved: {{title}}", "บันทึกร่างแล้ว: {{title}}", "下書きを保存しました：{{title}}", "Brouillon enregistré : {{title}}", "Borrador guardado: {{title}}"],

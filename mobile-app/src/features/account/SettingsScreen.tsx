@@ -380,6 +380,17 @@ export function SettingsScreen() {
                 </View>
                 <FontAwesome6 color="#8191a6" name="chevron-right" size={15} />
               </Pressable>
+              <View className="my-3 border-t-2 border-[#e4eef8]" />
+              <Pressable className="flex-row items-center py-1" onPress={() => router.push('/settings/sponsors')}>
+                <View className="h-10 w-10 items-center justify-center rounded-[13px] bg-[#edf7ff]">
+                  <FontAwesome6 color="#1cb0f6" name="handshake" size={17} />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-base font-black text-text-primary">{t('sponsors.title')}</Text>
+                  <Text className="mt-0.5 text-sm font-bold text-text-secondary">{t('sponsors.settingsDescription')}</Text>
+                </View>
+                <FontAwesome6 color="#8191a6" name="chevron-right" size={15} />
+              </Pressable>
             </View>
           </View>
 

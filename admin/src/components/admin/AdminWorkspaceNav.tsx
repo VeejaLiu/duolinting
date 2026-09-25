@@ -1,10 +1,10 @@
 import { Menu, Select, Typography } from 'antd'
 import type { MenuProps } from 'antd'
-import { BookOpen, Clapperboard, Inbox, KeyRound, Layers3, ListChecks, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, UserRound, Users, UsersRound, type LucideIcon } from 'lucide-react'
+import { BookOpen, Clapperboard, HandHeart, Inbox, KeyRound, Layers3, ListChecks, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, UserRound, Users, UsersRound, type LucideIcon } from 'lucide-react'
 import type { AdminUser } from '@duolinting/shared'
 import { adminUiLocaleLabels, useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
-export type AdminSection = 'importer' | 'directory' | 'courses' | 'recorder' | 'feedback' | 'users' | 'collaboration' | 'activity' | 'pool' | 'api-keys' | 'account-settings'
+export type AdminSection = 'importer' | 'directory' | 'courses' | 'recorder' | 'feedback' | 'users' | 'collaboration' | 'activity' | 'pool' | 'api-keys' | 'account-settings' | 'sponsors' | 'donations'
 
 const adminSections: Array<{
   id: AdminSection
@@ -46,6 +46,8 @@ const adminSections: Array<{
     label: '增长分析',
     Icon: Users,
   },
+  { id: 'donations', label: '捐赠赞助', Icon: HandHeart },
+  { id: 'sponsors', label: '企业赞助商', Icon: HandHeart },
   { id: 'account-settings', label: '我的账号', Icon: UserRound },
 ]
 

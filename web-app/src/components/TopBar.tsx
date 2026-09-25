@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { ChevronDown, GitFork, HandHeart, LogIn, LogOut, Settings, User } from 'lucide-react'
+import { ChevronDown, GitFork, HandHeart, HeartHandshake, LogIn, LogOut, Settings, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { AuthUser } from '@duolinting/shared'
 import { useLanguage } from '../i18n/LanguageProvider'
@@ -42,12 +42,17 @@ export function TopBar({ user, onOpenAccount, onLogout }: TopBarProps) {
           <span aria-hidden="true">↗</span>
         </a>
         <button
+          aria-label={t('contribute.nav')}
           className="contribute-trigger"
           onClick={() => navigate('/contribute')}
           type="button"
         >
           <HandHeart size={17} aria-hidden="true" />
           <span>{t('contribute.nav')}</span>
+        </button>
+        <button aria-label={t('sponsors.nav')} className="contribute-trigger" onClick={() => navigate('/sponsors')} type="button">
+          <HeartHandshake size={17} aria-hidden="true" />
+          <span>{t('sponsors.nav')}</span>
         </button>
         {user ? (
           <DropdownMenu.Root>
