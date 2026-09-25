@@ -84,6 +84,7 @@ type WaveformState =
 
 type WaveformIconButtonProps = {
   label: string
+  shortcut?: string
   icon: ReactNode
   onClick: () => void
   disabled?: boolean
@@ -93,13 +94,14 @@ type WaveformIconButtonProps = {
 
 const WaveformIconButton = ({
   label,
+  shortcut,
   icon,
   onClick,
   disabled = false,
   danger = false,
   busy = false,
 }: WaveformIconButtonProps) => (
-  <Tooltip title={label} placement="top">
+  <Tooltip title={shortcut ? `${label} (${shortcut})` : label} placement="top">
     <Button
       aria-label={label}
       aria-busy={busy}
@@ -292,6 +294,78 @@ export function MediaWaveform({
 
     onBatchAdjustTiming(delta)
   }
+
+  useEffect(() => {
+    const handleToolbarShortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return
+
+      const target = event.target
+      if (!(target instanceof HTMLElement) || target.isContentEditable) return
+      if (target.closest('input, textarea, select, button, a, audio, video, [role="dialog"], .ant-popover')) return
+
+      const zoomIn = event.key === '+' || event.code === 'NumpadAdd'
+      const zoomOut = event.key === '-' || event.code === 'NumpadSubtract'
+      if (event.shiftKey && !zoomIn) return
+
+      const key = event.key.toLowerCase()
+      if (event.code === 'Space' || event.key === ' ') {
+        if (!activeLine) return
+        event.preventDefault()
+        void onPlayLine(activeLine)
+        return
+      }
+
+      if (event.key === '[' || event.code === 'BracketLeft' || event.key === ']' || event.code === 'BracketRight') {
+        const direction = event.key === '[' || event.code === 'BracketLeft' ? -1 : 1
+        const nextLineIndex = activeLineIndex + direction
+        const nextLine = draftLines[nextLineIndex]
+        if (!nextLine) return
+        event.preventDefault()
+        onActiveLineChange(nextLineIndex)
+        void onPlayLine(nextLine)
+        return
+      }
+
+      if (key === 'i' || key === 'o') {
+        if (!activeLine) return
+        event.preventDefault()
+        onSetPointFromPlayer(key === 'i' ? 'start' : 'end', activeLineIndex)
+        return
+      }
+
+      if (key === 'n') {
+        if (!sourceUrl) return
+        event.preventDefault()
+        onAddLine()
+        return
+      }
+
+      if (key === 'm') {
+        if (!onMergeLine || activeLineIndex < 0 || activeLineIndex >= draftLines.length - 1) return
+        event.preventDefault()
+        onMergeLine(activeLineIndex)
+        return
+      }
+
+      if (key === 't') {
+        if (draftLines.length === 0) return
+        event.preventDefault()
+        setIsBatchTimingOpen((isOpen) => !isOpen)
+        return
+      }
+
+      if (zoomIn && zoom < MAX_ZOOM) {
+        event.preventDefault()
+        setZoom((current) => clampZoom(current + ZOOM_STEP))
+      } else if (zoomOut && zoom > MIN_ZOOM) {
+        event.preventDefault()
+        setZoom((current) => clampZoom(current - ZOOM_STEP))
+      }
+    }
+
+    window.addEventListener('keydown', handleToolbarShortcut)
+    return () => window.removeEventListener('keydown', handleToolbarShortcut)
+  }, [activeLine, activeLineIndex, draftLines, onActiveLineChange, onAddLine, onMergeLine, onPlayLine, onSetPointFromPlayer, sourceUrl, zoom])
 
   const duration = useMemo(() => {
     const mediaDuration = mediaRef.current?.duration
@@ -1212,6 +1286,7 @@ export function MediaWaveform({
           <div className="waveform-tool-group zoom-control" role="group" aria-label={t('波形缩放')}>
             <WaveformIconButton
               label={t('缩小波形')}
+              shortcut="-"
               disabled={zoom <= MIN_ZOOM}
               icon={<ZoomOut size={15} aria-hidden="true" />}
               onClick={() => setZoom((current) => clampZoom(current - ZOOM_STEP))}
@@ -1227,6 +1302,7 @@ export function MediaWaveform({
             />
             <WaveformIconButton
               label={t('放大波形')}
+              shortcut="+"
               disabled={zoom >= MAX_ZOOM}
               icon={<ZoomIn size={15} aria-hidden="true" />}
               onClick={() => setZoom((current) => clampZoom(current + ZOOM_STEP))}
@@ -1237,30 +1313,35 @@ export function MediaWaveform({
           <div className="waveform-tool-group waveform-line-actions" role="group" aria-label={t('当前字幕操作')}>
             <WaveformIconButton
               label={t('试听')}
+              shortcut="Space"
               disabled={!activeLine}
               icon={<Play size={15} aria-hidden="true" />}
               onClick={() => activeLine && onPlayLine(activeLine)}
             />
             <WaveformIconButton
               label={t('上一句')}
+              shortcut="["
               disabled={activeLineIndex <= 0 || draftLines.length === 0}
               icon={<StepBack size={15} aria-hidden="true" />}
               onClick={() => playAdjacentLine(-1)}
             />
             <WaveformIconButton
               label={t('下一句')}
+              shortcut="]"
               disabled={activeLineIndex < 0 || activeLineIndex >= draftLines.length - 1}
               icon={<StepForward size={15} aria-hidden="true" />}
               onClick={() => playAdjacentLine(1)}
             />
             <WaveformIconButton
               label={t('设开始')}
+              shortcut="I"
               disabled={!activeLine}
               icon={<ArrowLeftToLine size={15} aria-hidden="true" />}
               onClick={() => onSetPointFromPlayer('start', activeLineIndex)}
             />
             <WaveformIconButton
               label={t('设结束')}
+              shortcut="O"
               disabled={!activeLine}
               icon={<ArrowRightToLine size={15} aria-hidden="true" />}
               onClick={() => onSetPointFromPlayer('end', activeLineIndex)}
@@ -1277,12 +1358,14 @@ export function MediaWaveform({
           <div className="waveform-tool-group waveform-actions" role="group" aria-label={t('字幕操作')}>
             <WaveformIconButton
               label={t('新增字幕')}
+              shortcut="N"
               disabled={!sourceUrl}
               icon={<ListPlus size={15} aria-hidden="true" />}
               onClick={() => onAddLine()}
             />
             <WaveformIconButton
               label={t('与下一句合并')}
+              shortcut="M"
               disabled={!onMergeLine || activeLineIndex < 0 || activeLineIndex >= draftLines.length - 1}
               icon={<Merge size={15} aria-hidden="true" />}
               onClick={() => onMergeLine?.(activeLineIndex)}
@@ -1348,7 +1431,7 @@ export function MediaWaveform({
               placement="topLeft"
               trigger="click"
             >
-              <Tooltip title={t('整体时间偏移')} placement="top">
+              <Tooltip title={`${t('整体时间偏移')} (T)`} placement="top">
                 <Button
                   aria-label={t('整体时间偏移')}
                   className="waveform-icon-button"
@@ -1361,11 +1444,11 @@ export function MediaWaveform({
             </Popover>
           </div>
 
+          {historyControls}
           <span className="waveform-drag-preview" ref={dragPreviewRef} />
           <div className="waveform-time-readout" aria-label={t('当前播放时间')}>
             {formatTimeWithMilliseconds(currentTime)} / {formatTimeWithMilliseconds(duration)}
           </div>
-          {historyControls}
         </div>
         <div className="waveform-canvas-wrap">
           {waveform.status === 'idle' || waveform.status === 'loading' ? (
