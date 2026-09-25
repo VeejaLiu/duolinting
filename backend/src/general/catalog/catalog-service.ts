@@ -382,6 +382,7 @@ const buildExerciseSummary = (
     lineCount: number,
     contentLocale?: ContentLocale,
     allowMediaDelivery = true,
+    allowCoverImageDelivery = allowMediaDelivery,
 ): CatalogExerciseSummary => {
     // 优先以个人字幕稿判断协作节点：已发布课程也可能有新的投稿待审，
     // 所以不能仅依赖 exercises.status 来判断它正卡在哪一步。
@@ -453,7 +454,7 @@ const buildExerciseSummary = (
     mediaType: row.media_type ?? 'audio',
     audioUrl: toDeliveryMediaUrl(row.audio_url, allowMediaDelivery),
     coverImageUrl:
-        toDeliveryMediaUrl(row.cover_image_url, allowMediaDelivery) || undefined,
+        toDeliveryMediaUrl(row.cover_image_url, allowCoverImageDelivery) || undefined,
     summary: contentLocale
         ? (normalizeExerciseLocalizations(row.localizations_json)[contentLocale]
               ?.summary ?? row.summary)
@@ -598,6 +599,7 @@ const buildExerciseDetail = (
     workflowCredits?: CourseWorkflowCredits,
     subtitleDrafts?: SubtitleDraft[],
     allowMediaDelivery = true,
+    allowCoverImageDelivery = allowMediaDelivery,
 ): ListeningExercise => ({
     id: Number(row.id),
     categoryId: Number(row.category_id),
@@ -613,7 +615,7 @@ const buildExerciseDetail = (
     audioUrl: toDeliveryMediaUrl(row.audio_url, allowMediaDelivery),
     mediaSize,
     coverImageUrl:
-        toDeliveryMediaUrl(row.cover_image_url, allowMediaDelivery) || undefined,
+        toDeliveryMediaUrl(row.cover_image_url, allowCoverImageDelivery) || undefined,
     summary: contentLocale
         ? (normalizeExerciseLocalizations(row.localizations_json)[contentLocale]
               ?.summary ?? row.summary)
@@ -735,7 +737,7 @@ export async function listCatalog(
     includeEmptyDirectories = false,
     contentLocale?: ContentLocale,
     previewExerciseIds: number[] = [],
-    allowMediaDelivery = true,
+    allowCoverImageDelivery = true,
 ): Promise<CatalogResponse> {
     // Let database failures reach the API error handler so clients show a load error,
     // rather than treating a missing migration or unavailable database as an empty catalog.
@@ -760,7 +762,7 @@ export async function listCatalog(
                 : row.description,
             accent: row.accent,
             coverImageUrl:
-                toDeliveryMediaUrl(row.cover_image_url, allowMediaDelivery) ||
+                toDeliveryMediaUrl(row.cover_image_url, allowCoverImageDelivery) ||
                 undefined,
             sourceUrl: normalizeSourceUrl(row.source_url) || undefined,
             sortOrder: Number(row.sort_order ?? 0),
@@ -795,7 +797,7 @@ export async function listCatalog(
                 : row.description,
             accent: row.accent,
             coverImageUrl:
-                toDeliveryMediaUrl(row.cover_image_url, allowMediaDelivery) ||
+                toDeliveryMediaUrl(row.cover_image_url, allowCoverImageDelivery) ||
                 undefined,
             sortOrder: Number(row.sort_order ?? 0),
             localizations: normalizeDirectoryLocalizations(
@@ -817,6 +819,7 @@ export async function listCategoryExercises(
     contentLocale?: ContentLocale,
     previewExerciseIds: number[] = [],
     allowMediaDelivery = true,
+    allowCoverImageDelivery = allowMediaDelivery,
  ): Promise<CatalogExerciseSummary[]> {
     const statusFilter = includeDrafts ? '' : `and ${buildLearnerStatusFilter(previewExerciseIds)}`;
 
@@ -855,6 +858,7 @@ export async function listCategoryExercises(
                 lines.length,
                 contentLocale,
                 allowMediaDelivery,
+                allowCoverImageDelivery,
             );
         });
     } catch (error) {
@@ -896,6 +900,7 @@ export async function listCategoryExercises(
                 0,
                 contentLocale,
                 allowMediaDelivery,
+                allowCoverImageDelivery,
             );
         });
     }
@@ -1018,6 +1023,7 @@ export async function getExercise(
     adminActor?: AdminActor,
     previewLearnerUserId?: number,
     allowMediaDelivery = true,
+    allowCoverImageDelivery = allowMediaDelivery,
  ) {
     const rows = await doRawQuery<ExerciseRow>({
         query: `
@@ -1075,6 +1081,7 @@ export async function getExercise(
         workflowCredits,
         subtitleDrafts,
         allowMediaDelivery,
+        allowCoverImageDelivery,
     );
     return { ...detail, waveform: await cachedMediaWaveform(row.audio_url) };
 }

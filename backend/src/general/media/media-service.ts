@@ -185,8 +185,8 @@ const buildTencentTypeAUrl = (objectName: string, now: Date) => {
 };
 
 /**
- * 只有认证后的 API 组装响应时才调用此函数。生产 CDN 使用腾讯 Type A 短时签名；
- * 没有 CDN 的受保护环境使用后端 HMAC 回退，保证 audio/video/img 都能直接消费 URL。
+ * 为具体对象生成直连或短时签名地址。调用方必须在序列化时按资源类型控制可见性：
+ * 普通游客目录可签发封面地址，但应隐藏可播放媒体；开放内容 API 另有显式公开策略。
  */
 export const buildPublicMediaUrl = (
     objectName: string,

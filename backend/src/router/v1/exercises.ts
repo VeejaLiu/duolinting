@@ -22,6 +22,7 @@ router.get('/:exerciseId', optionalUserTokenMiddleware, async (req: any, res) =>
         undefined,
         req.user?.userId,
         Boolean(req.user?.userId),
+        true,
     );
     if (!exercise) {
         return res.status(404).send({ success: false, message: 'Exercise not found' });

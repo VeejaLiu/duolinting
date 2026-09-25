@@ -8,12 +8,14 @@ const toId = (value: string) => Number.parseInt(value, 10);
 
 router.get('/', optionalUserTokenMiddleware, async (req: any, res) => {
     const previewExerciseIds = await getPreviewExerciseIdsForLearner(req.user?.userId);
+    // Public directory covers get object-scoped URLs; this endpoint contains no course audio/video.
+    res.setHeader('Cache-Control', 'private, no-cache');
     res.status(200).send(await listCatalog(
         false,
         false,
         (parseContentLocale(req.query.contentLocale) ?? 'en-US'),
         previewExerciseIds,
-        Boolean(req.user?.userId),
+        true,
     ));
 });
 
@@ -24,12 +26,15 @@ router.get('/category/:categoryId/exercises', optionalUserTokenMiddleware, async
     }
 
     const previewExerciseIds = await getPreviewExerciseIdsForLearner(req.user?.userId);
+    // Keep course media gated while allowing the published course thumbnail itself to load.
+    res.setHeader('Cache-Control', 'private, no-cache');
     const exercises = await listCategoryExercises(
         categoryId,
         false,
         (parseContentLocale(req.query.contentLocale) ?? 'en-US'),
         previewExerciseIds,
         Boolean(req.user?.userId),
+        true,
     );
     res.status(200).send(exercises);
 });
