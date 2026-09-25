@@ -15,24 +15,30 @@ export function SubtitleHistoryControls({ history, disabled, onUndo, onRedo }: P
   const undoLabel = history.past.at(-1)?.label
   const redoLabel = history.future[0]?.label
   return (
-    <div className="subtitle-history-controls" role="group" aria-label={t('字幕编辑历史')}>
-      <Tooltip title={`${t('撤销')}${undoLabel ? `：${t(undoLabel)}` : ''} (Ctrl/⌘ Z)`}>
+    <div className="waveform-tool-group subtitle-history-controls" role="group" aria-label={t('字幕编辑历史')}>
+      <Tooltip placement="top" title={`${t('撤销')}${undoLabel ? `：${t(undoLabel)}` : ''} (Ctrl/⌘ Z)`}>
         <Button
+          aria-label={t('撤销')}
+          className="waveform-icon-button"
           disabled={disabled || !undoLabel}
           icon={<Undo2 size={15} aria-hidden="true" />}
           onClick={() => onUndo()}
-        >{t('撤销')}</Button>
+          size="small"
+        />
       </Tooltip>
-      <Tooltip title={`${t('重做')}${redoLabel ? `：${t(redoLabel)}` : ''} (Ctrl/⌘ Shift Z / Ctrl Y)`}>
+      <Tooltip placement="top" title={`${t('重做')}${redoLabel ? `：${t(redoLabel)}` : ''} (Ctrl/⌘ Shift Z / Ctrl Y)`}>
         <Button
+          aria-label={t('重做')}
+          className="waveform-icon-button"
           disabled={disabled || !redoLabel}
           icon={<Redo2 size={15} aria-hidden="true" />}
           onClick={() => onRedo()}
-        >{t('重做')}</Button>
+          size="small"
+        />
       </Tooltip>
       <Popover
         trigger="click"
-        placement="bottomRight"
+        placement="topRight"
         title={t('字幕编辑历史')}
         content={
           <div className="subtitle-history-panel">
@@ -55,7 +61,14 @@ export function SubtitleHistoryControls({ history, disabled, onUndo, onRedo }: P
           </div>
         }
       >
-        <Button icon={<History size={15} aria-hidden="true" />}>{t('历史')}</Button>
+        <Tooltip placement="top" title={t('历史')}>
+          <Button
+            aria-label={t('历史')}
+            className="waveform-icon-button"
+            icon={<History size={15} aria-hidden="true" />}
+            size="small"
+          />
+        </Tooltip>
       </Popover>
     </div>
   )

@@ -1087,16 +1087,6 @@ export function AudioLessonImporter({
           mediaRef={mediaRef}
           previewLines={draftLines}
           onNotify={onStatusChange}
-          historyControls={
-            <>
-            <SubtitleHistoryControls
-              history={history}
-              disabled={isSaving || isDraggingTiming || isSubmittingSubtitleDraft || isSubmittedSubtitleDraft || isApprovedSubtitleDraft || Boolean(draft)}
-              onUndo={(steps) => { if (!isDraggingTiming) { stopPlayback(); undo(steps) } }}
-              onRedo={(steps) => { if (!isDraggingTiming) { stopPlayback(); redo(steps) } }}
-            />
-            </>
-          }
           statusBar={
             <div className="admin-footer media-workbench-status">
               <span>{t('{{count}} 句可保存', { count: validLineCount })}</span>
@@ -1165,6 +1155,14 @@ export function AudioLessonImporter({
                 sourceUrl={localMediaUrl}
                 sourceWaveform={!mediaFile && loadedExercise?.audioUrl === courseForm.audioUrl ? loadedExercise.waveform : undefined}
                 showInspector={false}
+                historyControls={(
+                  <SubtitleHistoryControls
+                    history={history}
+                    disabled={isSaving || isDraggingTiming || isSubmittingSubtitleDraft || isSubmittedSubtitleDraft || isApprovedSubtitleDraft || Boolean(draft)}
+                    onUndo={(steps) => { if (!isDraggingTiming) { stopPlayback(); undo(steps) } }}
+                    onRedo={(steps) => { if (!isDraggingTiming) { stopPlayback(); redo(steps) } }}
+                  />
+                )}
                 onActiveLineChange={setActiveLineIndex}
                 onAddLine={addLineAfterActive}
                 batchOffset={history.present.batchOffset}
@@ -1203,13 +1201,6 @@ export function AudioLessonImporter({
           onManualDltjsonImport={handleManualDltjsonImport}
           onFileChange={(file) => {
             void handleFileChange(file)
-          }}
-          onPlayFromTime={(seconds) => {
-            void playMedia(seconds).then((outcome) => {
-              if (outcome === 'timeout' || outcome === 'failed') {
-                onStatusChange('媒体播放未就绪，请稍后重试', 'error')
-              }
-            })
           }}
           onSaveLesson={() => void saveImportedLesson()}
           // 已提交或已通过的版本不再显示提交入口；只有审核退回后的工作稿可以重新提交。

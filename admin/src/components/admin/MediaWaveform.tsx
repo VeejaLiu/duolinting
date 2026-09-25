@@ -59,6 +59,7 @@ type MediaWaveformProps = {
   sourceWaveform?: CourseWaveform
   showInspector?: boolean
   showSubtitleList?: boolean
+  historyControls?: ReactNode
   onActiveLineChange: (index: number) => void
   onAddLine: (range?: AddLineRange) => void
   onPlayLine: (line: DraftLine) => void
@@ -216,6 +217,7 @@ export function MediaWaveform({
   sourceWaveform,
   showInspector = true,
   showSubtitleList = false,
+  historyControls,
   onActiveLineChange,
   onAddLine,
   onPlayLine,
@@ -1343,7 +1345,7 @@ export function MediaWaveform({
               }
               onOpenChange={setIsBatchTimingOpen}
               open={isBatchTimingOpen}
-              placement="bottomLeft"
+              placement="topLeft"
               trigger="click"
             >
               <Tooltip title={t('整体时间偏移')} placement="top">
@@ -1363,6 +1365,7 @@ export function MediaWaveform({
           <div className="waveform-time-readout" aria-label={t('当前播放时间')}>
             {formatTimeWithMilliseconds(currentTime)} / {formatTimeWithMilliseconds(duration)}
           </div>
+          {historyControls}
         </div>
         <div className="waveform-canvas-wrap">
           {waveform.status === 'idle' || waveform.status === 'loading' ? (

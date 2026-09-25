@@ -80,7 +80,6 @@ type MediaCourseFormProps = {
   mediaUploadProgress: FileUploadProgress | null
   mediaRef: React.MutableRefObject<HTMLMediaElement | null>
   previewLines?: DraftLine[]
-  historyControls?: ReactNode
   statusBar?: ReactNode
   subtitleEditor?: ReactNode
   subtitleImporter?: ReactNode
@@ -91,7 +90,6 @@ type MediaCourseFormProps = {
   onManualDltjsonImport: () => void
   onNotify: (message: string, tone?: AdminNoticeTone) => void
   onFileChange: (file: File | null) => void
-  onPlayFromTime: (seconds: number) => void
   onSaveLesson: () => void
   onSubmitSubtitleDraft?: () => void
 }
@@ -155,7 +153,6 @@ export function MediaCourseForm({
   mediaUploadProgress,
   mediaRef,
   previewLines = [],
-  historyControls,
   statusBar,
   subtitleEditor,
   subtitleImporter,
@@ -166,14 +163,12 @@ export function MediaCourseForm({
   onManualDltjsonImport,
   onNotify,
   onFileChange,
-  onPlayFromTime,
   onSaveLesson,
   onSubmitSubtitleDraft,
 }: MediaCourseFormProps) {
   const { t, uiLocale } = useAdminLanguage()
   const [localizationLocale, setLocalizationLocale] = useState<ContentLocale>('zh-CN')
   const [previewTime, setPreviewTime] = useState(0)
-  const [audioStartMilliseconds, setAudioStartMilliseconds] = useState(0)
   const [isCourseMetaOpen, setIsCourseMetaOpen] = useState(false)
   const [isSubtitleImporterOpen, setIsSubtitleImporterOpen] = useState(false)
   const [videoColumnPercent, setVideoColumnPercent] = useState(66)
@@ -742,7 +737,6 @@ export function MediaCourseForm({
             </Button>
           </div>
           <div className="import-main-toolbar-actions">
-            {historyControls}
             <button
               className="command-button secondary subtitle-import-trigger"
               onClick={() => setIsSubtitleImporterOpen(true)}
@@ -847,29 +841,6 @@ export function MediaCourseForm({
                           updateDuration(event.currentTarget.duration)
                         }}
                       />
-                      <div className="audio-precise-playback">
-                        <label htmlFor="audio-start-milliseconds">{t('开始')} (ms)</label>
-                        <input
-                          id="audio-start-milliseconds"
-                          min="0"
-                          step="1"
-                          type="number"
-                          value={audioStartMilliseconds}
-                          onChange={(event) => setAudioStartMilliseconds(Number(event.target.value))}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const mediaDuration = mediaRef.current?.duration
-                            const start = Math.max(0, Math.round(audioStartMilliseconds)) / 1000
-                            onPlayFromTime(typeof mediaDuration === 'number' && Number.isFinite(mediaDuration) && mediaDuration > 0
-                              ? Math.min(start, mediaDuration)
-                              : start)
-                          }}
-                        >
-                          {t('试听')}
-                        </button>
-                      </div>
                       <div className="audio-subtitle-preview" aria-live="polite">
                         {previewActiveLines.length > 0 ? (
                           previewActiveLines.map((previewLine) => <Fragment key={previewLine.id}>
