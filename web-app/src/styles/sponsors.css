@@ -23,4 +23,7 @@
 .donation-identity strong { overflow-wrap: anywhere; }
 .donation-identity time { color: #62768e; font-size: 13px; }
 .donation-amount { color: #168534; white-space: nowrap; }
+.donation-links { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 6px; }
+.donation-links a { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border: 1px solid #b9e7fb; border-radius: 999px; background: #edf9ff; color: #087caf; font-size: 12px; font-weight: 800; text-decoration: none; }
+.donation-links a:hover { border-color: #1cb0f6; }
 @media (max-width: 480px) { .donation-row { gap: 10px; padding: 12px; } .donation-amount { font-size: 14px; } }

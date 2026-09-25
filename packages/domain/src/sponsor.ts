@@ -18,6 +18,13 @@ export type AdminSponsor = Sponsor & {
 
 export type SaveSponsorRequest = Omit<AdminSponsor, 'id'>
 
+export type DonationSocialPlatform = 'instagram' | 'x' | 'linkedin' | 'github' | 'weibo' | 'website'
+
+export type DonationSocialLink = {
+  platform: DonationSocialPlatform
+  url: string
+}
+
 /** Public donation excludes private donor identity, payment reference, and receipt. */
 export type Donation = {
   id: number
@@ -26,6 +33,8 @@ export type Donation = {
   amount: string
   currency: string
   donatedAt: string
+  socialLinks: DonationSocialLink[]
+  publicEmail: string | null
 }
 
 export type AdminDonation = Donation & {
@@ -33,6 +42,9 @@ export type AdminDonation = Donation & {
   referenceNote: string
   isPublished: boolean
   hasReceipt: boolean
+  showSocialLinksPublicly: boolean
+  contactEmail: string | null
+  showEmailPublicly: boolean
 }
 
-export type SaveDonationRequest = Omit<AdminDonation, 'id' | 'hasReceipt'>
+export type SaveDonationRequest = Omit<AdminDonation, 'id' | 'hasReceipt' | 'publicEmail'>

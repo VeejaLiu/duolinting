@@ -1,4 +1,4 @@
-import type { AdminDonation, SaveDonationRequest } from '@duolinting/shared'
+import type { AdminDonation, DonationSocialPlatform, SaveDonationRequest } from '@duolinting/shared'
 import { Button, Card, Form, Input, Modal, Select, Space, Switch, Table, Tag, Typography } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
@@ -22,8 +22,14 @@ const toLocalDateTime = (value: string) => {
 
 const emptyDonation = (): DonationForm => ({
   donorName: '', isAnonymous: false, amount: '', currency: 'CNY',
-  donationItem: '', donatedAt: toLocalDateTime(new Date().toISOString()), referenceNote: '', isPublished: false,
+  donationItem: '', socialLinks: [], showSocialLinksPublicly: false, contactEmail: null, showEmailPublicly: false,
+  donatedAt: toLocalDateTime(new Date().toISOString()), referenceNote: '', isPublished: false,
 })
+
+const socialPlatforms: DonationSocialPlatform[] = ['instagram', 'x', 'linkedin', 'github', 'weibo', 'website']
+const platformNames: Record<DonationSocialPlatform, string> = {
+  instagram: 'Instagram', x: 'X', linkedin: 'LinkedIn', github: 'GitHub', weibo: '微博', website: '个人网站',
+}
 
 export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Props) {
   const { t, uiLocale } = useAdminLanguage()
@@ -37,6 +43,8 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
   const receiptInputRef = useRef<HTMLInputElement | null>(null)
   const isAnonymous = Form.useWatch('isAnonymous', form)
+  const contactEmail = Form.useWatch('contactEmail', form)
+  const socialLinksValue = Form.useWatch('socialLinks', form)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -74,6 +82,11 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
       onNotify(t('请输入有效的捐赠时间'), 'error')
       return
     }
+    const socialLinks = values.socialLinks ?? []
+    if (new Set(socialLinks.map((link) => link.platform)).size !== socialLinks.length) {
+      onNotify(t('每个平台只能添加一次'), 'error')
+      return
+    }
     const request: SaveDonationRequest = {
       donorName: values.donorName?.trim() || null,
       isAnonymous: Boolean(values.isAnonymous),
@@ -81,6 +94,10 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
       amount: (() => { const [whole, fraction = ''] = values.amount.split('.'); return `${whole}.${fraction.padEnd(2, '0')}` })(),
       currency: values.currency,
       donationItem: values.donationItem?.trim() ?? '',
+      socialLinks: socialLinks.map((link) => ({ platform: link.platform, url: link.url.trim() })),
+      showSocialLinksPublicly: !values.isAnonymous && socialLinks.length > 0 && Boolean(values.showSocialLinksPublicly),
+      contactEmail: values.contactEmail?.trim() || null,
+      showEmailPublicly: !values.isAnonymous && Boolean(values.contactEmail?.trim()) && Boolean(values.showEmailPublicly),
       donatedAt: timestamp.toISOString(),
       referenceNote: values.referenceNote?.trim() ?? '',
       isPublished: Boolean(values.isPublished),
@@ -145,10 +162,11 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
 
   return <Card title={t('捐赠赞助')} extra={<Space><Button onClick={() => void refresh()}>{t('刷新')}</Button><Button type="primary" onClick={() => edit()}>{t('登记捐赠')}</Button></Space>}>
     <Typography.Paragraph type="secondary">{t('匿名捐赠公开时只显示“匿名”；订单凭证仅后台可查看。')}</Typography.Paragraph>
-    <Table rowKey="id" dataSource={items} loading={loading} scroll={{ x: 880 }} pagination={{ pageSize: 20 }} columns={[
+    <Table rowKey="id" dataSource={items} loading={loading} scroll={{ x: 1050 }} pagination={{ pageSize: 20 }} columns={[
       { title: t('捐赠者'), render: (_value: unknown, item: AdminDonation) => <Space>{item.donorName || t('未填写')}{item.isAnonymous ? <Tag>{t('匿名')}</Tag> : null}</Space> },
       { title: t('金额'), render: (_value: unknown, item: AdminDonation) => `${item.currency} ${item.amount}` },
       { title: t('捐赠项目'), dataIndex: 'donationItem', render: (value: string) => value || '—' },
+      { title: t('社交链接'), render: (_value: unknown, item: AdminDonation) => item.socialLinks.length ? item.socialLinks.map((link) => t(platformNames[link.platform])).join('、') : '—' },
       { title: t('捐赠时间'), render: (_value: unknown, item: AdminDonation) => new Intl.DateTimeFormat(uiLocale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.donatedAt)) },
       { title: t('状态'), render: (_value: unknown, item: AdminDonation) => <Tag color={item.isPublished ? 'green' : 'default'}>{item.isPublished ? t('已发布') : t('草稿')}</Tag> },
       { title: t('订单凭证'), render: (_value: unknown, item: AdminDonation) => item.hasReceipt ? <Space><Button onClick={() => void viewReceipt(item.id)}>{t('查看')}</Button><Button danger onClick={() => void removeReceipt(item)}>{t('删除')}</Button></Space> : '—' },
@@ -163,6 +181,27 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
           <Form.Item name="currency" label={t('币种')}><Select style={{ width: 120 }} options={['CNY', 'THB', 'USD', 'EUR'].map((value) => ({ label: value, value }))} /></Form.Item>
         </Space>
         <Form.Item name="donationItem" label={t('捐赠项目（可选）')} rules={[{ max: 160 }]}><Input maxLength={160} /></Form.Item>
+        <Form.Item label={t('社交链接')}>
+          <Form.List name="socialLinks">
+            {(fields, { add, remove }) => <Space direction="vertical" style={{ width: '100%' }}>
+              {fields.map((field) => <Space key={field.key} align="start" wrap>
+                <Form.Item name={[field.name, 'platform']} rules={[{ required: true, message: t('请选择平台') }]}>
+                  <Select aria-label={t('社交平台')} style={{ width: 140 }} options={socialPlatforms.map((platform) => ({ value: platform, label: t(platformNames[platform]) }))} />
+                </Form.Item>
+                <Form.Item name={[field.name, 'url']} rules={[{ required: true, type: 'url', message: t('请输入有效的 HTTPS 链接') }, { pattern: /^https:\/\//i, message: t('请输入有效的 HTTPS 链接') }]}>
+                  <Input aria-label={t('社交主页链接')} style={{ width: 245 }} maxLength={1024} placeholder="https://" />
+                </Form.Item>
+                <Button onClick={() => remove(field.name)}>{t('删除')}</Button>
+              </Space>)}
+              <Button disabled={fields.length >= 6} onClick={() => add({ platform: socialPlatforms.find((platform) => !form.getFieldValue('socialLinks')?.some((link: { platform: string }) => link?.platform === platform)) ?? 'instagram', url: '' })}>{t('添加社交链接')}</Button>
+            </Space>}
+          </Form.List>
+          <Typography.Text type="secondary">{t('可添加 Instagram、X、LinkedIn、GitHub、微博和个人网站。匿名捐赠不会公开链接。')}</Typography.Text>
+        </Form.Item>
+        <Form.Item name="showSocialLinksPublicly" label={t('捐赠者同意公开社交链接')} valuePropName="checked"><Switch disabled={Boolean(isAnonymous) || !socialLinksValue?.length} /></Form.Item>
+        <Form.Item name="contactEmail" label={t('个人邮箱（可选，仅后台保存）')} rules={[{ type: 'email', message: t('请输入有效的邮箱') }]}><Input maxLength={255} /></Form.Item>
+        <Form.Item name="showEmailPublicly" label={t('捐赠者同意公开邮箱')} valuePropName="checked"><Switch disabled={Boolean(isAnonymous) || !contactEmail} /></Form.Item>
+        <Typography.Paragraph type="secondary">{t('只有获得本人同意后才开启公开邮箱；匿名捐赠始终隐藏邮箱。')}</Typography.Paragraph>
         <Form.Item name="donatedAt" label={t('捐赠时间')} rules={[{ required: true, message: t('请选择捐赠时间') }]}><Input type="datetime-local" /></Form.Item>
         <Form.Item name="referenceNote" label={t('订单备注（仅后台）')} rules={[{ max: 255 }]}><Input maxLength={255} /></Form.Item>
         <Form.Item label={t('订单截图（仅后台）')}>

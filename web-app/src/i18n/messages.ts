@@ -13,6 +13,7 @@ import { mobileExperiencePromptMessages } from './messages/mobileExperiencePromp
 import { settingsMessages } from './messages/settings'
 import { sponsorMessages } from './messages/sponsors'
 import { sponsorDonationMessages } from './messages/sponsorDonations'
+import { sponsorSocialMessages } from './messages/sponsorSocial'
 import { studyStatesMessages } from './messages/studyStates'
 
 // 各模块维护自己的消息表（web-app/src/i18n/messages/*.ts），这里按语言合并成
@@ -32,6 +33,7 @@ const modules: Record<UiLocale, Record<string, string>>[] = [
   settingsMessages,
   sponsorMessages,
   sponsorDonationMessages,
+  sponsorSocialMessages,
   studyStatesMessages,
 ]
 

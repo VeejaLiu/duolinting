@@ -72,6 +72,7 @@ import { validateErrorCheck } from '../../lib/express-validator/express-validato
 import { doRawQuery } from '../../models';
 import { deleteSponsor, listAdminSponsors, saveSponsor } from '../../general/sponsor/sponsor-service';
 import { deleteDonation, deleteDonationReceipt, getDonationReceipt, listAdminDonations, saveDonation, saveDonationReceipt } from '../../general/sponsor/donation-service';
+import { isValidDonationSocialLinks } from '../../general/sponsor/donation-social-links';
 import multer from 'multer';
 import { authenticationRateLimitKeys, createRateLimit } from '../../lib/rate-limit';
 
@@ -229,6 +230,10 @@ const donationValidators = [
     body('amount').isString().matches(/^(?:0|[1-9]\d{0,9})\.\d{2}$/).custom((value) => Number(value) > 0),
     body('currency').isIn(['CNY', 'USD', 'THB', 'EUR']),
     body('donationItem').isString().trim().isLength({ max: 160 }),
+    body('socialLinks').custom(isValidDonationSocialLinks),
+    body('showSocialLinksPublicly').isBoolean().custom((value, { req }) => value === false || (req.body.isAnonymous === false && Array.isArray(req.body.socialLinks) && req.body.socialLinks.length > 0)),
+    body('contactEmail').custom((value) => value === null || value === '' || (typeof value === 'string' && value.length <= 255 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))),
+    body('showEmailPublicly').isBoolean().custom((value, { req }) => value === false || (Boolean(req.body.contactEmail) && req.body.isAnonymous === false)),
     body('donatedAt').isISO8601().custom((value) => !Number.isNaN(Date.parse(value))),
     body('referenceNote').isString().trim().isLength({ max: 255 }),
     body('isPublished').isBoolean(),

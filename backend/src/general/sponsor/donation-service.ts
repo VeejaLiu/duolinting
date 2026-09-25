@@ -2,6 +2,7 @@ import type { AdminDonation, Donation, SaveDonationRequest } from '@duolinting/s
 import { sequelize } from '../../models/db-config-mysql';
 import { DonationModel, type DonationDb } from '../../models/schema/DonationDB';
 import { DonationReceiptModel, type DonationReceiptDb } from '../../models/schema/DonationReceiptDB';
+import { normalizeDonationSocialLinks } from './donation-social-links';
 
 const toAdminDonation = (row: DonationModel, hasReceipt: boolean): AdminDonation => ({
     id: Number(row.id),
@@ -10,10 +11,15 @@ const toAdminDonation = (row: DonationModel, hasReceipt: boolean): AdminDonation
     amount: String(row.amount),
     currency: row.currency,
     donatedAt: row.donated_at.toISOString(),
+    socialLinks: normalizeDonationSocialLinks(row.social_links_json),
+    publicEmail: row.is_anonymous || !row.show_email_publicly ? null : row.contact_email,
     donationItem: row.donation_item,
     referenceNote: row.reference_note,
     isPublished: Boolean(row.is_published),
     hasReceipt,
+    showSocialLinksPublicly: Boolean(row.show_social_links_publicly),
+    contactEmail: row.contact_email,
+    showEmailPublicly: Boolean(row.show_email_publicly),
 });
 
 export async function listPublicDonations(): Promise<Donation[]> {
@@ -29,6 +35,9 @@ export async function listPublicDonations(): Promise<Donation[]> {
         amount: String(row.amount),
         currency: row.currency,
         donatedAt: row.donated_at.toISOString(),
+        // Keep the full profile list in Admin, but never leak anonymous profiles publicly.
+        socialLinks: row.is_anonymous || !row.show_social_links_publicly ? [] : normalizeDonationSocialLinks(row.social_links_json),
+        publicEmail: row.is_anonymous || !row.show_email_publicly ? null : row.contact_email,
     }));
 }
 
@@ -48,6 +57,10 @@ export async function saveDonation(input: SaveDonationRequest, id?: number): Pro
         amount: input.amount,
         currency: input.currency,
         donation_item: input.donationItem.trim(),
+        social_links_json: normalizeDonationSocialLinks(input.socialLinks),
+        show_social_links_publicly: input.showSocialLinksPublicly,
+        contact_email: input.contactEmail?.trim() || null,
+        show_email_publicly: input.showEmailPublicly,
         donated_at: new Date(input.donatedAt),
         reference_note: input.referenceNote.trim(),
         is_published: input.isPublished,

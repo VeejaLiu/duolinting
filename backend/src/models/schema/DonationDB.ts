@@ -8,6 +8,10 @@ export interface DonationDb {
     amount: string;
     currency: string;
     donation_item: string;
+    social_links_json: unknown | null;
+    show_social_links_publicly: boolean;
+    contact_email: string | null;
+    show_email_publicly: boolean;
     donated_at: Date;
     reference_note: string;
     is_published: boolean;
@@ -22,6 +26,10 @@ const schema: ModelAttributes = {
     amount: { type: Sequelize.DECIMAL(12, 2), allowNull: false },
     currency: { type: Sequelize.STRING(3), allowNull: false, defaultValue: 'CNY' },
     donation_item: { type: Sequelize.STRING(160), allowNull: false, defaultValue: '' },
+    social_links_json: { type: Sequelize.JSON, allowNull: true },
+    show_social_links_publicly: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false },
+    contact_email: { type: Sequelize.STRING(255), allowNull: true },
+    show_email_publicly: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false },
     donated_at: { type: Sequelize.DATE, allowNull: false },
     reference_note: { type: Sequelize.STRING(255), allowNull: false, defaultValue: '' },
     is_published: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false },
@@ -36,6 +44,10 @@ export class DonationModel extends Model<DonationDb> implements DonationDb {
     declare amount: string;
     declare currency: string;
     declare donation_item: string;
+    declare social_links_json: unknown | null;
+    declare show_social_links_publicly: boolean;
+    declare contact_email: string | null;
+    declare show_email_publicly: boolean;
     declare donated_at: Date;
     declare reference_note: string;
     declare is_published: boolean;

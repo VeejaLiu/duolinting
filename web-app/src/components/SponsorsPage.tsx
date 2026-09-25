@@ -42,7 +42,14 @@ export function SponsorsPage() {
           {donations.length === 0 ? <p className="sponsors-state">{t('sponsors.emptyDonations')}</p> : <div className="donation-list">
             {donations.map((donation) => <article className="donation-row" key={donation.id}>
               <span className="donation-avatar" aria-hidden="true"><HeartHandshake size={20} /></span>
-              <div className="donation-identity"><strong>{donation.isAnonymous ? t('sponsors.anonymous') : donation.donorName}</strong><time dateTime={donation.donatedAt}>{new Intl.DateTimeFormat(uiLocale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(donation.donatedAt))}</time></div>
+              <div className="donation-identity">
+                <strong>{donation.isAnonymous ? t('sponsors.anonymous') : donation.donorName}</strong>
+                <time dateTime={donation.donatedAt}>{new Intl.DateTimeFormat(uiLocale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(donation.donatedAt))}</time>
+                {!donation.isAnonymous && (donation.socialLinks.length > 0 || donation.publicEmail) ? <div className="donation-links">
+                  {donation.socialLinks.map((link) => <a key={link.platform} href={link.url} target="_blank" rel="noopener noreferrer">{t(`sponsors.social.${link.platform}`)}<ExternalLink size={12} aria-hidden="true" /></a>)}
+                  {donation.publicEmail ? <a href={`mailto:${donation.publicEmail}`}>{t('sponsors.social.email')}<ExternalLink size={12} aria-hidden="true" /></a> : null}
+                </div> : null}
+              </div>
               <strong className="donation-amount">{new Intl.NumberFormat(uiLocale, { style: 'currency', currency: donation.currency }).format(Number(donation.amount))}</strong>
             </article>)}
           </div>}

@@ -23,22 +23,31 @@ function SponsorCard({ sponsor, visitLabel }: { sponsor: Sponsor; visitLabel: st
   </View>
 }
 
-function DonationCard({ donation, locale, anonymousLabel }: { donation: Donation; locale: string; anonymousLabel: string }) {
+function DonationCard({ donation }: { donation: Donation }) {
+  const { t, uiLocale } = useLanguage()
   return <View className="flex-row items-center rounded-[18px] border-2 border-b-[4px] border-[#d7e4ef] bg-white px-4 py-3">
     <View className="h-11 w-11 items-center justify-center rounded-[14px] bg-[#edf7ff]">
       <FontAwesome6 color="#1cb0f6" name="heart" size={18} />
     </View>
     <View className="ml-3 flex-1">
-      <Text className="text-base font-black text-text-primary">{donation.isAnonymous ? anonymousLabel : donation.donorName}</Text>
-      <Text className="mt-0.5 text-xs font-bold text-text-secondary">{new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(donation.donatedAt))}</Text>
+      <Text className="text-base font-black text-text-primary">{donation.isAnonymous ? t('sponsors.anonymous') : donation.donorName}</Text>
+      <Text className="mt-0.5 text-xs font-bold text-text-secondary">{new Intl.DateTimeFormat(uiLocale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(donation.donatedAt))}</Text>
+      {!donation.isAnonymous && (donation.socialLinks.length > 0 || donation.publicEmail) ? <View className="mt-2 flex-row flex-wrap" style={{ gap: 6 }}>
+        {donation.socialLinks.map((link) => <Pressable key={link.platform} accessibilityRole="link" accessibilityLabel={t(`sponsors.social.${link.platform}`)} className="rounded-full border border-[#b9e7fb] bg-[#edf9ff] px-2 py-1" onPress={() => void Linking.openURL(link.url)}>
+          <Text className="text-xs font-black text-[#087caf]">{t(`sponsors.social.${link.platform}`)}</Text>
+        </Pressable>)}
+        {donation.publicEmail ? <Pressable accessibilityRole="link" accessibilityLabel={t('sponsors.social.email')} className="rounded-full border border-[#b9e7fb] bg-[#edf9ff] px-2 py-1" onPress={() => void Linking.openURL(`mailto:${donation.publicEmail}`)}>
+          <Text className="text-xs font-black text-[#087caf]">{t('sponsors.social.email')}</Text>
+        </Pressable> : null}
+      </View> : null}
     </View>
-    <Text className="text-sm font-black text-[#168534]">{new Intl.NumberFormat(locale, { style: 'currency', currency: donation.currency }).format(Number(donation.amount))}</Text>
+    <Text className="text-sm font-black text-[#168534]">{new Intl.NumberFormat(uiLocale, { style: 'currency', currency: donation.currency }).format(Number(donation.amount))}</Text>
   </View>
 }
 
 export function SponsorsScreen() {
   const router = useRouter()
-  const { t, uiLocale } = useLanguage()
+  const { t } = useLanguage()
   const sponsorsQuery = useQuery({
     queryKey: ['public-sponsors'],
     queryFn: () => apiClient.getSponsors(),
@@ -67,7 +76,7 @@ export function SponsorsScreen() {
           <Text className="mt-2 text-sm font-bold leading-5 text-white">{t('sponsors.subtitle')}</Text>
         </View>
         <Text className="px-1 text-lg font-black text-text-primary">{t('sponsors.donations')}</Text>
-        {donationsQuery.isPending ? <Text className="text-center text-sm font-bold text-text-secondary">{t('sponsors.loading')}</Text> : donationsQuery.isError ? <Pressable onPress={() => void donationsQuery.refetch()}><Text className="text-center text-sm font-bold text-danger">{t('sponsors.error')}</Text></Pressable> : donations.length === 0 ? <Text className="text-center text-sm font-bold text-text-secondary">{t('sponsors.emptyDonations')}</Text> : donations.map((donation) => <DonationCard key={donation.id} donation={donation} locale={uiLocale} anonymousLabel={t('sponsors.anonymous')} />)}
+        {donationsQuery.isPending ? <Text className="text-center text-sm font-bold text-text-secondary">{t('sponsors.loading')}</Text> : donationsQuery.isError ? <Pressable onPress={() => void donationsQuery.refetch()}><Text className="text-center text-sm font-bold text-danger">{t('sponsors.error')}</Text></Pressable> : donations.length === 0 ? <Text className="text-center text-sm font-bold text-text-secondary">{t('sponsors.emptyDonations')}</Text> : donations.map((donation) => <DonationCard key={donation.id} donation={donation} />)}
         {items.length > 0 ? <Text className="mt-3 px-1 text-lg font-black text-text-primary">{t('sponsors.partners')}</Text> : null}
         {items.map((sponsor) => <SponsorCard key={sponsor.id} sponsor={sponsor} visitLabel={t('sponsors.visit')} />)}
         {sponsorsQuery.isError ? <Pressable onPress={() => void sponsorsQuery.refetch()}><Text className="text-center text-sm font-bold text-danger">{t('sponsors.error')}</Text></Pressable> : null}
