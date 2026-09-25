@@ -153,7 +153,11 @@ export async function requestUserEmailChallenge({
         await sendTransactionalEmail({
             to: normalizedEmail,
             ...content,
-            idempotencyKey: `user-email-challenge-${challenge.id}`,
+            // A database id can repeat after a restore or across local and
+            // production databases that share one Resend account. Bind the
+            // provider idempotency key to this challenge's HMAC as well, so a
+            // different recipient/code can never reuse a previous email body.
+            idempotencyKey: `user-email-challenge-${challenge.id}-${codeHash.slice(0, 24)}`,
         });
         await UserEmailChallengeModel.update(
             { consumed_at: now },
