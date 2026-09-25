@@ -1,5 +1,4 @@
 import { FontAwesome6 } from '@expo/vector-icons'
-import * as Linking from 'expo-linking'
 import { useRouter } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -19,6 +18,7 @@ import { useDeleteAccountMutation } from '@/features/auth/hooks'
 import { progressStorage } from '@/services/progressStorage'
 import { syncDailyReminder } from '@/services/studyReminder'
 import { PRIVACY_POLICY_URL, SUPPORT_URL } from '@/lib/publicLinks'
+import { openExternalLink } from '@/lib/openExternalLink'
 import { useActivityStore, type ReminderTime } from '@/stores/activityStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useStudyStore } from '@/stores/studyStore'
@@ -400,7 +400,7 @@ export function SettingsScreen() {
               <Pressable
                 accessibilityRole="link"
                 className="flex-row items-center py-1"
-                onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)}
+                onPress={() => void openExternalLink(PRIVACY_POLICY_URL)}
               >
                 <View className="h-10 w-10 items-center justify-center rounded-[13px] bg-[#edf7ff]">
                   <FontAwesome6 color="#1cb0f6" name="shield-halved" size={16} />
@@ -417,7 +417,7 @@ export function SettingsScreen() {
               <Pressable
                 accessibilityRole="link"
                 className="flex-row items-center py-1"
-                onPress={() => void Linking.openURL(SUPPORT_URL)}
+                onPress={() => void openExternalLink(SUPPORT_URL)}
               >
                 <View className="h-10 w-10 items-center justify-center rounded-[13px] bg-[#edf7ff]">
                   <FontAwesome6 color="#1cb0f6" name="circle-question" size={17} />

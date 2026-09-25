@@ -2,12 +2,12 @@ import type { Donation, DonationSocialPlatform, Sponsor } from '@duolinting/doma
 import { FontAwesome6 } from '@expo/vector-icons'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
-import * as Linking from 'expo-linking'
 import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 import { AppScrollView } from '@/components/primitives/AppScrollView'
 import { SafeScreen } from '@/components/primitives/SafeScreen'
 import { useLanguage } from '@/i18n/LanguageProvider'
 import { apiClient } from '@/lib/apiClient'
+import { openExternalLink } from '@/lib/openExternalLink'
 
 type SocialBrand = DonationSocialPlatform | 'email'
 const socialIconNames = {
@@ -39,7 +39,7 @@ function SponsorCard({ sponsor, visitLabel }: { sponsor: Sponsor; visitLabel: st
     </View>
     <Text className="mt-4 text-xl font-black text-text-primary">{sponsor.name}</Text>
     {sponsor.description ? <Text className="mt-2 text-sm font-bold leading-5 text-text-secondary">{sponsor.description}</Text> : null}
-    {sponsor.websiteUrl ? <Pressable accessibilityRole="link" className="mt-4 flex-row items-center" onPress={() => void Linking.openURL(sponsor.websiteUrl!)}>
+    {sponsor.websiteUrl ? <Pressable accessibilityRole="link" className="mt-4 flex-row items-center" onPress={() => void openExternalLink(sponsor.websiteUrl!)}>
       <Text className="text-sm font-black text-[#087caf]">{visitLabel}</Text>
       <FontAwesome6 color="#087caf" name="arrow-up-right-from-square" size={12} style={{ marginLeft: 7 }} />
     </Pressable> : null}
@@ -56,10 +56,10 @@ function DonationCard({ donation }: { donation: Donation }) {
     <View className="flex-1 flex-row items-center">
       <Text className="text-base font-black text-text-primary" numberOfLines={1} style={{ maxWidth: showLinks ? '46%' : '100%' }}>{donation.isAnonymous ? t('sponsors.anonymous') : donation.donorName}</Text>
       {showLinks ? <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1, marginLeft: 6 }} contentContainerStyle={{ alignItems: 'center', gap: 4 }}>
-        {socialLinks.map((link) => <Pressable key={link.platform} accessibilityRole="link" accessibilityLabel={t(`sponsors.social.${link.platform}`)} className="rounded-[8px] p-1" hitSlop={6} onPress={() => void Linking.openURL(link.url)}>
+        {socialLinks.map((link) => <Pressable key={link.platform} accessibilityRole="link" accessibilityLabel={t(`sponsors.social.${link.platform}`)} className="rounded-[8px] p-1" hitSlop={6} onPress={() => void openExternalLink(link.url)}>
           <SocialBrandMark platform={link.platform} />
         </Pressable>)}
-        {publicEmail ? <Pressable accessibilityRole="link" accessibilityLabel={t('sponsors.social.email')} className="rounded-[8px] p-1" hitSlop={6} onPress={() => void Linking.openURL(`mailto:${publicEmail}`)}>
+        {publicEmail ? <Pressable accessibilityRole="link" accessibilityLabel={t('sponsors.social.email')} className="rounded-[8px] p-1" hitSlop={6} onPress={() => void openExternalLink(`mailto:${publicEmail}`)}>
           <SocialBrandMark platform="email" />
         </Pressable> : null}
       </ScrollView> : null}

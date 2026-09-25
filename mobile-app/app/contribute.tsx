@@ -1,11 +1,11 @@
 import { FontAwesome6 } from '@expo/vector-icons'
-import * as Linking from 'expo-linking'
 import { useRouter } from 'expo-router'
 import { useEffect, useRef } from 'react'
-import { AccessibilityInfo, Animated, Easing, Platform, Pressable, Text, View } from 'react-native'
+import { AccessibilityInfo, Animated, Easing, Pressable, Text, View } from 'react-native'
 import { AppScrollView } from '@/components/primitives/AppScrollView'
 import { SafeScreen } from '@/components/primitives/SafeScreen'
 import { useLanguage } from '@/i18n/LanguageProvider'
+import { openExternalLink } from '@/lib/openExternalLink'
 
 const contributionEmail = process.env.EXPO_PUBLIC_CONTRIBUTION_EMAIL || 'veejaliu@outlook.com'
 const wechatId = '15352290342'
@@ -57,11 +57,7 @@ export default function ContributeScreen() {
   const openContact = () => {
     // encodeURIComponent 只编码用户界面文案，确保换行和非拉丁字符能安全进入 mailto URL。
     const mailto = `mailto:${contributionEmail}?subject=${encodeURIComponent(t('contribute.emailSubject'))}&body=${encodeURIComponent(t('contribute.emailBody'))}`
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.open(mailto, '_blank', 'noopener,noreferrer')
-      return
-    }
-    void Linking.openURL(mailto)
+    void openExternalLink(mailto)
   }
 
   return (
@@ -154,7 +150,7 @@ export default function ContributeScreen() {
             </View>
             <Pressable
               className="flex-row items-center border-b-2 border-[#edf2f7] py-4 active:bg-[#f7fbff]"
-              onPress={() => void Linking.openURL(`https://discord.com/users/${discordId}`)}
+              onPress={() => void openExternalLink(`https://discord.com/users/${discordId}`)}
             >
               <View className="h-12 w-12 items-center justify-center rounded-[15px] bg-[#5865f2]">
                 <FontAwesome6 color="#ffffff" name="discord" size={22} />
