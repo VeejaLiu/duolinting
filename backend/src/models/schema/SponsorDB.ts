@@ -34,17 +34,17 @@ const schema: ModelAttributes = {
 };
 
 export class SponsorModel extends Model<SponsorDb> implements SponsorDb {
-    public id!: number;
-    public name!: string;
-    public description!: string;
-    public logo_url!: string | null;
-    public website_url!: string | null;
-    public sort_order!: number;
-    public is_published!: boolean;
-    public starts_at!: Date | null;
-    public ends_at!: Date | null;
-    public banner_image_url!: string | null;
-    public banner_target_url!: string | null;
+    declare id: number;
+    declare name: string;
+    declare description: string;
+    declare logo_url: string | null;
+    declare website_url: string | null;
+    declare sort_order: number;
+    declare is_published: boolean;
+    declare starts_at: Date | null;
+    declare ends_at: Date | null;
+    declare banner_image_url: string | null;
+    declare banner_target_url: string | null;
 }
 
 SponsorModel.init(schema, { ...Defaultconfig, sequelize, tableName: 'sponsors' });

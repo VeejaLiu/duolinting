@@ -22,11 +22,11 @@ const schema: ModelAttributes = {
 };
 
 export class DonationReceiptModel extends Model<DonationReceiptDb> implements DonationReceiptDb {
-    public id!: number;
-    public donation_id!: number;
-    public content_type!: string;
-    public file_name!: string;
-    public file_data!: Buffer;
+    declare id: number;
+    declare donation_id: number;
+    declare content_type: string;
+    declare file_name: string;
+    declare file_data: Buffer;
 }
 
 DonationReceiptModel.init(schema, { ...Defaultconfig, sequelize, tableName: 'donation_receipts' });

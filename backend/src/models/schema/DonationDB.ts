@@ -30,15 +30,15 @@ const schema: ModelAttributes = {
 };
 
 export class DonationModel extends Model<DonationDb> implements DonationDb {
-    public id!: number;
-    public donor_name!: string | null;
-    public is_anonymous!: boolean;
-    public amount!: string;
-    public currency!: string;
-    public donation_item!: string;
-    public donated_at!: Date;
-    public reference_note!: string;
-    public is_published!: boolean;
+    declare id: number;
+    declare donor_name: string | null;
+    declare is_anonymous: boolean;
+    declare amount: string;
+    declare currency: string;
+    declare donation_item: string;
+    declare donated_at: Date;
+    declare reference_note: string;
+    declare is_published: boolean;
 }
 
 DonationModel.init(schema, { ...Defaultconfig, sequelize, tableName: 'donations' });
