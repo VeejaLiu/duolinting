@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { apiClient } from '../lib/apiClient'
 import { useLanguage } from '../i18n/LanguageProvider'
+import { useToast } from './ToastProvider'
 
 type ChangePasswordDialogProps = {
   open: boolean
@@ -12,11 +13,12 @@ type ChangePasswordDialogProps = {
 /** 修改密码弹窗：设置页账号卡片点击进入，表单与校验都在这里闭环。 */
 export function ChangePasswordDialog({ open, authToken, onClose }: ChangePasswordDialogProps) {
   const { t } = useLanguage()
+  const { showToast } = useToast()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
+  const [feedback, setFeedback] = useState<string | null>(null)
 
   // 关闭时重置表单，避免上一次的输入和结果残留到下次打开
   const handleClose = () => {
@@ -44,15 +46,15 @@ export function ChangePasswordDialog({ open, authToken, onClose }: ChangePasswor
     if (submitting) return
 
     if (!currentPassword) {
-      setFeedback({ kind: 'error', text: t('settings.currentRequired') })
+      setFeedback(t('settings.currentRequired'))
       return
     }
     if (newPassword.length < 8) {
-      setFeedback({ kind: 'error', text: t('settings.newMinLength') })
+      setFeedback(t('settings.newMinLength'))
       return
     }
     if (newPassword !== confirmPassword) {
-      setFeedback({ kind: 'error', text: t('settings.notMatched') })
+      setFeedback(t('settings.notMatched'))
       return
     }
 
@@ -61,14 +63,13 @@ export function ChangePasswordDialog({ open, authToken, onClose }: ChangePasswor
     try {
       // changePassword 成功时直接返回 AuthResponse，失败抛 ApiClientError
       await apiClient.changePassword({ currentPassword, newPassword }, authToken)
-      setFeedback({ kind: 'success', text: t('settings.changeSuccess') })
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
+      showToast({ title: t('auth.toastSuccessTitle'), message: t('settings.changeSuccess'), tone: 'success' })
+      handleClose()
     } catch (error) {
-      setFeedback({
-        kind: 'error',
-        text: error instanceof Error && error.message ? error.message : t('settings.changeFailed'),
+      showToast({
+        title: t('auth.toastErrorTitle'),
+        message: error instanceof Error && error.message ? error.message : t('settings.changeFailed'),
+        tone: 'error',
       })
     } finally {
       setSubmitting(false)
@@ -135,7 +136,7 @@ export function ChangePasswordDialog({ open, authToken, onClose }: ChangePasswor
             {submitting ? t('settings.submitting') : t('settings.submit')}
           </button>
           {feedback ? (
-            <p className={`settings-message ${feedback.kind}`}>{feedback.text}</p>
+            <p className="settings-message error">{feedback}</p>
           ) : null}
         </form>
       </section>

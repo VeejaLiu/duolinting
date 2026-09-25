@@ -75,7 +75,6 @@ export function SettingsPage() {
         onOpenAccount={() => setAccountDialogOpen(true)}
       />
       <AuthDialog
-        accountStatus={authUser ? t('account.loggedIn') : t('account.loggedOut')}
         onAuthenticated={handleAuthenticated}
         onClose={() => setAccountDialogOpen(false)}
         onLogout={handleLogout}

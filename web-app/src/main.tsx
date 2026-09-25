@@ -4,13 +4,16 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { LanguageProvider } from './i18n/LanguageProvider.tsx'
+import { ToastProvider } from './components/ToastProvider.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LanguageProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <ToastProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </ToastProvider>
     </LanguageProvider>
   </StrictMode>,
 )

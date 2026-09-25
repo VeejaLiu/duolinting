@@ -3,11 +3,11 @@ import { useEffect, useState } from 'react'
 import type { AuthResponse, AuthUser } from '@duolinting/shared'
 import { apiClient } from '../lib/apiClient'
 import { useLanguage } from '../i18n/LanguageProvider'
+import { useToast } from './ToastProvider'
 
 type AuthDialogProps = {
   open: boolean
   user: AuthUser | null
-  accountStatus: string
   onClose: () => void
   onAuthenticated: (response: AuthResponse) => void
   onLogout: () => void
@@ -18,12 +18,12 @@ type AuthMode = 'login' | 'register' | 'forgot'
 export function AuthDialog({
   open,
   user,
-  accountStatus,
   onClose,
   onAuthenticated,
   onLogout,
 }: AuthDialogProps) {
   const { t, uiLocale } = useLanguage()
+  const { showToast } = useToast()
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
@@ -32,7 +32,10 @@ export function AuthDialog({
   const [mode, setMode] = useState<AuthMode>('login')
   const [isBusy, setIsBusy] = useState(false)
   const [isSendingCode, setIsSendingCode] = useState(false)
-  const [message, setMessage] = useState('')
+  const [resendSeconds, setResendSeconds] = useState(0)
+  const [codeExpiresSeconds, setCodeExpiresSeconds] = useState(0)
+  const [hourlyLimit, setHourlyLimit] = useState(6)
+  const countdownActive = resendSeconds > 0 || codeExpiresSeconds > 0
   const [errors, setErrors] = useState<{
     email?: string
     displayName?: string
@@ -75,6 +78,8 @@ export function AuthDialog({
       EMAIL_CODE_EXPIRED: 'auth.codeExpired',
       EMAIL_CODE_LOCKED: 'auth.codeLocked',
       EMAIL_SERVICE_UNAVAILABLE: 'auth.emailServiceUnavailable',
+      RATE_LIMITED: 'auth.codeRateLimited',
+      INVALID_CREDENTIALS: 'auth.invalidCredentials',
     }
     return code && keyByCode[code]
       ? t(keyByCode[code])
@@ -125,16 +130,26 @@ export function AuthDialog({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose, open])
 
+  useEffect(() => {
+    if (!countdownActive) return
+    const timer = window.setInterval(() => {
+      setResendSeconds((current) => Math.max(0, current - 1))
+      setCodeExpiresSeconds((current) => Math.max(0, current - 1))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [countdownActive])
+
   if (!open) {
     return null
   }
 
   const selectMode = (nextMode: AuthMode) => {
     setMode(nextMode)
-    setMessage('')
     setErrors({})
     setVerificationCode('')
     setVerificationRequired(true)
+    setResendSeconds(0)
+    setCodeExpiresSeconds(0)
     if (nextMode === 'forgot') setPassword('')
   }
 
@@ -146,7 +161,6 @@ export function AuthDialog({
     }
 
     setIsSendingCode(true)
-    setMessage('')
     try {
       const result = await apiClient.requestEmailCode({
         email: email.trim().toLowerCase(),
@@ -154,15 +168,25 @@ export function AuthDialog({
         uiLocale,
       })
       setVerificationRequired(result.verificationRequired)
-      setMessage(
-        result.delivery === 'disabled'
-          ? t('auth.codeNotRequired')
-          : result.delivery === 'cooldown'
-            ? t('auth.codeCooldown', { seconds: result.retryAfterSeconds ?? 60 })
-            : t('auth.codeSent'),
-      )
+      setResendSeconds(result.retryAfterSeconds ?? 0)
+      setCodeExpiresSeconds(result.expiresInSeconds)
+      setHourlyLimit(result.hourlyLimit ?? 6)
+      const message = result.delivery === 'disabled'
+        ? t('auth.codeNotRequired')
+        : result.delivery === 'cooldown'
+          ? t('auth.codeCooldown', { seconds: result.retryAfterSeconds ?? 60 })
+          : t('auth.codeSent')
+      showToast({
+        title: t(result.delivery === 'sent' ? 'auth.toastSentTitle' : 'auth.toastNoticeTitle'),
+        message,
+        tone: result.delivery === 'sent' ? 'success' : 'info',
+      })
     } catch (error) {
-      setMessage(localizedAuthError(error, 'auth.codeSendFailed'))
+      showToast({
+        title: t('auth.toastErrorTitle'),
+        message: localizedAuthError(error, 'auth.codeSendFailed'),
+        tone: 'error',
+      })
     } finally {
       setIsSendingCode(false)
     }
@@ -174,7 +198,6 @@ export function AuthDialog({
     }
 
     setIsBusy(true)
-    setMessage('')
 
     try {
       if (mode === 'forgot') {
@@ -186,7 +209,9 @@ export function AuthDialog({
         setPassword('')
         setVerificationCode('')
         setMode('login')
-        setMessage(t('auth.passwordResetComplete'))
+        setResendSeconds(0)
+        setCodeExpiresSeconds(0)
+        showToast({ title: t('auth.toastSuccessTitle'), message: t('auth.passwordResetComplete'), tone: 'success' })
         return
       }
 
@@ -199,9 +224,17 @@ export function AuthDialog({
             ...(verificationRequired ? { verificationCode } : {}),
           })
       onAuthenticated(response)
-      setMessage(mode === 'login' ? t('auth.loggedIn') : t('auth.accountCreated'))
+      showToast({
+        title: t('auth.toastSuccessTitle'),
+        message: mode === 'login' ? t('auth.loggedIn') : t('auth.accountCreated'),
+        tone: 'success',
+      })
     } catch (error) {
-      setMessage(localizedAuthError(error, 'auth.actionFailed'))
+      showToast({
+        title: t('auth.toastErrorTitle'),
+        message: localizedAuthError(error, 'auth.actionFailed'),
+        tone: 'error',
+      })
     } finally {
       setIsBusy(false)
     }
@@ -234,7 +267,7 @@ export function AuthDialog({
                 ? t('auth.resetPasswordTitle')
                 : t('auth.loginToSave')}
           </h2>
-          <span>{message || accountStatus}</span>
+          <span>{t('auth.secureHint')}</span>
         </div>
 
         {user ? (
@@ -317,11 +350,23 @@ export function AuthDialog({
                       setErrors((current) => ({ ...current, verificationCode: '' }))
                     }}
                   />
-                  <button disabled={isSendingCode} onClick={() => void requestCode()} type="button">
+                  <button disabled={isSendingCode || resendSeconds > 0} onClick={() => void requestCode()} type="button">
                     <Mail size={16} aria-hidden="true" />
-                    {isSendingCode ? t('auth.sendingCode') : t('auth.sendCode')}
+                    {isSendingCode
+                      ? t('auth.sendingCode')
+                      : resendSeconds > 0
+                        ? t('auth.resendIn', { seconds: resendSeconds })
+                        : t('auth.sendCode')}
                   </button>
                 </div>
+                <span className="auth-code-meta">
+                  {codeExpiresSeconds > 0
+                    ? t('auth.codeExpiresIn', {
+                        minutes: String(Math.floor(codeExpiresSeconds / 60)).padStart(2, '0'),
+                        seconds: String(codeExpiresSeconds % 60).padStart(2, '0'),
+                      })
+                    : t('auth.codeValidity', { minutes: 10, count: hourlyLimit })}
+                </span>
                 {errors.verificationCode && <span className="field-error">{errors.verificationCode}</span>}
               </label>
             )}
@@ -351,7 +396,10 @@ export function AuthDialog({
 
         <div className="dialog-actions">
           {user ? (
-            <button className="danger-command" onClick={onLogout} type="button">
+            <button className="danger-command" onClick={() => {
+              onLogout()
+              showToast({ title: t('auth.toastNoticeTitle'), message: t('auth.loggedOutToast'), tone: 'info' })
+            }} type="button">
               <LogOut size={17} aria-hidden="true" />
               {t('auth.logout')}
             </button>

@@ -13,6 +13,7 @@ import {
 } from '../../general/user/user-service';
 import {
     EmailChallengeError,
+    EMAIL_CODE_HOURLY_LIMIT,
     requestUserEmailChallenge,
 } from '../../general/user/user-email-challenge-service';
 import { inferAuthClientTypeFromRequest } from '../../general/user/user-session-service';
@@ -35,7 +36,7 @@ const registrationRateLimit = createRateLimit({
 const emailCodeRateLimit = createRateLimit({
     namespace: 'learner-email-code',
     windowMs: 60 * 60 * 1000,
-    maxAttempts: 6,
+    maxAttempts: EMAIL_CODE_HOURLY_LIMIT,
     keys: authenticationRateLimitKeys('email'),
     // A successful send still consumes quota; otherwise attackers could issue
     // unlimited paid email requests because the generic auth limiter resets.

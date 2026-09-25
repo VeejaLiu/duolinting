@@ -41,7 +41,7 @@ if (!['minio', 'cos', 'r2'].includes(mediaStorageProvider)) {
 
 // 媒体 CDN 地址可以带一个固定路径前缀（例如 https://learner.example.com/media）。
 // 只接受无凭据、无 query/hash 的 HTTP(S) URL，避免把错误的 URL 配置写进课程响应。
-const normalizeOptionalPublicUrl = (value: string) => {
+const normalizeOptionalPublicUrl = (value: string, key: string) => {
     const trimmed = value.trim();
     if (!trimmed) {
         return '';
@@ -56,7 +56,7 @@ const normalizeOptionalPublicUrl = (value: string) => {
         parsed.hash
     ) {
         throw new Error(
-            'MEDIA_PUBLIC_BASE_URL must be a plain HTTP(S) URL without credentials, query, or hash.',
+            `${key} must be a plain HTTP(S) URL without credentials, query, or hash.`,
         );
     }
 
@@ -65,6 +65,11 @@ const normalizeOptionalPublicUrl = (value: string) => {
 
 const mediaPublicBaseUrl = normalizeOptionalPublicUrl(
     optional('MEDIA_PUBLIC_BASE_URL', ''),
+    'MEDIA_PUBLIC_BASE_URL',
+);
+const emailPublicSiteUrl = normalizeOptionalPublicUrl(
+    optional('EMAIL_PUBLIC_SITE_URL', 'https://www.duolinting.cn'),
+    'EMAIL_PUBLIC_SITE_URL',
 );
 const mediaRequireAuth = toBool(optional('MEDIA_REQUIRE_AUTH', 'false'));
 const mediaAuthMode = optional(
@@ -241,6 +246,7 @@ export const env = {
         FROM_EMAIL: getOsEnvOptional('RESEND_FROM_EMAIL') ?? '',
         FROM_NAME: optional('RESEND_FROM_NAME', 'DuolinTing'),
         REPLY_TO: getOsEnvOptional('RESEND_REPLY_TO') ?? '',
+        PUBLIC_SITE_URL: emailPublicSiteUrl,
     },
     localUploadTesting: {
         // 以 KB/s 配置而不是 bytes，便于手动调节；生产环境始终强制为 0。

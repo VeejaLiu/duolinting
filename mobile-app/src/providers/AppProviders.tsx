@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { LanguageProvider } from '@/i18n/LanguageProvider'
+import { ToastProvider } from './ToastProvider'
 
 // 目录与章节查询键分别包含 uiLocale / contentLocale。换 key 避免旧版
 // 的单语言缓存在升级后被当作当前语言数据复用；学习进度和认证存储不受影响。
@@ -80,8 +81,10 @@ export function AppProviders({ children }: PropsWithChildren) {
           persistOptions={{ persister: queryPersister, buster: 'current-course-v2', dehydrateOptions: { shouldDehydrateQuery: (query) => query.state.status === 'success' } }}
         >
           <LanguageProvider>
-            <StatusBar style="dark" />
-            {children}
+            <ToastProvider>
+              <StatusBar style="dark" />
+              {children}
+            </ToastProvider>
           </LanguageProvider>
         </PersistQueryClientProvider>
       </SafeAreaProvider>

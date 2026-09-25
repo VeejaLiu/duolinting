@@ -159,13 +159,13 @@ export async function loginUser({
 }): Promise<AuthResult> {
     const userRecord = await findUserByEmail(email);
     if (!userRecord) {
-        return { success: false, message: 'Invalid email or password' };
+        return { success: false, message: 'Invalid email or password', code: 'INVALID_CREDENTIALS' };
     }
 
     const passwordHash = plainUser(userRecord).password_hash;
     const matched = passwordHash ? await bcrypt.compare(password, passwordHash) : false;
     if (!matched) {
-        return { success: false, message: 'Invalid email or password' };
+        return { success: false, message: 'Invalid email or password', code: 'INVALID_CREDENTIALS' };
     }
 
     const user = mapUser(userRecord);

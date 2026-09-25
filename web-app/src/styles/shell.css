@@ -10,23 +10,6 @@
   overflow: hidden;
 }
 
-.global-toast {
-  background: #172033;
-  border: 2px solid rgba(255, 255, 255, 0.24);
-  border-radius: 999px;
-  box-shadow: 0 14px 34px rgba(23, 32, 51, 0.18);
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 900;
-  left: 50%;
-  min-height: 38px;
-  padding: 8px 16px;
-  position: fixed;
-  top: 88px;
-  transform: translateX(-50%);
-  z-index: 30;
-}
-
 .topbar {
   align-items: center;
   background: rgba(255, 255, 255, 0.92);

@@ -70,7 +70,6 @@ function LearnerAppShell() {
   const mediaRef = useRef<HTMLMediaElement | null>(null)
   const loopingLineIdRef = useRef('')
   const {
-    accountStatus,
     authLoading,
     authToken,
     authUser,
@@ -549,7 +548,6 @@ function LearnerAppShell() {
         <AuthDialog
           open={accountDialogOpen}
           user={authUser}
-        accountStatus={accountStatus}
         onClose={() => setAccountDialogOpen(false)}
         onAuthenticated={handleAuthenticated}
         onLogout={handleLogout}

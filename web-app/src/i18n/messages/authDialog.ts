@@ -52,6 +52,18 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.codeExpired': '验证码已过期，请重新发送',
     'auth.codeLocked': '验证码错误次数过多，请重新发送',
     'auth.emailServiceUnavailable': '邮箱服务暂时不可用，请稍后重试',
+    'auth.secureHint': '安全验证与学习记录同步都在这里完成',
+    'auth.resendIn': '{{seconds}} 秒后重发',
+    'auth.codeExpiresIn': '验证码有效期还剩 {{minutes}}:{{seconds}}',
+    'auth.codeValidity': '验证码 {{minutes}} 分钟内有效；同一邮箱和 IP 每小时最多发送 {{count}} 次',
+    'auth.codeRateLimited': '发送次数已达到每小时上限，请稍后再试',
+    'auth.toastSentTitle': '邮件飞出去啦',
+    'auth.toastNoticeTitle': '温馨提示',
+    'auth.toastSuccessTitle': '完成啦',
+    'auth.toastErrorTitle': '没有完成',
+    'auth.loggedOutToast': '已安全退出当前账号',
+    'auth.invalidCredentials': '邮箱或密码不正确，请重新检查',
+    'toast.dismiss': '关闭提示',
   },
   'en-US': {
     'auth.accountCenter': 'Account',
@@ -102,6 +114,18 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.codeExpired': 'That code has expired. Send a new one.',
     'auth.codeLocked': 'Too many incorrect attempts. Send a new code.',
     'auth.emailServiceUnavailable': 'Email service is temporarily unavailable. Try again later.',
+    'auth.secureHint': 'Secure verification and learning sync happen here',
+    'auth.resendIn': 'Resend in {{seconds}}s',
+    'auth.codeExpiresIn': 'Code expires in {{minutes}}:{{seconds}}',
+    'auth.codeValidity': 'Codes last {{minutes}} minutes; up to {{count}} sends per email and IP each hour',
+    'auth.codeRateLimited': 'You have reached the hourly send limit. Try again later.',
+    'auth.toastSentTitle': 'Email on its way',
+    'auth.toastNoticeTitle': 'A quick note',
+    'auth.toastSuccessTitle': 'All set',
+    'auth.toastErrorTitle': 'That did not work',
+    'auth.loggedOutToast': 'You have safely logged out',
+    'auth.invalidCredentials': 'The email or password is incorrect. Check them and try again.',
+    'toast.dismiss': 'Dismiss notification',
   },
   'th-TH': {
     'auth.accountCenter': 'บัญชี',
@@ -152,6 +176,18 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.codeExpired': 'รหัสหมดอายุแล้ว โปรดส่งรหัสใหม่',
     'auth.codeLocked': 'กรอกรหัสผิดหลายครั้งเกินไป โปรดส่งรหัสใหม่',
     'auth.emailServiceUnavailable': 'บริการอีเมลไม่พร้อมใช้งานชั่วคราว โปรดลองภายหลัง',
+    'auth.secureHint': 'ยืนยันตัวตนอย่างปลอดภัยและซิงค์การเรียนรู้ได้ที่นี่',
+    'auth.resendIn': 'ส่งใหม่ใน {{seconds}} วินาที',
+    'auth.codeExpiresIn': 'รหัสหมดอายุใน {{minutes}}:{{seconds}}',
+    'auth.codeValidity': 'รหัสมีอายุ {{minutes}} นาที ส่งได้สูงสุด {{count}} ครั้งต่ออีเมลและ IP ต่อชั่วโมง',
+    'auth.codeRateLimited': 'ส่งถึงขีดจำกัดรายชั่วโมงแล้ว โปรดลองภายหลัง',
+    'auth.toastSentTitle': 'ส่งอีเมลแล้ว',
+    'auth.toastNoticeTitle': 'แจ้งให้ทราบ',
+    'auth.toastSuccessTitle': 'เรียบร้อยแล้ว',
+    'auth.toastErrorTitle': 'ยังไม่สำเร็จ',
+    'auth.loggedOutToast': 'ออกจากระบบอย่างปลอดภัยแล้ว',
+    'auth.invalidCredentials': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง โปรดตรวจสอบแล้วลองใหม่',
+    'toast.dismiss': 'ปิดการแจ้งเตือน',
   },
   'ja-JP': {
     'auth.accountCenter': 'アカウント',
@@ -202,6 +238,18 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.codeExpired': 'コードの有効期限が切れました。新しいコードを送信してください。',
     'auth.codeLocked': '入力回数が上限に達しました。新しいコードを送信してください。',
     'auth.emailServiceUnavailable': 'メールサービスを一時的に利用できません。後でもう一度お試しください。',
+    'auth.secureHint': '安全な認証と学習記録の同期をここで行います',
+    'auth.resendIn': '{{seconds}}秒後に再送',
+    'auth.codeExpiresIn': 'コードの有効期限まで {{minutes}}:{{seconds}}',
+    'auth.codeValidity': 'コードは{{minutes}}分間有効です。メールとIPごとに1時間{{count}}回まで送信できます',
+    'auth.codeRateLimited': '1時間あたりの送信上限に達しました。後でもう一度お試しください。',
+    'auth.toastSentTitle': 'メールを送信しました',
+    'auth.toastNoticeTitle': 'お知らせ',
+    'auth.toastSuccessTitle': '完了しました',
+    'auth.toastErrorTitle': '完了できませんでした',
+    'auth.loggedOutToast': '安全にログアウトしました',
+    'auth.invalidCredentials': 'メールアドレスまたはパスワードが正しくありません。',
+    'toast.dismiss': '通知を閉じる',
   },
   "fr-FR": {
     "auth.accountCenter": "Compte",
@@ -252,6 +300,18 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     ,"auth.codeExpired": "Ce code a expiré. Envoyez-en un nouveau."
     ,"auth.codeLocked": "Trop de tentatives incorrectes. Envoyez un nouveau code."
     ,"auth.emailServiceUnavailable": "Le service de messagerie est temporairement indisponible. Réessayez plus tard."
+    ,"auth.secureHint": "La vérification sécurisée et la synchronisation se font ici."
+    ,"auth.resendIn": "Renvoyer dans {{seconds}} s"
+    ,"auth.codeExpiresIn": "Le code expire dans {{minutes}}:{{seconds}}"
+    ,"auth.codeValidity": "Le code reste valable {{minutes}} minutes, avec {{count}} envois maximum par e-mail et IP chaque heure."
+    ,"auth.codeRateLimited": "La limite horaire d’envoi est atteinte. Réessayez plus tard."
+    ,"auth.toastSentTitle": "E-mail envoyé"
+    ,"auth.toastNoticeTitle": "À savoir"
+    ,"auth.toastSuccessTitle": "C’est fait"
+    ,"auth.toastErrorTitle": "L’action a échoué"
+    ,"auth.loggedOutToast": "Vous êtes déconnecté en toute sécurité."
+    ,"auth.invalidCredentials": "L’adresse e-mail ou le mot de passe est incorrect."
+    ,"toast.dismiss": "Fermer la notification"
 },
   "es-ES": {
     "auth.accountCenter": "Cuenta",
@@ -302,5 +362,17 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     ,"auth.codeExpired": "El código ha caducado. Envía uno nuevo."
     ,"auth.codeLocked": "Demasiados intentos incorrectos. Envía un código nuevo."
     ,"auth.emailServiceUnavailable": "El servicio de correo no está disponible temporalmente. Inténtalo más tarde."
+    ,"auth.secureHint": "Aquí realizamos la verificación segura y la sincronización."
+    ,"auth.resendIn": "Reenviar en {{seconds}} s"
+    ,"auth.codeExpiresIn": "El código caduca en {{minutes}}:{{seconds}}"
+    ,"auth.codeValidity": "El código dura {{minutes}} minutos; máximo {{count}} envíos por correo e IP cada hora."
+    ,"auth.codeRateLimited": "Has alcanzado el límite horario de envíos. Inténtalo más tarde."
+    ,"auth.toastSentTitle": "Correo enviado"
+    ,"auth.toastNoticeTitle": "Aviso rápido"
+    ,"auth.toastSuccessTitle": "Todo listo"
+    ,"auth.toastErrorTitle": "No se pudo completar"
+    ,"auth.loggedOutToast": "Has cerrado sesión de forma segura."
+    ,"auth.invalidCredentials": "El correo o la contraseña no son correctos."
+    ,"toast.dismiss": "Cerrar notificación"
 },
 }

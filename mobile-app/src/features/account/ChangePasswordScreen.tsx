@@ -7,6 +7,7 @@ import { AppScrollView } from '@/components/primitives/AppScrollView'
 import { SafeScreen } from '@/components/primitives/SafeScreen'
 import { useChangePasswordMutation } from '@/features/auth/hooks'
 import { useLanguage } from '@/i18n/LanguageProvider'
+import { useToast } from '@/providers/ToastProvider'
 
 function PasswordField({
   autoComplete,
@@ -64,7 +65,7 @@ export function ChangePasswordScreen() {
   const [confirmedPassword, setConfirmedPassword] = useState('')
   const [formError, setFormError] = useState('')
   const { t } = useLanguage()
-  const requestError = changePasswordMutation.error ? t('password.changeFailed') : ''
+  const { showToast } = useToast()
 
   const submit = async () => {
     if (!currentPassword) {
@@ -83,13 +84,14 @@ export function ChangePasswordScreen() {
     setFormError('')
     try {
       await changePasswordMutation.mutateAsync({ currentPassword, newPassword })
+      showToast({ title: t('auth.toastSuccessTitle'), message: t('password.changeSuccess'), tone: 'success' })
       if (router.canGoBack()) {
         router.back()
       } else {
         router.replace('/settings')
       }
     } catch {
-      // 错误文案由 requestError 在表单内显示，保留输入便于用户修正。
+      showToast({ title: t('auth.toastErrorTitle'), message: t('password.changeFailed'), tone: 'error' })
     }
   }
 
@@ -153,10 +155,10 @@ export function ChangePasswordScreen() {
               value={confirmedPassword}
             />
 
-            {formError || requestError ? (
+            {formError ? (
               <View className="mt-4 rounded-[14px] border-2 border-[#ffb59f] bg-[#fff0eb] px-3 py-2">
                 <Text className="text-sm font-black text-[#c2410c]">
-                  {formError || requestError}
+                  {formError}
                 </Text>
               </View>
             ) : null}

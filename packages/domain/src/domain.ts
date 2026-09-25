@@ -607,6 +607,8 @@ export type RequestEmailCodeResponse = {
   delivery: 'sent' | 'cooldown' | 'disabled'
   expiresInSeconds: number
   retryAfterSeconds?: number
+  /** Maximum successful send attempts per IP and per normalized email each hour. */
+  hourlyLimit: number
 }
 
 export type ResetPasswordRequest = {

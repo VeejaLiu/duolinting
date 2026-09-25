@@ -42,7 +42,11 @@ export const createRateLimit = ({ namespace, windowMs, maxAttempts, keys, resetO
 
         if (blockedUntil > now) {
             res.setHeader('Retry-After', String(Math.max(1, Math.ceil((blockedUntil - now) / 1000))));
-            return res.status(429).send({ success: false, message: 'Too many attempts. Please try again later.' });
+            return res.status(429).send({
+                success: false,
+                message: 'Too many attempts. Please try again later.',
+                code: 'RATE_LIMITED',
+            });
         }
 
         // 成功的登录或注册不是攻击尝试：请求成功后清空本次来源和账号桶，

@@ -26,6 +26,7 @@ import {
 import { useNavigationStore } from '@/stores/navigationStore'
 import { useLanguage } from '@/i18n/LanguageProvider'
 import { UI_LOCALES, uiLocaleFlags, uiLocaleLabels } from '@/i18n/locale'
+import { useToast } from '@/providers/ToastProvider'
 
 type AuthMode = 'login' | 'register' | 'forgot'
 
@@ -55,24 +56,21 @@ export function LoginScreen() {
   const [password, setPassword] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
   const [verificationRequired, setVerificationRequired] = useState(true)
+  const [resendSeconds, setResendSeconds] = useState(0)
+  const [codeExpiresSeconds, setCodeExpiresSeconds] = useState(0)
+  const [hourlyLimit, setHourlyLimit] = useState(6)
+  const countdownActive = resendSeconds > 0 || codeExpiresSeconds > 0
   const [showPassword, setShowPassword] = useState(false)
   const [formError, setFormError] = useState('')
-  const [formNotice, setFormNotice] = useState('')
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false)
   const { setUiLocale, t, uiLocale } = useLanguage()
+  const { showToast } = useToast()
   const activeMutation = mode === 'login'
     ? loginMutation
     : mode === 'register'
       ? registerMutation
       : resetPasswordMutation
-  const submitError = activeMutation.error
-    ? mode === 'login'
-      ? t('auth.loginFailed')
-      : mode === 'register'
-        ? t('auth.registerFailed')
-        : t('auth.resetFailed')
-    : ''
-  const visibleError = formError || submitError
+  const visibleError = formError
   const switcherInnerWidth = Math.max(switcherWidth - 12, 0)
   const switcherThumbWidth = switcherInnerWidth / 2
   // Android 区分新账号用户名与已有账号用户名；其他平台用通用 username。
@@ -101,6 +99,15 @@ export function LoginScreen() {
       useNativeDriver: false,
     }).start()
   }, [formBodyOpacity, mode])
+
+  useEffect(() => {
+    if (!countdownActive) return
+    const timer = setInterval(() => {
+      setResendSeconds((current) => Math.max(0, current - 1))
+      setCodeExpiresSeconds((current) => Math.max(0, current - 1))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [countdownActive])
 
   const updateFormBodyHeight = (event: LayoutChangeEvent) => {
     const nextHeight = event.nativeEvent.layout.height
@@ -147,9 +154,10 @@ export function LoginScreen() {
       if (!finished || transitionSequence !== formTransitionSequence.current) return
 
       setFormError('')
-      setFormNotice('')
       setVerificationCode('')
       setVerificationRequired(true)
+      setResendSeconds(0)
+      setCodeExpiresSeconds(0)
       if (nextMode === 'forgot') setPassword('')
       revealFormAfterModeChange.current = true
       setMode(nextMode)
@@ -164,7 +172,6 @@ export function LoginScreen() {
     }
 
     setFormError('')
-    setFormNotice('')
     try {
       const result = await requestEmailCodeMutation.mutateAsync({
         email: normalizedEmail,
@@ -172,15 +179,28 @@ export function LoginScreen() {
         uiLocale,
       })
       setVerificationRequired(result.verificationRequired)
-      setFormNotice(
-        result.delivery === 'disabled'
-          ? t('auth.codeNotRequired')
-          : result.delivery === 'cooldown'
-            ? t('auth.codeCooldown', { seconds: result.retryAfterSeconds ?? 60 })
-            : t('auth.codeSent'),
-      )
-    } catch {
-      setFormError(t('auth.codeSendFailed'))
+      setResendSeconds(result.retryAfterSeconds ?? 0)
+      setCodeExpiresSeconds(result.expiresInSeconds)
+      setHourlyLimit(result.hourlyLimit ?? 6)
+      const message = result.delivery === 'disabled'
+        ? t('auth.codeNotRequired')
+        : result.delivery === 'cooldown'
+          ? t('auth.codeCooldown', { seconds: result.retryAfterSeconds ?? 60 })
+          : t('auth.codeSent')
+      showToast({
+        title: t(result.delivery === 'sent' ? 'auth.toastSentTitle' : 'auth.toastNoticeTitle'),
+        message,
+        tone: result.delivery === 'sent' ? 'success' : 'info',
+      })
+    } catch (error) {
+      const code = typeof error === 'object' && error && 'code' in error
+        ? String((error as { code?: unknown }).code ?? '')
+        : ''
+      showToast({
+        title: t('auth.toastErrorTitle'),
+        message: code === 'RATE_LIMITED' ? t('auth.codeRateLimited') : t('auth.codeSendFailed'),
+        tone: 'error',
+      })
     }
   }
 
@@ -257,7 +277,6 @@ export function LoginScreen() {
     }
 
     setFormError('')
-    setFormNotice('')
 
     try {
       if (mode === 'login') {
@@ -286,12 +305,26 @@ export function LoginScreen() {
         setPassword('')
         setVerificationCode('')
         setMode('login')
-        setFormNotice(t('auth.passwordResetComplete'))
+        setResendSeconds(0)
+        setCodeExpiresSeconds(0)
+        showToast({ title: t('auth.toastSuccessTitle'), message: t('auth.passwordResetComplete'), tone: 'success' })
         return
       }
     } catch {
+      const message = mode === 'login'
+        ? t('auth.loginFailed')
+        : mode === 'register'
+          ? t('auth.registerFailed')
+          : t('auth.resetFailed')
+      showToast({ title: t('auth.toastErrorTitle'), message, tone: 'error' })
       return
     }
+
+    showToast({
+      title: t('auth.toastSuccessTitle'),
+      message: mode === 'login' ? t('auth.loggedIn') : t('auth.accountCreated'),
+      tone: 'success',
+    })
 
     const nextPath = pendingPath ?? '/(tabs)'
     router.replace(nextPath as '/(tabs)')
@@ -458,15 +491,27 @@ export function LoginScreen() {
                         className={`min-h-[50px] flex-row items-center rounded-[16px] border-2 border-[#cfe7f7] bg-[#edf7ff] px-3 active:border-[#1cb0f6] active:scale-95 ${
                           isNarrowLoginViewport ? 'w-full justify-center' : 'shrink-0'
                         }`}
-                        disabled={requestEmailCodeMutation.isPending}
+                        disabled={requestEmailCodeMutation.isPending || resendSeconds > 0}
                         onPress={() => void requestCode()}
                       >
                         <FontAwesome6 color="#1cb0f6" name="envelope" size={14} />
                         <Text className="ml-2 text-sm font-black text-[#1688bd]">
-                          {requestEmailCodeMutation.isPending ? t('auth.sendingCode') : t('auth.sendCode')}
+                          {requestEmailCodeMutation.isPending
+                            ? t('auth.sendingCode')
+                            : resendSeconds > 0
+                              ? t('auth.resendIn', { seconds: resendSeconds })
+                              : t('auth.sendCode')}
                         </Text>
                       </Pressable>
                     </View>
+                    <Text className="mt-2 text-xs font-bold leading-4 text-text-secondary">
+                      {codeExpiresSeconds > 0
+                        ? t('auth.codeExpiresIn', {
+                            minutes: String(Math.floor(codeExpiresSeconds / 60)).padStart(2, '0'),
+                            seconds: String(codeExpiresSeconds % 60).padStart(2, '0'),
+                          })
+                        : t('auth.codeValidity', { minutes: 10, count: hourlyLimit })}
+                    </Text>
                   </View>
                 ) : null}
 
@@ -538,10 +583,6 @@ export function LoginScreen() {
                       <Text className="text-sm font-black text-[#c2410c]">
                         {visibleError}
                       </Text>
-                    </View>
-                  ) : formNotice ? (
-                    <View className="rounded-[14px] border-2 border-[#bfe5ff] bg-[#edf8ff] px-3 py-2">
-                      <Text className="text-sm font-black text-[#1688bd]">{formNotice}</Text>
                     </View>
                   ) : null}
                 </View>

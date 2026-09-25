@@ -1,0 +1,134 @@
+.toast-viewport {
+  align-items: center;
+  display: flex;
+  inset: 18px 18px auto;
+  justify-content: center;
+  pointer-events: none;
+  position: fixed;
+  z-index: 100;
+}
+
+.app-toast {
+  --toast-accent: #1cb0f6;
+  --toast-soft: #eaf7ff;
+  align-items: center;
+  animation: toast-pop-in 240ms cubic-bezier(0.2, 0.9, 0.24, 1.2) both;
+  background: rgba(255, 255, 255, 0.97);
+  border: 2px solid color-mix(in srgb, var(--toast-accent) 45%, white);
+  border-radius: 20px;
+  box-shadow: 0 10px 0 color-mix(in srgb, var(--toast-accent) 14%, transparent),
+    0 22px 45px rgba(23, 32, 51, 0.2);
+  color: #172033;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  max-width: min(460px, calc(100vw - 28px));
+  min-height: 68px;
+  overflow: hidden;
+  padding: 12px 12px 13px;
+  pointer-events: auto;
+  position: relative;
+  width: max-content;
+}
+
+.app-toast-success {
+  --toast-accent: #58cc02;
+  --toast-soft: #effbe7;
+}
+
+.app-toast-error {
+  --toast-accent: #ff7043;
+  --toast-soft: #fff0eb;
+}
+
+.app-toast-warning {
+  --toast-accent: #ffb020;
+  --toast-soft: #fff7df;
+}
+
+.app-toast-icon {
+  align-items: center;
+  background: var(--toast-soft);
+  border: 2px solid color-mix(in srgb, var(--toast-accent) 40%, white);
+  border-radius: 15px;
+  color: var(--toast-accent);
+  display: flex;
+  height: 42px;
+  justify-content: center;
+  transform: rotate(-3deg);
+  width: 42px;
+}
+
+.app-toast-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.app-toast-copy strong {
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.app-toast-copy span {
+  color: #52637a;
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.app-toast > button {
+  align-items: center;
+  background: #f5f9fc;
+  border: 0;
+  border-radius: 11px;
+  color: #718096;
+  cursor: pointer;
+  display: flex;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+
+.app-toast > button:hover {
+  box-shadow: inset 0 0 0 2px #1cb0f6;
+}
+
+.app-toast-progress {
+  animation: toast-progress var(--toast-duration) linear forwards;
+  background: var(--toast-accent);
+  bottom: 0;
+  height: 4px;
+  left: 0;
+  position: absolute;
+  transform-origin: left;
+  width: 100%;
+}
+
+@keyframes toast-pop-in {
+  from { opacity: 0; transform: translateY(-18px) scale(0.94) rotate(-1deg); }
+  to { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+}
+
+@keyframes toast-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+@media (max-width: 560px) {
+  .toast-viewport {
+    inset: 10px 8px auto;
+  }
+
+  .app-toast {
+    max-width: none;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-toast,
+  .app-toast-progress {
+    animation: none;
+  }
+}

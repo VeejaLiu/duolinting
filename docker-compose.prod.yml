@@ -130,6 +130,7 @@ services:
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
       RESEND_FROM_NAME: ${RESEND_FROM_NAME:-DuolinTing}
       RESEND_REPLY_TO: ${RESEND_REPLY_TO:-}
+      EMAIL_PUBLIC_SITE_URL: ${EMAIL_PUBLIC_SITE_URL:-https://www.duolinting.cn}
     volumes:
       - ./temp/geoip:/var/lib/duolinting-geoip:ro
     logging: *default-logging
