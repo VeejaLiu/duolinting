@@ -3,7 +3,7 @@ import { FontAwesome6 } from '@expo/vector-icons'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
 import * as Linking from 'expo-linking'
-import { Image, Pressable, Text, View } from 'react-native'
+import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 import { AppScrollView } from '@/components/primitives/AppScrollView'
 import { SafeScreen } from '@/components/primitives/SafeScreen'
 import { useLanguage } from '@/i18n/LanguageProvider'
@@ -48,25 +48,26 @@ function SponsorCard({ sponsor, visitLabel }: { sponsor: Sponsor; visitLabel: st
 
 function DonationCard({ donation }: { donation: Donation }) {
   const { t, uiLocale } = useLanguage()
+  // Persisted mobile queries and older backends can contain the pre-social-link shape.
+  const socialLinks = Array.isArray(donation.socialLinks) ? donation.socialLinks : []
+  const publicEmail = typeof donation.publicEmail === 'string' ? donation.publicEmail : null
+  const showLinks = !donation.isAnonymous && (socialLinks.length > 0 || Boolean(publicEmail))
   return <View className="flex-row items-center rounded-[18px] border-2 border-b-[4px] border-[#d7e4ef] bg-white px-4 py-3">
-    <View className="h-11 w-11 items-center justify-center rounded-[14px] bg-[#edf7ff]">
-      <FontAwesome6 color="#1cb0f6" name="heart" size={18} />
-    </View>
-    <View className="ml-3 flex-1">
-      <Text className="text-base font-black text-text-primary">{donation.isAnonymous ? t('sponsors.anonymous') : donation.donorName}</Text>
-      <Text className="mt-0.5 text-xs font-bold text-text-secondary">{new Intl.DateTimeFormat(uiLocale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(donation.donatedAt))}</Text>
-      {!donation.isAnonymous && (donation.socialLinks.length > 0 || donation.publicEmail) ? <View className="mt-2 flex-row flex-wrap" style={{ gap: 6 }}>
-        {donation.socialLinks.map((link) => <Pressable key={link.platform} accessibilityRole="link" accessibilityLabel={t(`sponsors.social.${link.platform}`)} className="flex-row items-center rounded-full border border-[#d9e8f4] bg-white p-1 pr-3" hitSlop={6} onPress={() => void Linking.openURL(link.url)}>
+    <View className="flex-1 flex-row items-center">
+      <Text className="text-base font-black text-text-primary" numberOfLines={1} style={{ maxWidth: showLinks ? '46%' : '100%' }}>{donation.isAnonymous ? t('sponsors.anonymous') : donation.donorName}</Text>
+      {showLinks ? <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1, marginLeft: 6 }} contentContainerStyle={{ alignItems: 'center', gap: 4 }}>
+        {socialLinks.map((link) => <Pressable key={link.platform} accessibilityRole="link" accessibilityLabel={t(`sponsors.social.${link.platform}`)} className="rounded-[8px] p-1" hitSlop={6} onPress={() => void Linking.openURL(link.url)}>
           <SocialBrandMark platform={link.platform} />
-          <Text className="ml-1.5 text-xs font-black text-text-primary">{t(`sponsors.social.${link.platform}`)}</Text>
         </Pressable>)}
-        {donation.publicEmail ? <Pressable accessibilityRole="link" accessibilityLabel={t('sponsors.social.email')} className="flex-row items-center rounded-full border border-[#d9e8f4] bg-white p-1 pr-3" hitSlop={6} onPress={() => void Linking.openURL(`mailto:${donation.publicEmail}`)}>
+        {publicEmail ? <Pressable accessibilityRole="link" accessibilityLabel={t('sponsors.social.email')} className="rounded-[8px] p-1" hitSlop={6} onPress={() => void Linking.openURL(`mailto:${publicEmail}`)}>
           <SocialBrandMark platform="email" />
-          <Text className="ml-1.5 text-xs font-black text-text-primary">{t('sponsors.social.email')}</Text>
         </Pressable> : null}
-      </View> : null}
+      </ScrollView> : null}
     </View>
-    <Text className="text-sm font-black text-[#168534]">{new Intl.NumberFormat(uiLocale, { style: 'currency', currency: donation.currency }).format(Number(donation.amount))}</Text>
+    <View className="ml-2 items-end" style={{ maxWidth: '48%' }}>
+      <Text className="text-xl font-black text-[#d92d3a]">{new Intl.NumberFormat(uiLocale, { style: 'currency', currency: donation.currency }).format(Number(donation.amount))}</Text>
+      <Text className="mt-1 text-right text-[11px] font-normal text-[#8998aa]">{new Intl.DateTimeFormat(uiLocale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(donation.donatedAt))}</Text>
+    </View>
   </View>
 }
 
@@ -79,7 +80,7 @@ export function SponsorsScreen() {
     staleTime: 60_000,
   })
   const donationsQuery = useQuery({
-    queryKey: ['public-donations'],
+    queryKey: ['public-donations', 'social-links-v2'],
     queryFn: () => apiClient.getDonations(),
     staleTime: 60_000,
   })

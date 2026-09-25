@@ -2757,6 +2757,9 @@ for (const [key, enUS, thTH, jaJP, frFR, esES] of sponsorAdminMessages) {
 }
 
 const sponsorshipMessages = [
+  ['查看大图', 'View larger image', 'ดูภาพขนาดใหญ่', '画像を拡大', 'Voir l’image agrandie', 'Ver imagen ampliada'],
+  ['待保存，确认后上传', 'Pending save; uploads when you confirm', 'รอบันทึก จะอัปโหลดเมื่อยืนยัน', '保存待ち・確認後にアップロード', 'En attente ; import après confirmation', 'Pendiente; se sube al confirmar'],
+  ['查看凭证', 'View receipt', 'ดูหลักฐาน', '証明画像を見る', 'Voir le justificatif', 'Ver comprobante'],
   ['金额 / 币种', 'Amount / currency', 'จำนวนเงิน / สกุลเงิน', '金額 / 通貨', 'Montant / devise', 'Importe / moneda'],
   ['选择图片', 'Choose image', 'เลือกรูปภาพ', '画像を選択', 'Choisir une image', 'Elegir imagen'],
   ['粘贴图片', 'Paste image', 'วางรูปภาพ', '画像を貼り付け', 'Coller une image', 'Pegar imagen'],

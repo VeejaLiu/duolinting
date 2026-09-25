@@ -4,7 +4,7 @@ import instagramLogo from '../../../../packages/ui-tokens/assets/instagram-logo.
 import linkedinLogo from '../../../../packages/ui-tokens/assets/linkedin-bug.svg'
 import githubLogo from '../../../../packages/ui-tokens/assets/github-mark.svg'
 import { Button, Card, Form, Input, Modal, Select, Space, Switch, Table, Tag, Typography } from 'antd'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 import { apiClient } from '../../lib/apiClient'
 import type { AdminNoticeTone } from './AdminFeedback'
@@ -57,7 +57,9 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<AdminDonation | null>(null)
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
-  const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
+  const [savedReceiptUrl, setSavedReceiptUrl] = useState('')
+  const savedReceiptUrlRef = useRef('')
+  const receiptRequestSerialRef = useRef(0)
   const isAnonymous = Form.useWatch('isAnonymous', form)
   const contactEmail = Form.useWatch('contactEmail', form)
   const socialUrlsValue = Form.useWatch('socialUrls', form)
@@ -79,10 +81,18 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
   }, [refresh])
 
   useEffect(() => () => {
-    if (receiptPreview) URL.revokeObjectURL(receiptPreview)
-  }, [receiptPreview])
+    if (savedReceiptUrlRef.current) URL.revokeObjectURL(savedReceiptUrlRef.current)
+  }, [])
+
+  const clearSavedReceiptPreview = () => {
+    receiptRequestSerialRef.current += 1
+    if (savedReceiptUrlRef.current) URL.revokeObjectURL(savedReceiptUrlRef.current)
+    savedReceiptUrlRef.current = ''
+    setSavedReceiptUrl('')
+  }
 
   const edit = (item?: AdminDonation) => {
+    clearSavedReceiptPreview()
     setEditing(item ?? null)
     setReceiptFile(null)
     const defaults = emptyDonation()
@@ -90,6 +100,15 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
     item?.socialLinks.forEach((link) => { socialUrls[link.platform] = link.url })
     form.setFieldsValue(item ? { ...item, donatedAt: toLocalDateTime(item.donatedAt), socialUrls } : defaults)
     setOpen(true)
+    if (item?.hasReceipt) {
+      const requestSerial = receiptRequestSerialRef.current
+      void apiClient.getDonationReceipt(item.id, adminToken).then((blob) => {
+        if (requestSerial !== receiptRequestSerialRef.current) return
+        const url = URL.createObjectURL(blob)
+        savedReceiptUrlRef.current = url
+        setSavedReceiptUrl(url)
+      }).catch(() => { if (requestSerial === receiptRequestSerialRef.current) onNotify(t('凭证加载失败'), 'error') })
+    }
   }
 
   const save = async () => {
@@ -137,6 +156,7 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
       }
       onNotify(t('捐赠记录已保存'), 'success')
       setOpen(false)
+      clearSavedReceiptPreview()
       await refresh()
     } catch (error) {
       onNotify(error instanceof Error ? error.message : t('捐赠记录保存失败'), 'error')
@@ -157,19 +177,12 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
     }
   }
 
-  const viewReceipt = async (id: number) => {
-    try {
-      const blob = await apiClient.getDonationReceipt(id, adminToken)
-      setReceiptPreview(URL.createObjectURL(blob))
-    } catch (error) {
-      onNotify(error instanceof Error ? error.message : t('凭证加载失败'), 'error')
-    }
-  }
-
   const removeReceipt = async (item: AdminDonation) => {
     if (!(await onRequestConfirm({ title: t('删除订单凭证'), message: t('确定删除这张订单凭证？'), confirmLabel: t('删除'), tone: 'danger' }))) return
     try {
       await apiClient.deleteDonationReceipt(item.id, adminToken)
+      clearSavedReceiptPreview()
+      setEditing((current) => current?.id === item.id ? { ...current, hasReceipt: false } : current)
       onNotify(t('凭证已删除'), 'success')
       await refresh()
     } catch (error) {
@@ -179,15 +192,17 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
 
   return <Card title={t('捐赠赞助')} extra={<Space><Button onClick={() => void refresh()}>{t('刷新')}</Button><Button type="primary" onClick={() => edit()}>{t('登记捐赠')}</Button></Space>}>
     <Typography.Paragraph type="secondary">{t('匿名捐赠公开时只显示“匿名”；订单凭证仅后台可查看。')}</Typography.Paragraph>
-    <Table rowKey="id" dataSource={items} loading={loading} scroll={{ x: 1050 }} pagination={{ pageSize: 20 }} columns={[
+    <Table rowKey="id" dataSource={items} loading={loading} scroll={{ x: 980 }} pagination={{ pageSize: 20 }} columns={[
       { title: t('捐赠者'), render: (_value: unknown, item: AdminDonation) => <Space>{item.donorName || t('未填写')}{item.isAnonymous ? <Tag>{t('匿名')}</Tag> : null}</Space> },
       { title: t('金额'), render: (_value: unknown, item: AdminDonation) => `${item.currency} ${item.amount}` },
       { title: t('捐赠项目'), dataIndex: 'donationItem', render: (value: string) => value || '—' },
       { title: t('社交链接'), render: (_value: unknown, item: AdminDonation) => item.socialLinks.length ? item.socialLinks.map((link) => t(platformNames[link.platform])).join('、') : '—' },
       { title: t('捐赠时间'), render: (_value: unknown, item: AdminDonation) => new Intl.DateTimeFormat(uiLocale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.donatedAt)) },
       { title: t('状态'), render: (_value: unknown, item: AdminDonation) => <Tag color={item.isPublished ? 'green' : 'default'}>{item.isPublished ? t('已发布') : t('草稿')}</Tag> },
-      { title: t('订单凭证'), render: (_value: unknown, item: AdminDonation) => item.hasReceipt ? <Space><Button onClick={() => void viewReceipt(item.id)}>{t('查看')}</Button><Button danger onClick={() => void removeReceipt(item)}>{t('删除')}</Button></Space> : '—' },
-      { title: t('操作'), render: (_value: unknown, item: AdminDonation) => <Space><Button onClick={() => edit(item)}>{t('编辑')}</Button><Button danger onClick={() => void remove(item)}>{t('删除')}</Button></Space> },
+      { title: t('操作'), width: 160, render: (_value: unknown, item: AdminDonation) => <Space.Compact>
+        <Button size="small" onClick={() => edit(item)}>{t('编辑')}</Button>
+        <Button size="small" danger onClick={() => void remove(item)}>{t('删除')}</Button>
+      </Space.Compact> },
     ]} />
     <Modal
       className="sponsorship-modal"
@@ -196,7 +211,7 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
       width={980}
       style={{ maxWidth: 'calc(100vw - 32px)' }}
       styles={{ body: { maxHeight: 'calc(100dvh - 200px)', overflowY: 'auto' } }}
-      onCancel={() => setOpen(false)}
+      onCancel={() => { setOpen(false); setReceiptFile(null); clearSavedReceiptPreview() }}
       onOk={() => void save()}
       okButtonProps={{ loading: saving }}
       forceRender
@@ -243,16 +258,16 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
               label={t('上传订单截图')}
               acceptedTypes={['image/png', 'image/jpeg', 'image/webp']}
               maxBytes={5 * 1024 * 1024}
-              selectedFileName={receiptFile?.name}
+              selectedFile={receiptFile}
+              previewUrl={savedReceiptUrl}
+              previewVariant="receipt"
               onFile={(file) => setReceiptFile(file)}
               onError={(message) => onNotify(message, 'error')}
             />
+            {editing?.hasReceipt ? <Button danger size="small" type="link" onClick={() => void removeReceipt(editing)}>{t('删除订单凭证')}</Button> : null}
           </Form.Item>
         </section>
       </Form>
-    </Modal>
-    <Modal title={t('订单凭证')} open={Boolean(receiptPreview)} footer={null} onCancel={() => setReceiptPreview(null)}>
-      {receiptPreview ? <img src={receiptPreview} alt={t('订单凭证')} style={{ maxWidth: '100%' }} /> : null}
     </Modal>
   </Card>
 }

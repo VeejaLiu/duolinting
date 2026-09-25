@@ -1,6 +1,6 @@
 import { CopyOutlined, UploadOutlined } from '@ant-design/icons'
-import { Button, Typography } from 'antd'
-import { useRef, useState, type ClipboardEvent, type DragEvent } from 'react'
+import { Button, Modal, Typography } from 'antd'
+import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from 'react'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 import { imageFileFromClipboardItems, readImageFileFromClipboard } from '../../lib/imageClipboard'
 
@@ -9,17 +9,34 @@ type Props = {
   acceptedTypes?: readonly string[]
   maxBytes?: number
   disabled?: boolean
-  selectedFileName?: string
+  selectedFile?: File | null
+  previewUrl?: string
+  previewVariant?: 'logo' | 'banner' | 'receipt'
   onFile: (file: File) => void | Promise<void>
   onError: (message: string) => void
 }
 
-export function ImagePasteInput({ label, acceptedTypes, maxBytes, disabled, selectedFileName, onFile, onError }: Props) {
+export function ImagePasteInput({ label, acceptedTypes, maxBytes, disabled, selectedFile, previewUrl, previewVariant = 'receipt', onFile, onError }: Props) {
   const { t } = useAdminLanguage()
   const [busy, setBusy] = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [localPreviewUrl, setLocalPreviewUrl] = useState('')
+  const [previewOpen, setPreviewOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const pasteAreaRef = useRef<HTMLDivElement | null>(null)
   const isDisabled = Boolean(disabled || busy)
+  const previewFile = pendingFile ?? selectedFile
+  const imageUrl = localPreviewUrl || previewUrl || ''
+
+  useEffect(() => {
+    if (!previewFile) {
+      setLocalPreviewUrl('')
+      return
+    }
+    const objectUrl = URL.createObjectURL(previewFile)
+    setLocalPreviewUrl(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [previewFile])
 
   const acceptFile = async (file: File | null) => {
     if (!file || !file.type.startsWith('image/') || (acceptedTypes && !acceptedTypes.includes(file.type))) {
@@ -31,11 +48,13 @@ export function ImagePasteInput({ label, acceptedTypes, maxBytes, disabled, sele
       return
     }
     setBusy(true)
+    setPendingFile(file)
     try {
       await onFile(file)
     } catch (error) {
       onError(error instanceof Error ? error.message : t('图片处理失败'))
     } finally {
+      setPendingFile(null)
       setBusy(false)
     }
   }
@@ -80,7 +99,14 @@ export function ImagePasteInput({ label, acceptedTypes, maxBytes, disabled, sele
   >
     <Button disabled={isDisabled} icon={<UploadOutlined />} size="small" onClick={() => fileInputRef.current?.click()}>{t('选择图片')}</Button>
     <Button disabled={isDisabled} icon={<CopyOutlined />} size="small" onClick={() => void pasteFromClipboard()}>{t('粘贴图片')}</Button>
-    <Typography.Text type="secondary">{selectedFileName || t('也可点击此处按 Ctrl/⌘+V，或拖入图片')}</Typography.Text>
+    <Typography.Text type="secondary">{selectedFile?.name || t('也可点击此处按 Ctrl/⌘+V，或拖入图片')}</Typography.Text>
+    {imageUrl ? <div className={`admin-image-paste-preview is-${previewVariant}`}>
+      <button aria-label={t('查看大图')} className="admin-image-paste-preview-button" onClick={() => setPreviewOpen(true)} type="button">
+        <img alt={`${label}${t('预览')}`} src={imageUrl} />
+      </button>
+      <Button size="small" type="link" onClick={() => setPreviewOpen(true)}>{t('查看大图')}</Button>
+      {selectedFile ? <Typography.Text type="secondary">{t('待保存，确认后上传')}</Typography.Text> : null}
+    </div> : null}
     <input
       ref={fileInputRef}
       aria-label={label}
@@ -93,5 +119,8 @@ export function ImagePasteInput({ label, acceptedTypes, maxBytes, disabled, sele
         event.currentTarget.value = ''
       }}
     />
+    <Modal open={previewOpen && Boolean(imageUrl)} title={label} footer={null} onCancel={() => setPreviewOpen(false)}>
+      {imageUrl ? <img alt={`${label}${t('预览')}`} src={imageUrl} style={{ display: 'block', maxWidth: '100%', maxHeight: '70vh', margin: '0 auto', objectFit: 'contain' }} /> : null}
+    </Modal>
   </div>
 }

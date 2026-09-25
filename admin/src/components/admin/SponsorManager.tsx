@@ -147,8 +147,7 @@ export function SponsorManager({ adminToken, onNotify, onRequestConfirm }: Props
             <Form.Item name="websiteUrl" label={t('官网链接')} rules={[{ type: 'url', warningOnly: false, message: t('请输入有效的链接') }]}><Input maxLength={1024} placeholder="https://" /></Form.Item>
             <Form.Item name="logoUrl" label={t('Logo 地址')}><Input maxLength={1024} placeholder="https://" /></Form.Item>
             <Form.Item label={t('上传 Logo')}>
-              <ImagePasteInput label={t('上传 Logo')} disabled={uploading} onFile={(file) => uploadImage(file, 'logoUrl')} onError={(message) => onNotify(message, 'error')} />
-              {logoUrl ? <img alt={t('Logo 预览')} src={resolveApiUrl(logoUrl)} style={{ width: 80, height: 80, objectFit: 'contain', verticalAlign: 'middle', marginLeft: 12 }} /> : null}
+              <ImagePasteInput label={t('上传 Logo')} disabled={uploading} previewUrl={resolveApiUrl(logoUrl)} previewVariant="logo" onFile={(file) => uploadImage(file, 'logoUrl')} onError={(message) => onNotify(message, 'error')} />
             </Form.Item>
             <Form.Item name="sortOrder" label={t('排序')}><InputNumber min={0} max={1000000} style={{ width: 160 }} /></Form.Item>
           </section>
@@ -159,8 +158,7 @@ export function SponsorManager({ adminToken, onNotify, onRequestConfirm }: Props
             <Form.Item name="endsAt" label={t('展示结束时间（可选）')}><Input type="datetime-local" /></Form.Item>
             <Form.Item name="bannerImageUrl" label={t('横幅图片地址（预留）')}><Input maxLength={1024} placeholder="https://" /></Form.Item>
             <Form.Item label={t('上传横幅')}>
-              <ImagePasteInput label={t('上传横幅')} disabled={uploading} onFile={(file) => uploadImage(file, 'bannerImageUrl')} onError={(message) => onNotify(message, 'error')} />
-              {bannerImageUrl ? <img alt={t('横幅预览')} src={resolveApiUrl(bannerImageUrl)} style={{ maxWidth: 160, maxHeight: 80, objectFit: 'contain', verticalAlign: 'middle', marginLeft: 12 }} /> : null}
+              <ImagePasteInput label={t('上传横幅')} disabled={uploading} previewUrl={resolveApiUrl(bannerImageUrl)} previewVariant="banner" onFile={(file) => uploadImage(file, 'bannerImageUrl')} onError={(message) => onNotify(message, 'error')} />
             </Form.Item>
             <Form.Item name="bannerTargetUrl" label={t('横幅跳转链接（预留）')} rules={[{ type: 'url', message: t('请输入有效的链接') }]}><Input maxLength={1024} placeholder="https://" /></Form.Item>
           </section>

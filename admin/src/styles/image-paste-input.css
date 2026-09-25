@@ -13,4 +13,12 @@
 
 .admin-image-paste-input:focus,
 .admin-image-paste-input:focus-within { border-color: #1cb0f6; }
-.admin-image-paste-input .ant-typography { flex: 1 1 210px; font-size: 12px; }
+.admin-image-paste-input > .ant-typography { flex: 1 1 210px; font-size: 12px; }
+
+.admin-image-paste-preview { display: flex; flex: 0 0 100%; align-items: center; gap: 12px; padding-top: 4px; }
+.admin-image-paste-preview-button { padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
+.admin-image-paste-preview-button:focus-visible { outline: 2px solid #1cb0f6; outline-offset: 2px; }
+.admin-image-paste-preview img { display: block; max-width: 190px; max-height: 130px; border: 1px solid #d9e8f4; border-radius: 8px; background: #fff; object-fit: contain; }
+.admin-image-paste-preview.is-logo img { width: 76px; height: 76px; }
+.admin-image-paste-preview.is-banner img { max-width: 190px; max-height: 95px; }
+.admin-image-paste-preview.is-receipt img { max-width: min(100%, 240px); max-height: 160px; }

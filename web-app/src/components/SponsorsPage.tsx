@@ -60,16 +60,17 @@ export function SponsorsPage() {
           <h2 id="donation-title" className="sponsors-section-title">{t('sponsors.donations')}</h2>
           {donations.length === 0 ? <p className="sponsors-state">{t('sponsors.emptyDonations')}</p> : <div className="donation-list">
             {donations.map((donation) => <article className="donation-row" key={donation.id}>
-              <span className="donation-avatar" aria-hidden="true"><HeartHandshake size={20} /></span>
-              <div className="donation-identity">
-                <strong>{donation.isAnonymous ? t('sponsors.anonymous') : donation.donorName}</strong>
-                <time dateTime={donation.donatedAt}>{new Intl.DateTimeFormat(uiLocale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(donation.donatedAt))}</time>
-                {!donation.isAnonymous && (donation.socialLinks.length > 0 || donation.publicEmail) ? <div className="donation-links">
-                  {donation.socialLinks.map((link) => <a key={link.platform} href={link.url} target="_blank" rel="noopener noreferrer"><SocialBrandMark platform={link.platform} />{t(`sponsors.social.${link.platform}`)}</a>)}
-                  {donation.publicEmail ? <a href={`mailto:${donation.publicEmail}`}><span className="donation-brand-mark is-email" aria-hidden="true"><FaEnvelope /></span>{t('sponsors.social.email')}</a> : null}
+              <div className="donation-person">
+                <strong className="donation-name">{donation.isAnonymous ? t('sponsors.anonymous') : donation.donorName}</strong>
+                {!donation.isAnonymous && ((donation.socialLinks ?? []).length > 0 || donation.publicEmail) ? <div className="donation-links">
+                  {(donation.socialLinks ?? []).map((link) => <a key={link.platform} aria-label={t(`sponsors.social.${link.platform}`)} title={t(`sponsors.social.${link.platform}`)} href={link.url} target="_blank" rel="noopener noreferrer"><SocialBrandMark platform={link.platform} /></a>)}
+                  {donation.publicEmail ? <a aria-label={t('sponsors.social.email')} title={t('sponsors.social.email')} href={`mailto:${donation.publicEmail}`}><span className="donation-brand-mark is-email" aria-hidden="true"><FaEnvelope /></span></a> : null}
                 </div> : null}
               </div>
-              <strong className="donation-amount">{new Intl.NumberFormat(uiLocale, { style: 'currency', currency: donation.currency }).format(Number(donation.amount))}</strong>
+              <div className="donation-meta">
+                <strong className="donation-amount">{new Intl.NumberFormat(uiLocale, { style: 'currency', currency: donation.currency }).format(Number(donation.amount))}</strong>
+                <time dateTime={donation.donatedAt}>{new Intl.DateTimeFormat(uiLocale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(donation.donatedAt))}</time>
+              </div>
             </article>)}
           </div>}
         </section>

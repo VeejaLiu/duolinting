@@ -140,7 +140,20 @@ export const createApiClient = ({
     resolveApiUrl: (value: string | undefined | null) =>
       resolveApiUrl(normalizedBaseUrl, value),
     getSponsors: () => fetchJson<{ items: Sponsor[] }>('/api/v1/sponsors'),
-    getDonations: () => fetchJson<{ items: Donation[] }>('/api/v1/sponsors/donations'),
+    getDonations: async () => {
+      // A persisted mobile query or an older backend may predate social links.
+      // Normalize the optional fields before any learner UI receives the row.
+      type DonationApiRow = Omit<Donation, 'socialLinks' | 'publicEmail'> &
+        Partial<Pick<Donation, 'socialLinks' | 'publicEmail'>>
+      const result = await fetchJson<{ items: DonationApiRow[] }>('/api/v1/sponsors/donations')
+      return {
+        items: (Array.isArray(result.items) ? result.items : []).map((item): Donation => ({
+          ...item,
+          socialLinks: Array.isArray(item.socialLinks) ? item.socialLinks : [],
+          publicEmail: typeof item.publicEmail === 'string' ? item.publicEmail : null,
+        })),
+      }
+    },
     getCatalog: (contentLocale?: ContentLocale, authToken?: string) => fetchJson<CatalogResponse>(
       `/api/v1/catalog${contentLocale ? `?contentLocale=${encodeURIComponent(contentLocale)}` : ''}`,
       undefined,

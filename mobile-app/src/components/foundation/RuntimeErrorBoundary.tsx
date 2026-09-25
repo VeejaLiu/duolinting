@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Platform, Pressable, Text, View } from 'react-native'
+import { reloadAppAsync } from 'expo'
 import { reportRuntimeError } from '@/lib/runtimeErrorReporting'
 import { useLanguage } from '@/i18n/LanguageProvider'
 
@@ -15,11 +16,7 @@ function RuntimeErrorFallback({ onRetry }: { onRetry: () => void }) {
   const { t } = useLanguage()
   return (
     <View className="flex-1 items-center justify-center bg-slate-50 px-6">
-      <Text className="mb-2 text-xl font-bold text-slate-900">{t('runtime.title')}</Text>
-      <Text className="mb-6 text-center text-sm leading-6 text-slate-600">
-        {t('runtime.detail')}
-      </Text>
-      <Pressable className="rounded-full bg-sky-500 px-6 py-3" onPress={onRetry}>
+      <Pressable accessibilityRole="button" accessibilityLabel={t('runtime.reload')} className="rounded-full bg-sky-500 px-6 py-3" onPress={onRetry}>
         <Text className="font-semibold text-white">{t('runtime.reload')}</Text>
       </Pressable>
     </View>
@@ -34,15 +31,16 @@ export class RuntimeErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    reportRuntimeError('ReactErrorBoundary', {
-      name: error.name,
-      message: error.message,
-      stack: `${error.stack ?? ''}\nComponent stack:${errorInfo.componentStack}`,
-    })
+    reportRuntimeError('ReactErrorBoundary', error, false, errorInfo.componentStack ?? '')
   }
 
   private retry = () => {
-    this.setState({ error: null })
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.location.reload()
+      return
+    }
+    // Expo's reloadAppAsync works in both release and debug native builds.
+    void reloadAppAsync('runtime-error-retry').catch(() => this.setState({ error: null }))
   }
 
   render() {

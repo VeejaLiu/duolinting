@@ -1,3 +1,6 @@
+import { Platform } from 'react-native'
+import { runtimeConfig } from './runtimeConfig'
+
 type ErrorUtilsHandler = (error: Error, isFatal?: boolean) => void
 
 type ErrorUtilsLike = {
@@ -15,22 +18,68 @@ function toError(value: unknown): Error {
     return value
   }
 
-  return new Error(typeof value === 'string' ? value : JSON.stringify(value))
+  try {
+    return new Error(typeof value === 'string' ? value : JSON.stringify(value))
+  } catch {
+    return new Error('Unknown runtime error')
+  }
 }
 
-/**
- * Sends device-side failures to Metro through console.error while keeping Expo's
- * original handler installed. The structured prefix makes fatal errors easy to
- * find in the VSCode terminal that is running `expo start`.
- */
-export function reportRuntimeError(source: string, value: unknown, isFatal = false) {
+const recentReports = new Map<string, number>()
+
+// Runtime exceptions can include URLs, tokens, or a learner's email. Send only a
+// bounded, redacted diagnostic excerpt through the operational error endpoint.
+const redact = (value: string, maxLength: number) => value
+  .replace(/Bearer\s+[^\s]+/gi, 'Bearer [redacted]')
+  .replace(/\b(password|token|secret|api[_-]?key|code)\s*[=:]\s*[^\s,;]+/gi, '$1=[redacted]')
+  .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[email]')
+  .replace(/https?:\/\/[^\s"'<>]+/gi, (match) => {
+    try {
+      const url = new URL(match)
+      return `${url.origin}${url.pathname}`
+    } catch { return '[url]' }
+  })
+  .replace(/file:\/\/[^\s"'<>]+/gi, '[file]')
+  .replace(/\b[A-Za-z0-9_-]{32,}\b/g, '[value]')
+  .slice(0, maxLength)
+
+export function reportRuntimeError(source: string, value: unknown, isFatal = false, componentStack = '') {
   const error = toError(value)
-  console.error('[DuolinTing runtime error]', {
-    source,
-    isFatal,
-    name: error.name,
-    message: error.message,
-    stack: error.stack,
+  const fingerprint = `${error.name}:${error.message}`
+  const now = Date.now()
+  if ((recentReports.get(fingerprint) ?? 0) > now - 30_000) return
+  recentReports.set(fingerprint, now)
+  if (recentReports.size > 100) {
+    for (const [key, timestamp] of recentReports) {
+      if (timestamp < now - 30_000) recentReports.delete(key)
+    }
+  }
+
+  const routePart = typeof window !== 'undefined' ? window.location.pathname.split('/').filter(Boolean)[0] ?? '' : ''
+  const route = ['settings', 'study', 'series', 'auth', 'contribute', 'vocabulary'].includes(routePart)
+    ? `/${routePart}`
+    : routePart ? '/other' : '/'
+  const payload = {
+    source: redact(source, 64),
+    name: redact(error.name || 'Error', 80),
+    message: redact(error.message || 'Unknown runtime error', 600),
+    stack: redact(`${error.stack ?? ''}\n${componentStack}`, 4000),
+    platform: ['web', 'ios', 'android'].includes(Platform.OS) ? Platform.OS : 'web',
+    route,
+  }
+
+  if (__DEV__) console.error('[DuolinTing runtime error]', { ...payload, isFatal })
+  const send = async () => {
+    const response = await fetch(`${runtimeConfig.apiBaseUrl}/api/v1/client-errors`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: Platform.OS === 'web',
+    })
+    if (response.status >= 500) throw new Error('Runtime report server unavailable')
+  }
+  void send().catch(() => {
+    setTimeout(() => { void send().catch(() => undefined) }, 3_000)
   })
 }
 
@@ -56,6 +105,9 @@ export function installRuntimeErrorReporting() {
     typeof window !== 'undefined' &&
     typeof window.addEventListener === 'function'
   ) {
+    window.addEventListener('error', (event) => {
+      reportRuntimeError('window.error', event.error ?? event.message, true)
+    })
     window.addEventListener('unhandledrejection', (event) => {
       reportRuntimeError('unhandledrejection', event.reason)
     })
