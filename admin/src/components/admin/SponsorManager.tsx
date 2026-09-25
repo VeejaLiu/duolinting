@@ -137,22 +137,28 @@ export function SponsorManager({ adminToken, onNotify, onRequestConfirm }: Props
         { title: t('状态'), dataIndex: 'isPublished', width: 100, render: (value: boolean) => <Tag color={value ? 'green' : 'default'}>{value ? t('已发布') : t('草稿')}</Tag> },
         { title: t('操作'), width: 160, render: (_value: unknown, item: AdminSponsor) => <Space><Button onClick={() => edit(item)}>{t('编辑')}</Button><Button danger onClick={() => void remove(item)}>{t('删除')}</Button></Space> },
       ]} />
-      <Modal title={editing ? t('编辑赞助方') : t('新增赞助方')} open={open} onCancel={() => setOpen(false)} onOk={() => void save()} okButtonProps={{ loading: saving || uploading }} forceRender>
-        <Form form={form} layout="vertical" initialValues={emptySponsor}>
-          <Form.Item name="name" label={t('名称')} rules={[{ required: true, whitespace: true, max: 160, message: t('请填写赞助方名称') }]}><Input maxLength={160} /></Form.Item>
-          <Form.Item name="description" label={t('简介')} rules={[{ max: 600 }]}><Input.TextArea rows={3} maxLength={600} showCount /></Form.Item>
-          <Form.Item name="logoUrl" label={t('Logo 地址')}><Input maxLength={1024} placeholder="https://" /></Form.Item>
-          <input aria-label={t('上传 Logo')} type="file" accept="image/*" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadImage(file, 'logoUrl'); event.target.value = '' }} />
-          {logoUrl ? <img alt={t('Logo 预览')} src={resolveApiUrl(logoUrl)} style={{ display: 'block', width: 96, height: 96, objectFit: 'contain', marginTop: 12 }} /> : null}
-          <Form.Item name="websiteUrl" label={t('官网链接')} rules={[{ type: 'url', warningOnly: false, message: t('请输入有效的链接') }]}><Input maxLength={1024} placeholder="https://" /></Form.Item>
-          <Form.Item name="sortOrder" label={t('排序')}><InputNumber min={0} max={1000000} style={{ width: '100%' }} /></Form.Item>
-          <Form.Item name="startsAt" label={t('展示开始时间（可选）')}><Input type="datetime-local" /></Form.Item>
-          <Form.Item name="endsAt" label={t('展示结束时间（可选）')}><Input type="datetime-local" /></Form.Item>
-          <Form.Item name="bannerImageUrl" label={t('横幅图片地址（预留）')}><Input maxLength={1024} placeholder="https://" /></Form.Item>
-          <input aria-label={t('上传横幅')} type="file" accept="image/*" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadImage(file, 'bannerImageUrl'); event.target.value = '' }} />
-          {bannerImageUrl ? <img alt={t('横幅预览')} src={resolveApiUrl(bannerImageUrl)} style={{ display: 'block', maxWidth: '100%', maxHeight: 120, objectFit: 'contain', marginTop: 12 }} /> : null}
-          <Form.Item name="bannerTargetUrl" label={t('横幅跳转链接（预留）')} rules={[{ type: 'url', message: t('请输入有效的链接') }]}><Input maxLength={1024} placeholder="https://" /></Form.Item>
-          <Form.Item name="isPublished" label={t('发布状态')} valuePropName="checked"><Switch checkedChildren={t('已发布')} unCheckedChildren={t('草稿')} /></Form.Item>
+      <Modal className="sponsorship-modal" title={editing ? t('编辑赞助方') : t('新增赞助方')} open={open} width={880} style={{ maxWidth: 'calc(100vw - 32px)' }} styles={{ body: { maxHeight: 'calc(100dvh - 200px)', overflowY: 'auto' } }} onCancel={() => setOpen(false)} onOk={() => void save()} okButtonProps={{ loading: saving || uploading }} forceRender>
+        <Form form={form} layout="vertical" initialValues={emptySponsor} className="sponsorship-form">
+          <div className="sponsorship-form-columns">
+            <section className="sponsorship-form-pane">
+              <Form.Item name="name" label={t('名称')} rules={[{ required: true, whitespace: true, max: 160, message: t('请填写赞助方名称') }]}><Input maxLength={160} /></Form.Item>
+              <Form.Item name="description" label={t('简介')} rules={[{ max: 600 }]}><Input.TextArea rows={3} maxLength={600} showCount /></Form.Item>
+              <Form.Item name="logoUrl" label={t('Logo 地址')}><Input maxLength={1024} placeholder="https://" /></Form.Item>
+              <input aria-label={t('上传 Logo')} type="file" accept="image/*" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadImage(file, 'logoUrl'); event.target.value = '' }} />
+              {logoUrl ? <img alt={t('Logo 预览')} src={resolveApiUrl(logoUrl)} style={{ display: 'block', width: 96, height: 96, objectFit: 'contain', marginTop: 12 }} /> : null}
+              <Form.Item name="websiteUrl" label={t('官网链接')} rules={[{ type: 'url', warningOnly: false, message: t('请输入有效的链接') }]}><Input maxLength={1024} placeholder="https://" /></Form.Item>
+              <Form.Item name="sortOrder" label={t('排序')}><InputNumber min={0} max={1000000} style={{ width: '100%' }} /></Form.Item>
+            </section>
+            <section className="sponsorship-form-pane">
+              <Form.Item name="isPublished" label={t('发布状态')} valuePropName="checked"><Switch checkedChildren={t('已发布')} unCheckedChildren={t('草稿')} /></Form.Item>
+              <Form.Item name="startsAt" label={t('展示开始时间（可选）')}><Input type="datetime-local" /></Form.Item>
+              <Form.Item name="endsAt" label={t('展示结束时间（可选）')}><Input type="datetime-local" /></Form.Item>
+              <Form.Item name="bannerImageUrl" label={t('横幅图片地址（预留）')}><Input maxLength={1024} placeholder="https://" /></Form.Item>
+              <input aria-label={t('上传横幅')} type="file" accept="image/*" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadImage(file, 'bannerImageUrl'); event.target.value = '' }} />
+              {bannerImageUrl ? <img alt={t('横幅预览')} src={resolveApiUrl(bannerImageUrl)} style={{ display: 'block', maxWidth: '100%', maxHeight: 120, objectFit: 'contain', marginTop: 12 }} /> : null}
+              <Form.Item name="bannerTargetUrl" label={t('横幅跳转链接（预留）')} rules={[{ type: 'url', message: t('请输入有效的链接') }]}><Input maxLength={1024} placeholder="https://" /></Form.Item>
+            </section>
+          </div>
         </Form>
       </Modal>
     </Card>
