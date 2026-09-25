@@ -1,9 +1,28 @@
-import type { Donation, Sponsor } from '@duolinting/domain'
+import type { Donation, DonationSocialPlatform, Sponsor } from '@duolinting/domain'
 import { ArrowLeft, ExternalLink, HeartHandshake } from 'lucide-react'
+import { FaEnvelope, FaGlobe, FaWeibo, FaXTwitter } from 'react-icons/fa6'
+import instagramLogo from '../../../packages/ui-tokens/assets/instagram-logo.png'
+import linkedinLogo from '../../../packages/ui-tokens/assets/linkedin-bug.svg'
+import githubLogo from '../../../packages/ui-tokens/assets/github-mark.svg'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../i18n/LanguageProvider'
 import { apiClient } from '../lib/apiClient'
+
+const socialIcons = {
+  x: FaXTwitter,
+  weibo: FaWeibo,
+  website: FaGlobe,
+}
+
+function SocialBrandMark({ platform }: { platform: DonationSocialPlatform }) {
+  if (platform === 'instagram' || platform === 'linkedin' || platform === 'github') {
+    const imageSrc = platform === 'instagram' ? instagramLogo : platform === 'linkedin' ? linkedinLogo : githubLogo
+    return <span className={`donation-brand-mark is-${platform}`} aria-hidden="true"><img alt="" src={imageSrc} /></span>
+  }
+  const Icon = socialIcons[platform]
+  return <span className={`donation-brand-mark is-${platform}`} aria-hidden="true"><Icon /></span>
+}
 
 export function SponsorsPage() {
   const navigate = useNavigate()
@@ -46,8 +65,8 @@ export function SponsorsPage() {
                 <strong>{donation.isAnonymous ? t('sponsors.anonymous') : donation.donorName}</strong>
                 <time dateTime={donation.donatedAt}>{new Intl.DateTimeFormat(uiLocale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(donation.donatedAt))}</time>
                 {!donation.isAnonymous && (donation.socialLinks.length > 0 || donation.publicEmail) ? <div className="donation-links">
-                  {donation.socialLinks.map((link) => <a key={link.platform} href={link.url} target="_blank" rel="noopener noreferrer">{t(`sponsors.social.${link.platform}`)}<ExternalLink size={12} aria-hidden="true" /></a>)}
-                  {donation.publicEmail ? <a href={`mailto:${donation.publicEmail}`}>{t('sponsors.social.email')}<ExternalLink size={12} aria-hidden="true" /></a> : null}
+                  {donation.socialLinks.map((link) => <a key={link.platform} href={link.url} target="_blank" rel="noopener noreferrer"><SocialBrandMark platform={link.platform} />{t(`sponsors.social.${link.platform}`)}</a>)}
+                  {donation.publicEmail ? <a href={`mailto:${donation.publicEmail}`}><span className="donation-brand-mark is-email" aria-hidden="true"><FaEnvelope /></span>{t('sponsors.social.email')}</a> : null}
                 </div> : null}
               </div>
               <strong className="donation-amount">{new Intl.NumberFormat(uiLocale, { style: 'currency', currency: donation.currency }).format(Number(donation.amount))}</strong>

@@ -2757,6 +2757,17 @@ for (const [key, enUS, thTH, jaJP, frFR, esES] of sponsorAdminMessages) {
 }
 
 const sponsorshipMessages = [
+  ['金额 / 币种', 'Amount / currency', 'จำนวนเงิน / สกุลเงิน', '金額 / 通貨', 'Montant / devise', 'Importe / moneda'],
+  ['选择图片', 'Choose image', 'เลือกรูปภาพ', '画像を選択', 'Choisir une image', 'Elegir imagen'],
+  ['粘贴图片', 'Paste image', 'วางรูปภาพ', '画像を貼り付け', 'Coller une image', 'Pegar imagen'],
+  ['也可点击此处按 Ctrl/⌘+V，或拖入图片', 'Click here and press Ctrl/⌘+V, or drop an image', 'คลิกที่นี่แล้วกด Ctrl/⌘+V หรือลากรูปภาพมาวาง', 'ここをクリックしてCtrl/⌘+V、または画像をドロップ', 'Cliquez ici et appuyez sur Ctrl/⌘+V, ou déposez une image', 'Haz clic aquí y pulsa Ctrl/⌘+V, o arrastra una imagen'],
+  ['请选择支持的图片文件', 'Choose a supported image file', 'เลือกไฟล์รูปภาพที่รองรับ', '対応する画像ファイルを選択してください', 'Choisissez un fichier image pris en charge', 'Elige un archivo de imagen compatible'],
+  ['图片文件超过大小限制', 'Image exceeds the size limit', 'รูปภาพมีขนาดเกินกำหนด', '画像がサイズ制限を超えています', 'L’image dépasse la taille autorisée', 'La imagen supera el límite de tamaño'],
+  ['图片处理失败', 'Image processing failed', 'ประมวลผลรูปภาพไม่สำเร็จ', '画像を処理できませんでした', 'Échec du traitement de l’image', 'No se pudo procesar la imagen'],
+  ['剪贴板中没有图片，请在此处按 Ctrl/⌘+V 粘贴', 'No image found in the clipboard. Click here and press Ctrl/⌘+V.', 'ไม่พบรูปภาพในคลิปบอร์ด คลิกที่นี่แล้วกด Ctrl/⌘+V', 'クリップボードに画像がありません。ここをクリックしてCtrl/⌘+Vを押してください。', 'Aucune image dans le presse-papiers. Cliquez ici puis appuyez sur Ctrl/⌘+V.', 'No hay imagen en el portapapeles. Haz clic aquí y pulsa Ctrl/⌘+V.'],
+  ['无法读取剪贴板，请在此处按 Ctrl/⌘+V 粘贴', 'Cannot read the clipboard. Click here and press Ctrl/⌘+V.', 'อ่านคลิปบอร์ดไม่ได้ คลิกที่นี่แล้วกด Ctrl/⌘+V', 'クリップボードを読み取れません。ここをクリックしてCtrl/⌘+Vを押してください。', 'Impossible de lire le presse-papiers. Cliquez ici puis appuyez sur Ctrl/⌘+V.', 'No se puede leer el portapapeles. Haz clic aquí y pulsa Ctrl/⌘+V.'],
+  ['订单资料', 'Payment details', 'รายละเอียดการชำระเงิน', '決済情報', 'Détails du paiement', 'Datos del pago'],
+  ['展示设置', 'Display settings', 'การตั้งค่าการแสดงผล', '表示設定', 'Paramètres d’affichage', 'Ajustes de visualización'],
   ['捐赠者同意公开社交链接', 'Donor agreed to publish social links', 'ผู้บริจาคยินยอมให้แสดงลิงก์โซเชียล', '寄付者がSNSリンク公開に同意', 'Le donateur a accepté la publication de ses liens sociaux', 'El donante aceptó publicar sus enlaces sociales'],
   ['Instagram', 'Instagram', 'Instagram', 'Instagram', 'Instagram', 'Instagram'],
   ['X', 'X', 'X', 'X', 'X', 'X'],

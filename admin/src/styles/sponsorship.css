@@ -1,59 +1,77 @@
-.sponsorship-form .ant-form-item { margin-bottom: 16px; }
-
-.sponsorship-form-columns {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 24px;
+.sponsorship-form-section {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  border: 1px solid #dce7f2;
+  border-left: 4px solid #1cb0f6;
+  border-radius: 12px;
+  background: #fff;
 }
 
-.sponsorship-form-pane,
-.sponsorship-social-entry { min-width: 0; }
+.sponsorship-form-section:nth-of-type(2) { border-left-color: #58cc02; }
+.sponsorship-form-section:nth-of-type(3) { border-left-color: #ffb800; }
 
 .sponsorship-form-heading {
-  margin: 0 0 14px;
+  margin: 0 0 10px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid #e8eff6;
   color: #1c3553;
   font-size: 15px;
   font-weight: 700;
 }
 
-.sponsorship-inline-fields {
+.sponsorship-form .ant-form-item { margin-bottom: 9px; }
+
+.sponsorship-form .ant-form-item-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 128px;
-  gap: 12px;
+  grid-template-columns: 215px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 14px;
 }
 
-.sponsorship-inline-fields .ant-form-item { min-width: 0; }
-
-.sponsorship-form-social { margin-top: 8px; }
-
-.sponsorship-social-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
+.sponsorship-form .ant-form-item-label {
+  max-width: none;
+  padding: 0;
+  text-align: left;
+  white-space: normal;
 }
 
-.sponsorship-social-entry {
-  padding: 12px;
-  border: 1px solid #d9e8f4;
-  border-radius: 12px;
-  background: #f8fbfe;
+.sponsorship-form .ant-form-item-label > label {
+  height: auto;
+  white-space: normal;
+  line-height: 1.35;
 }
 
-.sponsorship-social-entry > .ant-form-item { margin-bottom: 0; }
-.sponsorship-platform-label { display: inline-flex; align-items: center; gap: 8px; font-weight: 650; }
-.sponsorship-platform-label .anticon { font-size: 18px; color: #1c6fa6; }
+.sponsorship-form .ant-form-item-control { max-width: none; min-width: 0; }
+.sponsorship-form .ant-form-item-control-input { min-height: 32px; }
 .sponsorship-form input[type='file'] { max-width: 100%; }
-.sponsorship-form-note { display: block; margin: 4px 0 16px; }
+.sponsorship-amount-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 10px; }
+.sponsorship-amount-row .ant-form-item { margin: 0; }
+.sponsorship-form .sponsorship-amount-row .ant-form-item-row { display: block; }
 
-@media (max-width: 900px) {
-  .sponsorship-social-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sponsorship-platform-label { display: inline-flex; align-items: center; gap: 8px; }
+.sponsorship-brand-mark {
+  display: inline-grid;
+  flex: none;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border-radius: 7px;
+  color: #fff;
+  font-size: 16px;
 }
+.sponsorship-brand-mark.is-instagram,
+.sponsorship-brand-mark.is-linkedin,
+.sponsorship-brand-mark.is-github { background: transparent; }
+.sponsorship-brand-mark.is-instagram img,
+.sponsorship-brand-mark.is-linkedin img,
+.sponsorship-brand-mark.is-github img { display: block; width: 25px; height: 25px; object-fit: contain; }
+.sponsorship-brand-mark.is-x { background: #000; }
+.sponsorship-brand-mark.is-weibo { position: relative; border: 1px solid #f7d4d8; background: #fff5f4; color: #e6162d; }
+.sponsorship-brand-mark.is-weibo::after { position: absolute; top: 2px; right: 2px; width: 5px; height: 5px; border-radius: 50%; background: #f9d748; content: ''; }
+.sponsorship-brand-mark.is-website { background: linear-gradient(135deg, #1cb0f6, #58cc02); }
 
-@media (max-width: 760px) {
-  .sponsorship-form-columns { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 580px) {
-  .sponsorship-social-grid { grid-template-columns: 1fr; }
+@media (max-width: 680px) {
+  .sponsorship-form-section { padding: 12px; }
+  .sponsorship-form .ant-form-item-row { grid-template-columns: 1fr; row-gap: 4px; }
+  .sponsorship-form .sponsorship-amount-row .ant-form-item-row { display: block; }
 }

@@ -1,4 +1,4 @@
-import type { Donation, Sponsor } from '@duolinting/domain'
+import type { Donation, DonationSocialPlatform, Sponsor } from '@duolinting/domain'
 import { FontAwesome6 } from '@expo/vector-icons'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
@@ -8,6 +8,29 @@ import { AppScrollView } from '@/components/primitives/AppScrollView'
 import { SafeScreen } from '@/components/primitives/SafeScreen'
 import { useLanguage } from '@/i18n/LanguageProvider'
 import { apiClient } from '@/lib/apiClient'
+
+type SocialBrand = DonationSocialPlatform | 'email'
+const socialIconNames = {
+  x: 'x-twitter',
+  weibo: 'weibo', website: 'globe', email: 'envelope',
+} as const
+const socialColors: Record<Exclude<SocialBrand, 'instagram' | 'linkedin' | 'github'>, { background: string; foreground: string }> = {
+  x: { background: '#000000', foreground: '#ffffff' },
+  weibo: { background: '#fff5f4', foreground: '#e6162d' },
+  website: { background: '#1cb0f6', foreground: '#ffffff' },
+  email: { background: '#1cb0f6', foreground: '#ffffff' },
+}
+
+function SocialBrandMark({ platform }: { platform: SocialBrand }) {
+  if (platform === 'instagram') return <Image source={require('../../../assets/instagram-logo.png')} style={{ width: 24, height: 24, borderRadius: 7 }} />
+  if (platform === 'linkedin') return <Image source={require('../../../assets/linkedin-bug.png')} style={{ width: 24, height: 24, borderRadius: 7 }} />
+  if (platform === 'github') return <Image source={require('../../../assets/github-mark.png')} style={{ width: 24, height: 24, borderRadius: 7 }} />
+  const colors = socialColors[platform]
+  return <View className="h-6 w-6 items-center justify-center overflow-hidden rounded-[7px]" style={{ backgroundColor: colors.background }}>
+    <FontAwesome6 color={colors.foreground} name={socialIconNames[platform]} size={14} />
+    {platform === 'weibo' ? <View className="absolute right-0.5 top-0.5 h-1 w-1 rounded-full bg-[#f9d748]" /> : null}
+  </View>
+}
 
 function SponsorCard({ sponsor, visitLabel }: { sponsor: Sponsor; visitLabel: string }) {
   return <View className="rounded-[22px] border-2 border-b-[5px] border-[#d7e4ef] bg-white p-5">
@@ -33,11 +56,13 @@ function DonationCard({ donation }: { donation: Donation }) {
       <Text className="text-base font-black text-text-primary">{donation.isAnonymous ? t('sponsors.anonymous') : donation.donorName}</Text>
       <Text className="mt-0.5 text-xs font-bold text-text-secondary">{new Intl.DateTimeFormat(uiLocale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(donation.donatedAt))}</Text>
       {!donation.isAnonymous && (donation.socialLinks.length > 0 || donation.publicEmail) ? <View className="mt-2 flex-row flex-wrap" style={{ gap: 6 }}>
-        {donation.socialLinks.map((link) => <Pressable key={link.platform} accessibilityRole="link" accessibilityLabel={t(`sponsors.social.${link.platform}`)} className="rounded-full border border-[#b9e7fb] bg-[#edf9ff] px-2 py-1" onPress={() => void Linking.openURL(link.url)}>
-          <Text className="text-xs font-black text-[#087caf]">{t(`sponsors.social.${link.platform}`)}</Text>
+        {donation.socialLinks.map((link) => <Pressable key={link.platform} accessibilityRole="link" accessibilityLabel={t(`sponsors.social.${link.platform}`)} className="flex-row items-center rounded-full border border-[#d9e8f4] bg-white p-1 pr-3" hitSlop={6} onPress={() => void Linking.openURL(link.url)}>
+          <SocialBrandMark platform={link.platform} />
+          <Text className="ml-1.5 text-xs font-black text-text-primary">{t(`sponsors.social.${link.platform}`)}</Text>
         </Pressable>)}
-        {donation.publicEmail ? <Pressable accessibilityRole="link" accessibilityLabel={t('sponsors.social.email')} className="rounded-full border border-[#b9e7fb] bg-[#edf9ff] px-2 py-1" onPress={() => void Linking.openURL(`mailto:${donation.publicEmail}`)}>
-          <Text className="text-xs font-black text-[#087caf]">{t('sponsors.social.email')}</Text>
+        {donation.publicEmail ? <Pressable accessibilityRole="link" accessibilityLabel={t('sponsors.social.email')} className="flex-row items-center rounded-full border border-[#d9e8f4] bg-white p-1 pr-3" hitSlop={6} onPress={() => void Linking.openURL(`mailto:${donation.publicEmail}`)}>
+          <SocialBrandMark platform="email" />
+          <Text className="ml-1.5 text-xs font-black text-text-primary">{t('sponsors.social.email')}</Text>
         </Pressable> : null}
       </View> : null}
     </View>

@@ -1,0 +1,16 @@
+.admin-image-paste-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 6px 8px;
+  border: 1px dashed #bdd9e9;
+  border-radius: 8px;
+  background: #f8fbfe;
+  outline: none;
+}
+
+.admin-image-paste-input:focus,
+.admin-image-paste-input:focus-within { border-color: #1cb0f6; }
+.admin-image-paste-input .ant-typography { flex: 1 1 210px; font-size: 12px; }

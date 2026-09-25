@@ -9,6 +9,7 @@ import {
   type FileUploadProgress,
 } from '../../lib/apiClient'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
+import { imageFileFromClipboardItems } from '../../lib/imageClipboard'
 
 type CoverImageFieldProps = {
   adminToken: string
@@ -258,9 +259,7 @@ export function CoverImageField({
 
   const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
     if (disabled || isBusy) return
-    const items = Array.from(event.clipboardData.items)
-    const imageItem = items.find((item) => item.type.startsWith('image/'))
-    const file = imageItem?.getAsFile()
+    const file = imageFileFromClipboardItems(event.clipboardData.items)
     if (file) {
       event.preventDefault()
       void uploadFile(file, '已从剪贴板上传封面')

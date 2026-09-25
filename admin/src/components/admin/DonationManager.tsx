@@ -1,10 +1,14 @@
 import type { AdminDonation, DonationSocialPlatform, SaveDonationRequest } from '@duolinting/shared'
-import { GithubOutlined, GlobalOutlined, InstagramOutlined, LinkedinOutlined, WeiboOutlined, XOutlined } from '@ant-design/icons'
+import { GlobalOutlined, WeiboOutlined, XOutlined } from '@ant-design/icons'
+import instagramLogo from '../../../../packages/ui-tokens/assets/instagram-logo.png'
+import linkedinLogo from '../../../../packages/ui-tokens/assets/linkedin-bug.svg'
+import githubLogo from '../../../../packages/ui-tokens/assets/github-mark.svg'
 import { Button, Card, Form, Input, Modal, Select, Space, Switch, Table, Tag, Typography } from 'antd'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 import { apiClient } from '../../lib/apiClient'
 import type { AdminNoticeTone } from './AdminFeedback'
+import { ImagePasteInput } from './ImagePasteInput'
 
 type Props = {
   adminToken: string
@@ -36,8 +40,12 @@ const platformNames: Record<DonationSocialPlatform, string> = {
   instagram: 'Instagram', x: 'X', linkedin: 'LinkedIn', github: 'GitHub', weibo: '微博', website: '个人网站',
 }
 const platformIcons = {
-  instagram: <InstagramOutlined />, x: <XOutlined />, linkedin: <LinkedinOutlined />,
-  github: <GithubOutlined />, weibo: <WeiboOutlined />, website: <GlobalOutlined />,
+  instagram: <img alt="" src={instagramLogo} />, x: <XOutlined />, linkedin: <img alt="" src={linkedinLogo} />,
+  github: <img alt="" src={githubLogo} />, weibo: <WeiboOutlined />, website: <GlobalOutlined />,
+}
+
+function SocialBrandMark({ platform }: { platform: DonationSocialPlatform }) {
+  return <span className={`sponsorship-brand-mark is-${platform}`} aria-hidden="true">{platformIcons[platform]}</span>
 }
 
 export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Props) {
@@ -50,7 +58,6 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
   const [editing, setEditing] = useState<AdminDonation | null>(null)
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
-  const receiptInputRef = useRef<HTMLInputElement | null>(null)
   const isAnonymous = Form.useWatch('isAnonymous', form)
   const contactEmail = Form.useWatch('contactEmail', form)
   const socialUrlsValue = Form.useWatch('socialUrls', form)
@@ -78,7 +85,6 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
   const edit = (item?: AdminDonation) => {
     setEditing(item ?? null)
     setReceiptFile(null)
-    if (receiptInputRef.current) receiptInputRef.current.value = ''
     const defaults = emptyDonation()
     const socialUrls = { ...defaults.socialUrls }
     item?.socialLinks.forEach((link) => { socialUrls[link.platform] = link.url })
@@ -195,50 +201,53 @@ export function DonationManager({ adminToken, onNotify, onRequestConfirm }: Prop
       okButtonProps={{ loading: saving }}
       forceRender
     >
-      <Form form={form} layout="vertical" className="sponsorship-form">
-        <div className="sponsorship-form-columns">
-          <section className="sponsorship-form-pane" aria-labelledby="donation-donor-heading">
-            <h3 className="sponsorship-form-heading" id="donation-donor-heading">{t('捐赠者')}</h3>
-            <Form.Item name="isAnonymous" label={t('匿名捐赠')} valuePropName="checked"><Switch /></Form.Item>
-            <Form.Item name="donorName" label={isAnonymous ? t('捐赠者姓名（仅后台可见，可选）') : t('捐赠者姓名')} rules={[{ required: !isAnonymous, whitespace: true, max: 120, message: t('请填写捐赠者姓名') }]}><Input maxLength={120} /></Form.Item>
-            <Form.Item name="contactEmail" label={t('个人邮箱（可选，仅后台保存）')} rules={[{ type: 'email', message: t('请输入有效的邮箱') }]}><Input maxLength={255} /></Form.Item>
-            <Form.Item name="showEmailPublicly" label={t('捐赠者同意公开邮箱')} valuePropName="checked"><Switch disabled={Boolean(isAnonymous) || !contactEmail} /></Form.Item>
-            <Typography.Text className="sponsorship-form-note" type="secondary">{t('只有获得本人同意后才开启公开邮箱；匿名捐赠始终隐藏邮箱。')}</Typography.Text>
-          </section>
-          <section className="sponsorship-form-pane" aria-labelledby="donation-details-heading">
-            <h3 className="sponsorship-form-heading" id="donation-details-heading">{t('捐赠赞助')}</h3>
-            <div className="sponsorship-inline-fields">
-              <Form.Item name="amount" label={t('金额')} rules={[{ required: true, pattern: /^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/, message: t('请输入有效金额') }, { validator: async (_rule, value: string) => { if (Number(value) <= 0) throw new Error(t('金额必须大于零')) } }]}><Input inputMode="decimal" placeholder="100.00" /></Form.Item>
-              <Form.Item name="currency" label={t('币种')}><Select options={['CNY', 'THB', 'USD', 'EUR'].map((value) => ({ label: value, value }))} /></Form.Item>
+      <Form form={form} layout="horizontal" className="sponsorship-form" colon={false} labelAlign="left">
+        <section className="sponsorship-form-section" aria-labelledby="donation-details-heading">
+          <h3 className="sponsorship-form-heading" id="donation-details-heading">{t('捐赠赞助')}</h3>
+          <Form.Item name="donorName" label={isAnonymous ? t('捐赠者姓名（仅后台可见，可选）') : t('捐赠者姓名')} rules={[{ required: !isAnonymous, whitespace: true, max: 120, message: t('请填写捐赠者姓名') }]}><Input maxLength={120} /></Form.Item>
+          <Form.Item name="isAnonymous" label={t('匿名捐赠')} valuePropName="checked"><Switch /></Form.Item>
+          <Form.Item label={t('金额 / 币种')} required>
+            <div className="sponsorship-amount-row">
+              <Form.Item name="amount" rules={[{ required: true, pattern: /^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/, message: t('请输入有效金额') }, { validator: async (_rule, value: string) => { if (Number(value) <= 0) throw new Error(t('金额必须大于零')) } }]}><Input inputMode="decimal" placeholder="100.00" /></Form.Item>
+              <Form.Item name="currency"><Select aria-label={t('币种')} options={['CNY', 'THB', 'USD', 'EUR'].map((value) => ({ label: value, value }))} /></Form.Item>
             </div>
-            <Form.Item name="donationItem" label={t('捐赠项目（可选）')} rules={[{ max: 160 }]}><Input maxLength={160} /></Form.Item>
-            <Form.Item name="donatedAt" label={t('捐赠时间')} rules={[{ required: true, message: t('请选择捐赠时间') }]}><Input type="datetime-local" /></Form.Item>
-            <Form.Item name="referenceNote" label={t('订单备注（仅后台）')} rules={[{ max: 255 }]}><Input maxLength={255} /></Form.Item>
-            <Form.Item label={t('订单截图（仅后台）')}>
-              <input ref={receiptInputRef} aria-label={t('上传订单截图')} type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => {
-                const file = event.target.files?.[0] ?? null
-                if (file && (file.size > 5 * 1024 * 1024 || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type))) {
-                  onNotify(t('凭证须为 5 MB 内的 PNG、JPEG 或 WebP 图片'), 'error')
-                  setReceiptFile(null)
-                  event.target.value = ''
-                } else setReceiptFile(file)
-              }} />
-              {receiptFile ? <Typography.Text type="secondary">{receiptFile.name}</Typography.Text> : null}
-            </Form.Item>
-            <Form.Item name="isPublished" label={t('公开展示')} valuePropName="checked"><Switch /></Form.Item>
-          </section>
-        </div>
-        <section className="sponsorship-form-social" aria-labelledby="donation-social-heading">
+          </Form.Item>
+          <Form.Item name="donationItem" label={t('捐赠项目（可选）')} rules={[{ max: 160 }]}><Input maxLength={160} /></Form.Item>
+          <Form.Item name="donatedAt" label={t('捐赠时间')} rules={[{ required: true, message: t('请选择捐赠时间') }]}><Input type="datetime-local" /></Form.Item>
+          <Form.Item name="isPublished" label={t('公开展示')} valuePropName="checked"><Switch /></Form.Item>
+        </section>
+        <section className="sponsorship-form-section" aria-labelledby="donation-social-heading">
           <h3 className="sponsorship-form-heading" id="donation-social-heading">{t('社交链接')}</h3>
-          <div className="sponsorship-social-grid">
-            {socialPlatforms.map((platform) => <div className="sponsorship-social-entry" key={platform}>
-              <Form.Item name={['socialUrls', platform]} label={<span className="sponsorship-platform-label">{platformIcons[platform]}{t(platformNames[platform])}</span>} rules={[{ type: 'url', message: t('请输入有效的 HTTPS 链接') }, { pattern: /^https:\/\//i, message: t('请输入有效的 HTTPS 链接') }]}>
-                <Input aria-label={t(platformNames[platform])} maxLength={1024} placeholder="https://" />
-              </Form.Item>
-            </div>)}
-          </div>
-          <Form.Item name="showSocialLinksPublicly" label={t('捐赠者同意公开社交链接')} valuePropName="checked"><Switch disabled={Boolean(isAnonymous) || !socialPlatforms.some((platform) => Boolean(socialUrlsValue?.[platform]?.trim()))} /></Form.Item>
-          <Typography.Text className="sponsorship-form-note" type="secondary">{t('可添加 Instagram、X、LinkedIn、GitHub、微博和个人网站。匿名捐赠不会公开链接。')}</Typography.Text>
+          {socialPlatforms.map((platform) => <Form.Item key={platform} name={['socialUrls', platform]} label={<span className="sponsorship-platform-label"><SocialBrandMark platform={platform} />{t(platformNames[platform])}</span>} rules={[{ type: 'url', message: t('请输入有效的 HTTPS 链接') }, { pattern: /^https:\/\//i, message: t('请输入有效的 HTTPS 链接') }]}>
+            <Input aria-label={t(platformNames[platform])} maxLength={1024} placeholder="https://" />
+          </Form.Item>)}
+          <Form.Item label={t('捐赠者同意公开社交链接')}>
+            <Space size={10} wrap>
+              <Form.Item name="showSocialLinksPublicly" valuePropName="checked" noStyle><Switch disabled={Boolean(isAnonymous) || !socialPlatforms.some((platform) => Boolean(socialUrlsValue?.[platform]?.trim()))} /></Form.Item>
+              <Typography.Text type="secondary">{t('可添加 Instagram、X、LinkedIn、GitHub、微博和个人网站。匿名捐赠不会公开链接。')}</Typography.Text>
+            </Space>
+          </Form.Item>
+          <Form.Item name="contactEmail" label={t('个人邮箱（可选，仅后台保存）')} rules={[{ type: 'email', message: t('请输入有效的邮箱') }]}><Input maxLength={255} /></Form.Item>
+          <Form.Item label={t('捐赠者同意公开邮箱')}>
+            <Space size={10} wrap>
+              <Form.Item name="showEmailPublicly" valuePropName="checked" noStyle><Switch disabled={Boolean(isAnonymous) || !contactEmail} /></Form.Item>
+              <Typography.Text type="secondary">{t('只有获得本人同意后才开启公开邮箱；匿名捐赠始终隐藏邮箱。')}</Typography.Text>
+            </Space>
+          </Form.Item>
+        </section>
+        <section className="sponsorship-form-section" aria-labelledby="donation-receipt-heading">
+          <h3 className="sponsorship-form-heading" id="donation-receipt-heading">{t('订单资料')}</h3>
+          <Form.Item name="referenceNote" label={t('订单备注（仅后台）')} rules={[{ max: 255 }]}><Input maxLength={255} /></Form.Item>
+          <Form.Item label={t('订单截图（仅后台）')}>
+            <ImagePasteInput
+              label={t('上传订单截图')}
+              acceptedTypes={['image/png', 'image/jpeg', 'image/webp']}
+              maxBytes={5 * 1024 * 1024}
+              selectedFileName={receiptFile?.name}
+              onFile={(file) => setReceiptFile(file)}
+              onError={(message) => onNotify(message, 'error')}
+            />
+          </Form.Item>
         </section>
       </Form>
     </Modal>
