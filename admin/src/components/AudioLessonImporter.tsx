@@ -29,7 +29,6 @@ import { detectMp4VideoCodec } from '../lib/mediaCompatibility'
 import {
   analyzeSubtitleDraft,
   createEmptyDraftLine,
-  draftLinesToSrt,
   mergeDraftLines,
   parseSubtitleDraft,
   sortDraftLinesByStart,
@@ -135,45 +134,9 @@ const exportToDltjson = (
   return JSON.stringify(dltjson, null, 2)
 }
 
-// 专家分段提示词：把「提示词 + 当前英文字幕(SRT)」复制到 ChatGPT 等外部模型，
-// 让模型做语义分段优化后返回 SRT，再通过字幕导入功能导回系统。
-// 基于 1Ntb 提供的「英语学习视频字幕语义与时间轴优化专家」提示词改编：
-// 外部模型拿不到视频/音频，故把「先分析视频音频」改为「按时间戳推算停顿与语速」；
-// 输出统一约束为 SRT（原始规则 13–15 针对 HTJSON 结构，此处不适用）。
-const SEGMENT_EXPERT_PROMPT = `You are an expert in semantic segmentation and timing of English learning subtitles.
-The input below is an SRT file with English text and start/end timestamps. You cannot access its audio or video. Infer pauses from the next start minus the previous end, and estimate speech rate from text length divided by duration.
-Create natural semantic blocks suitable for reading and learning, rather than splitting into the smallest possible fragments.
-Priorities: semantic completeness > speech rhythm > teaching structure > non-overlapping timestamps > subtitle length.
-
-Rules:
-1. Infer pauses and speech rate before making changes; do not split mechanically at existing boundaries.
-2. Merge short sentences that belong to the same natural expression or teaching unit.
-3. Split at obvious long pauses, even between short fragments. A pause of at least 0.8 seconds strongly suggests a split; at least 1 second usually requires one.
-4. Merge very short fragments (especially under 0.8 seconds) into adjacent semantic units when there is no clear pause.
-5. Never split names, words, fixed expressions, phrasal verbs, or prepositional phrases. For example, keep "German Rolf Buchholz" together.
-6. Dashes and hyphens are not necessarily sentence boundaries. Do not mechanically split hesitation, pauses, or self-corrections.
-7. Split long sentences only at natural semantic boundaries. Length is secondary: review blocks around 100–120 characters, and carefully consider splitting beyond 120–140.
-8. Keep whole words together during connected, reduced, or rapid speech. Boundaries must fall between words. Timeline blocks must not overlap (next start >= previous end).
-9. Preserve distinct teaching stages, such as explanation, examples, pronunciation practice, repetition, countdown, and reading. Do not merge them into one giant block.
-10. Repeated reading or practice is intentional; do not remove repetitions.
-11. Align boundaries as closely as the available timestamps allow. Avoid obvious long silence and do not cut off weak sounds.
-12. Review the entire file for isolated fragments, incomplete sentences, split names, long pauses, timing offsets, silent coverage, speech boundaries, and repeated-reading offsets.
-
-Each block should be a natural unit that learners can read and understand together, with timing that remains consistent with the supplied speech timestamps.
-
-Output:
-- Return the complete standard SRT only, without explanations, introductions, trailing comments, or Markdown code blocks.
-- Use sequence number / timestamp / English text for every block. Timestamps must use HH:MM:SS,mmm.
-- Do not change the original English wording, punctuation, or capitalization. Join merged text with a single space; do not add or delete words.
-- If the review finds no actual problems, return the original subtitles unchanged.`
-
-// 拼接「提示词 + 当前英文字幕(SRT)」的完整可复制文本。
-const buildSegmentPromptPayload = (draftLines: DraftLine[]): string =>
-  `${SEGMENT_EXPERT_PROMPT}\n\nCurrent subtitles (SRT, English only):\n\n${draftLinesToSrt(draftLines)}`
-
-// ChatGPT 翻译交接提示词：只描述任务和 dltjson 必要的结构约定，
-// 将具体翻译判断交给模型；结果通过现有 dltjson 粘贴入口导回。
-const CHATGPT_TRANSLATION_PROMPT = `Process the complete dltjson subtitles below.
+// AI 翻译交接提示词：只描述任务和 dltjson 必要的结构约定，
+// 将具体翻译判断交给用户选择的模型；结果通过现有 dltjson 粘贴入口导回。
+const AI_TRANSLATION_PROMPT = `Process the complete dltjson subtitles below.
 
 1. Translate every English sentence into Simplified Chinese, Thai, Japanese, French, and Spanish. Put them in translations under "zh-CN", "th-TH", "ja-JP", "fr-FR", and "es-ES" respectively. Keep the legacy translation field identical to translations["zh-CN"].
 2. Correct clear English grammar and speech-recognition errors in text (such as misrecognized names or missing prepositions) only when the context makes the correction unambiguous. Do not rewrite correct English for stylistic reasons.
@@ -181,8 +144,8 @@ const CHATGPT_TRANSLATION_PROMPT = `Process the complete dltjson subtitles below
 Preserve all fields, subtitle rows, IDs, and timestamps except text, translation, and translations.
 Return the entire valid dltjson JSON in exactly one Markdown code block marked json, ready to copy and paste into the importer. Do not generate files or download links, split the response, omit rows or fields, or add explanations outside the code block.`
 
-const buildChatGptTranslationPayload = (draftLines: DraftLine[]): string =>
-  `${CHATGPT_TRANSLATION_PROMPT}\n\nComplete dltjson to proofread and translate:\n\n${exportToDltjson(draftLines)}`
+const buildAiTranslationPayload = (draftLines: DraftLine[]): string =>
+  `${AI_TRANSLATION_PROMPT}\n\nComplete dltjson to proofread and translate:\n\n${exportToDltjson(draftLines)}`
 
 type DltjsonV2 = {
   version: '2.0'
@@ -277,7 +240,6 @@ export function AudioLessonImporter({
     useState<SubtitleDraftAnalysis>(EMPTY_SUBTITLE_ANALYSIS)
   const [subtitleImportMode, setSubtitleImportMode] =
     useState<SubtitleImportMode>('single')
-  const [subtitleTimeOffset, setSubtitleTimeOffset] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
   const [isDraggingTiming, setIsDraggingTiming] = useState(false)
   const [isUploadingMedia, setIsUploadingMedia] = useState(false)
@@ -800,15 +762,7 @@ export function AudioLessonImporter({
 
   const importSubtitleDraft = () => {
     const parsed = parseSubtitleDraft(subtitleDraft, subtitleImportMode)
-    const offsetSeconds = subtitleTimeOffset / 1000
-    const adjusted = offsetSeconds !== 0
-      ? parsed.map((line) => ({
-          ...line,
-          start: Math.max(0, line.start + offsetSeconds),
-          end: Math.max(0, line.end + offsetSeconds),
-        }))
-      : parsed
-    editSubtitles('导入字幕', () => ({ lines: adjusted, activeLineIndex: 0, batchOffset: 0 }))
+    editSubtitles('导入字幕', () => ({ lines: parsed, activeLineIndex: 0, batchOffset: 0 }))
     onStatusChange(`已导入 ${parsed.length} 句字幕草稿`, 'success')
   }
 
@@ -875,6 +829,15 @@ export function AudioLessonImporter({
     return imported.lines.length
   }
 
+  const importDltjsonFile = async (file: File) => {
+    try {
+      const lineCount = applyImportedDltjson(await file.text())
+      onStatusChange(t('已从 dltjson 文件导入 {{count}} 句字幕', { count: lineCount }), 'success')
+    } catch (error) {
+      onStatusChange(error instanceof Error ? error.message : t('dltjson 文件读取失败'), 'error')
+    }
+  }
+
   const handleDltjsonCopyToClipboard = async () => {
     if (!canWriteClipboard) {
       setClipboardPanel({
@@ -893,53 +856,24 @@ export function AudioLessonImporter({
     }
   }
 
-  const handleCopyChatGptTranslation = async () => {
+  const handleCopyAiTranslation = async () => {
     if (!draftLines.some((line) => line.text.trim())) {
       onStatusChange('当前没有可校对和翻译的英文字幕', 'error')
       return
     }
 
-    const payload = buildChatGptTranslationPayload(draftLines)
+    const payload = buildAiTranslationPayload(draftLines)
     if (!canWriteClipboard) {
-      setClipboardPanel({ mode: 'copy', label: '复制 ChatGPT 翻译任务', content: payload })
+      setClipboardPanel({ mode: 'copy', label: '复制 AI 翻译提示词', content: payload })
       onStatusChange('当前环境不支持直接写入剪切板，请在面板中手动复制', 'info')
       return
     }
 
     try {
       await navigator.clipboard.writeText(payload)
-      onStatusChange('ChatGPT 翻译任务已复制；完成后请复制 JSON，通过“粘贴 dltjson”导入', 'success')
+      onStatusChange('AI 翻译提示词已复制；完成后复制返回的 JSON，再粘贴 dltjson 导入', 'success')
     } catch (error) {
-      onStatusChange(error instanceof Error ? error.message : '复制 ChatGPT 翻译任务失败', 'error')
-    }
-  }
-
-  // 一键复制「专家分段提示词 + 当前英文字幕(SRT)」到剪切板，
-  // 供粘贴到 ChatGPT 等外部模型做语义分段优化。不支持直接写入剪切板时，
-  // 复用剪贴板面板（带自定义标题）让用户手动复制。
-  const handleCopySegmentPrompt = async () => {
-    const hasEnglishText = draftLines.some((line) => line.text.trim())
-    if (!hasEnglishText) {
-      onStatusChange('当前没有可复制的英文字幕', 'error')
-      return
-    }
-
-    const payload = buildSegmentPromptPayload(draftLines)
-    if (!canWriteClipboard) {
-      setClipboardPanel({
-        mode: 'copy',
-        label: '复制分段提示词',
-        content: payload,
-      })
-      onStatusChange('当前环境不支持直接写入剪切板，请在面板中手动复制', 'info')
-      return
-    }
-
-    try {
-      await navigator.clipboard.writeText(payload)
-      onStatusChange('分段提示词 + 英文字幕已复制到剪切板，可粘贴到 ChatGPT 等模型', 'success')
-    } catch (error) {
-      onStatusChange(error instanceof Error ? error.message : '复制分段提示词失败', 'error')
+      onStatusChange(error instanceof Error ? error.message : '复制 AI 翻译提示词失败', 'error')
     }
   }
 
@@ -1205,19 +1139,18 @@ export function AudioLessonImporter({
               analysis={subtitleAnalysis}
               importMode={subtitleImportMode}
               subtitleDraft={subtitleDraft}
-              timeOffset={subtitleTimeOffset}
               onImportSubtitleFile={(file) => {
                 void importSubtitleFile(file)
               }}
               onImportModeChange={setSubtitleImportMode}
               onImportSubtitle={importSubtitleDraft}
               onSubtitleDraftChange={handleSubtitleDraftChange}
-              onTimeOffsetChange={setSubtitleTimeOffset}
-              onCopySegmentPrompt={() => void handleCopySegmentPrompt()}
-              copySegmentPromptDisabled={!draftLines.some((line) => line.text.trim())}
-              onCopyChatGptTranslation={() => void handleCopyChatGptTranslation()}
-              copyChatGptTranslationDisabled={!draftLines.some((line) => line.text.trim())}
+              onCopyAiTranslation={() => void handleCopyAiTranslation()}
+              copyAiTranslationDisabled={!draftLines.some((line) => line.text.trim())}
               onDltjsonCopy={handleDltjsonCopyToClipboard}
+              onDltjsonImportFile={(file) => {
+                void importDltjsonFile(file)
+              }}
               onDltjsonExport={handleDltjsonExport}
               onDltjsonPaste={handleDltjsonPasteFromClipboard}
               isModal

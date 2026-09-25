@@ -2,8 +2,6 @@ import {
   Clipboard,
   ClipboardPaste,
   Download,
-  Minus,
-  Plus,
   Sparkles,
   Upload,
 } from 'lucide-react'
@@ -18,20 +16,15 @@ type SubtitleImporterProps = {
   subtitleDraft: string
   analysis: SubtitleDraftAnalysis
   importMode: SubtitleImportMode
-  timeOffset: number
   onSubtitleDraftChange: (value: string) => void
   onImportModeChange: (value: SubtitleImportMode) => void
   onImportSubtitle: () => void
   onImportSubtitleFile: (file: File) => void
-  onTimeOffsetChange: (offset: number) => void
-  // 复制「专家分段提示词 + 当前英文字幕(SRT)」到剪切板，供粘贴到外部模型优化分段。
-  onCopySegmentPrompt: () => void
-  // 当前是否有可复制的英文字幕内容；无内容时禁用复制按钮。
-  copySegmentPromptDisabled: boolean
-  // 复制“字幕校对/多语言翻译提示词 + 完整 dltjson”，由 ChatGPT 返回 JSON 代码块后粘贴导回。
-  onCopyChatGptTranslation: () => void
-  copyChatGptTranslationDisabled: boolean
+  // 复制通用 AI 翻译提示词和完整 dltjson，处理结果可通过 dltjson 粘贴入口导回。
+  onCopyAiTranslation: () => void
+  copyAiTranslationDisabled: boolean
   onDltjsonCopy: () => void
+  onDltjsonImportFile: (file: File) => void
   onDltjsonExport: () => void
   onDltjsonPaste: () => void
   isModal?: boolean
@@ -41,27 +34,21 @@ export function SubtitleImporter({
   subtitleDraft,
   analysis,
   importMode,
-  timeOffset,
   onSubtitleDraftChange,
   onImportModeChange,
   onImportSubtitle,
   onImportSubtitleFile,
-  onTimeOffsetChange,
-  onCopySegmentPrompt,
-  copySegmentPromptDisabled,
-  onCopyChatGptTranslation,
-  copyChatGptTranslationDisabled,
+  onCopyAiTranslation,
+  copyAiTranslationDisabled,
   onDltjsonCopy,
+  onDltjsonImportFile,
   onDltjsonExport,
   onDltjsonPaste,
   isModal = false,
 }: SubtitleImporterProps) {
   const { t } = useAdminLanguage()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-
-  const adjustOffset = (delta: number) => {
-    onTimeOffsetChange(timeOffset + delta)
-  }
+  const dltjsonFileInputRef = useRef<HTMLInputElement | null>(null)
 
   return (
     <details className="subtitle-import" open={isModal || undefined}>
@@ -71,115 +58,78 @@ export function SubtitleImporter({
       </summary>
 
       <div className="subtitle-import-body">
-        <div className="subtitle-import-intro">
-          <strong>{t('导入字幕并生成逐句时间轴')}</strong>
-          <span>{t('支持字幕文件、文本粘贴和 dltjson，导入后仍可在波形上继续校准。')}</span>
-        </div>
-        <div className="subtitle-import-tools">
-          <button
-            className="command-button ai-action-button"
-            disabled={copySegmentPromptDisabled}
-            onClick={onCopySegmentPrompt}
-            title={t('复制专家分段提示词 + 当前英文字幕（SRT 格式），可粘贴到 ChatGPT 等模型优化分段')}
-            type="button"
-          >
-            <Sparkles size={15} aria-hidden="true" />
-            {t('复制分段提示词')}
-          </button>
-          <input
-            ref={fileInputRef}
-            accept=".srt,.vtt,.ass,.lrc,.txt,text/plain"
-            hidden
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              if (file) {
-                onImportSubtitleFile(file)
-              }
-              event.target.value = ''
-            }}
-            type="file"
-          />
-          <button
-            className="command-button secondary"
-            onClick={() => fileInputRef.current?.click()}
-            type="button"
-          >
-            <Upload size={15} aria-hidden="true" />
-            {t('从文件导入')}
-          </button>
-        </div>
-
-        <label className="field">
-          <span>{t('粘贴字幕文本')}</span>
-          <textarea
-            className="code-textarea"
-            rows={8}
-            value={subtitleDraft}
-            onChange={(event) => onSubtitleDraftChange(event.target.value)}
-            placeholder={'SRT: 00:00:01,000 --> 00:00:04,000\nFirst sentence.\n\nLRC: [00:01.00]First sentence.'}
-          />
-        </label>
-
-        {analysis.isLikelyBilingual && (
-          <div className="field">
-            <span>{t('检测到双语字幕')}</span>
-            <div className="subtitle-bilingual-options">
-              <label className="mini-radio">
-                <input
-                  checked={importMode === 'first-chinese'}
-                  name="subtitle-import-mode"
-                  onChange={() => onImportModeChange('first-chinese')}
-                  type="radio"
-                />
-                <span>{t('第一行是中文')}</span>
-              </label>
-              <label className="mini-radio">
-                <input
-                  checked={importMode === 'second-chinese'}
-                  name="subtitle-import-mode"
-                  onChange={() => onImportModeChange('second-chinese')}
-                  type="radio"
-                />
-                <span>{t('第二行是中文')}</span>
-              </label>
-            </div>
-            <small>
-              {t('共检测到 {{blocks}} 段，其中 {{bilingual}} 段符合双语两行结构。', { blocks: analysis.blockCount, bilingual: analysis.bilingualBlockCount })}
-            </small>
+        <section className="subtitle-import-module subtitle-import-module--import">
+          <div className="subtitle-import-section-title">
+            <strong>{t('导入字幕并生成逐句时间轴')}</strong>
+            <span>{t('导入后仍可在波形上继续校准。')}</span>
           </div>
-        )}
-
-        <div className="subtitle-import-footer">
-          <div className="subtitle-offset">
-            <span>{t('时间偏移')}</span>
-            <button
-              className="mini-command"
-              onClick={() => adjustOffset(-100)}
-              title={t('减 100ms')}
-              type="button"
-            >
-              <Minus size={13} aria-hidden="true" />
-            </button>
+          <div className="subtitle-import-tools">
             <input
-              className="offset-input"
-              step="50"
-              type="number"
-              value={timeOffset}
-              onChange={(event) =>
-                // 输入非法（如清空后为 NaN）时回退为 0，避免后续偏移计算产生 NaN
-                onTimeOffsetChange(Number(event.target.value) || 0)
-              }
+              ref={fileInputRef}
+              accept=".srt,.vtt,.ass,.lrc,.txt,text/plain"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) {
+                  onImportSubtitleFile(file)
+                }
+                event.target.value = ''
+              }}
+              type="file"
             />
-            <small>ms</small>
             <button
-              className="mini-command"
-              onClick={() => adjustOffset(100)}
-              title={t('加 100ms')}
+              className="command-button secondary"
+              onClick={() => fileInputRef.current?.click()}
               type="button"
             >
-              <Plus size={13} aria-hidden="true" />
+              <Upload size={15} aria-hidden="true" />
+              {t('从文件导入')}
             </button>
           </div>
+          <small className="subtitle-import-file-hint">
+            {t('支持的字幕文件格式：SRT、VTT、ASS、LRC、TXT')}
+          </small>
+
+          <label className="field">
+            <span>{t('粘贴字幕文本')}</span>
+            <textarea
+              className="code-textarea"
+              rows={8}
+              value={subtitleDraft}
+              onChange={(event) => onSubtitleDraftChange(event.target.value)}
+              placeholder={'SRT: 00:00:01,000 --> 00:00:04,000\nFirst sentence.\n\nLRC: [00:01.00]First sentence.'}
+            />
+          </label>
+
+          {analysis.isLikelyBilingual && (
+            <div className="field">
+              <span>{t('检测到双语字幕')}</span>
+              <div className="subtitle-bilingual-options">
+                <label className="mini-radio">
+                  <input
+                    checked={importMode === 'first-chinese'}
+                    name="subtitle-import-mode"
+                    onChange={() => onImportModeChange('first-chinese')}
+                    type="radio"
+                  />
+                  <span>{t('第一行是中文')}</span>
+                </label>
+                <label className="mini-radio">
+                  <input
+                    checked={importMode === 'second-chinese'}
+                    name="subtitle-import-mode"
+                    onChange={() => onImportModeChange('second-chinese')}
+                    type="radio"
+                  />
+                  <span>{t('第二行是中文')}</span>
+                </label>
+              </div>
+              <small>
+                {t('共检测到 {{blocks}} 段，其中 {{bilingual}} 段符合双语两行结构。', { blocks: analysis.blockCount, bilingual: analysis.bilingualBlockCount })}
+              </small>
+            </div>
+          )}
+
           <button
             className="command-button"
             onClick={onImportSubtitle}
@@ -187,53 +137,90 @@ export function SubtitleImporter({
           >
             {t('导入为逐句字幕')}
           </button>
-        </div>
+        </section>
 
-        <div className="subtitle-import-export">
+        <section className="subtitle-import-module subtitle-import-module--dltjson">
           <div className="subtitle-import-section-title">
-            <strong>{t('ChatGPT 校对与翻译')}</strong>
-            <span>{t('复制任务给 ChatGPT，再将生成的 JSON 通过“粘贴 dltjson”导入')}</span>
+            <strong>{t('dltjson 文件')}</strong>
+            <span>{t('通过文件或剪贴板管理 dltjson')}</span>
           </div>
-          <div className="dltjson-actions">
-            <button
-              className="mini-command ai-action-button"
-              disabled={copyChatGptTranslationDisabled}
-              onClick={onCopyChatGptTranslation}
-              title={t('复制翻译提示词和当前完整 dltjson，可直接粘贴给 ChatGPT')}
-              type="button"
-            >
-              <Sparkles size={14} aria-hidden="true" />
-              {t('复制 ChatGPT 翻译任务')}
-            </button>
-            <button
-              className="mini-command secondary"
-              onClick={onDltjsonCopy}
-              title={t('复制 dltjson 到剪切板，不支持时会打开手动复制面板')}
-              type="button"
-            >
-              <Clipboard size={14} aria-hidden="true" />
-              {t('复制 dltjson')}
-            </button>
-            <button
-              className="mini-command secondary"
-              onClick={onDltjsonPaste}
-              title={t('打开 dltjson 粘贴输入框')}
-              type="button"
-            >
-              <ClipboardPaste size={14} aria-hidden="true" />
-              {t('粘贴 dltjson')}
-            </button>
-            <button
-              className="mini-command"
-              onClick={onDltjsonExport}
-              title={t('导出为 dltjson 文件')}
-              type="button"
-            >
-              <Download size={14} aria-hidden="true" />
-              {t('导出 dltjson')}
-            </button>
+          <div className="dltjson-action-group">
+            <span className="dltjson-action-group-title">{t('导入 / 导出')}</span>
+            <div className="dltjson-actions">
+              <input
+                ref={dltjsonFileInputRef}
+                accept=".dltjson,.json,application/json,text/json"
+                hidden
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) {
+                    onDltjsonImportFile(file)
+                  }
+                  event.target.value = ''
+                }}
+                type="file"
+              />
+              <button
+                className="mini-command secondary"
+                onClick={() => dltjsonFileInputRef.current?.click()}
+                title={t('导入 dltjson 文件')}
+                type="button"
+              >
+                <Upload size={14} aria-hidden="true" />
+                {t('导入 dltjson')}
+              </button>
+              <button
+                className="mini-command"
+                onClick={onDltjsonExport}
+                title={t('导出为 dltjson 文件')}
+                type="button"
+              >
+                <Download size={14} aria-hidden="true" />
+                {t('导出 dltjson')}
+              </button>
+            </div>
           </div>
-        </div>
+          <div className="dltjson-action-group">
+            <span className="dltjson-action-group-title">{t('复制 / 粘贴')}</span>
+            <div className="dltjson-actions">
+              <button
+                className="mini-command secondary"
+                onClick={onDltjsonCopy}
+                title={t('复制 dltjson 到剪切板，不支持时会打开手动复制面板')}
+                type="button"
+              >
+                <Clipboard size={14} aria-hidden="true" />
+                {t('复制 dltjson')}
+              </button>
+              <button
+                className="mini-command secondary"
+                onClick={onDltjsonPaste}
+                title={t('打开 dltjson 粘贴输入框')}
+                type="button"
+              >
+                <ClipboardPaste size={14} aria-hidden="true" />
+                {t('粘贴 dltjson')}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="subtitle-import-module subtitle-import-module--ai-translation">
+          <div className="subtitle-import-section-title">
+            <strong>{t('AI 翻译任务')}</strong>
+            <span>{t('复制提示词给任意翻译 AI，完成后粘贴结果。')}</span>
+          </div>
+          <button
+            className="mini-command ai-action-button"
+            disabled={copyAiTranslationDisabled}
+            onClick={onCopyAiTranslation}
+            title={t('复制提示词和完整 dltjson，可交给任意 AI 服务翻译')}
+            type="button"
+          >
+            <Sparkles size={14} aria-hidden="true" />
+            {t('复制 AI 翻译提示词')}
+          </button>
+        </section>
       </div>
     </details>
   )

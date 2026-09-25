@@ -55,10 +55,26 @@
   margin-top: 12px;
 }
 
+.subtitle-import-module {
+  background: #ffffff;
+  border: 1px solid #e1e7ef;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
 .subtitle-import-tools {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.subtitle-import-file-hint {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
+  margin-top: -6px;
 }
 
 .subtitle-bilingual-options {
@@ -67,28 +83,9 @@
   gap: 12px;
 }
 
-.subtitle-import-footer {
-  align-items: center;
-  border-top: 1px solid #eef2f7;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: space-between;
-  padding-top: 12px;
-}
-
-.subtitle-import-export {
-  border-top: 1px solid #eef2f7;
-  display: grid;
-  gap: 8px;
-  padding-top: 12px;
-}
-
 .subtitle-import-section-title {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  gap: 3px;
 }
 
 .subtitle-import-section-title strong {
@@ -101,31 +98,20 @@
   font-size: 12px;
 }
 
-.subtitle-offset {
-  align-items: center;
-  display: flex;
-  gap: 6px;
+.dltjson-action-group {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
 }
 
-.subtitle-offset > span {
-  color: #374151;
-  font-size: 12px;
-  font-weight: 700;
-  min-width: 60px;
+.dltjson-action-group-title {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
 }
 
-.subtitle-offset small {
-  color: #6b7280;
-  font-size: 12px;
-}
-
-.subtitle-import .offset-input {
-  width: 80px;
-  padding: 4px 8px;
-  border: 1px solid #cfd6df;
-  border-radius: 4px;
-  font-size: 13px;
-  text-align: center;
+.subtitle-import-module--ai-translation > .mini-command {
+  justify-content: center;
 }
 
 /* 字幕导入抽屉：以卡片分组，避免把原来的折叠面板样式直接塞进 Drawer。 */
@@ -156,39 +142,18 @@
 }
 
 .subtitle-import-drawer .subtitle-import-body {
-  gap: 8px;
+  gap: 12px;
   margin-top: 0;
 }
 
-.subtitle-import-intro,
-.subtitle-import-body > .field,
-.subtitle-import-export,
-.subtitle-import-footer {
-  background: #ffffff;
-  border: 1px solid #e1e7ef;
-  border-radius: 8px;
-}
-
-.subtitle-import-intro {
-  display: grid;
-  gap: 2px;
-  padding: 9px 11px;
-}
-
-.subtitle-import-intro strong {
+.subtitle-import-module--import .subtitle-import-section-title strong {
   color: #172033;
   font-size: 13px;
 }
 
-.subtitle-import-intro span {
-  color: #64748b;
-  font-size: 11px;
-  line-height: 1.35;
-}
-
 .subtitle-import-drawer .subtitle-import-tools {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .subtitle-import-drawer .subtitle-import-tools .command-button {
@@ -196,18 +161,17 @@
   min-height: 34px;
 }
 
-.subtitle-import-drawer .subtitle-import-body > .field {
+.subtitle-import-module--import > .field {
   gap: 6px;
-  padding: 9px 11px;
 }
 
-.subtitle-import-drawer .subtitle-import-body > .field > span {
+.subtitle-import-module--import > .field > span {
   color: #334155;
   font-size: 12px;
   font-weight: 800;
 }
 
-.subtitle-import-drawer .subtitle-import-body .code-textarea {
+.subtitle-import-module--import .code-textarea {
   min-height: 150px;
   resize: vertical;
 }
@@ -219,33 +183,9 @@
   padding: 7px 9px;
 }
 
-.subtitle-import-drawer .subtitle-import-footer {
-  align-items: stretch;
-  display: grid;
-  gap: 7px;
-  padding: 8px;
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-}
-
-.subtitle-import-drawer .subtitle-offset {
-  background: #f8fafc;
-  border: 1px solid #e8edf3;
-  border-radius: 6px;
-  justify-content: center;
-  min-height: 34px;
-}
-
-.subtitle-import-drawer .subtitle-import-footer > .command-button {
+.subtitle-import-module--import > .command-button {
   justify-content: center;
   min-height: 36px;
-}
-
-.subtitle-import-drawer .subtitle-import-export {
-  border-top: 1px solid #e1e7ef;
-  gap: 8px;
-  padding: 10px 11px;
 }
 
 .subtitle-import-drawer .dltjson-actions {
