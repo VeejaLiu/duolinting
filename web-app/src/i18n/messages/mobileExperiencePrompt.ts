@@ -7,7 +7,7 @@ export const mobileExperiencePromptMessages: Record<UiLocale, Record<string, str
     'mobileExperience.title': '要打开移动版吗？',
     'mobileExperience.description': '移动版针对手机屏幕重新设计，练习、播放和逐句学习更顺手。',
     'mobileExperience.stay': '继续使用网页版',
-    'mobileExperience.open': '打开移动版',
+    'mobileExperience.countdown': '{{seconds}} 秒后自动打开移动版',
     'mobileExperience.close': '关闭移动版提示',
   },
   'en-US': {
@@ -15,7 +15,7 @@ export const mobileExperiencePromptMessages: Record<UiLocale, Record<string, str
     'mobileExperience.title': 'Open the mobile version?',
     'mobileExperience.description': 'The mobile version is designed for smaller screens, with easier practice, playback, and sentence study.',
     'mobileExperience.stay': 'Stay on web',
-    'mobileExperience.open': 'Open mobile version',
+    'mobileExperience.countdown': 'Opening mobile version in {{seconds}}s',
     'mobileExperience.close': 'Close mobile version prompt',
   },
   'th-TH': {
@@ -23,7 +23,7 @@ export const mobileExperiencePromptMessages: Record<UiLocale, Record<string, str
     'mobileExperience.title': 'ต้องการเปิดเวอร์ชันมือถือไหม',
     'mobileExperience.description': 'เวอร์ชันมือถือออกแบบมาสำหรับหน้าจอขนาดเล็ก ช่วยให้ฝึก ฟัง และเรียนทีละประโยคได้สะดวกขึ้น',
     'mobileExperience.stay': 'ใช้เว็บต่อ',
-    'mobileExperience.open': 'เปิดเวอร์ชันมือถือ',
+    'mobileExperience.countdown': 'กำลังเปิดเวอร์ชันมือถือในอีก {{seconds}} วินาที',
     'mobileExperience.close': 'ปิดคำแนะนำเวอร์ชันมือถือ',
   },
   'ja-JP': {
@@ -31,7 +31,7 @@ export const mobileExperiencePromptMessages: Record<UiLocale, Record<string, str
     'mobileExperience.title': 'モバイル版を開きますか？',
     'mobileExperience.description': 'モバイル版は小さな画面向けに設計され、練習、再生、文ごとの学習をより快適に行えます。',
     'mobileExperience.stay': 'Web版を続ける',
-    'mobileExperience.open': 'モバイル版を開く',
+    'mobileExperience.countdown': '{{seconds}}秒後にモバイル版を自動で開きます',
     'mobileExperience.close': 'モバイル版の案内を閉じる',
   },
   "fr-FR": {
@@ -39,7 +39,7 @@ export const mobileExperiencePromptMessages: Record<UiLocale, Record<string, str
     "mobileExperience.title": "Ouvrir la version mobile ?",
     "mobileExperience.description": "La version mobile est conçue pour les petits écrans et facilite la pratique, la lecture et l’étude des phrases.",
     "mobileExperience.stay": "Rester sur le Web",
-    "mobileExperience.open": "Ouvrir la version mobile",
+    "mobileExperience.countdown": "Ouverture de la version mobile dans {{seconds}} s",
     "mobileExperience.close": "Fermer la proposition de version mobile"
 },
   "es-ES": {
@@ -47,7 +47,7 @@ export const mobileExperiencePromptMessages: Record<UiLocale, Record<string, str
     "mobileExperience.title": "¿Abrir la versión móvil?",
     "mobileExperience.description": "La versión móvil está diseñada para pantallas pequeñas y facilita la práctica, la reproducción y el estudio por frases.",
     "mobileExperience.stay": "Seguir en la web",
-    "mobileExperience.open": "Abrir versión móvil",
+    "mobileExperience.countdown": "La versión móvil se abrirá en {{seconds}} s",
     "mobileExperience.close": "Cerrar aviso de versión móvil"
 },
 }

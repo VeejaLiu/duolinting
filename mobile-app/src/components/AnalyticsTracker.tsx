@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { usePathname } from "expo-router";
+import { Platform } from "react-native";
+import { webAttribution } from "@duolinting/analytics/web";
 import { analytics } from "@/lib/analytics";
 import { useAuthStore } from "@/stores/authStore";
 export function AnalyticsTracker() {
@@ -12,6 +14,7 @@ export function AnalyticsTracker() {
           true,
           authToken,
           authUser ? String(authUser.id) : "anonymous",
+          Platform.OS === "web" ? webAttribution() : undefined,
         )
         .then(() => analytics.page(path));
   }, [authToken, authUser, authReady, path]);

@@ -2,7 +2,17 @@ import { FontAwesome6 } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
-import { Animated, Platform, Pressable, Text, TextInput, View } from 'react-native'
+import {
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native'
 import { SafeScreen } from '@/components/primitives/SafeScreen'
 import { AppScrollView } from '@/components/primitives/AppScrollView'
 import { Button } from '@/components/foundation/Button'
@@ -24,16 +34,23 @@ const authUiLocales = [...UI_LOCALES.filter((locale) => locale !== 'zh-CN'), 'zh
 
 export function LoginScreen() {
   const router = useRouter()
+  const { width: viewportWidth } = useWindowDimensions()
+  const isWideLoginViewport = viewportWidth >= 720
+  const isNarrowLoginViewport = viewportWidth < 480
   const [mode, setMode] = useState<AuthMode>('login')
   const [switcherWidth, setSwitcherWidth] = useState(0)
   const modeProgress = useRef(new Animated.Value(0)).current
+  const formBodyHeight = useRef(new Animated.Value(0)).current
+  const formBodyOpacity = useRef(new Animated.Value(1)).current
+  const measuredFormBodyHeight = useRef(0)
+  const formTransitionSequence = useRef(0)
+  const revealFormAfterModeChange = useRef(false)
   const passwordInputRef = useRef<TextInput | null>(null)
   const loginMutation = useLoginMutation()
   const registerMutation = useRegisterMutation()
   const requestEmailCodeMutation = useRequestEmailCodeMutation()
   const resetPasswordMutation = useResetPasswordMutation()
   const pendingPath = useNavigationStore((state) => state.pendingPath)
-  const setPendingPath = useNavigationStore((state) => state.setPendingPath)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
@@ -74,17 +91,69 @@ export function LoginScreen() {
     }).start()
   }, [mode, modeProgress])
 
+  useEffect(() => {
+    if (!revealFormAfterModeChange.current) return
+    revealFormAfterModeChange.current = false
+    Animated.timing(formBodyOpacity, {
+      toValue: 1,
+      duration: 170,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    }).start()
+  }, [formBodyOpacity, mode])
+
+  const updateFormBodyHeight = (event: LayoutChangeEvent) => {
+    const nextHeight = event.nativeEvent.layout.height
+    if (!Number.isFinite(nextHeight) || nextHeight <= 0) return
+
+    const previousHeight = measuredFormBodyHeight.current
+    if (previousHeight === 0) {
+      measuredFormBodyHeight.current = nextHeight
+      formBodyHeight.setValue(nextHeight)
+      return
+    }
+    if (Math.abs(nextHeight - previousHeight) < 1) return
+
+    measuredFormBodyHeight.current = nextHeight
+    formBodyHeight.stopAnimation()
+    Animated.timing(formBodyHeight, {
+      toValue: nextHeight,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start()
+  }
+
   const selectMode = (nextMode: AuthMode) => {
+    const transitionSequence = ++formTransitionSequence.current
+    formBodyOpacity.stopAnimation()
+
     if (nextMode === mode) {
+      // If a second tap cancels a transition already fading out, restore the form.
+      Animated.timing(formBodyOpacity, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: false,
+      }).start()
       return
     }
 
-    setFormError('')
-    setFormNotice('')
-    setVerificationCode('')
-    setVerificationRequired(true)
-    if (nextMode === 'forgot') setPassword('')
-    setMode(nextMode)
+    Animated.timing(formBodyOpacity, {
+      toValue: 0,
+      duration: 90,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (!finished || transitionSequence !== formTransitionSequence.current) return
+
+      setFormError('')
+      setFormNotice('')
+      setVerificationCode('')
+      setVerificationRequired(true)
+      if (nextMode === 'forgot') setPassword('')
+      revealFormAfterModeChange.current = true
+      setMode(nextMode)
+    })
   }
 
   const requestCode = async () => {
@@ -225,7 +294,6 @@ export function LoginScreen() {
     }
 
     const nextPath = pendingPath ?? '/(tabs)'
-    setPendingPath(null)
     router.replace(nextPath as '/(tabs)')
   }
 
@@ -242,8 +310,16 @@ export function LoginScreen() {
           contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
         >
-          <View className="flex-1 justify-center px-5 pb-5 pt-4">
-            <View className="flex-row items-center justify-between">
+          <View
+            className={`w-full max-w-[640px] flex-1 self-center px-5 pb-5 ${
+              isWideLoginViewport ? 'justify-start pt-8' : 'justify-center pt-4'
+            }`}
+          >
+            <View
+              className={`items-center ${
+                isNarrowLoginViewport ? 'flex-col gap-3' : 'flex-row justify-between'
+              }`}
+            >
               <View className="flex-row items-center">
                 <Image
                   accessibilityLabel="DuolinTing"
@@ -257,7 +333,9 @@ export function LoginScreen() {
               </View>
               <Pressable
                 accessibilityLabel={t('language.chooseInterface')}
-                className="min-h-[42px] flex-row items-center rounded-[15px] border-2 border-[#cfe7f7] bg-white px-3 active:scale-95"
+                className={`min-h-[42px] flex-row items-center rounded-[15px] border-2 border-[#cfe7f7] bg-white px-3 active:scale-95 ${
+                  isNarrowLoginViewport ? 'self-end' : ''
+                }`}
                 hitSlop={8}
                 onPress={() => setLanguagePickerVisible(true)}
               >
@@ -286,7 +364,13 @@ export function LoginScreen() {
                 </View>
               </View>
 
-              <View className="px-5 pb-5 pt-4">
+              <Animated.View
+                style={{
+                  height: formBodyHeight,
+                  overflow: 'hidden',
+                }}
+              >
+              <View className="px-5 pb-5 pt-4" onLayout={updateFormBodyHeight}>
                 {mode === 'forgot' ? (
                   <Pressable
                     className="min-h-[44px] flex-row items-center self-start rounded-[14px] px-2 active:scale-95"
@@ -321,6 +405,7 @@ export function LoginScreen() {
                   </View>
                 )}
 
+                <Animated.View style={{ opacity: formBodyOpacity }}>
                 <View className="mt-4">
                   <Text className="mb-2 text-base font-black text-text-primary">
                     {t('auth.email')}
@@ -349,11 +434,19 @@ export function LoginScreen() {
                     <Text className="mb-2 text-base font-black text-text-primary">
                       {t('auth.verificationCode')}
                     </Text>
-                    <View className="flex-row items-center gap-2">
+                    <View
+                      className={`gap-2 ${
+                        isNarrowLoginViewport
+                          ? 'flex-col items-stretch'
+                          : 'flex-row items-center'
+                      }`}
+                    >
                       <TextInput
                         accessibilityLabel={t('auth.verificationCode')}
                         autoComplete="one-time-code"
-                        className="min-h-[50px] flex-1 rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4 text-base font-black tracking-[4px] text-text-primary"
+                        className={`min-h-[50px] rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4 text-base font-black tracking-[4px] text-text-primary ${
+                          isNarrowLoginViewport ? 'w-full' : 'min-w-0 flex-1'
+                        }`}
                         keyboardType="number-pad"
                         maxLength={6}
                         onChangeText={(value) => setVerificationCode(value.replace(/\D/g, '').slice(0, 6))}
@@ -362,7 +455,9 @@ export function LoginScreen() {
                         value={verificationCode}
                       />
                       <Pressable
-                        className="min-h-[50px] flex-row items-center rounded-[16px] border-2 border-[#cfe7f7] bg-[#edf7ff] px-3 active:border-[#1cb0f6] active:scale-95"
+                        className={`min-h-[50px] flex-row items-center rounded-[16px] border-2 border-[#cfe7f7] bg-[#edf7ff] px-3 active:border-[#1cb0f6] active:scale-95 ${
+                          isNarrowLoginViewport ? 'w-full justify-center' : 'shrink-0'
+                        }`}
                         disabled={requestEmailCodeMutation.isPending}
                         onPress={() => void requestCode()}
                       >
@@ -450,7 +545,9 @@ export function LoginScreen() {
                     </View>
                   ) : null}
                 </View>
+                </Animated.View>
               </View>
+              </Animated.View>
             </View>
           </View>
         </AppScrollView>

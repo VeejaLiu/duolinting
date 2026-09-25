@@ -1,6 +1,6 @@
 import { FontAwesome6 } from '@expo/vector-icons'
 import { Image } from 'expo-image'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import {
@@ -308,6 +308,7 @@ function CourseListItem({
 
 export function CatalogHomeScreen() {
   const router = useRouter()
+  const { seriesId: seriesIdParam } = useLocalSearchParams<{ seriesId?: string }>()
   const { data: catalog, isLoading, isError, error } = useCatalogQuery()
   const store = useStudyStore((state) => state.store)
   const activeExerciseId = useStudyStore((state) => state.store.activeExerciseId)
@@ -325,8 +326,14 @@ export function CatalogHomeScreen() {
   const todayKey = formatLocalDay(new Date())
   const masteredToday = activityDays[todayKey]?.masteredCount ?? 0
   const streak = calculateStreak(activityDays)
+  const requestedSeriesId = Number(seriesIdParam)
+  const routeSeriesId =
+    Number.isSafeInteger(requestedSeriesId) && requestedSeriesId > 0 &&
+    catalog?.categories.some((category) => category.id === requestedSeriesId)
+      ? requestedSeriesId
+      : selectedSeriesId
   const selectedSeries =
-    catalog?.categories.find((category) => category.id === selectedSeriesId) ??
+    catalog?.categories.find((category) => category.id === routeSeriesId) ??
     catalog?.categories[0]
   const {
     data: selectedExercises,
@@ -368,6 +375,14 @@ export function CatalogHomeScreen() {
       setSelectedSeriesId(selectedSeries.id)
     }
   }, [selectedSeries, selectedSeriesId, setSelectedSeriesId])
+
+  useEffect(() => {
+    // The incoming series ID is a one-time deep-link instruction. Remove it after
+    // syncing to the navigation store so later manual series changes can take effect.
+    if (selectedSeries && selectedSeries.id === requestedSeriesId && seriesIdParam) {
+      router.setParams({ seriesId: undefined })
+    }
+  }, [requestedSeriesId, router, selectedSeries, seriesIdParam])
 
   if (isLoading || !catalog || (selectedSeries && exercisesLoading && !selectedExercises)) {
     return (
