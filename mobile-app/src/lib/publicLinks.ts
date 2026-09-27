@@ -5,3 +5,5 @@
  */
 export const PRIVACY_POLICY_URL = 'https://www.duolinting.cn/privacy'
 export const SUPPORT_URL = 'https://www.duolinting.cn/support'
+export const OPEN_SOURCE_URL = 'https://github.com/VeejaLiu/duolinting'
+export const LICENSE_URL = 'https://github.com/VeejaLiu/duolinting/blob/main/LICENSE'

@@ -1,16 +1,18 @@
 import { FontAwesome6 } from '@expo/vector-icons'
-import { PropsWithChildren, useEffect, useRef } from 'react'
+import { PropsWithChildren, useEffect, useRef, useState } from 'react'
 import {
   Animated,
   Easing,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useLanguage } from '@/i18n/LanguageProvider'
 
 /**
  * 通用底部弹层（对标多邻国"连胜详情"的底部弹出页）。
@@ -26,7 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
  * - 背板：原地渐显（opacity 0 → 1）；
  * - 内容区：从屏幕底部上滑（translateY 屏高 → 0）。
  * 所以这里 animationType="none"，两条动画用 Animated 独立驱动；
- * 关闭时先反向播完再通知父组件卸载，避免"none"下瞬间消失。
+ * visible 变为 false 后仍保持 Modal 挂载，待退场动画完成再卸载。
  *
  * 结构注意：nativewind 不会对 Animated.View 做 className 样式编译，
  * 所以 Animated.View 只挂 inline style（transform），
@@ -37,66 +39,55 @@ export function BottomSheet({
   title,
   onClose,
   children,
+  scrollable = true,
 }: PropsWithChildren<{
   visible: boolean
   title: string
   onClose: () => void
+  scrollable?: boolean
 }>) {
   const insets = useSafeAreaInsets()
+  const { t } = useLanguage()
   const { height: windowHeight } = useWindowDimensions()
   const backdropOpacity = useRef(new Animated.Value(0)).current
   const sheetTranslateY = useRef(new Animated.Value(windowHeight)).current
+  const [mounted, setMounted] = useState(visible)
 
-  // 打开：背板渐显（200ms）与内容区上滑（280ms 缓出）并行、互不干扰
   useEffect(() => {
-    if (!visible) {
-      return
-    }
+    if (visible) setMounted(true)
+  }, [visible])
 
-    backdropOpacity.setValue(0)
-    sheetTranslateY.setValue(windowHeight)
+  useEffect(() => {
+    if (!mounted) return
+    backdropOpacity.stopAnimation()
+    sheetTranslateY.stopAnimation()
     Animated.parallel([
       Animated.timing(backdropOpacity, {
-        toValue: 1,
-        duration: 200,
+        toValue: visible ? 1 : 0,
+        duration: visible ? 200 : 160,
         useNativeDriver: true,
       }),
       Animated.timing(sheetTranslateY, {
-        toValue: 0,
-        duration: 280,
-        easing: Easing.out(Easing.cubic),
+        toValue: visible ? 0 : windowHeight,
+        duration: visible ? 280 : 200,
+        easing: visible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
-    ]).start()
-  }, [visible, backdropOpacity, sheetTranslateY, windowHeight])
-
-  // 关闭：先反向播完（背板渐隐 + 内容区下滑）再真正 onClose 卸载 Modal
-  const handleClose = () => {
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 160,
-        useNativeDriver: true,
-      }),
-      Animated.timing(sheetTranslateY, {
-        toValue: windowHeight,
-        duration: 200,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start(() => onClose())
-  }
+    ]).start(({ finished }) => {
+      if (finished && !visible) setMounted(false)
+    })
+  }, [mounted, visible, backdropOpacity, sheetTranslateY, windowHeight])
 
   return (
     <Modal
       animationType="none"
-      onRequestClose={handleClose}
+      onRequestClose={onClose}
       transparent
-      visible={visible}
+      visible={mounted}
     >
       <View className="flex-1 justify-end">
         {/* 半透明背板：铺满全屏原地渐显，点击关闭 */}
-        <Pressable onPress={handleClose} style={StyleSheet.absoluteFill}>
+        <Pressable onPress={onClose} style={StyleSheet.absoluteFill}>
           <Animated.View
             style={[
               StyleSheet.absoluteFill,
@@ -109,23 +100,26 @@ export function BottomSheet({
           {/* 样式层：贴底、顶部大圆角、白底，底部 padding 避开 home 指示条 */}
           <View
             className="rounded-t-[26px] bg-white"
-            style={{ paddingBottom: insets.bottom + 16 }}
+            style={{ paddingBottom: insets.bottom + 16, maxHeight: windowHeight * 0.78 }}
           >
             {/* 头部：左 X 关闭 + 居中标题；右侧放一个同宽占位块保证标题真正居中 */}
             <View className="flex-row items-center px-4 pb-1 pt-4">
               <Pressable
-                className="h-8 w-8 items-center justify-center"
-                hitSlop={12}
-                onPress={handleClose}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.cancel')}
+                className="h-12 w-12 items-center justify-center"
+                onPress={onClose}
               >
                 <FontAwesome6 color="#8191a6" name="xmark" size={18} />
               </Pressable>
               <Text className="flex-1 text-center text-lg font-black text-text-primary">
                 {title}
               </Text>
-              <View className="h-8 w-8" />
+              <View className="h-12 w-12" />
             </View>
-            {children}
+            {scrollable
+              ? <ScrollView keyboardShouldPersistTaps="handled">{children}</ScrollView>
+              : children}
           </View>
         </Animated.View>
       </View>

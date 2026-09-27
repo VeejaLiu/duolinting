@@ -161,6 +161,26 @@ export class AnalyticsClient {
       /* Optional analysis must not block account or player workflows. */
     }
   }
+  /** End a login session without changing the user's stored analytics choice. */
+  async suspendSession() {
+    this.generation++;
+    const previous = this.saved;
+    const previousToken = this.token;
+    this.consent = false;
+    this.saved = undefined;
+    this.token = "";
+    this.owner = "anonymous";
+    this.pending = undefined;
+    this.resetPlayback();
+    this.course = undefined;
+    if (previous) {
+      void this.request("revoke", {
+        identityEpoch: previous.context.identityEpoch,
+        withdraw: false,
+      }, previousToken).catch(() => {});
+    }
+    try { await this.options.storage.removeItem(key); } catch { /* Optional queue. */ }
+  }
   private resetPlayback() {
     this.intervals = [];
     this.study = "";

@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { apiClient } from '@/lib/apiClient'
 import { progressStorage } from '@/services/progressStorage'
 import { useAuthStore } from '@/stores/authStore'
+import { useAccountPreferencesStore } from '@/stores/accountPreferencesStore'
 
 /**
  * 每日提醒时间的持久化结构：本地时区的"几点几分"。
@@ -17,13 +18,15 @@ export type ReminderTime = {
  * 活动日历的持久化结构（也是 progressStorage 读写盘的 JSON 格式）：
  * - days: 以本地时区 yyyy-MM-dd 为键，记录当天学习活动；
  *   masteredCount 是"当天点下掌握的次数"。
- * - dailyGoal: 用户自定的每日掌握目标句数。
+ * - dailyGoal: 兼容既有活动快照的显示镜像；账号偏好的权威副本在 accountPreferencesStore。
  * - reminderEnabled / reminderTime: 每日提醒通知的开关与时间。
  *   这两个字段是后加的，旧快照里没有，hydrate 时要用 ?? 给默认值
  *   做向后兼容（见下方 hydrate 实现）。
  */
 export type ActivityLog = {
   days: Record<string, { masteredCount: number }>
+  /** Idempotent deltas still waiting for cloud acknowledgement. */
+  pendingOperations?: Array<{ id: string; day: string; delta: number }>
   dailyGoal: number
   reminderEnabled: boolean
   reminderTime: ReminderTime
@@ -46,24 +49,27 @@ export const formatLocalDay = (date: Date) => {
 }
 
 type ActivityState = ActivityLog & {
+  userId: string | null
   /** 本地快照是否已从磁盘读回；读回前不写盘，避免空 state 覆盖有效快照 */
   hydrated: boolean
-  hydrate: () => Promise<void>
+  hydrate: (userId: string) => Promise<void>
   logStudyActivity: () => void
   recordMastered: () => void
-  setDailyGoal: (value: number) => void
-  setReminderEnabled: (enabled: boolean) => void
-  setReminderTime: (time: ReminderTime) => void
+  setDailyGoal: (value: number) => Promise<void>
+  setReminderEnabled: (enabled: boolean) => Promise<void>
+  setReminderTime: (time: ReminderTime) => Promise<void>
   /** 删除账号后清空设备上的账号级活动数据，由调用方随后移除持久化快照。 */
   resetForAccountDeletion: () => void
   /**
    * 登录后从服务端拉回活动记录并合并进本地：
    * - days 按天取 max（服务端是天级累计值，本地可能有未上报的历史，
    *   取 max 保证两边都不丢）；
-   * - dailyGoal 以服务端为准直接覆盖本地（账号级偏好，云端权威）。
+   * - 每日目标由 accountPreferencesStore 同步，避免与活动快照竞争。
    * 失败静默：离线时保持本地数据可用，下次拿到有效 token 再重试。
    */
-  syncFromServer: (authToken: string) => Promise<void>
+  syncFromServer: (authToken: string, userId: string) => Promise<void>
+  syncPendingActivity: () => Promise<void>
+  resetSession: () => void
 }
 
 /**
@@ -78,30 +84,37 @@ const getAuthToken = () => useAuthStore.getState().authToken
  * 避免启动瞬间用默认值覆盖磁盘上的有效快照。
  */
 const persistActivityLog = (state: ActivityState) => {
-  if (!state.hydrated) {
+  if (!state.hydrated || !state.userId) {
     return
   }
 
-  void progressStorage.saveActivityLog({
+  void progressStorage.saveActivityLog(state.userId, {
     days: state.days,
+    pendingOperations: state.pendingOperations,
     dailyGoal: state.dailyGoal,
     reminderEnabled: state.reminderEnabled,
     reminderTime: state.reminderTime,
-  })
+  }).catch(() => undefined)
 }
+let activityFlush: Promise<void> | null = null
 
 export const useActivityStore = create<ActivityState>((set, get) => ({
   days: {},
+  pendingOperations: [],
   dailyGoal: DEFAULT_DAILY_GOAL,
   reminderEnabled: false,
   reminderTime: DEFAULT_REMINDER_TIME,
   hydrated: false,
+  userId: null,
 
-  hydrate: async () => {
-    const log = await progressStorage.loadActivityLog()
+  hydrate: async (userId) => {
+    set({ userId, hydrated: false, days: {}, pendingOperations: [], dailyGoal: DEFAULT_DAILY_GOAL, reminderEnabled: false, reminderTime: DEFAULT_REMINDER_TIME })
+    const log = await progressStorage.loadActivityLog(userId)
+    if (get().userId !== userId) return
     if (log) {
       set({
         days: log.days ?? {},
+        pendingOperations: Array.isArray(log.pendingOperations) ? log.pendingOperations : [],
         dailyGoal: log.dailyGoal ?? DEFAULT_DAILY_GOAL,
         // 向后兼容：这两个字段是激励机制版本新加的，
         // 旧版本写下的快照里没有，读回时一律兜底为默认值
@@ -110,6 +123,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       })
     }
     set({ hydrated: true })
+    void get().syncPendingActivity()
   },
 
   logStudyActivity: () => {
@@ -137,44 +151,39 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       ...current.days,
       [today]: { masteredCount: todayEntry.masteredCount + 1 },
     }
-    set({ days })
-    persistActivityLog(get())
-
-    // fire-and-forget 上报服务端（delta 口径：每次掌握 +1，day 为本地当天
-    // yyyy-MM-dd）；未登录或网络失败都不影响本地计数，静默吞掉
-    const token = getAuthToken()
-    if (token) {
-      void apiClient.recordDailyActivity(today, 1, token, Crypto.randomUUID()).catch(() => undefined)
+    const pendingOperations = [...(current.pendingOperations ?? []), { id: Crypto.randomUUID(), day: today, delta: 1 }]
+    set({ days, pendingOperations })
+    const owner = get().userId
+    if (owner) {
+      const snapshot = get()
+      // Save the idempotency key before sending, so a crash can replay safely.
+      void progressStorage.saveActivityLog(owner, { days, pendingOperations, dailyGoal: snapshot.dailyGoal, reminderEnabled: snapshot.reminderEnabled, reminderTime: snapshot.reminderTime })
+        .then(() => get().syncPendingActivity()).catch(() => undefined)
     }
   },
 
-  setDailyGoal: (value) => {
+  setDailyGoal: async (value) => {
     // 目标至少为 1，取整防小数；非法输入兜底为默认值
     const dailyGoal =
       Number.isFinite(value) && value >= 1
         ? Math.floor(value)
         : DEFAULT_DAILY_GOAL
-    set({ dailyGoal })
-    persistActivityLog(get())
-
-    // fire-and-forget 同步到账号偏好；未登录或失败静默，本地值仍生效
-    const token = getAuthToken()
-    if (token) {
-      void apiClient.updateUserPreferences({ dailyGoal }, token).catch(() => undefined)
-    }
+    await useAccountPreferencesStore.getState().update({ dailyGoal })
+    if (get().userId === useAccountPreferencesStore.getState().userId) set({ dailyGoal })
   },
 
-  setReminderEnabled: (enabled) => {
+  setReminderEnabled: async (enabled) => {
+    const state = get()
+    if (!state.userId) return
+    await progressStorage.saveActivityLog(state.userId, { days: state.days, pendingOperations: state.pendingOperations, dailyGoal: state.dailyGoal, reminderEnabled: enabled, reminderTime: state.reminderTime })
+    if (get().userId !== state.userId) return
     set({ reminderEnabled: enabled })
-    persistActivityLog(get())
   },
 
-  syncFromServer: async (authToken) => {
+  syncFromServer: async (authToken, userId) => {
     try {
-      const [activity, preferences] = await Promise.all([
-        apiClient.getDailyActivity(authToken),
-        apiClient.getUserPreferences(authToken),
-      ])
+      const activity = await apiClient.getDailyActivity(authToken)
+      if (get().userId !== userId) return
 
       const current = get()
       // days 合并策略：服务端 days 是 yyyy-MM-dd → 当天累计掌握句数，
@@ -189,19 +198,38 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
 
       set({
         days: mergedDays,
-        // dailyGoal 是账号级偏好，服务端为权威，直接覆盖本地
-        dailyGoal:
-          Number.isFinite(preferences.dailyGoal) && preferences.dailyGoal >= 1
-            ? preferences.dailyGoal
-            : current.dailyGoal,
       })
       persistActivityLog(get())
+      void get().syncPendingActivity()
     } catch {
       // 离线或接口失败时保持纯本地数据，下次拿到有效 token 再重试
     }
   },
 
-  setReminderTime: (time) => {
+  syncPendingActivity: async () => {
+    if (activityFlush) return activityFlush
+    const run = async () => {
+      while (true) {
+        const state = get()
+        const owner = state.userId
+        const token = getAuthToken()
+        const operation = state.pendingOperations?.[0]
+        if (!owner || !token || !operation) return
+        try { await apiClient.recordDailyActivity(operation.day, operation.delta, token, operation.id) } catch { return }
+        if (get().userId !== owner || getAuthToken() !== token) return
+        const pendingOperations = (get().pendingOperations ?? []).filter((item) => item.id !== operation.id)
+        set({ pendingOperations })
+        try {
+          const latest = get()
+          await progressStorage.saveActivityLog(owner, { days: latest.days, pendingOperations, dailyGoal: latest.dailyGoal, reminderEnabled: latest.reminderEnabled, reminderTime: latest.reminderTime })
+        } catch { return }
+      }
+    }
+    activityFlush = run().finally(() => { activityFlush = null })
+    return activityFlush
+  },
+
+  setReminderTime: async (time) => {
     // 兜底：hour 限 0-23、minute 限 0-59，非法输入回落到默认时间，
     // 避免把坏数据写进系统通知调度
     const valid =
@@ -211,8 +239,12 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       Number.isInteger(time.minute) &&
       time.minute >= 0 &&
       time.minute <= 59
-    set({ reminderTime: valid ? time : DEFAULT_REMINDER_TIME })
-    persistActivityLog(get())
+    const state = get()
+    if (!state.userId) return
+    const reminderTime = valid ? time : DEFAULT_REMINDER_TIME
+    await progressStorage.saveActivityLog(state.userId, { days: state.days, pendingOperations: state.pendingOperations, dailyGoal: state.dailyGoal, reminderEnabled: state.reminderEnabled, reminderTime })
+    if (get().userId !== state.userId) return
+    set({ reminderTime })
   },
 
   resetForAccountDeletion: () => {
@@ -220,9 +252,11 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
     // 避免先写默认值再删除造成额外 IO；hydrated 状态保持不变。
     set({
       days: {},
+      pendingOperations: [],
       dailyGoal: DEFAULT_DAILY_GOAL,
       reminderEnabled: false,
       reminderTime: DEFAULT_REMINDER_TIME,
     })
   },
+  resetSession: () => set({ userId: null, hydrated: false, days: {}, pendingOperations: [], dailyGoal: DEFAULT_DAILY_GOAL, reminderEnabled: false, reminderTime: DEFAULT_REMINDER_TIME }),
 }))

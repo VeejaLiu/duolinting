@@ -159,6 +159,44 @@ test("SDK persists retries with original event IDs and never sends an old accoun
   assert.equal(storage.size, 0);
 });
 
+test("ending a session clears queued analytics without withdrawing the device choice", async () => {
+  const storage = new Map<string, string>();
+  const revokes: unknown[] = [];
+  const client = new AnalyticsClient({
+    storage: {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => { storage.set(key, value); },
+      removeItem: (key) => { storage.delete(key); },
+    },
+    uuid: randomUUID,
+    url: (path) => path,
+    clientType: "mobile_app",
+    surface: "learner",
+    build: "test",
+    fetch: async (path, init) => {
+      if (String(path).endsWith("/context")) return new Response(JSON.stringify({
+        analyticsSessionId: randomUUID(), identityEpoch: "b".repeat(64),
+        anonymousId: randomUUID(), serverTime: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      }));
+      if (String(path).endsWith("/revoke")) {
+        revokes.push(JSON.parse(init!.body as string));
+        return new Response("{}");
+      }
+      return new Response("{}");
+    },
+  });
+  await client.configure(true, "account-token", "account-1");
+  await client.track("page_view", { pageViewId: randomUUID(), path: "/settings" });
+  assert.ok(storage.size > 0);
+  await client.suspendSession();
+  assert.equal(storage.size, 0);
+  assert.equal(client.contextEpoch, undefined);
+  assert.deepEqual(revokes, [{ identityEpoch: "b".repeat(64), withdraw: false }]);
+  await client.track("page_view", { pageViewId: randomUUID(), path: "/auth/login" });
+  assert.equal(storage.size, 0);
+});
+
 test("geo context rejects forged public XFF and Cloudflare country headers", async () => {
   const { resolveRequestGeoContext } =
     await import("../../../backend/src/general/analytics/geo.ts");

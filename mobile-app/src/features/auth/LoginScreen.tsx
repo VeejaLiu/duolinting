@@ -1,6 +1,5 @@
 import { FontAwesome6 } from '@expo/vector-icons'
 import { Image } from 'expo-image'
-import { useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import {
   Animated,
@@ -23,10 +22,12 @@ import {
   useRequestEmailCodeMutation,
   useResetPasswordMutation,
 } from './hooks'
-import { useNavigationStore } from '@/stores/navigationStore'
+import { useAuthStore } from '@/stores/authStore'
 import { useLanguage } from '@/i18n/LanguageProvider'
 import { UI_LOCALES, uiLocaleFlags, uiLocaleLabels } from '@/i18n/locale'
 import { useToast } from '@/providers/ToastProvider'
+import { openExternalLink } from '@/lib/openExternalLink'
+import { PRIVACY_POLICY_URL, SUPPORT_URL } from '@/lib/publicLinks'
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'verify'
 
@@ -34,7 +35,6 @@ type AuthMode = 'login' | 'register' | 'forgot' | 'verify'
 const authUiLocales = [...UI_LOCALES.filter((locale) => locale !== 'zh-CN'), 'zh-CN'] as const
 
 export function LoginScreen() {
-  const router = useRouter()
   const { width: viewportWidth } = useWindowDimensions()
   const isWideLoginViewport = viewportWidth >= 720
   const isNarrowLoginViewport = viewportWidth < 480
@@ -51,7 +51,10 @@ export function LoginScreen() {
   const registerMutation = useRegisterMutation()
   const requestEmailCodeMutation = useRequestEmailCodeMutation()
   const resetPasswordMutation = useResetPasswordMutation()
-  const pendingPath = useNavigationStore((state) => state.pendingPath)
+  const authRecoveryError = useAuthStore((state) => state.authRecoveryError)
+  const authReady = useAuthStore((state) => state.authReady)
+  const restoreSession = useAuthStore((state) => state.restoreSession)
+  const abandonSession = useAuthStore((state) => state.logout)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
@@ -351,8 +354,22 @@ export function LoginScreen() {
       tone: 'success',
     })
 
-    const nextPath = pendingPath ?? '/(tabs)'
-    router.replace(nextPath as '/(tabs)')
+    // The root protected navigator opens the saved deep link after auth changes.
+  }
+
+  if (!authReady) {
+    return <SafeScreen><View className="flex-1 items-center justify-center bg-[#f7fbff] px-5"><Text className="text-base text-text-secondary">{t('account.restoring')}</Text></View></SafeScreen>
+  }
+
+  if (authRecoveryError) {
+    return <SafeScreen>
+      <View className="flex-1 justify-center bg-[#f7fbff] px-5">
+        <Text className="text-center text-2xl font-black text-text-primary">{t('auth.restoreFailedTitle')}</Text>
+        <Text className="mt-3 text-center text-base text-text-secondary">{t('auth.restoreFailedBody')}</Text>
+        <View className="mt-6"><Button label={t('auth.retryRestore')} onPress={() => void restoreSession()} /></View>
+        <View className="mt-3"><Button label={t('auth.loginAgain')} tone="secondary" onPress={() => void abandonSession()} /></View>
+      </View>
+    </SafeScreen>
   }
 
   return (
@@ -639,6 +656,10 @@ export function LoginScreen() {
               </View>
               </Animated.View>
             </View>
+            <View className="mt-4 flex-row flex-wrap items-center justify-center gap-4">
+              <Pressable accessibilityRole="link" className="min-h-[48px] justify-center px-2" onPress={() => void openExternalLink(SUPPORT_URL).then((ok) => { if (!ok) showToast({ title: t('auth.toastErrorTitle'), message: t('settings.supportOpenFailed'), tone: 'error' }) })}><Text className="text-sm font-bold text-[#1688bd]">{t('settings.helpFeedback')}</Text></Pressable>
+              <Pressable accessibilityRole="link" className="min-h-[48px] justify-center px-2" onPress={() => void openExternalLink(PRIVACY_POLICY_URL).then((ok) => { if (!ok) showToast({ title: t('auth.toastErrorTitle'), message: t('settings.privacyOpenFailed'), tone: 'error' }) })}><Text className="text-sm font-bold text-[#1688bd]">{t('settings.privacyPolicy')}</Text></Pressable>
+            </View>
           </View>
         </AppScrollView>
         <BottomSheet
@@ -652,7 +673,7 @@ export function LoginScreen() {
                 key={locale}
                 className="flex-row items-center border-b border-[#e4eef8] py-4 last:border-b-0 active:scale-[0.99]"
                 onPress={() => {
-                  setUiLocale(locale)
+                  void setUiLocale(locale).catch(() => showToast({ title: t('auth.toastErrorTitle'), message: t('settings.localSaveFailed'), tone: 'error' }))
                   setLanguagePickerVisible(false)
                 }}
               >

@@ -90,7 +90,7 @@ export function SponsorsScreen() {
   return <SafeScreen>
     <View className="flex-1 bg-[#f7fbff]">
       <View className="flex-row items-center border-b-2 border-[#d7e4ef] bg-white px-4 py-3">
-        <Pressable accessibilityLabel={t('sponsors.back')} className="h-10 w-10 items-center justify-center rounded-[14px] border-2 border-[#d7e2ee] bg-white" onPress={() => router.canGoBack() ? router.back() : router.replace('/settings')}>
+        <Pressable accessibilityLabel={t('sponsors.back')} className="h-12 w-12 items-center justify-center rounded-[14px] border border-[#d7e2ee] bg-white active:border-[#1cb0f6]" onPress={() => router.canGoBack() ? router.back() : router.replace('/settings/about')}>
           <FontAwesome6 color="#172033" name="chevron-left" size={16} />
         </Pressable>
         <Text className="ml-3 text-2xl font-black text-text-primary">{t('sponsors.title')}</Text>

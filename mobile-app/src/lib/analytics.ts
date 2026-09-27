@@ -11,3 +11,8 @@ export const analytics = new AnalyticsClient({
   surface: "learner",
   build: process.env.EXPO_PUBLIC_APP_BUILD ?? "development",
 });
+
+// The former settings switch stored an account/device choice. Analytics now
+// follows the product's default collection policy, so retire that stale value.
+export const clearLegacyAnalyticsChoice = (owner: string) =>
+  AsyncStorage.removeItem(`duolinting.mobile.user.${encodeURIComponent(owner)}.analytics-choice.v1`);

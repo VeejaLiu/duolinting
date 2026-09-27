@@ -64,6 +64,7 @@ export function SeriesPickerScreen() {
   const setSelectedSeriesId = useNavigationStore((state) => state.setSelectedSeriesId)
   const { contentLocale, t } = useLanguage()
   const authToken = useAuthStore((state) => state.authToken)
+  const userId = useAuthStore((state) => state.authUser?.id)
   const groupedSeries = (catalog?.categoryGroups ?? [])
     .slice()
     .sort((left, right) => left.sortOrder - right.sortOrder)
@@ -101,7 +102,7 @@ export function SeriesPickerScreen() {
     groups.find((item) => item.group.id === selectedGroupId) ?? groups[0]
   const exerciseQueries = useQueries({
     queries: (catalog?.categories ?? []).map((category) => ({
-      queryKey: ['catalog', 'category-exercises', category.id, contentLocale, authToken],
+      queryKey: ['catalog', 'category-exercises', category.id, contentLocale, userId],
       queryFn: () => apiClient.getCategoryExercises(category.id, contentLocale, authToken),
       enabled: category.id > 0,
       refetchOnMount: 'always',

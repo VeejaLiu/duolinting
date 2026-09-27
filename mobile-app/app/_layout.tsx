@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { RuntimeErrorBoundary } from '@/components/foundation/RuntimeErrorBoundary'
 import { installRuntimeErrorReporting } from '@/lib/runtimeErrorReporting'
 import { useLanguage } from '@/i18n/LanguageProvider'
+import { useReminderLifecycle } from '@/hooks/useReminderLifecycle'
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined)
 installRuntimeErrorReporting()
@@ -21,7 +22,9 @@ function RootNavigator() {
   // 本地快照先 hydrate，再由云端同步按既有逻辑覆盖（详见 hook 注释）
   useBootstrapStudyStore()
   useRemoteProgressSync()
+  useReminderLifecycle()
   const authReady = useAuthStore((state) => state.authReady)
+  const authUser = useAuthStore((state) => state.authUser)
   const { languageReady } = useLanguage()
 
   useEffect(() => {
@@ -30,23 +33,12 @@ function RootNavigator() {
     }
   }, [authReady, languageReady])
 
-  useEffect(() => {
-    // Secure storage and the network are best-effort startup enhancements, not
-    // prerequisites for rendering the app. If either platform API stalls, the
-    // default in-memory state can safely render while it finishes or retries.
-    const splashSafetyTimer = setTimeout(() => {
-      void SplashScreen.hideAsync()
-    }, 2_500)
-
-    return () => clearTimeout(splashSafetyTimer)
-  }, [])
-
   return (
     <>
     <AnalyticsTracker />
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={Boolean(authUser) && authReady}>
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="auth/login" />
       {/* 系列选择器是完整页面，从右侧推进并在返回时反向滑出。 */}
       <Stack.Screen
         name="series/index"
@@ -57,22 +49,15 @@ function RootNavigator() {
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen
-        name="settings/change-password"
-        options={{ animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
-        name="settings/about"
-        options={{ animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
-        name="settings/sponsors"
-        options={{ animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
         name="contribute"
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen name="study/[seriesId]/[exerciseId]" />
+      <Stack.Screen name="vocabulary" />
+      </Stack.Protected>
+      <Stack.Protected guard={!authUser}>
+        <Stack.Screen name="auth/login" />
+      </Stack.Protected>
     </Stack>
     </>
   )

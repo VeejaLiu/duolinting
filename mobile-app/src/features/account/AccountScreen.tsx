@@ -1,7 +1,6 @@
 import { FontAwesome6 } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { Pressable, Text, View } from 'react-native'
-import { Button } from '@/components/foundation/Button'
 import { SafeScreen } from '@/components/primitives/SafeScreen'
 import { AppScrollView } from '@/components/primitives/AppScrollView'
 import { useAuthStore } from '@/stores/authStore'
@@ -68,19 +67,19 @@ export function AccountScreen() {
             </Pressable>
           </View>
 
-          {/* 基础信息卡把身份、登录状态和登录入口放在首屏最显眼的位置。 */}
+          {/* 基础信息卡只展示当前账号身份与同步状态。 */}
           <View className="mt-4 overflow-hidden rounded-[24px] border-2 border-[#58cc02] border-b-[6px] border-b-[#46a302] bg-success px-5 py-5">
             <View className="absolute right-[-26] top-[-34] h-32 w-32 rounded-full bg-white/15" />
             <View className="flex-row items-center">
               <View className="h-16 w-16 items-center justify-center rounded-[22px] border-2 border-white/30 bg-white/20">
-                <FontAwesome6 color="#ffffff" name={authUser ? 'user' : 'lock'} size={24} />
+                <FontAwesome6 color="#ffffff" name="user" size={24} />
               </View>
               <View className="ml-4 flex-1">
                 <Text className="text-xl font-black text-white" numberOfLines={1}>
-                  {authUser?.displayName ?? t('account.guest')}
+                  {authUser?.displayName}
                 </Text>
                 <Text className="mt-1 text-sm font-bold text-white/85" numberOfLines={1}>
-                  {authUser?.email ?? t('account.progressSyncHint')}
+                  {authUser?.email}
                 </Text>
               </View>
             </View>
@@ -91,20 +90,11 @@ export function AccountScreen() {
               </Text>
               <View className="ml-3 rounded-pill bg-white/20 px-3 py-1.5">
                 <Text className="text-xs font-black text-white">
-                  {authUser ? t('account.signedInBadge') : t('account.localModeBadge')}
+                  {t('account.signedInBadge')}
                 </Text>
               </View>
             </View>
 
-            {!authUser ? (
-              <View className="mt-5">
-                <Button
-                  label={t('account.signInOrRegister')}
-                  tone="secondary"
-                  onPress={() => router.push('/auth/login')}
-                />
-              </View>
-            ) : null}
           </View>
 
           {SHOW_VOCABULARY ? (
@@ -131,13 +121,6 @@ export function AccountScreen() {
                 icon="hand-holding-heart"
                 title={t('account.contribute')}
                 onPress={() => router.push('/contribute')}
-              />
-              <View className="border-t-2 border-[#e4eef8]" />
-              <NavigationRow
-                description={t('sponsors.settingsDescription')}
-                icon="handshake"
-                title={t('sponsors.title')}
-                onPress={() => router.push('/settings/sponsors')}
               />
             </View>
           </View>

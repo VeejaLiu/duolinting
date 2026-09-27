@@ -2,64 +2,41 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { StudyStore } from '@duolinting/domain'
 import type { ActivityLog } from '@/stores/activityStore'
 
-// 本地数据底座的两个存储 key，带 v1 版本号：
-// 将来结构变更时换 key（v2），旧数据自然失效，不做原地迁移
-const STUDY_STORE_KEY = 'duolinting.mobile.study.v1'
-const ACTIVITY_LOG_KEY = 'duolinting.mobile.activity.v1'
+// The unowned v1 keys are quarantined: their owner cannot be proved.
+const key = (userId: string, kind: 'study' | 'activity') =>
+  `duolinting.mobile.user.${encodeURIComponent(userId)}.${kind}.v2`
+const deletionMarker = 'duolinting.mobile.pending-account-cleanup.v1'
+const writes = new Map<string, Promise<void>>()
+const write = (storageKey: string, value: unknown) => {
+  const operation = (writes.get(storageKey) ?? Promise.resolve()).catch(() => undefined)
+    .then(() => AsyncStorage.setItem(storageKey, JSON.stringify(value)))
+  writes.set(storageKey, operation)
+  return operation
+}
 
-/**
- * 容错口径：本地快照读不到（首次启动）或损坏（JSON 解析失败、存储异常）
- * 一律返回 null，让上层当作"没有本地数据"走空存档启动。
- * 坏数据不阻塞启动，也不把异常抛给 UI。
- */
-const readJson = async <T>(key: string): Promise<T | null> => {
+const read = async <T>(storageKey: string): Promise<T | null> => {
   try {
-    const raw = await AsyncStorage.getItem(key)
-    if (!raw) {
-      return null
-    }
-
-    return JSON.parse(raw) as T
+    const value = await AsyncStorage.getItem(storageKey)
+    return value ? JSON.parse(value) as T : null
   } catch {
     return null
   }
 }
 
-/**
- * 写盘失败（存储已满等）只丢这一次快照，不打断学习流程；
- * 下一次变更还会再尝试写。
- */
-const writeJson = async (key: string, value: unknown): Promise<void> => {
-  try {
-    await AsyncStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // 忽略写盘异常，见上方注释
-  }
-}
-
-/** 删除账号时移除设备上的学习进度与活动快照；存储异常不阻塞退出流程。 */
-const removeLocalData = async (): Promise<void> => {
-  try {
-    await AsyncStorage.multiRemove([STUDY_STORE_KEY, ACTIVITY_LOG_KEY])
-  } catch {
-    // 忽略本地清理异常，服务端账号删除仍然已经完成
-  }
-}
-
 export const progressStorage = {
-  async loadStudyStore(): Promise<StudyStore | null> {
-    return readJson<StudyStore>(STUDY_STORE_KEY)
+  loadStudyStore: (userId: string) => read<{ store: StudyStore; baseline: string }>(key(userId, 'study')),
+  saveStudyStore: (userId: string, value: StudyStore, baseline: string) =>
+    write(key(userId, 'study'), { store: value, baseline }),
+  loadActivityLog: (userId: string) => read<ActivityLog>(key(userId, 'activity')),
+  saveActivityLog: (userId: string, value: ActivityLog) =>
+    write(key(userId, 'activity'), value),
+  async markAccountForCleanup(userId: string) {
+    await AsyncStorage.setItem(deletionMarker, userId)
   },
-  async saveStudyStore(store: StudyStore): Promise<void> {
-    await writeJson(STUDY_STORE_KEY, store)
-  },
-  async loadActivityLog(): Promise<ActivityLog | null> {
-    return readJson<ActivityLog>(ACTIVITY_LOG_KEY)
-  },
-  async saveActivityLog(log: ActivityLog): Promise<void> {
-    await writeJson(ACTIVITY_LOG_KEY, log)
-  },
-  async clearLearnerData(): Promise<void> {
-    await removeLocalData()
+  pendingCleanupOwner: () => AsyncStorage.getItem(deletionMarker),
+  clearPendingCleanupMarker: () => AsyncStorage.removeItem(deletionMarker),
+  async clearLearnerData(userId: string) {
+    await Promise.all([writes.get(key(userId, 'study')), writes.get(key(userId, 'activity'))])
+    await AsyncStorage.multiRemove([key(userId, 'study'), key(userId, 'activity')])
   },
 }

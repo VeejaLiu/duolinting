@@ -25,7 +25,8 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 180
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "ios": {
       "bundleIdentifier": "com.duolinting.app",

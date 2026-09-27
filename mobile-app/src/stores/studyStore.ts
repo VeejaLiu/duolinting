@@ -8,8 +8,7 @@ type StudyUiState = {
    * 本地快照是否已从磁盘 hydrate 完成。
    * 写盘订阅以此为闸门：hydrate 完成前禁止写盘，
    * 避免启动瞬间把初始空 store 覆盖掉磁盘上的有效快照。
-   * 注意 resetStore 不重置它——退出登录清空后的空 store 也要写盘，
-   * 与"退出登录清空本地"语义一致。
+   * resetSession 关闭它，防止退出后将空存档写回原账号快照。
    */
   hydrated: boolean
   revealedLineIds: Record<string, true>
@@ -32,6 +31,7 @@ type StudyUiState = {
   setLastSyncedStoreSnapshot: (value: string) => void
   setHydrated: (value: boolean) => void
   resetStore: () => void
+  resetSession: () => void
 }
 
 export const useStudyStore = create<StudyUiState>((set) => ({
@@ -73,9 +73,7 @@ export const useStudyStore = create<StudyUiState>((set) => ({
   setSyncStatus: (value) => set({ syncStatus: value }),
   setLastSyncedStoreSnapshot: (value) => set({ lastSyncedStoreSnapshot: value }),
   setHydrated: (value) => set({ hydrated: value }),
-  // 退出登录时全量重置学习存档（重置后的空 store 会照常写盘，
-  // 即"退出登录清空本地快照"）；hydrated 保持 true 不关写盘闸门。
-  // 注意不清 activityStore：活动日历是设备本地数据，不随账号退出清空
+  // resetStore 用于显式重置；会话结束应使用 resetSession 关闭写盘闸门。
   resetStore: () =>
     set({
       store: createEmptyStore(),
@@ -84,4 +82,8 @@ export const useStudyStore = create<StudyUiState>((set) => ({
       syncStatus: 'idle',
       lastSyncedStoreSnapshot: JSON.stringify(createEmptyStore()),
     }),
+  resetSession: () => set({
+    store: createEmptyStore(), hydrated: false, revealedLineIds: {}, syncReady: false,
+    syncStatus: 'idle', lastSyncedStoreSnapshot: JSON.stringify(createEmptyStore()),
+  }),
 }))

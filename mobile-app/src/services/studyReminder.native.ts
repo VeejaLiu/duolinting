@@ -1,109 +1,130 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { isRunningInExpoGo } from 'expo'
-import { Platform } from 'react-native'
+import { Linking, Platform } from 'react-native'
+import { create } from 'zustand'
 import type { ReminderTime } from '@/stores/activityStore'
 
 export type ReminderCopy = { title: string; body: string }
+export type ReminderStatus = 'disabled' | 'enabled' | 'permission' | 'error'
+export const useReminderStatus = create<{ status: ReminderStatus; setStatus: (status: ReminderStatus) => void }>((set) => ({
+  status: 'disabled', setStatus: (status) => set({ status }),
+}))
 type NotificationsModule = typeof import('expo-notifications')
+const markerKey = 'duolinting.mobile.reminder.v2'
+const legacyKey = 'duolinting.mobile.reminder.v2-legacy-cleaned'
+const unsupported = Platform.OS === 'android' && isRunningInExpoGo()
+let modulePromise: Promise<NotificationsModule> | null = null
+let queue: Promise<unknown> = Promise.resolve()
+let version = 0
+let activeOwner: string | null = null
+let activeSignature = ''
 
-// 本文件是 native 实现（iOS/Android），Metro 按 .native.ts 后缀解析；
-// web 端走 studyReminder.web.ts 的空实现，不会加载 expo-notifications。
+const notifications = async () => {
+  if (unsupported) return null
+  modulePromise ??= import('expo-notifications').then((value) => {
+    value.setNotificationHandler({ handleNotification: async () => ({
+      shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false,
+    }) })
+    return value
+  })
+  return modulePromise
+}
+const serialize = <T>(operation: () => Promise<T>): Promise<T> => {
+  const result = queue.then(operation, operation)
+  queue = result.catch(() => undefined)
+  return result
+}
+const allowed = (permission: Awaited<ReturnType<NotificationsModule['getPermissionsAsync']>>, api: NotificationsModule) =>
+  permission.granted || permission.ios?.status === api.IosAuthorizationStatus.PROVISIONAL
 
-const isUnsupportedAndroidExpoGo = Platform.OS === 'android' && isRunningInExpoGo()
-let notificationsModulePromise: Promise<NotificationsModule> | null = null
+const cancelOwned = async (api: NotificationsModule) => {
+  const raw = await AsyncStorage.getItem(markerKey)
+  const saved = raw ? JSON.parse(raw) as { id: string; owner: string } : null
+  if (saved?.id) await api.cancelScheduledNotificationAsync(saved.id)
+  await AsyncStorage.removeItem(markerKey)
+  activeSignature = ''
+}
 
-/**
- * Android Expo Go 自 SDK 53 起移除了远程推送原生能力；直接在模块顶层导入
- * expo-notifications 也会把这项限制作为 ERROR 输出，即使这里只使用本地定时提醒。
- * 因此只在实际支持的运行环境中按需加载，防止启动日志出现与学习功能无关的报错。
- */
-const getNotifications = async (): Promise<NotificationsModule | null> => {
-  if (isUnsupportedAndroidExpoGo) {
-    return null
-  }
-
-  notificationsModulePromise ??= import('expo-notifications').then((Notifications) => {
-    // 前台收到通知时也正常弹出横幅（默认行为是静默吞掉），
-    // 声音关闭，避免学习过程中被提示音打断。
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: false,
-        shouldSetBadge: false,
-      }),
+export const reminderController = {
+  async sync(owner: string, enabled: boolean, time: ReminderTime, copy: ReminderCopy, requestPermission = false): Promise<ReminderStatus> {
+    activeOwner = owner
+    const operationVersion = ++version
+    return serialize(async () => {
+      let api: NotificationsModule | null
+      try { api = await notifications() } catch {
+        useReminderStatus.getState().setStatus('error')
+        return 'error'
+      }
+      if (!api) {
+        const status = enabled ? 'error' : 'disabled'
+        useReminderStatus.getState().setStatus(status)
+        return status
+      }
+      if (activeOwner !== owner || operationVersion !== version) return 'disabled'
+      try {
+        // v1 used cancel-all without an identifier. Remove its task once during migration.
+        if (!(await AsyncStorage.getItem(legacyKey))) {
+          await api.cancelAllScheduledNotificationsAsync()
+          await AsyncStorage.setItem(legacyKey, '1')
+        }
+        if (!enabled) {
+          await cancelOwned(api)
+          useReminderStatus.getState().setStatus('disabled')
+          return 'disabled'
+        }
+        if (Platform.OS === 'android') {
+          await api.setNotificationChannelAsync('daily-study', { name: copy.title, importance: api.AndroidImportance.DEFAULT })
+        }
+        let permission = await api.getPermissionsAsync()
+        if (!allowed(permission, api) && requestPermission) permission = await api.requestPermissionsAsync()
+        if (!allowed(permission, api)) {
+          await cancelOwned(api)
+          useReminderStatus.getState().setStatus('permission')
+          return 'permission'
+        }
+        const signature = `${owner}:${time.hour}:${time.minute}:${copy.title}:${copy.body}`
+        if (activeSignature === signature) {
+          const saved = await AsyncStorage.getItem(markerKey)
+          const parsed = saved ? JSON.parse(saved) as { id: string } : null
+          const scheduled = await api.getAllScheduledNotificationsAsync()
+          if (parsed?.id && scheduled.some((item) => item.identifier === parsed.id)) {
+            useReminderStatus.getState().setStatus('enabled')
+            return 'enabled'
+          }
+        }
+        await cancelOwned(api)
+        if (activeOwner !== owner || operationVersion !== version) return 'disabled'
+        const id = await api.scheduleNotificationAsync({
+          content: { title: copy.title, body: copy.body },
+          trigger: { type: api.SchedulableTriggerInputTypes.DAILY, hour: time.hour, minute: time.minute },
+        })
+        await AsyncStorage.setItem(markerKey, JSON.stringify({ id, owner }))
+        if (activeOwner !== owner || operationVersion !== version) {
+          await cancelOwned(api)
+          return 'disabled'
+        }
+        activeSignature = signature
+        useReminderStatus.getState().setStatus('enabled')
+        return 'enabled'
+      } catch {
+        useReminderStatus.getState().setStatus('error')
+        return 'error'
+      }
     })
-    return Notifications
-  })
-
-  return notificationsModulePromise
-}
-
-/**
- * 关闭每日提醒：取消本 app 所有已调度的本地通知。
- * 目前 app 只有每日提醒这一种本地通知，全量取消最简单可靠；
- * 将来新增其他通知类型时，这里要改为按 identifier 精准取消。
- */
-export const disableDailyReminder = async (): Promise<void> => {
-  const Notifications = await getNotifications()
-  if (!Notifications) {
-    return
-  }
-
-  await Notifications.cancelAllScheduledNotificationsAsync()
-}
-
-/**
- * 开启每日提醒：先申请通知权限，再重排调度。
- * 返回是否真正调度成功（权限被拒绝时返回 false，调用方可据此回退开关 UI）。
- *
- * 调度策略：先 cancel 全部再 schedule 一条新的 DAILY 触发器——
- * 保证任何时刻系统里最多只有一条每日提醒，改时间/重复开关不会产生叠加。
- * DAILY 触发器按设备本地时区每天 hour:minute 触发，无需手动续期。
- */
-export const enableDailyReminder = async (
-  time: ReminderTime,
-  copy: ReminderCopy,
-): Promise<boolean> => {
-  const Notifications = await getNotifications()
-  if (!Notifications) {
-    return false
-  }
-
-  const { status } = await Notifications.requestPermissionsAsync()
-  if (status !== Notifications.PermissionStatus.GRANTED) {
-    return false
-  }
-
-  await Notifications.cancelAllScheduledNotificationsAsync()
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: copy.title,
-      body: copy.body,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: time.hour,
-      minute: time.minute,
-    },
-  })
-
-  return true
-}
-
-/**
- * 让系统侧的通知调度与用户设置保持一致的唯一入口。
- * 设置页开关/改时间时调用，app 启动 hydrate 完成后也会调用一次，
- * 兜底"上次调度成功后用户在系统设置里关了通知权限"等漂移场景。
- */
-export const syncDailyReminder = async (
-  enabled: boolean,
-  time: ReminderTime,
-  copy: ReminderCopy,
-): Promise<boolean> => {
-  if (!enabled) {
-    await disableDailyReminder()
-    return true
-  }
-
-  return enableDailyReminder(time, copy)
+  },
+  async endSession(owner: string) {
+    version += 1
+    activeOwner = null
+    await serialize(async () => {
+      try {
+        const api = await notifications()
+        if (api) {
+          const raw = await AsyncStorage.getItem(markerKey)
+          const saved = raw ? JSON.parse(raw) as { owner: string } : null
+          if (saved?.owner === owner) await cancelOwned(api)
+        }
+      } finally { useReminderStatus.getState().setStatus('disabled') }
+    })
+  },
+  openSystemSettings: () => Linking.openSettings(),
 }

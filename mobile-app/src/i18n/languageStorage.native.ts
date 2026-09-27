@@ -13,10 +13,6 @@ export const languageStorage = {
     }
   },
   async save(preferences: StoredLanguagePreferences): Promise<void> {
-    try {
-      await AsyncStorage.setItem(LANGUAGE_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences))
-    } catch {
-      // 语言选择写盘失败不能阻断学习；下次修改仍会重试。
-    }
+    await AsyncStorage.setItem(LANGUAGE_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences))
   },
 }

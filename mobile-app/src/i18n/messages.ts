@@ -1,17 +1,13 @@
 import frFR from './fr-FR'
 import esES from './es-ES'
+import { settingsExtra } from './settingsExtra'
 import type { UiLocale } from '@duolinting/domain'
 
 export const messages = {
-  'fr-FR': frFR,
-  'es-ES': esES,
+  'fr-FR': { ...frFR, ...settingsExtra['fr-FR'] },
+  'es-ES': { ...esES, ...settingsExtra['es-ES'] },
   'zh-CN': {
-    "analytics.title": "可选产品分析",
-    "analytics.description": "允许收集匿名访问、网络地区和播放体验，以改进产品；不收集听写或笔记正文。拒绝不影响学习。",
-    "analytics.allow": "允许分析",
-    "analytics.decline": "暂不允许",
-    "analytics.disable": "关闭分析",
-
+    ...settingsExtra['zh-CN'],
     "preview.updateRequired": "请升级 App 后再预览。",
     "study.playbackFailed": "播放未完成，请重试。",
     'tabs.study': '学习',
@@ -336,12 +332,7 @@ export const messages = {
     'reminder.body': '今天还没练听力哦，别断了连续记录！',
   },
   'en-US': {
-    "analytics.title": "Optional product analytics",
-    "analytics.description": "Help improve the product with visits, network region and playback quality. Dictation and notes are excluded. Learning works without analytics.",
-    "analytics.allow": "Allow analytics",
-    "analytics.decline": "Decline",
-    "analytics.disable": "Disable analytics",
-
+    ...settingsExtra['en-US'],
     "preview.updateRequired": "Update the app to preview this course.",
     "study.playbackFailed": "Playback did not complete. Please retry.",
     'tabs.study': 'Study',
@@ -666,12 +657,7 @@ export const messages = {
     'reminder.body': 'You have not practiced listening today. Keep your streak going!',
   },
   'th-TH': {
-    "analytics.title": "การวิเคราะห์แบบเลือกได้",
-    "analytics.description": "ช่วยปรับปรุงผลิตภัณฑ์ด้วยข้อมูลการเข้าชม ภูมิภาคเครือข่าย และการเล่น ไม่เก็บข้อความคำตอบหรือบันทึก ปฏิเสธแล้วเรียนได้ตามปกติ",
-    "analytics.allow": "อนุญาต",
-    "analytics.decline": "ไม่อนุญาต",
-    "analytics.disable": "ปิดการวิเคราะห์",
-
+    ...settingsExtra['th-TH'],
     "preview.updateRequired": "อัปเดตแอปก่อนดูตัวอย่าง",
     "study.playbackFailed": "เล่นไม่สำเร็จ โปรดลองอีกครั้ง",
     'tabs.study': 'เรียน',
@@ -996,12 +982,7 @@ export const messages = {
     'reminder.body': 'วันนี้ยังไม่ได้ฝึกฟังนะ อย่าปล่อยให้สถิติขาด!',
   },
   'ja-JP': {
-    "analytics.title": "任意の利用分析",
-    "analytics.description": "アクセス、ネットワーク地域、再生品質を改善に利用します。回答やメモ本文は収集しません。拒否しても学習できます。",
-    "analytics.allow": "分析を許可",
-    "analytics.decline": "許可しない",
-    "analytics.disable": "分析を停止",
-
+    ...settingsExtra['ja-JP'],
     "preview.updateRequired": "アプリを更新してください",
     "study.playbackFailed": "再生が完了しませんでした。再試行してください。",
     'tabs.study': '学習',

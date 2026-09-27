@@ -1,64 +1,65 @@
-import { useGlobalSearchParams, usePathname, useRouter, useSegments } from 'expo-router'
-import { useEffect } from 'react'
+import { useGlobalSearchParams, usePathname, useRouter } from 'expo-router'
+import * as Linking from 'expo-linking'
+import { useEffect, useRef } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { useNavigationStore } from '@/stores/navigationStore'
 
-const RETURN_QUERY_KEYS = [
-  'seriesId',
-  'stage',
-  'from',
-  'utm_source',
-  'utm_medium',
-  'utm_campaign',
-] as const
+const returnKeys = ['seriesId', 'stage', 'from', 'utm_source', 'utm_medium', 'utm_campaign'] as const
+const safeDestination = (pathname: string) =>
+  pathname.startsWith('/') && pathname !== '/' && !pathname.startsWith('//') &&
+  !pathname.startsWith('/auth') &&
+  !pathname.startsWith('/settings/account/delete') &&
+  !pathname.startsWith('/settings/account/change-password') &&
+  !pathname.startsWith('/settings/change-password')
 
-/** Preserve useful deep-link context through login without copying arbitrary query data. */
-function buildPendingPath(pathname: string, params: Record<string, unknown>) {
-  const query = RETURN_QUERY_KEYS.flatMap((key) => {
+function pendingPath(pathname: string, params: Record<string, unknown>) {
+  if (!safeDestination(pathname)) return null
+  const query = returnKeys.flatMap((key) => {
     const value = params[key]
     return typeof value === 'string' && value.length <= 128
-      ? [`${encodeURIComponent(key)}=${encodeURIComponent(value)}`]
-      : []
+      ? [`${encodeURIComponent(key)}=${encodeURIComponent(value)}`] : []
   }).join('&')
-
   return query ? `${pathname}?${query}` : pathname
 }
 
+/** Protected Stack guards block rendering; this hook only remembers safe deep links. */
 export function useProtectedRoute() {
   const router = useRouter()
-  const segments = useSegments()
   const pathname = usePathname()
-  const searchParams = useGlobalSearchParams()
+  const params = useGlobalSearchParams()
+  const user = useAuthStore((state) => state.authUser)
   const authReady = useAuthStore((state) => state.authReady)
-  const authUser = useAuthStore((state) => state.authUser)
-  const savedPendingPath = useNavigationStore((state) => state.pendingPath)
-  const setPendingPath = useNavigationStore((state) => state.setPendingPath)
-  const pendingPath = buildPendingPath(pathname, searchParams)
+  const saved = useNavigationStore((state) => state.pendingPath)
+  const setPending = useNavigationStore((state) => state.setPendingPath)
+  const wasSignedIn = useRef(false)
+  if (user) wasSignedIn.current = true
 
   useEffect(() => {
-    if (!authReady) {
+    void Linking.parseInitialURLAsync().then((initial) => {
+      if (!initial.path || useAuthStore.getState().authUser || useNavigationStore.getState().pendingPath || wasSignedIn.current) return
+      const route = `/${initial.path.replace(/^\/+/, '')}`
+      if (!/^\/(settings|series|study|vocabulary|contribute)(\/|$)/.test(route)) return
+      const destination = pendingPath(route, initial.queryParams ?? {})
+      if (destination) setPending(destination)
+    }).catch(() => undefined)
+  }, [setPending])
+
+  useEffect(() => {
+    if (user || wasSignedIn.current || saved || pathname === '/auth/login') return
+    const destination = pendingPath(pathname, params)
+    if (destination) setPending(destination)
+  }, [user, saved, pathname, params, setPending])
+
+  useEffect(() => {
+    if (!authReady || !user || !saved) return
+    if (!safeDestination(saved.split('?')[0])) {
+      setPending(null)
       return
     }
-
-    const inAuthGroup = segments[0] === 'auth'
-    // 贡献页是公开联系入口，游客也应能从“我的”页或外部链接直接进入。
-    const isPublicRoute = inAuthGroup || segments[0] === 'contribute'
-    if (!authUser && !isPublicRoute) {
-      setPendingPath(pendingPath)
-      router.replace('/auth/login')
-      return
+    if (pathname === saved.split('?')[0]) {
+      setPending(null)
+    } else {
+      router.replace(saved as '/(tabs)')
     }
-
-    if (authUser && inAuthGroup) {
-      // The login screen also completes this navigation after the request resolves;
-      // using the same saved destination here prevents its auth redirect from
-      // replacing a deep link with the default tab.
-      router.replace(savedPendingPath ?? '/(tabs)')
-      return
-    }
-
-    if (authUser && savedPendingPath && pathname === savedPendingPath.split('?')[0]) {
-      setPendingPath(null)
-    }
-  }, [authReady, authUser, pathname, pendingPath, router, savedPendingPath, segments, setPendingPath])
+  }, [authReady, user, saved, pathname, router, setPending])
 }

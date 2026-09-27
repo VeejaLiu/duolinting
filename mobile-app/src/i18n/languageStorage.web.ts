@@ -13,11 +13,7 @@ export const languageStorage = {
     }
   },
   async save(preferences: StoredLanguagePreferences): Promise<void> {
-    try {
-      if (typeof window === 'undefined' || !window.localStorage) return
-      window.localStorage.setItem(LANGUAGE_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences))
-    } catch {
-      // 与原生端一致：浏览器隐私模式或配额异常不影响当前会话。
-    }
+    if (typeof window === 'undefined' || !window.localStorage) throw new Error('Storage unavailable')
+    window.localStorage.setItem(LANGUAGE_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences))
   },
 }
