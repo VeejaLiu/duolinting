@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { env } from '../../env';
 import { UserSessionModel, type AuthClientType } from '../../models/schema/UserSessionDB';
+import { UserModel } from '../../models/schema/UserDB';
 import { signToken, TOKEN_EXPIRES_IN_SECONDS } from '../../lib/token/signToken';
 import { recordUserDailyAccess } from './user-access-activity-service';
 
@@ -138,6 +139,11 @@ export async function verifyUserSession(token: string, options: { recordAccess?:
     if (new Date(session.expires_at).getTime() <= Date.now()) {
         return { success: false };
     }
+
+    // Legacy sessions were issued before email ownership was recorded. They
+    // cannot authorize any learner API until the owner completes verification.
+    const user = await UserModel.findByPk(userId, { attributes: ['email_verified_at'], raw: true });
+    if (!user?.email_verified_at) return { success: false };
 
     await UserSessionModel.update({ last_seen_at: new Date() }, { where: { id: sessionId } });
     if (options.recordAccess !== false) await recordUserDailyAccess(userId, clientType);

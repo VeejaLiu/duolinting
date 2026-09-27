@@ -1,7 +1,7 @@
 import Sequelize, { Model, type ModelAttributes } from 'sequelize';
 import { Defaultconfig, sequelize } from '../db-config-mysql';
 
-export type UserEmailChallengePurpose = 'register' | 'password_reset';
+export type UserEmailChallengePurpose = 'register' | 'password_reset' | 'verify_account';
 
 const UserEmailChallengeSchema: ModelAttributes = {
     id: {

@@ -93,7 +93,8 @@ router.post(
     '/email-code',
     emailCodeRateLimit,
     body('email').trim().toLowerCase().isEmail().withMessage('Email must be a valid email'),
-    body('purpose').isIn(['register', 'password_reset']).withMessage('Invalid email code purpose'),
+    body('purpose').isIn(['register', 'password_reset', 'verify_account']).withMessage('Invalid email code purpose'),
+    body('password').optional().isString().isLength({ min: 1 }),
     body('uiLocale').optional().isIn(['zh-CN', 'en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES']),
     validateErrorCheck,
     async (req, res, next) => {
@@ -134,13 +135,19 @@ router.post(
     learnerLoginRateLimit,
     body('email').trim().toLowerCase().isEmail().withMessage('Email must be a valid email'),
     body('password').isString().withMessage('Password must be a string'),
+    body('verificationCode').optional().isString().matches(/^\d{6}$/),
     validateErrorCheck,
     async (req, res) => {
-        const result = await loginUser({
-            ...req.body,
-            clientType: getRequestClientType(req),
-        });
-        res.status(result.success ? 200 : 401).send(result);
+        try {
+            const result = await loginUser({
+                ...req.body,
+                clientType: getRequestClientType(req),
+            });
+            res.status(result.success ? 200 : result.code === 'EMAIL_VERIFICATION_REQUIRED' ? 403 : 401).send(result);
+        } catch (error) {
+            if (sendEmailChallengeError(res, error)) return;
+            throw error;
+        }
     },
 );
 

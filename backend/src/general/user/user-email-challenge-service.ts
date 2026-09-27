@@ -1,4 +1,5 @@
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import type { Transaction } from 'sequelize';
 import { env } from '../../env';
 import { sendTransactionalEmail, isTransactionalEmailConfigured } from '../email/email-service';
@@ -18,7 +19,9 @@ export type EmailChallengeErrorCode =
     | 'EMAIL_CODE_REQUIRED'
     | 'EMAIL_CODE_INVALID'
     | 'EMAIL_CODE_EXPIRED'
-    | 'EMAIL_CODE_LOCKED';
+    | 'EMAIL_CODE_LOCKED'
+    | 'EMAIL_ALREADY_VERIFIED'
+    | 'INVALID_CREDENTIALS';
 
 export class EmailChallengeError extends Error {
     constructor(
@@ -80,6 +83,7 @@ const emailCopy: Record<UiLocale, EmailLocaleCopy> = {
         purposes: {
             register: { subject: 'DuolinTing 注册验证码', preheader: '完成邮箱验证，开始保存你的学习记录。', heading: '验证你的邮箱', intro: '使用下面的验证码完成 DuolinTing 注册，并安全同步你的学习记录。', securityNote: '如果不是你本人注册，请忽略此邮件；你的邮箱不会因此创建账号。' },
             password_reset: { subject: 'DuolinTing 密码重置验证码', preheader: '使用此验证码安全重置你的密码。', heading: '重置你的密码', intro: '我们收到了密码重置请求。请使用下面的验证码确认身份。', securityNote: '如果不是你本人操作，请忽略此邮件，并不要向任何人透露验证码。' },
+            verify_account: { subject: 'DuolinTing 邮箱验证', preheader: '验证邮箱后即可继续使用你的学习账号。', heading: '确认你的邮箱', intro: '你的学习账号还需要完成邮箱验证。请输入下面的验证码，即可继续登录并保留原有学习记录。', securityNote: '如果不是你本人登录，请忽略此邮件，并不要向任何人透露验证码。' },
         },
     },
     'en-US': {
@@ -87,6 +91,7 @@ const emailCopy: Record<UiLocale, EmailLocaleCopy> = {
         purposes: {
             register: { subject: 'Your DuolinTing verification code', preheader: 'Verify your email and start saving your learning progress.', heading: 'Verify your email', intro: 'Use the code below to finish creating your DuolinTing account and securely sync your progress.', securityNote: 'If you did not create an account, ignore this email. No account will be created from this message alone.' },
             password_reset: { subject: 'Your DuolinTing password reset code', preheader: 'Use this code to reset your password securely.', heading: 'Reset your password', intro: 'We received a password reset request. Use the code below to confirm your identity.', securityNote: 'If you did not request this, ignore this email and never share the code with anyone.' },
+            verify_account: { subject: 'Verify your DuolinTing email', preheader: 'Confirm your email to continue using your learning account.', heading: 'Confirm your email', intro: 'Your learning account needs email verification. Enter the code below to sign in and keep your existing progress.', securityNote: 'If you did not try to sign in, ignore this email and never share the code.' },
         },
     },
     'th-TH': {
@@ -94,6 +99,7 @@ const emailCopy: Record<UiLocale, EmailLocaleCopy> = {
         purposes: {
             register: { subject: 'รหัสยืนยัน DuolinTing', preheader: 'ยืนยันอีเมลและเริ่มบันทึกความคืบหน้า', heading: 'ยืนยันอีเมลของคุณ', intro: 'ใช้รหัสด้านล่างเพื่อสร้างบัญชี DuolinTing และซิงค์ความคืบหน้าอย่างปลอดภัย', securityNote: 'หากคุณไม่ได้สมัครบัญชี โปรดละเว้นอีเมลนี้ บัญชีจะไม่ถูกสร้างจากอีเมลนี้เพียงอย่างเดียว' },
             password_reset: { subject: 'รหัสรีเซ็ตรหัสผ่าน DuolinTing', preheader: 'ใช้รหัสนี้เพื่อรีเซ็ตรหัสผ่านอย่างปลอดภัย', heading: 'รีเซ็ตรหัสผ่านของคุณ', intro: 'เราได้รับคำขอรีเซ็ตรหัสผ่าน ใช้รหัสด้านล่างเพื่อยืนยันตัวตน', securityNote: 'หากคุณไม่ได้ร้องขอ โปรดละเว้นอีเมลนี้และอย่าแชร์รหัสกับใคร' },
+            verify_account: { subject: 'ยืนยันอีเมล DuolinTing ของคุณ', preheader: 'ยืนยันอีเมลเพื่อใช้บัญชีเรียนต่อ', heading: 'ยืนยันอีเมลของคุณ', intro: 'บัญชีเรียนของคุณต้องยืนยันอีเมล ใช้รหัสด้านล่างเพื่อเข้าสู่ระบบพร้อมเก็บความคืบหน้าเดิม', securityNote: 'หากคุณไม่ได้พยายามเข้าสู่ระบบ โปรดละเว้นอีเมลนี้และอย่าแชร์รหัส' },
         },
     },
     'ja-JP': {
@@ -101,6 +107,7 @@ const emailCopy: Record<UiLocale, EmailLocaleCopy> = {
         purposes: {
             register: { subject: 'DuolinTing メール認証コード', preheader: 'メールを確認して学習記録の保存を始めましょう。', heading: 'メールアドレスを確認', intro: '次のコードを使って DuolinTing アカウントを作成し、学習記録を安全に同期してください。', securityNote: '登録した覚えがない場合は、このメールを無視してください。このメールだけでアカウントが作成されることはありません。' },
             password_reset: { subject: 'DuolinTing パスワード再設定コード', preheader: 'このコードでパスワードを安全に再設定できます。', heading: 'パスワードを再設定', intro: 'パスワード再設定のリクエストを受け付けました。次のコードで本人確認を行ってください。', securityNote: '心当たりがない場合は、このメールを無視し、コードを誰にも共有しないでください。' },
+            verify_account: { subject: 'DuolinTing メール確認コード', preheader: 'メールを確認して学習アカウントを続けて利用しましょう。', heading: 'メールアドレスを確認', intro: '学習アカウントのメール確認が必要です。次のコードでログインすると、これまでの学習記録も引き継げます。', securityNote: 'ログインした覚えがない場合は、このメールを無視し、コードを共有しないでください。' },
         },
     },
     'fr-FR': {
@@ -108,6 +115,7 @@ const emailCopy: Record<UiLocale, EmailLocaleCopy> = {
         purposes: {
             register: { subject: 'Votre code de vérification DuolinTing', preheader: 'Vérifiez votre e-mail et enregistrez votre progression.', heading: 'Vérifiez votre adresse e-mail', intro: 'Utilisez le code ci-dessous pour créer votre compte DuolinTing et synchroniser votre progression en toute sécurité.', securityNote: 'Si vous n’avez pas créé de compte, ignorez cet e-mail. Aucun compte ne sera créé avec ce message seul.' },
             password_reset: { subject: 'Votre code de réinitialisation DuolinTing', preheader: 'Utilisez ce code pour réinitialiser votre mot de passe.', heading: 'Réinitialisez votre mot de passe', intro: 'Nous avons reçu une demande de réinitialisation. Utilisez le code ci-dessous pour confirmer votre identité.', securityNote: 'Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail et ne partagez jamais le code.' },
+            verify_account: { subject: 'Vérifiez votre e-mail DuolinTing', preheader: 'Confirmez votre adresse pour continuer à utiliser votre compte.', heading: 'Confirmez votre adresse e-mail', intro: 'Votre compte d’apprentissage doit confirmer son adresse e-mail. Saisissez ce code pour vous connecter en conservant votre progression.', securityNote: 'Si vous n’avez pas essayé de vous connecter, ignorez cet e-mail et ne partagez pas le code.' },
         },
     },
     'es-ES': {
@@ -115,6 +123,7 @@ const emailCopy: Record<UiLocale, EmailLocaleCopy> = {
         purposes: {
             register: { subject: 'Tu código de verificación de DuolinTing', preheader: 'Verifica tu correo y empieza a guardar tu progreso.', heading: 'Verifica tu correo', intro: 'Usa el código para crear tu cuenta de DuolinTing y sincronizar tu progreso de forma segura.', securityNote: 'Si no creaste una cuenta, ignora este correo. Este mensaje por sí solo no creará ninguna cuenta.' },
             password_reset: { subject: 'Tu código para restablecer la contraseña de DuolinTing', preheader: 'Usa este código para restablecer tu contraseña.', heading: 'Restablece tu contraseña', intro: 'Recibimos una solicitud para restablecer tu contraseña. Usa el código para confirmar tu identidad.', securityNote: 'Si no hiciste esta solicitud, ignora el correo y no compartas el código con nadie.' },
+            verify_account: { subject: 'Verifica tu correo de DuolinTing', preheader: 'Confirma tu correo para seguir usando tu cuenta.', heading: 'Confirma tu correo', intro: 'Tu cuenta de aprendizaje necesita verificar el correo. Introduce este código para iniciar sesión y conservar tu progreso.', securityNote: 'Si no intentaste iniciar sesión, ignora este correo y no compartas el código.' },
         },
     },
 };
@@ -169,24 +178,18 @@ export const renderUserEmailChallengeEmail = (
     };
 };
 
-// Production fails closed: losing the provider key must disable registration,
-// not silently turn verified signup into an unverified flow. Unconfigured local
-// development remains usable for self-hosters working before email setup.
-export const emailVerificationRequired = () => env.isProduction || isTransactionalEmailConfigured();
-
 export async function requestUserEmailChallenge({
     email,
     purpose,
+    password,
     uiLocale,
 }: {
     email: string;
     purpose: UserEmailChallengePurpose;
+    password?: string;
     uiLocale?: unknown;
 }) {
     if (!isTransactionalEmailConfigured()) {
-        if (purpose === 'register' && !emailVerificationRequired()) {
-            return { verificationRequired: false, delivery: 'disabled' as const, expiresInSeconds: 0, retryAfterSeconds: 0, hourlyLimit: 0 };
-        }
         throw new EmailChallengeError('EMAIL_SERVICE_UNAVAILABLE', 'Email service is unavailable.', 503);
     }
 
@@ -194,6 +197,15 @@ export async function requestUserEmailChallenge({
     const existingUser = await UserModel.findOne({ where: { email: normalizedEmail }, raw: true });
     if (purpose === 'register' && existingUser) {
         throw new EmailChallengeError('EMAIL_ALREADY_REGISTERED', 'Email already registered.', 409);
+    }
+    if (purpose === 'verify_account') {
+        const passwordHash = existingUser?.password_hash;
+        if (!passwordHash || !password || !(await bcrypt.compare(password, passwordHash))) {
+            throw new EmailChallengeError('INVALID_CREDENTIALS', 'Invalid email or password.', 401);
+        }
+        if (existingUser.email_verified_at) {
+            throw new EmailChallengeError('EMAIL_ALREADY_VERIFIED', 'Email is already verified.', 409);
+        }
     }
 
     // Password recovery never reveals whether an address is registered.
@@ -293,7 +305,7 @@ export async function consumeUserEmailChallenge({
     }
     if (new Date(challenge.expires_at).getTime() <= Date.now()) {
         await challenge.update({ consumed_at: new Date() }, { transaction });
-        throw new EmailChallengeError('EMAIL_CODE_EXPIRED', 'Email code has expired.', 400);
+        return new EmailChallengeError('EMAIL_CODE_EXPIRED', 'Email code has expired.', 400);
     }
     if (challenge.failed_attempts >= MAX_FAILED_ATTEMPTS) {
         throw new EmailChallengeError('EMAIL_CODE_LOCKED', 'Too many invalid code attempts.', 429);
@@ -309,7 +321,7 @@ export async function consumeUserEmailChallenge({
             },
             { transaction },
         );
-        throw new EmailChallengeError(
+        return new EmailChallengeError(
             failedAttempts >= MAX_FAILED_ATTEMPTS ? 'EMAIL_CODE_LOCKED' : 'EMAIL_CODE_INVALID',
             failedAttempts >= MAX_FAILED_ATTEMPTS ? 'Too many invalid code attempts.' : 'Email code is invalid.',
             failedAttempts >= MAX_FAILED_ATTEMPTS ? 429 : 400,
@@ -317,4 +329,5 @@ export async function consumeUserEmailChallenge({
     }
 
     await challenge.update({ consumed_at: new Date() }, { transaction });
+    return null;
 }

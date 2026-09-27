@@ -591,20 +591,24 @@ export type RegisterRequest = {
 export type LoginRequest = {
   email: string
   password: string
+  /** Required once for legacy learner accounts whose email was never confirmed. */
+  verificationCode?: string
   clientType?: AuthClientType
 }
 
-export type EmailChallengePurpose = 'register' | 'password_reset'
+export type EmailChallengePurpose = 'register' | 'password_reset' | 'verify_account'
 
 export type RequestEmailCodeRequest = {
   email: string
   purpose: EmailChallengePurpose
+  /** Current password proves account control before emailing a legacy account. */
+  password?: string
   uiLocale?: UiLocale
 }
 
 export type RequestEmailCodeResponse = {
   verificationRequired: boolean
-  delivery: 'sent' | 'cooldown' | 'disabled'
+  delivery: 'sent' | 'cooldown'
   expiresInSeconds: number
   retryAfterSeconds?: number
   /** Maximum successful send attempts per IP and per normalized email each hour. */

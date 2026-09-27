@@ -24,6 +24,9 @@ const UserSchema: ModelAttributes = {
     password_hash: {
         type: Sequelize.STRING(255),
     },
+    email_verified_at: {
+        type: Sequelize.DATE,
+    },
     token: {
         type: Sequelize.TEXT,
     },
@@ -41,6 +44,8 @@ export interface UserDb {
     display_name: string;
     is_preview_volunteer: boolean;
     password_hash: string | null;
+    /** UTC time when this learner proved control of the login email; NULL blocks sessions. */
+    email_verified_at?: Date | null;
     token?: string | null;
     created_at?: Date;
     updated_at?: Date;
@@ -52,6 +57,7 @@ export class UserModel extends Model<UserDb> {
     declare display_name: string;
     declare is_preview_volunteer: boolean;
     declare password_hash: string | null;
+    declare email_verified_at: Date | null;
     declare token: string | null;
 
     public static async getRawByID({ id }: { id: string | number }) {

@@ -6,7 +6,7 @@ import type { AuthUser, RegisterRequest, ResetPasswordRequest } from '../../doma
 import { sequelize } from '../../models/db-config-mysql';
 import { UserModel } from '../../models/schema/UserDB';
 import { UserSessionModel } from '../../models/schema/UserSessionDB';
-import { consumeUserEmailChallenge, emailVerificationRequired } from './user-email-challenge-service';
+import { consumeUserEmailChallenge, EmailChallengeError } from './user-email-challenge-service';
 import {
     issueUserSession,
     normalizeAuthClientType,
@@ -66,18 +66,19 @@ export async function registerUser(request: RegisterRequest, geo?: GeoContext, a
 
     const passwordHash = await bcrypt.hash(request.password, 10);
     const createdUser = await sequelize.transaction(async (transaction) => {
-      if (emailVerificationRequired()) {
-        await consumeUserEmailChallenge({
+      const verificationError = await consumeUserEmailChallenge({
           email: normalizedEmail,
           purpose: 'register',
           code: request.verificationCode,
           transaction,
         });
-      }
+      // Commit failed-attempt counters before returning the error to the caller.
+      if (verificationError) return verificationError;
       const account = await UserModel.create({
         email: normalizedEmail,
         display_name: request.displayName,
         password_hash: passwordHash,
+        email_verified_at: new Date(),
     } as any, { transaction });
       await write('insert into analytics_user_profiles(user_id,registration_country) values(:id,:country)', { id: plainUser(account).id, country: geo?.countryCode ?? 'unknown' }, transaction);
       const context = analyticsEpoch && /^[a-f0-9]{64}$/.test(analyticsEpoch) ? (await rows('select * from analytics_sessions where identity_epoch=:epoch and user_id is null and revoked_at is null and expires_at>UTC_TIMESTAMP(3) for update', {epoch:createHash('sha256').update(analyticsEpoch).digest('hex')}, transaction))[0] : undefined;
@@ -89,6 +90,7 @@ export async function registerUser(request: RegisterRequest, geo?: GeoContext, a
 
       return account;
     });
+    if (createdUser instanceof EmailChallengeError) throw createdUser;
 
     const row = plainUser(createdUser);
     const user = {
@@ -124,22 +126,25 @@ export async function resetUserPassword(request: ResetPasswordRequest): Promise<
         };
     }
 
-    await sequelize.transaction(async (transaction) => {
-        await consumeUserEmailChallenge({
+    const resetError = await sequelize.transaction(async (transaction) => {
+        const verificationError = await consumeUserEmailChallenge({
             email: normalizedEmail,
             purpose: 'password_reset',
             code: request.verificationCode,
             transaction,
         });
+        if (verificationError) return verificationError;
         await UserModel.update(
-            { password_hash: await bcrypt.hash(request.newPassword, 10) },
+            { password_hash: await bcrypt.hash(request.newPassword, 10), email_verified_at: new Date() },
             { where: { id: userRecord.id }, transaction },
         );
         await UserSessionModel.update(
             { revoked_at: new Date() },
             { where: { user_id: userRecord.id }, transaction },
         );
+        return null;
     });
+    if (resetError) throw resetError;
 
     return {
         success: true,
@@ -151,10 +156,12 @@ export async function resetUserPassword(request: ResetPasswordRequest): Promise<
 export async function loginUser({
     email,
     password,
+    verificationCode,
     clientType,
 }: {
     email: string;
     password: string;
+    verificationCode?: string;
     clientType?: unknown;
 }): Promise<AuthResult> {
     const userRecord = await findUserByEmail(email);
@@ -166,6 +173,42 @@ export async function loginUser({
     const matched = passwordHash ? await bcrypt.compare(password, passwordHash) : false;
     if (!matched) {
         return { success: false, message: 'Invalid email or password', code: 'INVALID_CREDENTIALS' };
+    }
+
+    if (!plainUser(userRecord).email_verified_at) {
+        if (!verificationCode) {
+            return {
+                success: false,
+                message: 'Email verification is required.',
+                code: 'EMAIL_VERIFICATION_REQUIRED',
+            };
+        }
+        const verificationError = await sequelize.transaction(async (transaction) => {
+            const lockedUser = await UserModel.findByPk(userRecord.id, {
+                transaction,
+                lock: transaction.LOCK.UPDATE,
+            });
+            if (!lockedUser) {
+                return new EmailChallengeError('INVALID_CREDENTIALS', 'Invalid email or password.', 401);
+            }
+            if (lockedUser.email_verified_at) return null;
+            const codeError = await consumeUserEmailChallenge({
+                email: userRecord.email,
+                purpose: 'verify_account',
+                code: verificationCode,
+                transaction,
+            });
+            if (codeError) return codeError;
+            await lockedUser.update({ email_verified_at: new Date() }, { transaction });
+            // Tokens issued before ownership was proven must stay revoked even
+            // after this account becomes verified on another device.
+            await UserSessionModel.update(
+                { revoked_at: new Date() },
+                { where: { user_id: lockedUser.id }, transaction },
+            );
+            return null;
+        });
+        if (verificationError) throw verificationError;
     }
 
     const user = mapUser(userRecord);

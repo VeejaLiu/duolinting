@@ -28,7 +28,7 @@ import { useLanguage } from '@/i18n/LanguageProvider'
 import { UI_LOCALES, uiLocaleFlags, uiLocaleLabels } from '@/i18n/locale'
 import { useToast } from '@/providers/ToastProvider'
 
-type AuthMode = 'login' | 'register' | 'forgot'
+type AuthMode = 'login' | 'register' | 'forgot' | 'verify'
 
 // 认证页优先展示国际化语言，简体中文固定放在最后，方便新用户快速扫读选择。
 const authUiLocales = [...UI_LOCALES.filter((locale) => locale !== 'zh-CN'), 'zh-CN'] as const
@@ -55,17 +55,16 @@ export function LoginScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
-  const [verificationRequired, setVerificationRequired] = useState(true)
+  const [codeRequested, setCodeRequested] = useState(false)
   const [resendSeconds, setResendSeconds] = useState(0)
   const [codeExpiresSeconds, setCodeExpiresSeconds] = useState(0)
-  const [hourlyLimit, setHourlyLimit] = useState(6)
   const countdownActive = resendSeconds > 0 || codeExpiresSeconds > 0
   const [showPassword, setShowPassword] = useState(false)
   const [formError, setFormError] = useState('')
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false)
   const { setUiLocale, t, uiLocale } = useLanguage()
   const { showToast } = useToast()
-  const activeMutation = mode === 'login'
+  const activeMutation = mode === 'login' || mode === 'verify'
     ? loginMutation
     : mode === 'register'
       ? registerMutation
@@ -155,7 +154,7 @@ export function LoginScreen() {
 
       setFormError('')
       setVerificationCode('')
-      setVerificationRequired(true)
+      setCodeRequested(false)
       setResendSeconds(0)
       setCodeExpiresSeconds(0)
       if (nextMode === 'forgot') setPassword('')
@@ -164,27 +163,26 @@ export function LoginScreen() {
     })
   }
 
-  const requestCode = async () => {
+  const requestCode = async (targetMode: AuthMode = mode) => {
     const normalizedEmail = email.trim().toLowerCase()
     if (!normalizedEmail || !normalizedEmail.includes('@')) {
       setFormError(t('auth.invalidEmail'))
       return
     }
 
+    if (targetMode === 'verify' && !password) return
     setFormError('')
     try {
       const result = await requestEmailCodeMutation.mutateAsync({
         email: normalizedEmail,
-        purpose: mode === 'forgot' ? 'password_reset' : 'register',
+        purpose: targetMode === 'forgot' ? 'password_reset' : targetMode === 'verify' ? 'verify_account' : 'register',
+        ...(targetMode === 'verify' ? { password } : {}),
         uiLocale,
       })
-      setVerificationRequired(result.verificationRequired)
+      setCodeRequested(true)
       setResendSeconds(result.retryAfterSeconds ?? 0)
       setCodeExpiresSeconds(result.expiresInSeconds)
-      setHourlyLimit(result.hourlyLimit ?? 6)
-      const message = result.delivery === 'disabled'
-        ? t('auth.codeNotRequired')
-        : result.delivery === 'cooldown'
+      const message = result.delivery === 'cooldown'
           ? t('auth.codeCooldown', { seconds: result.retryAfterSeconds ?? 60 })
           : t('auth.codeSent')
       showToast({
@@ -266,12 +264,17 @@ export function LoginScreen() {
       return
     }
 
-    if (password.trim().length < 8) {
+    if (mode === 'login' && !password) {
+      setFormError(t('auth.passwordRequired'))
+      return
+    }
+
+    if (mode !== 'login' && mode !== 'verify' && password.trim().length < 8) {
       setFormError(t('auth.passwordMinSix'))
       return
     }
 
-    if (mode !== 'login' && verificationRequired && !/^\d{6}$/.test(verificationCode)) {
+    if (mode !== 'login' && !/^\d{6}$/.test(verificationCode)) {
       setFormError(t('auth.codeInvalid'))
       return
     }
@@ -279,10 +282,11 @@ export function LoginScreen() {
     setFormError('')
 
     try {
-      if (mode === 'login') {
+      if (mode === 'login' || mode === 'verify') {
         await loginMutation.mutateAsync({
           email: normalizedEmail,
           password,
+          ...(mode === 'verify' ? { verificationCode } : {}),
         })
       } else if (mode === 'register') {
         const emailName = normalizedEmail.split('@')[0]?.trim() || 'learner'
@@ -294,7 +298,7 @@ export function LoginScreen() {
             suffix: randomSuffix,
           }),
           password,
-          ...(verificationRequired ? { verificationCode } : {}),
+          verificationCode,
         })
       } else {
         await resetPasswordMutation.mutateAsync({
@@ -305,24 +309,45 @@ export function LoginScreen() {
         setPassword('')
         setVerificationCode('')
         setMode('login')
+        setCodeRequested(false)
         setResendSeconds(0)
         setCodeExpiresSeconds(0)
         showToast({ title: t('auth.toastSuccessTitle'), message: t('auth.passwordResetComplete'), tone: 'success' })
         return
       }
-    } catch {
+    } catch (error) {
+      const code = typeof error === 'object' && error && 'code' in error
+        ? String((error as { code?: unknown }).code ?? '')
+        : ''
+      if (mode === 'login' && code === 'EMAIL_VERIFICATION_REQUIRED') {
+        // Enter verification immediately so a fast cooldown response cannot
+        // be overwritten by the form-switch animation's state reset.
+        formTransitionSequence.current += 1
+        formBodyOpacity.stopAnimation()
+        formBodyOpacity.setValue(1)
+        setVerificationCode('')
+        setCodeRequested(false)
+        setResendSeconds(0)
+        setCodeExpiresSeconds(0)
+        setMode('verify')
+        showToast({ title: t('auth.toastNoticeTitle'), message: t('auth.verifyExistingHint'), tone: 'info' })
+        await requestCode('verify')
+        return
+      }
       const message = mode === 'login'
         ? t('auth.loginFailed')
         : mode === 'register'
           ? t('auth.registerFailed')
-          : t('auth.resetFailed')
+          : mode === 'verify'
+            ? code === 'EMAIL_CODE_EXPIRED' ? t('auth.codeExpired') : code === 'EMAIL_CODE_LOCKED' ? t('auth.codeLocked') : t('auth.codeIncorrect')
+            : t('auth.resetFailed')
       showToast({ title: t('auth.toastErrorTitle'), message, tone: 'error' })
       return
     }
 
     showToast({
       title: t('auth.toastSuccessTitle'),
-      message: mode === 'login' ? t('auth.loggedIn') : t('auth.accountCreated'),
+      message: mode === 'register' ? t('auth.accountCreated') : t('auth.loggedIn'),
       tone: 'success',
     })
 
@@ -391,7 +416,11 @@ export function LoginScreen() {
                   </Animated.View>
                   <Animated.View style={registerTitleStyle}>
                     <Text className="text-3xl font-black leading-9 text-white">
-                      {mode === 'forgot' ? t('auth.resetPassword') : t('auth.createAccount')}
+                      {mode === 'forgot'
+                        ? t('auth.resetPassword')
+                        : mode === 'verify'
+                          ? t('auth.verifyExistingTitle')
+                          : t('auth.createAccount')}
                     </Text>
                   </Animated.View>
                 </View>
@@ -404,14 +433,21 @@ export function LoginScreen() {
                 }}
               >
               <View className="px-5 pb-5 pt-4" onLayout={updateFormBodyHeight}>
-                {mode === 'forgot' ? (
-                  <Pressable
-                    className="min-h-[44px] flex-row items-center self-start rounded-[14px] px-2 active:scale-95"
-                    onPress={() => selectMode('login')}
-                  >
-                    <FontAwesome6 color="#1cb0f6" name="arrow-left" size={15} />
-                    <Text className="ml-2 text-sm font-black text-[#1688bd]">{t('auth.backToLogin')}</Text>
-                  </Pressable>
+                {mode === 'forgot' || mode === 'verify' ? (
+                  <View>
+                    <Pressable
+                      className="min-h-[44px] flex-row items-center self-start rounded-[14px] px-2 active:scale-95"
+                      onPress={() => selectMode('login')}
+                    >
+                      <FontAwesome6 color="#1cb0f6" name="arrow-left" size={15} />
+                      <Text className="ml-2 text-sm font-black text-[#1688bd]">{t('auth.backToLogin')}</Text>
+                    </Pressable>
+                    {mode === 'verify' ? (
+                      <Text className="mt-1 text-sm font-bold leading-5 text-text-secondary">
+                        {t('auth.verifyExistingHint')}
+                      </Text>
+                    ) : null}
+                  </View>
                 ) : (
                   <View
                     className="relative flex-row rounded-[18px] border-2 border-[#dcebf7] bg-[#edf7ff] p-1.5"
@@ -449,11 +485,18 @@ export function LoginScreen() {
                     autoCapitalize="none"
                     autoComplete={usernameAutoComplete}
                     autoCorrect={false}
+                    editable={mode !== 'verify'}
                     className="min-h-[50px] rounded-[18px] border-2 border-[#d7e2ee] bg-[#f9fcff] px-4 text-base font-bold text-text-primary"
                     importantForAutofill="yes"
                     keyboardType="email-address"
                     nativeID={`auth-${mode}-username`}
-                    onChangeText={setEmail}
+                    onChangeText={(value) => {
+                      setEmail(value)
+                      setVerificationCode('')
+                      setCodeRequested(false)
+                      setResendSeconds(0)
+                      setCodeExpiresSeconds(0)
+                    }}
                     onSubmitEditing={() => passwordInputRef.current?.focus()}
                     placeholder={t('auth.emailPlaceholder')}
                     placeholderTextColor="#8191a6"
@@ -462,7 +505,7 @@ export function LoginScreen() {
                   />
                 </View>
 
-                {mode !== 'login' && verificationRequired ? (
+                {mode !== 'login' ? (
                   <View className="mt-3">
                     <Text className="mb-2 text-base font-black text-text-primary">
                       {t('auth.verificationCode')}
@@ -510,12 +553,14 @@ export function LoginScreen() {
                             minutes: String(Math.floor(codeExpiresSeconds / 60)).padStart(2, '0'),
                             seconds: String(codeExpiresSeconds % 60).padStart(2, '0'),
                           })
-                        : t('auth.codeValidity', { minutes: 10, count: hourlyLimit })}
+                        : codeRequested
+                          ? t('auth.codeExpired')
+                          : t('auth.codeReadyHint')}
                     </Text>
                   </View>
                 ) : null}
 
-                <View className="mt-3">
+                {mode !== 'verify' ? <View className="mt-3">
                   <Text className="mb-2 text-base font-black text-text-primary">
                     {mode === 'forgot' ? t('auth.newPassword') : t('auth.password')}
                   </Text>
@@ -549,7 +594,7 @@ export function LoginScreen() {
                       />
                     </Pressable>
                   </View>
-                </View>
+                </View> : null}
 
                 {mode === 'login' ? (
                   <Pressable className="mt-2 min-h-[34px] justify-center self-end px-1" onPress={() => selectMode('forgot')}>
@@ -566,12 +611,16 @@ export function LoginScreen() {
                           ? t('auth.loggingIn')
                           : mode === 'register'
                             ? t('auth.registering')
-                            : t('auth.resettingPassword')
+                            : mode === 'verify'
+                              ? t('auth.verifyingEmail')
+                              : t('auth.resettingPassword')
                         : mode === 'login'
                           ? t('auth.startLearning')
                           : mode === 'register'
                             ? t('auth.registerAndStart')
-                            : t('auth.resetPassword')
+                            : mode === 'verify'
+                              ? t('auth.completeVerification')
+                              : t('auth.resetPassword')
                     }
                     onPress={() => void submit()}
                   />

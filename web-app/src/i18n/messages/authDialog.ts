@@ -41,7 +41,6 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.codeInvalid': '请输入 6 位邮箱验证码',
     'auth.codeSent': '验证码已发送，请检查邮箱',
     'auth.codeCooldown': '验证码刚刚已发送，请在 {{seconds}} 秒后重试',
-    'auth.codeNotRequired': '当前环境未启用邮箱验证，可直接继续',
     'auth.codeSendFailed': '验证码发送失败',
     'auth.forgotPassword': '忘记密码？',
     'auth.newPassword': '新密码',
@@ -55,7 +54,12 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.secureHint': '安全验证与学习记录同步都在这里完成',
     'auth.resendIn': '{{seconds}} 秒后重发',
     'auth.codeExpiresIn': '验证码有效期还剩 {{minutes}}:{{seconds}}',
-    'auth.codeValidity': '验证码 {{minutes}} 分钟内有效；同一邮箱和 IP 每小时最多发送 {{count}} 次',
+    'auth.codeReadyHint': '发送验证码后，请在邮箱中查收',
+    'auth.verifyExistingTitle': '再确认一下你的邮箱',
+    'auth.verifyExistingHint': '为了保护原有学习记录，请完成一次邮箱验证',
+    'auth.completeVerification': '验证并继续学习',
+    'auth.verifyingEmail': '正在验证…',
+    'auth.emailAlreadyVerified': '邮箱已验证，请返回登录',
     'auth.codeRateLimited': '发送次数已达到每小时上限，请稍后再试',
     'auth.toastSentTitle': '邮件飞出去啦',
     'auth.toastNoticeTitle': '温馨提示',
@@ -103,7 +107,6 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.codeInvalid': 'Enter the 6-digit email code',
     'auth.codeSent': 'Code sent. Check your inbox.',
     'auth.codeCooldown': 'A code was just sent. Try again in {{seconds}} seconds.',
-    'auth.codeNotRequired': 'Email verification is disabled here. You can continue.',
     'auth.codeSendFailed': 'Unable to send the verification code',
     'auth.forgotPassword': 'Forgot password?',
     'auth.newPassword': 'New password',
@@ -117,7 +120,12 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.secureHint': 'Secure verification and learning sync happen here',
     'auth.resendIn': 'Resend in {{seconds}}s',
     'auth.codeExpiresIn': 'Code expires in {{minutes}}:{{seconds}}',
-    'auth.codeValidity': 'Codes last {{minutes}} minutes; up to {{count}} sends per email and IP each hour',
+    'auth.codeReadyHint': 'Send a code, then check your inbox',
+    'auth.verifyExistingTitle': 'One more step for your email',
+    'auth.verifyExistingHint': 'Confirm your email once to keep your learning progress safe',
+    'auth.completeVerification': 'Verify and keep learning',
+    'auth.verifyingEmail': 'Verifying…',
+    'auth.emailAlreadyVerified': 'Your email is verified. Return to login.',
     'auth.codeRateLimited': 'You have reached the hourly send limit. Try again later.',
     'auth.toastSentTitle': 'Email on its way',
     'auth.toastNoticeTitle': 'A quick note',
@@ -165,7 +173,6 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.codeInvalid': 'กรอกรหัสอีเมล 6 หลัก',
     'auth.codeSent': 'ส่งรหัสแล้ว โปรดตรวจสอบกล่องจดหมาย',
     'auth.codeCooldown': 'เพิ่งส่งรหัส โปรดลองอีกครั้งใน {{seconds}} วินาที',
-    'auth.codeNotRequired': 'สภาพแวดล้อมนี้ไม่ได้เปิดใช้การยืนยันอีเมล คุณดำเนินการต่อได้',
     'auth.codeSendFailed': 'ส่งรหัสยืนยันไม่สำเร็จ',
     'auth.forgotPassword': 'ลืมรหัสผ่าน?',
     'auth.newPassword': 'รหัสผ่านใหม่',
@@ -179,7 +186,12 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.secureHint': 'ยืนยันตัวตนอย่างปลอดภัยและซิงค์การเรียนรู้ได้ที่นี่',
     'auth.resendIn': 'ส่งใหม่ใน {{seconds}} วินาที',
     'auth.codeExpiresIn': 'รหัสหมดอายุใน {{minutes}}:{{seconds}}',
-    'auth.codeValidity': 'รหัสมีอายุ {{minutes}} นาที ส่งได้สูงสุด {{count}} ครั้งต่ออีเมลและ IP ต่อชั่วโมง',
+    'auth.codeReadyHint': 'ส่งรหัสแล้วตรวจสอบกล่องจดหมายของคุณ',
+    'auth.verifyExistingTitle': 'ยืนยันอีเมลอีกขั้นตอน',
+    'auth.verifyExistingHint': 'ยืนยันอีเมลหนึ่งครั้งเพื่อรักษาความคืบหน้าการเรียนของคุณ',
+    'auth.completeVerification': 'ยืนยันและเรียนต่อ',
+    'auth.verifyingEmail': 'กำลังยืนยัน…',
+    'auth.emailAlreadyVerified': 'อีเมลได้รับการยืนยันแล้ว กลับไปเข้าสู่ระบบ',
     'auth.codeRateLimited': 'ส่งถึงขีดจำกัดรายชั่วโมงแล้ว โปรดลองภายหลัง',
     'auth.toastSentTitle': 'ส่งอีเมลแล้ว',
     'auth.toastNoticeTitle': 'แจ้งให้ทราบ',
@@ -227,7 +239,6 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.codeInvalid': '6桁のメール認証コードを入力してください',
     'auth.codeSent': 'コードを送信しました。メールを確認してください。',
     'auth.codeCooldown': 'コードは送信済みです。{{seconds}}秒後に再試行してください。',
-    'auth.codeNotRequired': 'この環境ではメール認証が無効です。そのまま続行できます。',
     'auth.codeSendFailed': '認証コードを送信できませんでした',
     'auth.forgotPassword': 'パスワードをお忘れですか？',
     'auth.newPassword': '新しいパスワード',
@@ -241,7 +252,12 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     'auth.secureHint': '安全な認証と学習記録の同期をここで行います',
     'auth.resendIn': '{{seconds}}秒後に再送',
     'auth.codeExpiresIn': 'コードの有効期限まで {{minutes}}:{{seconds}}',
-    'auth.codeValidity': 'コードは{{minutes}}分間有効です。メールとIPごとに1時間{{count}}回まで送信できます',
+    'auth.codeReadyHint': 'コードを送信してメールをご確認ください',
+    'auth.verifyExistingTitle': 'メールを確認してください',
+    'auth.verifyExistingHint': '学習記録を守るため、一度だけメールを確認してください',
+    'auth.completeVerification': '認証して学習を続ける',
+    'auth.verifyingEmail': '確認中…',
+    'auth.emailAlreadyVerified': 'メールは確認済みです。ログインに戻ってください。',
     'auth.codeRateLimited': '1時間あたりの送信上限に達しました。後でもう一度お試しください。',
     'auth.toastSentTitle': 'メールを送信しました',
     'auth.toastNoticeTitle': 'お知らせ',
@@ -289,7 +305,6 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     ,"auth.codeInvalid": "Saisissez le code à 6 chiffres"
     ,"auth.codeSent": "Code envoyé. Consultez votre boîte de réception."
     ,"auth.codeCooldown": "Un code vient d’être envoyé. Réessayez dans {{seconds}} secondes."
-    ,"auth.codeNotRequired": "La vérification par e-mail est désactivée ici. Vous pouvez continuer."
     ,"auth.codeSendFailed": "Impossible d’envoyer le code de vérification"
     ,"auth.forgotPassword": "Mot de passe oublié ?"
     ,"auth.newPassword": "Nouveau mot de passe"
@@ -303,7 +318,12 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     ,"auth.secureHint": "La vérification sécurisée et la synchronisation se font ici."
     ,"auth.resendIn": "Renvoyer dans {{seconds}} s"
     ,"auth.codeExpiresIn": "Le code expire dans {{minutes}}:{{seconds}}"
-    ,"auth.codeValidity": "Le code reste valable {{minutes}} minutes, avec {{count}} envois maximum par e-mail et IP chaque heure."
+    ,"auth.codeReadyHint": "Envoyez un code, puis consultez votre boîte de réception."
+    ,"auth.verifyExistingTitle": "Encore une étape pour votre e-mail"
+    ,"auth.verifyExistingHint": "Confirmez votre adresse une fois pour protéger votre progression."
+    ,"auth.completeVerification": "Vérifier et continuer"
+    ,"auth.verifyingEmail": "Vérification…"
+    ,"auth.emailAlreadyVerified": "Votre e-mail est déjà vérifié. Retournez à la connexion."
     ,"auth.codeRateLimited": "La limite horaire d’envoi est atteinte. Réessayez plus tard."
     ,"auth.toastSentTitle": "E-mail envoyé"
     ,"auth.toastNoticeTitle": "À savoir"
@@ -351,7 +371,6 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     ,"auth.codeInvalid": "Introduce el código de 6 dígitos"
     ,"auth.codeSent": "Código enviado. Revisa tu bandeja de entrada."
     ,"auth.codeCooldown": "Acabamos de enviar un código. Inténtalo de nuevo en {{seconds}} segundos."
-    ,"auth.codeNotRequired": "La verificación por correo está desactivada aquí. Puedes continuar."
     ,"auth.codeSendFailed": "No se pudo enviar el código de verificación"
     ,"auth.forgotPassword": "¿Olvidaste la contraseña?"
     ,"auth.newPassword": "Nueva contraseña"
@@ -365,7 +384,12 @@ export const authDialogMessages: Record<UiLocale, Record<string, string>> = {
     ,"auth.secureHint": "Aquí realizamos la verificación segura y la sincronización."
     ,"auth.resendIn": "Reenviar en {{seconds}} s"
     ,"auth.codeExpiresIn": "El código caduca en {{minutes}}:{{seconds}}"
-    ,"auth.codeValidity": "El código dura {{minutes}} minutos; máximo {{count}} envíos por correo e IP cada hora."
+    ,"auth.codeReadyHint": "Envía el código y revisa tu bandeja de entrada."
+    ,"auth.verifyExistingTitle": "Un paso más para tu correo"
+    ,"auth.verifyExistingHint": "Confirma tu correo una vez para proteger tu progreso."
+    ,"auth.completeVerification": "Verificar y seguir aprendiendo"
+    ,"auth.verifyingEmail": "Verificando…"
+    ,"auth.emailAlreadyVerified": "Tu correo ya está verificado. Vuelve a iniciar sesión."
     ,"auth.codeRateLimited": "Has alcanzado el límite horario de envíos. Inténtalo más tarde."
     ,"auth.toastSentTitle": "Correo enviado"
     ,"auth.toastNoticeTitle": "Aviso rápido"
