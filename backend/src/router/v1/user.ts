@@ -16,7 +16,6 @@ import {
 } from '../../general/user/user-service';
 import {
     EmailChallengeError,
-    EMAIL_CODE_HOURLY_LIMIT,
     requestUserEmailChallenge,
 } from '../../general/user/user-email-challenge-service';
 import { inferAuthClientTypeFromRequest } from '../../general/user/user-session-service';

@@ -17,10 +17,21 @@ export function LinkEmailDialog({ open, authToken, onClose, onLinked }: {
   const [code, setCode] = useState('')
   const [retryAt, setRetryAt] = useState(0)
   const [expiresAt, setExpiresAt] = useState(0)
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  useEffect(() => { if (!open) return; const timer = window.setInterval(() => setNow(Date.now()), 1000); const visible = () => setNow(Date.now()); document.addEventListener('visibilitychange', visible); return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', visible) } }, [open])
+  useEffect(() => {
+    if (!open) return
+    const initialTick = window.setTimeout(() => setNow(Date.now()), 0)
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    const visible = () => setNow(Date.now())
+    document.addEventListener('visibilitychange', visible)
+    return () => {
+      window.clearTimeout(initialTick)
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', visible)
+    }
+  }, [open])
   if (!open) return null
   const close = () => { setTicket(''); setEmail(''); setCode(''); setChallengeId(null); setError(''); onClose() }
   const normalizedEmail = email.trim().toLowerCase()

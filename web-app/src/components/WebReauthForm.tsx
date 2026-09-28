@@ -13,7 +13,7 @@ export function WebReauthForm({ purpose, authToken, onTicket }: { purpose: Reaut
   const [challengeId, setChallengeId] = useState<number | null>(null)
   const [retryAt, setRetryAt] = useState(0)
   const [expiresAt, setExpiresAt] = useState(0)
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -22,10 +22,11 @@ export function WebReauthForm({ purpose, authToken, onTicket }: { purpose: Reaut
     void apiClient.getAuthMethods(authToken).then((value) => {
       if (active) { setMethods(value); setMethod(value.password ? 'password' : 'email_code') }
     }).catch(() => { if (active) setError(t('settings.changeFailed')) })
+    const initialTick = window.setTimeout(() => setNow(Date.now()), 0)
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
     const onVisible = () => setNow(Date.now())
     document.addEventListener('visibilitychange', onVisible)
-    return () => { active = false; window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) }
+    return () => { active = false; window.clearTimeout(initialTick); window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) }
   }, [authToken, t])
 
   const requestCode = async () => {

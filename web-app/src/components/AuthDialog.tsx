@@ -31,7 +31,7 @@ export function AuthDialog({ open, user, onClose, onAuthenticated, onLogout }: A
   const [linkAuth, setLinkAuth] = useState<AuthResponse | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [error, setError] = useState('')
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(0)
   const normalizedEmail = email.trim().toLowerCase()
   const retrySeconds = challenge ? Math.max(0, Math.ceil((challenge.retryAt - now) / 1000)) : 0
   const expiresSeconds = challenge ? Math.max(0, Math.ceil((challenge.expiresAt - now) / 1000)) : 0
@@ -56,11 +56,13 @@ export function AuthDialog({ open, user, onClose, onAuthenticated, onLogout }: A
     if (!open) return
     const handleKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     window.addEventListener('keydown', handleKeyDown)
+    const initialTick = window.setTimeout(() => setNow(Date.now()), 0)
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
     const handleVisible = () => setNow(Date.now())
     document.addEventListener('visibilitychange', handleVisible)
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
+      window.clearTimeout(initialTick)
       window.clearInterval(timer)
       document.removeEventListener('visibilitychange', handleVisible)
     }
@@ -83,7 +85,6 @@ export function AuthDialog({ open, user, onClose, onAuthenticated, onLogout }: A
       if (!result.challengeId || !result.expiresAt || !result.retryAt) throw new Error('Missing email challenge')
       setChallenge({ id: result.challengeId, email: normalizedEmail, expiresAt: Date.parse(result.expiresAt), retryAt: Date.parse(result.retryAt) })
       setCode('')
-      setNow(Date.now())
       setStep('code')
     } catch (failure) {
       const failureCode = typeof failure === 'object' && failure && 'code' in failure ? String(failure.code) : ''
@@ -135,7 +136,7 @@ export function AuthDialog({ open, user, onClose, onAuthenticated, onLogout }: A
   const openEmailCode = () => {
     setPassword('')
     setError('')
-    if (challenge && challenge.email === normalizedEmail && challenge.expiresAt > Date.now()) setStep('code')
+    if (challenge && challenge.email === normalizedEmail && challenge.expiresAt > now) setStep('code')
     else void startEmail()
   }
 

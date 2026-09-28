@@ -4,7 +4,7 @@ import type { Transaction } from 'sequelize';
 import { sequelize } from '../../models/db-config-mysql';
 import { UserModel } from '../../models/schema/UserDB';
 import { UserReauthTicketModel, type ReauthPurpose } from '../../models/schema/UserReauthTicketDB';
-import { consumeUserEmailChallenge, EmailChallengeError } from './user-email-challenge-service';
+import { consumeUserEmailChallenge } from './user-email-challenge-service';
 
 const TICKET_TTL_MS = 5 * 60 * 1000;
 const ticketHash = (ticket: string) => createHash('sha256').update(ticket).digest('hex');
