@@ -44,7 +44,7 @@ export function CollaborationManager({
   const [members, setMembers] = useState<AdminMember[]>([])
   const [learnerSearchLoading, setLearnerSearchLoading] = useState(false)
   const [bindingTarget, setBindingTarget] = useState<AdminMember | null>(null)
-  const [bindingResults, setBindingResults] = useState<Array<{ id: number; email: string; displayName: string; boundAdminMemberId?: number; boundAdminDisplayName?: string }>>([])
+  const [bindingResults, setBindingResults] = useState<Array<{ id: number; email: string | null; displayName: string; boundAdminMemberId?: number; boundAdminDisplayName?: string }>>([])
   const [bindingSearch, setBindingSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)

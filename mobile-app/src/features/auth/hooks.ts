@@ -1,6 +1,8 @@
 import type {
   ChangePasswordRequest,
   DeleteAccountRequest,
+  EmailStartRequest,
+  EmailVerifyRequest,
   LoginRequest,
   RegisterRequest,
   RequestEmailCodeRequest,
@@ -16,6 +18,34 @@ export function useLoginMutation() {
 
   return useMutation({
     mutationFn: (request: LoginRequest) => apiClient.login(request),
+    onSuccess: async (response) => {
+      await applyAuthenticated(response)
+      await queryClient.invalidateQueries({ queryKey: ['progress'] })
+    },
+  })
+}
+
+export function usePasswordLoginMutation() {
+  const applyAuthenticated = useAuthStore((state) => state.applyAuthenticated)
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (request: LoginRequest) => apiClient.passwordLogin(request),
+    onSuccess: async (response) => {
+      await applyAuthenticated(response)
+      await queryClient.invalidateQueries({ queryKey: ['progress'] })
+    },
+  })
+}
+
+export function useEmailStartMutation() {
+  return useMutation({ mutationFn: (request: EmailStartRequest) => apiClient.startEmailLogin(request) })
+}
+
+export function useEmailVerifyMutation() {
+  const applyAuthenticated = useAuthStore((state) => state.applyAuthenticated)
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (request: EmailVerifyRequest) => apiClient.verifyEmailLogin(request),
     onSuccess: async (response) => {
       await applyAuthenticated(response)
       await queryClient.invalidateQueries({ queryKey: ['progress'] })

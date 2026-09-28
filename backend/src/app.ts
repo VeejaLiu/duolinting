@@ -10,6 +10,7 @@ import { loadMonitor } from './loaders/loadMonitor';
 import { loadWinston } from './loaders/winstonLoader';
 import { startWorkflowClaimSweeper } from './loaders/workflowClaimSweeper';
 import { env } from './env';
+import { startAuthMaintenance } from './general/user/user-auth-maintenance';
 import { preparePublicMediaDelivery } from './general/media/media-service';
 import { closeSequelize } from './models/db-config-mysql';
 import { requestLogger } from './lib/requestLogger';
@@ -36,6 +37,7 @@ async function Main() {
     await preparePublicMediaDelivery();
     await loadCountryDatabase();
     startAnalyticsMaintenance();
+    startAuthMaintenance();
 
     app.use(requestLogger);
     app.use((req, res, next) => {

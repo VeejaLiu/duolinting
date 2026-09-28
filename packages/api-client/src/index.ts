@@ -4,6 +4,7 @@ import type {
   AuthResponse,
   AuthClientType,
   AuthUser,
+  AuthMethods,
   ChangePasswordRequest,
   ContentLocale,
   CatalogExerciseSummary,
@@ -11,13 +12,22 @@ import type {
   DailyActivitySummary,
   DeleteAccountRequest,
   DeleteAccountResponse,
+  EmailStartRequest,
+  EmailVerifyRequest,
   LeaderboardResponse,
   ListeningExercise,
   LoginRequest,
+  OAuthConfig,
+  OAuthResult,
+  OAuthStartRequest,
+  OAuthStartResponse,
   RequestEmailCodeRequest,
   RequestEmailCodeResponse,
   ResetPasswordRequest,
   ResetPasswordResponse,
+  ReauthPurpose,
+  ReauthRequest,
+  ReauthResponse,
   ProgressSyncResponse,
   RegisterRequest,
   StudyStore,
@@ -203,6 +213,49 @@ export const createApiClient = ({
           clientType: request.clientType ?? authClientType,
         }),
       }),
+    startEmailLogin: (request: EmailStartRequest) =>
+      fetchApiResult<RequestEmailCodeResponse & { challengeId: number; expiresAt: string; retryAt: string }>(
+        '/api/v1/auth/email/start', { method: 'POST', body: JSON.stringify(request) },
+      ),
+    startEmailLink: (request: EmailStartRequest, authToken: string) =>
+      fetchApiResult<RequestEmailCodeResponse & { challengeId: number; expiresAt: string; retryAt: string }>(
+        '/api/v1/auth/email/link/start', { method: 'POST', body: JSON.stringify(request) }, { authToken },
+      ),
+    confirmEmailLink: (request: EmailVerifyRequest & { reauthTicket: string }, authToken: string) =>
+      fetchApiResult<{ email: string }>('/api/v1/auth/email/link/confirm', {
+        method: 'POST', body: JSON.stringify(request),
+      }, { authToken }),
+    verifyEmailLogin: (request: EmailVerifyRequest) =>
+      fetchApiResult<AuthResponse>('/api/v1/auth/email/verify', {
+        method: 'POST',
+        body: JSON.stringify({ ...request, clientType: request.clientType ?? authClientType }),
+      }),
+    passwordLogin: (request: LoginRequest) =>
+      fetchApiResult<AuthResponse>('/api/v1/auth/password/login', {
+        method: 'POST',
+        body: JSON.stringify({ ...request, clientType: request.clientType ?? authClientType }),
+      }),
+    getOAuthConfig: () => fetchApiResult<OAuthConfig>('/api/v1/auth/oauth/config', { method: 'GET' }),
+    startOAuth: (request: OAuthStartRequest, authToken?: string) =>
+      fetchApiResult<OAuthStartResponse>('/api/v1/auth/oauth/start', {
+        method: 'POST', body: JSON.stringify({ ...request, clientType: request.clientType ?? authClientType }),
+      }, { authToken }),
+    completeOAuth: (request: { transactionId: number; idToken?: string; authorizationCode?: string }, authToken?: string) =>
+      fetchApiResult<OAuthResult>('/api/v1/auth/oauth/complete', {
+        method: 'POST', body: JSON.stringify(request),
+      }, { authToken }),
+    exchangeOAuth: (ticket: string, verifier: string, authToken?: string) =>
+      fetchApiResult<OAuthResult>('/api/v1/auth/oauth/exchange', {
+        method: 'POST', body: JSON.stringify({ ticket, verifier }),
+      }, { authToken }),
+    confirmOAuthLink: (transactionId: number, authToken: string) =>
+      fetchApiResult<{ linked: true }>('/api/v1/auth/link/confirm', {
+        method: 'POST', body: JSON.stringify({ transactionId, confirmed: true }),
+      }, { authToken }),
+    unlinkOAuthIdentity: (provider: 'apple' | 'google', reauthTicket: string, authToken: string) =>
+      fetchApiResult<{ unlinked: true; currentSessionRevoked: boolean }>('/api/v1/auth/oauth/unlink', {
+        method: 'POST', body: JSON.stringify({ provider, reauthTicket }),
+      }, { authToken }),
     requestEmailCode: (request: RequestEmailCodeRequest) =>
       fetchApiResult<RequestEmailCodeResponse>('/api/v1/auth/email-code', {
         method: 'POST',
@@ -215,6 +268,19 @@ export const createApiClient = ({
       }),
     getCurrentUser: (authToken: string) =>
       fetchJson<AuthUser>('/api/v1/auth/me', { method: 'GET' }, { authToken }),
+    logout: (authToken: string) =>
+      fetchApiResult<{ loggedOut: true }>('/api/v1/auth/logout', { method: 'POST' }, { authToken }),
+    getAuthMethods: (authToken: string) =>
+      fetchApiResult<AuthMethods>('/api/v1/auth/methods', { method: 'GET' }, { authToken }),
+    startReauthEmail: (purpose: ReauthPurpose, uiLocale: string, authToken: string) =>
+      fetchApiResult<RequestEmailCodeResponse & { challengeId: number; expiresAt: string; retryAt: string }>(
+        '/api/v1/auth/reauth/email/start',
+        { method: 'POST', body: JSON.stringify({ purpose, uiLocale }) }, { authToken },
+      ),
+    reauth: (request: ReauthRequest, authToken: string) =>
+      fetchApiResult<ReauthResponse>('/api/v1/auth/reauth', {
+        method: 'POST', body: JSON.stringify(request),
+      }, { authToken }),
     changePassword: (request: ChangePasswordRequest, authToken: string) =>
       fetchApiResult<AuthResponse>(
         '/api/v1/auth/password',

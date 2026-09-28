@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
-import { Alert, Platform, Pressable, Text, View } from 'react-native'
+import { Platform, Pressable, Text, View } from 'react-native'
+import { ConfirmDialog } from '@/components/foundation/ConfirmDialog'
 import { useLanguage } from '@/i18n/LanguageProvider'
 import { contentLocaleLabels, uiLocaleLabels } from '@/i18n/locale'
 import { openExternalLink } from '@/lib/openExternalLink'
@@ -24,24 +25,17 @@ export function SettingsScreen() {
   const pendingActivityCount = useActivityStore((state) => state.pendingOperations?.length ?? 0)
   const logout = useAuthStore((state) => state.logout)
   const [leaving, setLeaving] = useState(false)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const unsynced = useStudyStore((state) => state.hydrated && JSON.stringify(state.store) !== state.lastSyncedStoreSnapshot) || Object.keys(pending).length > 0 || pendingActivityCount > 0
-  const confirmationBody = `${t('settings.logoutConfirmBody')}${unsynced ? `\n\n${t('settings.logoutPending')}` : ''}`
-  const confirmLogout = () => {
-    const proceed = async () => {
-      if (leaving) return
-      setLeaving(true)
-      try { await logout() } catch {
-        showToast({ title: t('auth.toastErrorTitle'), message: t('settings.logoutFailed'), tone: 'error' })
-      } finally { setLeaving(false) }
-    }
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && window.confirm(`${t('settings.logoutConfirmTitle')}\n\n${confirmationBody}`)) void proceed()
-    } else {
-      Alert.alert(t('settings.logoutConfirmTitle'), confirmationBody, [
-        { text: t('common.cancel'), style: 'cancel' },
-        { text: t('settings.logout'), style: 'destructive', onPress: () => void proceed() },
-      ])
-    }
+  const proceedLogout = async () => {
+    if (leaving) return
+    setLeaving(true)
+    try {
+      await logout()
+      setShowLogoutConfirm(false)
+    } catch {
+      showToast({ title: t('auth.toastErrorTitle'), message: t('settings.logoutFailed'), tone: 'error' })
+    } finally { setLeaving(false) }
   }
   const support = async () => {
     if (!await openExternalLink(SUPPORT_URL)) {
@@ -62,9 +56,20 @@ export function SettingsScreen() {
       <SettingsRow label={t('settings.about')} icon="circle-info" onPress={() => router.push('/settings/about')} />
     </SettingsGroup>
     <View className="items-center pt-1">
-      <Pressable accessibilityRole="button" disabled={leaving} className="min-h-[48px] justify-center px-5" onPress={confirmLogout}>
+      <Pressable accessibilityRole="button" disabled={leaving} className="min-h-[48px] justify-center px-5" onPress={() => setShowLogoutConfirm(true)}>
         <Text className="text-base font-bold text-text-secondary">{t('settings.logout')}</Text>
       </Pressable>
     </View>
+    <ConfirmDialog
+      visible={showLogoutConfirm}
+      title={t('settings.logoutConfirmTitle')}
+      message={t('settings.logoutConfirmBody')}
+      warning={unsynced ? t('settings.logoutPending') : undefined}
+      cancelLabel={t('common.cancel')}
+      confirmLabel={t('settings.logout')}
+      busy={leaving}
+      onCancel={() => setShowLogoutConfirm(false)}
+      onConfirm={() => void proceedLogout()}
+    />
   </SettingsScaffold>
 }

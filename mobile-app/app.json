@@ -26,7 +26,8 @@
           "imageWidth": 180
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
     ],
     "ios": {
       "bundleIdentifier": "com.duolinting.app",

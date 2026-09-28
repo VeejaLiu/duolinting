@@ -1,454 +1,190 @@
-import { ArrowLeft, KeyRound, LogIn, LogOut, Mail, UserPlus, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ArrowLeft, LogOut, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import type { AuthResponse, AuthUser } from '@duolinting/shared'
 import { apiClient } from '../lib/apiClient'
 import { useLanguage } from '../i18n/LanguageProvider'
 import { useToast } from './ToastProvider'
+import { SocialAuthButtons } from './SocialAuthButtons'
+import type { OAuthResult } from '@duolinting/domain'
 
 type AuthDialogProps = {
   open: boolean
   user: AuthUser | null
   onClose: () => void
   onAuthenticated: (response: AuthResponse) => void
-  onLogout: () => void
+  onLogout: () => Promise<boolean> | boolean
 }
 
-type AuthMode = 'login' | 'register' | 'forgot' | 'verify'
+type Step = 'entry' | 'code' | 'password' | 'link'
+type Challenge = { id: number; email: string; expiresAt: number; retryAt: number }
 
-export function AuthDialog({
-  open,
-  user,
-  onClose,
-  onAuthenticated,
-  onLogout,
-}: AuthDialogProps) {
+export function AuthDialog({ open, user, onClose, onAuthenticated, onLogout }: AuthDialogProps) {
   const { t, uiLocale } = useLanguage()
   const { showToast } = useToast()
+  const [step, setStep] = useState<Step>('entry')
   const [email, setEmail] = useState('')
-  const [displayName, setDisplayName] = useState('')
+  const [code, setCode] = useState('')
   const [password, setPassword] = useState('')
-  const [verificationCode, setVerificationCode] = useState('')
-  const [codeRequested, setCodeRequested] = useState(false)
-  const [mode, setMode] = useState<AuthMode>('login')
+  const [challenge, setChallenge] = useState<Challenge | null>(null)
+  const previousUserIdRef = useRef<number | null>(user?.id ?? null)
+  const [pendingLink, setPendingLink] = useState<number | null>(null)
+  const [linkAuth, setLinkAuth] = useState<AuthResponse | null>(null)
   const [isBusy, setIsBusy] = useState(false)
-  const [isSendingCode, setIsSendingCode] = useState(false)
-  const [resendSeconds, setResendSeconds] = useState(0)
-  const [codeExpiresSeconds, setCodeExpiresSeconds] = useState(0)
-  const countdownActive = resendSeconds > 0 || codeExpiresSeconds > 0
-  const [errors, setErrors] = useState<{
-    email?: string
-    displayName?: string
-    password?: string
-    verificationCode?: string
-  }>({})
-
-  const validateEmail = (email: string) => {
-    if (!email) return t('auth.emailRequired')
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) return t('auth.emailInvalid')
-    return ''
-  }
-
-  const validateDisplayName = (name: string) => {
-    if (!name) return t('auth.displayNameRequired')
-    if (name.length < 2) return t('auth.displayNameTooShort')
-    if (name.length > 20) return t('auth.displayNameTooLong')
-    const nameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_]+$/
-    if (!nameRegex.test(name)) return t('auth.displayNameInvalidChars')
-    return ''
-  }
-
-  const validatePassword = (pwd: string) => {
-    if (!pwd) return t('auth.passwordRequired')
-    if (pwd.length < 8) return t('auth.passwordTooShort')
-    if (!/[a-zA-Z]/.test(pwd)) return t('auth.passwordNeedsLetter')
-    if (!/\d/.test(pwd)) return t('auth.passwordNeedsDigit')
-    return ''
-  }
-
-  const localizedAuthError = (error: unknown, fallbackKey: Parameters<typeof t>[0]) => {
-    const code = typeof error === 'object' && error && 'code' in error
-      ? String((error as { code?: unknown }).code ?? '')
-      : ''
-    const keyByCode: Record<string, Parameters<typeof t>[0]> = {
-      EMAIL_ALREADY_REGISTERED: 'auth.emailAlreadyRegistered',
-      EMAIL_CODE_REQUIRED: 'auth.codeInvalid',
-      EMAIL_CODE_INVALID: 'auth.codeIncorrect',
-      EMAIL_CODE_EXPIRED: 'auth.codeExpired',
-      EMAIL_CODE_LOCKED: 'auth.codeLocked',
-      EMAIL_SERVICE_UNAVAILABLE: 'auth.emailServiceUnavailable',
-      RATE_LIMITED: 'auth.codeRateLimited',
-      INVALID_CREDENTIALS: 'auth.invalidCredentials',
-      EMAIL_ALREADY_VERIFIED: 'auth.emailAlreadyVerified',
-    }
-    return code && keyByCode[code]
-      ? t(keyByCode[code])
-      : error instanceof Error
-        ? error.message
-        : t(fallbackKey)
-  }
-
-  const validateForm = () => {
-    const newErrors: {
-      email?: string
-      displayName?: string
-      password?: string
-      verificationCode?: string
-    } = {}
-
-    const emailError = validateEmail(email)
-    if (emailError) newErrors.email = emailError
-
-    if (mode === 'register') {
-      const displayNameError = validateDisplayName(displayName)
-      if (displayNameError) newErrors.displayName = displayNameError
-    }
-
-    if (mode === 'login') {
-      if (!password) newErrors.password = t('auth.passwordRequired')
-    } else if (mode !== 'verify') {
-      const passwordError = validatePassword(password)
-      if (passwordError) newErrors.password = passwordError
-    }
-
-    if (mode !== 'login' && !/^\d{6}$/.test(verificationCode)) {
-      newErrors.verificationCode = t('auth.codeInvalid')
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+  const [error, setError] = useState('')
+  const [now, setNow] = useState(Date.now())
+  const normalizedEmail = email.trim().toLowerCase()
+  const retrySeconds = challenge ? Math.max(0, Math.ceil((challenge.retryAt - now) / 1000)) : 0
+  const expiresSeconds = challenge ? Math.max(0, Math.ceil((challenge.expiresAt - now) / 1000)) : 0
 
   useEffect(() => {
-    if (!open) {
-      return
+    // Once the signed-in owner leaves, discard the prior mailbox and any
+    // unfinished challenge before showing the authentication form again.
+    if (previousUserIdRef.current !== null && previousUserIdRef.current !== (user?.id ?? null)) {
+      setStep('entry')
+      setEmail('')
+      setCode('')
+      setPassword('')
+      setChallenge(null)
+      setPendingLink(null)
+      setLinkAuth(null)
+      setError('')
     }
+    previousUserIdRef.current = user?.id ?? null
+  }, [user])
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-
+  useEffect(() => {
+    if (!open) return
+    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    const handleVisible = () => setNow(Date.now())
+    document.addEventListener('visibilitychange', handleVisible)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', handleVisible)
+    }
   }, [onClose, open])
 
-  useEffect(() => {
-    if (!countdownActive) return
-    const timer = window.setInterval(() => {
-      setResendSeconds((current) => Math.max(0, current - 1))
-      setCodeExpiresSeconds((current) => Math.max(0, current - 1))
-    }, 1000)
-    return () => window.clearInterval(timer)
-  }, [countdownActive])
+  if (!open) return null
 
-  if (!open) {
-    return null
+  const validEmail = () => {
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return true
+    setError(t('auth.emailInvalid'))
+    return false
   }
 
-  const selectMode = (nextMode: AuthMode) => {
-    setMode(nextMode)
-    setErrors({})
-    setVerificationCode('')
-    setCodeRequested(false)
-    setResendSeconds(0)
-    setCodeExpiresSeconds(0)
-    if (nextMode === 'forgot') setPassword('')
-  }
-
-  const requestCode = async (targetMode: AuthMode = mode) => {
-    const emailError = validateEmail(email)
-    if (emailError) {
-      setErrors((current) => ({ ...current, email: emailError }))
-      return
-    }
-
-    if (targetMode === 'verify' && !password) return
-    setIsSendingCode(true)
-    try {
-      const result = await apiClient.requestEmailCode({
-        email: email.trim().toLowerCase(),
-        purpose: targetMode === 'forgot' ? 'password_reset' : targetMode === 'verify' ? 'verify_account' : 'register',
-        ...(targetMode === 'verify' ? { password } : {}),
-        uiLocale,
-      })
-      setCodeRequested(true)
-      setResendSeconds(result.retryAfterSeconds ?? 0)
-      setCodeExpiresSeconds(result.expiresInSeconds)
-      const message = result.delivery === 'cooldown'
-          ? t('auth.codeCooldown', { seconds: result.retryAfterSeconds ?? 60 })
-          : t('auth.codeSent')
-      showToast({
-        title: t(result.delivery === 'sent' ? 'auth.toastSentTitle' : 'auth.toastNoticeTitle'),
-        message,
-        tone: result.delivery === 'sent' ? 'success' : 'info',
-      })
-    } catch (error) {
-      showToast({
-        title: t('auth.toastErrorTitle'),
-        message: localizedAuthError(error, 'auth.codeSendFailed'),
-        tone: 'error',
-      })
-    } finally {
-      setIsSendingCode(false)
-    }
-  }
-
-  const submit = async () => {
-    if (!validateForm()) {
-      return
-    }
-
+  const startEmail = async () => {
+    if (isBusy || !validEmail()) return
     setIsBusy(true)
-
+    setError('')
     try {
-      if (mode === 'forgot') {
-        await apiClient.resetPassword({
-          email: email.trim().toLowerCase(),
-          verificationCode,
-          newPassword: password,
-        })
-        setPassword('')
-        setVerificationCode('')
-        setMode('login')
-        setCodeRequested(false)
-        setResendSeconds(0)
-        setCodeExpiresSeconds(0)
-        showToast({ title: t('auth.toastSuccessTitle'), message: t('auth.passwordResetComplete'), tone: 'success' })
-        return
-      }
+      const result = await apiClient.startEmailLogin({ email: normalizedEmail, uiLocale })
+      if (!result.challengeId || !result.expiresAt || !result.retryAt) throw new Error('Missing email challenge')
+      setChallenge({ id: result.challengeId, email: normalizedEmail, expiresAt: Date.parse(result.expiresAt), retryAt: Date.parse(result.retryAt) })
+      setCode('')
+      setNow(Date.now())
+      setStep('code')
+    } catch (failure) {
+      const failureCode = typeof failure === 'object' && failure && 'code' in failure ? String(failure.code) : ''
+      setError(t(failureCode === 'RATE_LIMITED' || failureCode === 'EMAIL_SEND_LIMITED' ? 'auth.codeRateLimited' : 'auth.codeSendFailed'))
+    } finally { setIsBusy(false) }
+  }
 
-      const response = mode === 'login' || mode === 'verify'
-        ? await apiClient.login({ email, password, ...(mode === 'verify' ? { verificationCode } : {}) })
-        : await apiClient.register({
-            email,
-            displayName,
-            password,
-            verificationCode,
-          })
-      onAuthenticated(response)
-      showToast({
-        title: t('auth.toastSuccessTitle'),
-        message: mode === 'register' ? t('auth.accountCreated') : t('auth.loggedIn'),
-        tone: 'success',
-      })
-    } catch (error) {
-      if (mode === 'login' && typeof error === 'object' && error && 'code' in error && error.code === 'EMAIL_VERIFICATION_REQUIRED') {
-        setMode('verify')
-        setVerificationCode('')
-        setCodeRequested(false)
-        showToast({ title: t('auth.toastNoticeTitle'), message: t('auth.verifyExistingHint'), tone: 'info' })
-        await requestCode('verify')
-        return
+  const verify = async () => {
+    if (isBusy || !challenge || challenge.expiresAt <= Date.now() || !/^\d{6}$/.test(code)) return
+    setIsBusy(true)
+    setError('')
+    try {
+      const response = linkAuth ?? await apiClient.verifyEmailLogin({ email: challenge.email, challengeId: challenge.id, code })
+      if (pendingLink) {
+        setLinkAuth(response)
+        await apiClient.confirmOAuthLink(pendingLink, response.token)
+        setPendingLink(null)
+        setLinkAuth(null)
       }
-      showToast({
-        title: t('auth.toastErrorTitle'),
-        message: localizedAuthError(error, 'auth.actionFailed'),
-        tone: 'error',
-      })
-    } finally {
-      setIsBusy(false)
+      setCode('')
+      onAuthenticated(response)
+      showToast({ title: t('auth.toastSuccessTitle'), message: t('auth.loggedIn'), tone: 'success' })
+    } catch (failure) {
+      const failureCode = typeof failure === 'object' && failure && 'code' in failure ? String(failure.code) : ''
+      setError(t(failureCode === 'EMAIL_CODE_EXPIRED' ? 'auth.codeExpired' : failureCode === 'EMAIL_CODE_LOCKED' ? 'auth.codeLocked' : 'auth.codeIncorrect'))
+    } finally { setIsBusy(false) }
+  }
+
+  const loginWithPassword = async () => {
+    if (isBusy || !password || !validEmail()) return
+    setIsBusy(true)
+    setError('')
+    try {
+      const response = await apiClient.passwordLogin({ email: normalizedEmail, password })
+      if (pendingLink) {
+        await apiClient.confirmOAuthLink(pendingLink, response.token)
+        setPendingLink(null)
+      }
+      setPassword('')
+      onAuthenticated(response)
+      showToast({ title: t('auth.toastSuccessTitle'), message: t('auth.loggedIn'), tone: 'success' })
+    } catch (failure) {
+      const failureCode = typeof failure === 'object' && failure && 'code' in failure ? String(failure.code) : ''
+      setError(t(failureCode === 'EMAIL_VERIFICATION_REQUIRED' ? 'auth.verifyExistingHint' : 'authFlow.passwordError'))
+    }
+    finally { setIsBusy(false) }
+  }
+
+  const openEmailCode = () => {
+    setPassword('')
+    setError('')
+    if (challenge && challenge.email === normalizedEmail && challenge.expiresAt > Date.now()) setStep('code')
+    else void startEmail()
+  }
+
+  const onSocialResult = (result: OAuthResult) => {
+    if (result.status === 'authenticated') {
+      onAuthenticated(result.auth)
+      showToast({ title: t('auth.toastSuccessTitle'), message: t('auth.loggedIn'), tone: 'success' })
+    } else if (result.status === 'needs_link' && result.emailHint) {
+      setPendingLink(result.transactionId)
+      setEmail(result.emailHint)
+      setChallenge(null)
+      setStep('link')
     }
   }
 
-  return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
-        aria-labelledby="auth-dialog-title"
-        aria-modal="true"
-        className="auth-dialog"
-        role="dialog"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <button
-          aria-label={t('auth.closeDialog')}
-          className="dialog-close"
-          onClick={onClose}
-          type="button"
-        >
-          <X size={18} aria-hidden="true" />
-        </button>
-
-        <div className="dialog-hero">
-          <p>{t('auth.accountCenter')}</p>
-          <h2 id="auth-dialog-title">
-            {user
-              ? t('auth.linkedToAccount')
-              : mode === 'forgot'
-                ? t('auth.resetPasswordTitle')
-                : mode === 'verify'
-                  ? t('auth.verifyExistingTitle')
-                : t('auth.loginToSave')}
-          </h2>
-          <span>{mode === 'verify' ? t('auth.verifyExistingHint') : t('auth.secureHint')}</span>
-        </div>
-
-        {user ? (
-          <div className="signed-in-card">
-            <div className="avatar-badge" aria-hidden="true">
-              {user.displayName.slice(0, 1).toUpperCase()}
-            </div>
-            <div>
-              <strong>{user.displayName}</strong>
-              <span>{user.email}</span>
-            </div>
-          </div>
-        ) : (
-          <div className="auth-form">
-            {mode === 'forgot' || mode === 'verify' ? (
-              <button className="auth-back" onClick={() => selectMode('login')} type="button">
-                <ArrowLeft size={16} aria-hidden="true" />
-                {t('auth.backToLogin')}
-              </button>
-            ) : (
-              <div className="auth-segmented" aria-label={t('auth.loginOrSignup')}>
-                <button
-                  className={mode === 'login' ? 'active' : ''}
-                  onClick={() => selectMode('login')}
-                  type="button"
-                >
-                  {t('auth.login')}
-                </button>
-                <button
-                  className={mode === 'register' ? 'active' : ''}
-                  onClick={() => selectMode('register')}
-                  type="button"
-                >
-                  {t('auth.signup')}
-                </button>
-              </div>
-            )}
-
-            <label className="field">
-              <span>{t('auth.email')}</span>
-              <input
-                autoComplete="email"
-                readOnly={mode === 'verify'}
-                placeholder="your@email.com"
-                value={email}
-                onChange={(event) => {
-                  setEmail(event.target.value)
-                  setVerificationCode('')
-                  setCodeRequested(false)
-                  setResendSeconds(0)
-                  setCodeExpiresSeconds(0)
-                  setErrors((prev) => ({ ...prev, email: '' }))
-                }}
-                type="email"
-              />
-              {errors.email && <span className="field-error">{errors.email}</span>}
-            </label>
-            {mode === 'register' && (
-              <label className="field">
-                <span>{t('auth.displayName')}</span>
-                <input
-                  autoComplete="nickname"
-                  placeholder={t('auth.enterDisplayName')}
-                  value={displayName}
-                  onChange={(event) => {
-                    setDisplayName(event.target.value)
-                    setErrors((prev) => ({ ...prev, displayName: '' }))
-                  }}
-                />
-                {errors.displayName && <span className="field-error">{errors.displayName}</span>}
-              </label>
-            )}
-            {mode !== 'login' && (
-              <label className="field">
-                <span>{t('auth.verificationCode')}</span>
-                <div className="auth-code-row">
-                  <input
-                    autoComplete="one-time-code"
-                    inputMode="numeric"
-                    maxLength={6}
-                    placeholder={t('auth.codePlaceholder')}
-                    value={verificationCode}
-                    onChange={(event) => {
-                      setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))
-                      setErrors((current) => ({ ...current, verificationCode: '' }))
-                    }}
-                  />
-                  <button disabled={isSendingCode || resendSeconds > 0} onClick={() => void requestCode()} type="button">
-                    <Mail size={16} aria-hidden="true" />
-                    {isSendingCode
-                      ? t('auth.sendingCode')
-                      : resendSeconds > 0
-                        ? t('auth.resendIn', { seconds: resendSeconds })
-                        : t('auth.sendCode')}
-                  </button>
-                </div>
-                <span className="auth-code-meta">
-                  {codeExpiresSeconds > 0
-                    ? t('auth.codeExpiresIn', {
-                        minutes: String(Math.floor(codeExpiresSeconds / 60)).padStart(2, '0'),
-                        seconds: String(codeExpiresSeconds % 60).padStart(2, '0'),
-                      })
-                    : codeRequested
-                      ? t('auth.codeExpired')
-                      : t('auth.codeReadyHint')}
-                </span>
-                {errors.verificationCode && <span className="field-error">{errors.verificationCode}</span>}
-              </label>
-            )}
-            {mode !== 'verify' && <label className="field">
-              <span>{mode === 'forgot' ? t('auth.newPassword') : t('auth.password')}</span>
-              <input
-                autoComplete={
-                  mode === 'login' ? 'current-password' : 'new-password'
-                }
-                placeholder={mode === 'login' ? t('auth.enterPassword') : t('auth.passwordHint')}
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value)
-                  setErrors((prev) => ({ ...prev, password: '' }))
-                }}
-                type="password"
-              />
-              {errors.password && <span className="field-error">{errors.password}</span>}
-            </label>}
-            {mode === 'login' && (
-              <button className="auth-forgot" onClick={() => selectMode('forgot')} type="button">
-                {t('auth.forgotPassword')}
-              </button>
-            )}
-          </div>
-        )}
-
-        <div className="dialog-actions">
-          {user ? (
-            <button className="danger-command" onClick={() => {
-              onLogout()
-              showToast({ title: t('auth.toastNoticeTitle'), message: t('auth.loggedOutToast'), tone: 'info' })
-            }} type="button">
-              <LogOut size={17} aria-hidden="true" />
-              {t('auth.logout')}
-            </button>
-          ) : (
-            <button
-              className="command-button large full"
-              disabled={isBusy || isSendingCode}
-              onClick={() => void submit()}
-              type="button"
-            >
-              {mode === 'login' ? (
-                <LogIn size={18} aria-hidden="true" />
-              ) : mode === 'forgot' || mode === 'verify' ? (
-                <KeyRound size={18} aria-hidden="true" />
-              ) : (
-                <UserPlus size={18} aria-hidden="true" />
-              )}
-              {mode === 'login'
-                ? t('auth.login')
-                : mode === 'forgot'
-                  ? t('auth.resetPassword')
-                  : mode === 'verify'
-                    ? t('auth.completeVerification')
-                  : t('auth.createAccount')}
-            </button>
-          )}
-        </div>
-      </section>
-    </div>
-  )
+  return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+    <section aria-labelledby="auth-dialog-title" aria-modal="true" className="auth-dialog" role="dialog" onMouseDown={(event) => event.stopPropagation()}>
+      <button aria-label={t('auth.closeDialog')} className="dialog-close" onClick={onClose} type="button"><X size={18} aria-hidden="true" /></button>
+      <div className="dialog-hero">
+        <p>{t('auth.accountCenter')}</p>
+        <h2 id="auth-dialog-title">{user ? t('auth.linkedToAccount') : step === 'link' ? t('authFlow.linkTitle') : step === 'code' ? t(pendingLink ? 'authFlow.linkTitle' : 'authFlow.checkEmail') : step === 'password' ? t('authFlow.enterPassword') : t('authFlow.title')}</h2>
+        <span>{user ? t('auth.secureHint') : step === 'link' ? t('authFlow.linkHint', { email: normalizedEmail }) : step === 'code' ? t('authFlow.sentTo', { email: challenge?.email ?? normalizedEmail }) : t('authFlow.subtitle')}</span>
+      </div>
+      {user ? <div className="signed-in-card">
+        <div className="avatar-badge" aria-hidden="true">{user.displayName.slice(0, 1).toUpperCase()}</div>
+        <div><strong>{user.displayName}</strong>{user.email ? <span>{user.email}</span> : null}</div>
+      </div> : <div className="auth-form">
+        {step !== 'entry' ? <button className="auth-back" onClick={() => { setStep(step === 'link' ? 'entry' : pendingLink ? 'link' : 'entry'); if (step === 'link') setPendingLink(null); setPassword(''); setCode(''); setError('') }} type="button"><ArrowLeft size={16} aria-hidden="true" />{t('authFlow.changeEmail')}</button> : null}
+        {step === 'entry' ? <>
+          <label className="field"><span>{t('auth.email')}</span><input autoComplete="email" inputMode="email" placeholder="name@example.com" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setChallenge(null); setError('') }} onKeyDown={(event) => { if (event.key === 'Enter') void startEmail() }} /></label>
+          <p className="auth-code-meta">{t('authFlow.emailHint')}</p>
+          <button className="auth-forgot" onClick={() => { if (validEmail()) { setStep('password'); setError('') } }} type="button">{t('authFlow.passwordWay')}</button>
+        </> : step === 'link' ? <p className="auth-code-meta">{t('authFlow.linkHint', { email: normalizedEmail })}</p> : step === 'code' ? <>
+          <label className="field"><span>{t('auth.verificationCode')}</span><input autoComplete="one-time-code" inputMode="numeric" maxLength={6} placeholder={t('auth.codePlaceholder')} value={code} onChange={(event) => { setCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setError('') }} onKeyDown={(event) => { if (event.key === 'Enter') void verify() }} /></label>
+          <span className="auth-code-meta">{expiresSeconds > 0 ? t('auth.codeExpiresIn', { minutes: String(Math.floor(expiresSeconds / 60)).padStart(2, '0'), seconds: String(expiresSeconds % 60).padStart(2, '0') }) : t('auth.codeExpired')}</span>
+          <button className="auth-forgot" disabled={isBusy || retrySeconds > 0} onClick={() => void startEmail()} type="button">{retrySeconds > 0 ? t('auth.resendIn', { seconds: retrySeconds }) : t('authFlow.resend')}</button>
+          <button className="auth-forgot" onClick={() => { setStep('password'); setCode(''); setError('') }} type="button">{t('authFlow.passwordWay')}</button>
+        </> : <>
+          <p className="auth-code-meta">{normalizedEmail}</p>
+          <label className="field"><span>{t('auth.password')}</span><input autoComplete="current-password" placeholder={t('auth.enterPassword')} type="password" value={password} onChange={(event) => { setPassword(event.target.value); setError('') }} onKeyDown={(event) => { if (event.key === 'Enter') void loginWithPassword() }} /></label>
+          <button className="auth-forgot" onClick={openEmailCode} type="button">{t('authFlow.passwordFallback')}</button>
+        </>}
+        {error ? <p className="field-error" role="alert">{error}</p> : null}
+      </div>}
+      {!user && step === 'entry' ? <SocialAuthButtons onResult={onSocialResult} onError={() => setError(t('authFlow.socialFailed'))} /> : null}
+      <div className="dialog-actions">{user ?
+        <button className="danger-command" onClick={() => { void Promise.resolve(onLogout()).then((done) => { if (done) showToast({ title: t('auth.toastNoticeTitle'), message: t('auth.loggedOutToast'), tone: 'info' }); else showToast({ title: t('auth.toastErrorTitle'), message: t('account.logoutFailed'), tone: 'error' }) }) }} type="button"><LogOut size={17} aria-hidden="true" />{t('auth.logout')}</button>
+        : <button className="command-button large full" disabled={isBusy || (step === 'code' && (code.length !== 6 || expiresSeconds === 0))} onClick={() => void (step === 'entry' || step === 'link' ? startEmail() : step === 'code' ? verify() : loginWithPassword())} type="button">{step === 'entry' ? t('authFlow.continue') : step === 'link' || step === 'code' && pendingLink ? t('authFlow.linkContinue') : step === 'code' ? t('authFlow.verifyContinue') : t('auth.login')}</button>}
+      </div>
+    </section>
+  </div>
 }

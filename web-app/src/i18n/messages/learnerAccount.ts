@@ -4,6 +4,7 @@ import type { UiLocale } from '@duolinting/domain'
 export const learnerAccountMessages: Record<UiLocale, Record<string, string>> = {
   'zh-CN': {
     'account.loggedOut': '未登录',
+    'account.logoutFailed': '退出未完成，请检查网络后重试',
     'account.loggedIn': '账号已登录',
     'account.sessionExpired': '登录已失效',
     'account.progressSynced': '已同步账号进度',
@@ -14,6 +15,7 @@ export const learnerAccountMessages: Record<UiLocale, Record<string, string>> = 
   },
   'en-US': {
     'account.loggedOut': 'Not logged in',
+    'account.logoutFailed': 'Sign-out did not finish. Check your connection and retry.',
     'account.loggedIn': 'Logged in',
     'account.sessionExpired': 'Your session has expired',
     'account.progressSynced': 'Account progress synced',
@@ -24,6 +26,7 @@ export const learnerAccountMessages: Record<UiLocale, Record<string, string>> = 
   },
   'th-TH': {
     'account.loggedOut': 'ยังไม่ได้เข้าสู่ระบบ',
+    'account.logoutFailed': 'ออกจากระบบไม่สำเร็จ ตรวจสอบเครือข่ายแล้วลองอีกครั้ง',
     'account.loggedIn': 'เข้าสู่ระบบแล้ว',
     'account.sessionExpired': 'เซสชันของคุณหมดอายุแล้ว',
     'account.progressSynced': 'ซิงก์ความคืบหน้าของบัญชีแล้ว',
@@ -34,6 +37,7 @@ export const learnerAccountMessages: Record<UiLocale, Record<string, string>> = 
   },
   'ja-JP': {
     'account.loggedOut': '未ログイン',
+    'account.logoutFailed': 'ログアウトできませんでした。接続を確認して再試行してください。',
     'account.loggedIn': 'ログイン済み',
     'account.sessionExpired': 'セッションの有効期限が切れました',
     'account.progressSynced': 'アカウントの進捗を同期しました',
@@ -44,6 +48,7 @@ export const learnerAccountMessages: Record<UiLocale, Record<string, string>> = 
   },
   "fr-FR": {
     "account.loggedOut": "Non connecté",
+    "account.logoutFailed": "Déconnexion inachevée. Vérifiez la connexion et réessayez.",
     "account.loggedIn": "Connecté",
     "account.sessionExpired": "Votre session a expiré",
     "account.progressSynced": "Progression synchronisée",
@@ -54,6 +59,7 @@ export const learnerAccountMessages: Record<UiLocale, Record<string, string>> = 
 },
   "es-ES": {
     "account.loggedOut": "Sin sesión iniciada",
+    "account.logoutFailed": "No se cerró la sesión. Comprueba la conexión e inténtalo de nuevo.",
     "account.loggedIn": "Sesión iniciada",
     "account.sessionExpired": "Tu sesión ha caducado",
     "account.progressSynced": "Progreso sincronizado",

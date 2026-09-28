@@ -2,6 +2,7 @@ import Sequelize, { Model, ModelAttributes } from 'sequelize';
 import { Defaultconfig, sequelize } from '../db-config-mysql';
 
 export type AuthClientType = 'web_app' | 'mobile_web' | 'mobile_app';
+export type AuthMethod = 'email_password' | 'email_code' | 'apple' | 'google';
 
 const UserSessionSchema: ModelAttributes = {
     id: {
@@ -20,6 +21,11 @@ const UserSessionSchema: ModelAttributes = {
     token_hash: {
         type: Sequelize.STRING(64),
         allowNull: false,
+    },
+    auth_method: {
+        type: Sequelize.STRING(24),
+        allowNull: false,
+        defaultValue: 'email_password',
     },
     expires_at: {
         type: Sequelize.DATE,
@@ -44,6 +50,7 @@ export interface UserSessionDb {
     user_id: number;
     client_type: AuthClientType;
     token_hash: string;
+    auth_method: AuthMethod;
     expires_at: Date;
     last_seen_at?: Date | null;
     revoked_at?: Date | null;
@@ -56,6 +63,7 @@ export class UserSessionModel extends Model<UserSessionDb> {
     declare user_id: number;
     declare client_type: AuthClientType;
     declare token_hash: string;
+    declare auth_method: AuthMethod;
     declare expires_at: Date;
     declare last_seen_at: Date | null;
     declare revoked_at: Date | null;

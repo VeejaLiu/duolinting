@@ -251,6 +251,46 @@
   padding: 0 16px;
 }
 
+.social-auth-buttons {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 20px 20px;
+}
+
+.social-auth-buttons > span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.social-apple-button {
+  background: #000;
+  border: 2px solid #000;
+  border-radius: 12px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  min-height: 42px;
+  width: min(100%, 300px);
+}
+
+.social-apple-button:hover,
+.social-apple-button:focus-visible {
+  border-color: #1cb0f6;
+}
+
+.social-google-button {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 42px;
+  width: 100%;
+}
+
 @media (max-width: 460px) {
   .auth-code-row {
     grid-template-columns: 1fr;

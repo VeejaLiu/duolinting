@@ -686,7 +686,7 @@ export const apiClient = {
       { adminToken },
     ),
   searchLearnerUsers: (search: string, adminToken: string) =>
-    fetchJson<{ items: Array<{ id: number; email: string; displayName: string; boundAdminMemberId?: number; boundAdminDisplayName?: string }>; search: string }>(
+    fetchJson<{ items: Array<{ id: number; email: string | null; displayName: string; boundAdminMemberId?: number; boundAdminDisplayName?: string }>; search: string }>(
       `/api/v1/admin/collaboration/learner-users?search=${encodeURIComponent(search)}`,
       { method: 'GET' }, { adminToken },
     ),

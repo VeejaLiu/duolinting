@@ -1,7 +1,7 @@
 import Sequelize, { Model, type ModelAttributes } from 'sequelize';
 import { Defaultconfig, sequelize } from '../db-config-mysql';
 
-export type UserEmailChallengePurpose = 'register' | 'password_reset' | 'verify_account';
+export type UserEmailChallengePurpose = 'register' | 'password_reset' | 'verify_account' | 'email_login' | 'link_email' | 'reauth_delete_account' | 'reauth_set_password' | 'reauth_unlink_identity' | 'reauth_link_email';
 
 const UserEmailChallengeSchema: ModelAttributes = {
     id: {
@@ -35,6 +35,9 @@ const UserEmailChallengeSchema: ModelAttributes = {
     consumed_at: {
         type: Sequelize.DATE,
     },
+    sent_at: {
+        type: Sequelize.DATE,
+    },
     created_at: {
         type: Sequelize.DATE,
     },
@@ -51,6 +54,7 @@ export interface UserEmailChallengeDb {
     failed_attempts: number;
     expires_at: Date;
     consumed_at?: Date | null;
+    sent_at?: Date | null;
     created_at?: Date;
     updated_at?: Date;
 }
@@ -63,6 +67,7 @@ export class UserEmailChallengeModel extends Model<UserEmailChallengeDb> {
     declare failed_attempts: number;
     declare expires_at: Date;
     declare consumed_at: Date | null;
+    declare sent_at: Date | null;
     declare created_at: Date;
     declare updated_at: Date;
 }

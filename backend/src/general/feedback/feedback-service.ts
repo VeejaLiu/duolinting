@@ -10,7 +10,7 @@ type AcceptedAnswerFeedbackRow = {
     id: number;
     user_id: number;
     user_display_name: string;
-    user_email: string;
+    user_email: string | null;
     exercise_id: number;
     exercise_title: string;
     line_id: string;

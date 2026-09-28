@@ -45,7 +45,7 @@ export function verifyTokenMiddleware(req: any, res: any, next: any) {
             return res.status(401).send({ success: false, message: 'Token is not valid' });
         }
 
-        req.user = { userId: result.userId };
+        req.user = { userId: result.userId, sessionId: result.sessionId };
         next();
     });
 }

@@ -9,7 +9,7 @@ const UserSchema: ModelAttributes = {
     },
     email: {
         type: Sequelize.STRING(255),
-        allowNull: false,
+        allowNull: true,
         unique: true,
     },
     display_name: {
@@ -40,7 +40,7 @@ const UserSchema: ModelAttributes = {
 
 export interface UserDb {
     id: number;
-    email: string;
+    email: string | null;
     display_name: string;
     is_preview_volunteer: boolean;
     password_hash: string | null;
@@ -53,7 +53,7 @@ export interface UserDb {
 
 export class UserModel extends Model<UserDb> {
     declare id: number;
-    declare email: string;
+    declare email: string | null;
     declare display_name: string;
     declare is_preview_volunteer: boolean;
     declare password_hash: string | null;

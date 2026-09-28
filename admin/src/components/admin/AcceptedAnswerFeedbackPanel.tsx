@@ -80,7 +80,7 @@ export function AcceptedAnswerFeedbackPanel({
               </div>
               <div className="course-meta">
                 <span>{t('用户：')}{item.user.displayName}</span>
-                <span>{item.user.email}</span>
+                {item.user.email ? <span>{item.user.email}</span> : null}
                 <span>{t('句子：')}{item.lineId}</span>
               </div>
               <div className="feedback-block">

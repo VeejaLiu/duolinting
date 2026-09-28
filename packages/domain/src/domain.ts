@@ -573,7 +573,7 @@ export type AdminContentResponse = {
 
 export type AuthUser = {
   id: number
-  email: string
+  email: string | null
   displayName: string
 }
 
@@ -613,7 +613,13 @@ export type RequestEmailCodeResponse = {
   retryAfterSeconds?: number
   /** Maximum successful send attempts per IP and per normalized email each hour. */
   hourlyLimit: number
+  challengeId?: number
+  expiresAt?: string
+  retryAt?: string
 }
+
+export type EmailStartRequest = { email: string; uiLocale?: UiLocale }
+export type EmailVerifyRequest = { email: string; challengeId: number; code: string; clientType?: AuthClientType }
 
 export type ResetPasswordRequest = {
   email: string
@@ -627,14 +633,59 @@ export type ResetPasswordResponse = {
 
 /** 已登录用户修改密码时提交的凭据；当前密码用于阻止拿到 token 后直接接管账号。 */
 export type ChangePasswordRequest = {
-  currentPassword: string
+  currentPassword?: string
+  reauthTicket?: string
   newPassword: string
 }
 
 /** 已登录用户发起账号删除时提交的当前密码，用于确认高风险操作。 */
 export type DeleteAccountRequest = {
-  currentPassword: string
+  currentPassword?: string
+  reauthTicket?: string
 }
+
+export type AuthMethods = {
+  email: boolean
+  password: boolean
+  apple: boolean
+  google: boolean
+  /** Provider contact snapshots never authorize email login until linked. */
+  providerEmails: { apple: string | null; google: string | null }
+}
+export type ReauthPurpose = 'delete_account' | 'set_password' | 'unlink_identity' | 'link_email'
+export type ReauthRequest = {
+  purpose: ReauthPurpose
+  method: 'password' | 'email_code'
+  password?: string
+  challengeId?: number
+  code?: string
+}
+export type ReauthResponse = { ticket: string; expiresAt: string }
+
+export type OAuthProvider = 'apple' | 'google'
+export type OAuthPurpose = 'login' | 'link' | 'reauth'
+export type OAuthPlatform = 'ios' | 'android' | 'web'
+export type OAuthConfig = {
+  enabled: { googleWeb: boolean; googleIos: boolean; googleAndroid: boolean; appleNative: boolean; appleWeb: boolean }
+  googleWebClientId: string | null
+  googleIosClientId: string | null
+  appleCallbackOrigin: string | null
+}
+export type OAuthStartRequest = {
+  provider: OAuthProvider
+  purpose: OAuthPurpose
+  platform: OAuthPlatform
+  reauthPurpose?: ReauthPurpose
+  verifier?: string
+  returnOrigin?: string
+  clientType?: AuthClientType
+}
+export type OAuthStartResponse = { transactionId: number; nonce: string; state: string; authorizationUrl?: string }
+export type OAuthResult =
+  | { status: 'authenticated'; auth: AuthResponse }
+  | { status: 'needs_link'; transactionId: number; emailHint: string | null }
+  | { status: 'linked' }
+  | { status: 'reauthenticated'; ticket: string }
 
 export type DeleteAccountResponse = {
   deleted: true
@@ -658,7 +709,7 @@ export type AdminUser = {
   /** 仅字幕贡献者使用；有值时代表显示名称仍在 90 天自助修改冷却期内。 */
   nextDisplayNameChangeAt?: string
   learnerUserId?: number
-  learnerEmail?: string
+  learnerEmail?: string | null
   learnerDisplayName?: string
 }
 
@@ -709,7 +760,7 @@ export type UpdateContributorAssignmentsRequest = {
 
 export type PreviewVolunteer = {
   id: number
-  email: string
+  email: string | null
   displayName: string
   isPreviewVolunteer: boolean
 }
@@ -780,7 +831,7 @@ export type AcceptedAnswerFeedback = {
   user: {
     id: number
     displayName: string
-    email: string
+    email: string | null
   }
 }
 

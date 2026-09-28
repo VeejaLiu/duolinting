@@ -2,13 +2,18 @@ import { ArrowLeft, ChevronRight, KeyRound, Languages } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AUTH_TOKEN_STORAGE_KEY } from '@duolinting/app-config'
-import type { AuthResponse, AuthUser, ContentLocale, UiLocale } from '@duolinting/domain'
+import type { AuthMethods, AuthResponse, AuthUser, ContentLocale, UiLocale } from '@duolinting/domain'
 import { apiClient } from '../lib/apiClient'
 import { contentLocaleLabels, uiLocaleLabels, useLanguage } from '../i18n/LanguageProvider'
 import { AuthDialog } from './AuthDialog'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
+import { SecurityActionDialog } from './SecurityActionDialog'
+import { SocialAuthButtons } from './SocialAuthButtons'
+import { LinkEmailDialog } from './LinkEmailDialog'
 import { SettingsSelect } from './SettingsSelect'
 import { TopBar } from './TopBar'
+import { useToast } from './ToastProvider'
+import { ApiClientError } from '@duolinting/api-client'
 
 /**
  * 设置页：挂在 TopBar 下面，与主学习页共用同一个应用外壳。
@@ -19,12 +24,16 @@ import { TopBar } from './TopBar'
 export function SettingsPage() {
   const navigate = useNavigate()
   const { contentLocale, setContentLocale, setUiLocale, t, uiLocale } = useLanguage()
+  const { showToast } = useToast()
   const [authToken, setAuthToken] = useState(
     () => localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) ?? '',
   )
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
   const [accountDialogOpen, setAccountDialogOpen] = useState(false)
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
+  const [linkEmailOpen, setLinkEmailOpen] = useState(false)
+  const [authMethods, setAuthMethods] = useState<AuthMethods | null>(null)
+  const [securityAction, setSecurityAction] = useState<{ kind: 'delete' } | { kind: 'unlink'; provider: 'apple' | 'google' } | null>(null)
 
   // 进入页面时用本地 token 恢复登录身份；失效则清掉，回到未登录形态
   useEffect(() => {
@@ -41,16 +50,38 @@ export function SettingsPage() {
     return () => { mounted = false }
   }, [authToken])
 
+  useEffect(() => {
+    if (!authToken) { setAuthMethods(null); return }
+    let active = true
+    void apiClient.getAuthMethods(authToken).then((value) => { if (active) setAuthMethods(value) }).catch(() => { if (active) setAuthMethods(null) })
+    return () => { active = false }
+  }, [authToken])
+
   const handleAuthenticated = (response: AuthResponse) => {
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, response.token)
     setAuthToken(response.token)
     setAuthUser(response.user)
+    void apiClient.getAuthMethods(response.token).then(setAuthMethods).catch(() => {})
   }
 
-  const handleLogout = () => {
+  const clearLocalSession = () => {
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
     setAuthToken('')
     setAuthUser(null)
+    setAuthMethods(null)
+  }
+  const handleLogout = async (): Promise<boolean> => {
+    if (authToken) {
+      try { await apiClient.logout(authToken) }
+      catch (error) {
+        if (!(error instanceof ApiClientError && error.status === 401)) {
+          showToast({ title: t('auth.toastErrorTitle'), message: t('account.logoutFailed'), tone: 'error' })
+          return false
+        }
+      }
+    }
+    clearLocalSession()
+    return true
   }
 
   const persistLanguage = (next: { uiLocale?: UiLocale; contentLocale?: ContentLocale }) => {
@@ -125,7 +156,7 @@ export function SettingsPage() {
             <KeyRound size={15} />
             {t('settings.account')}
           </h2>
-          {authToken ? (
+          {authToken && authUser?.email ? (
             <button
               className="settings-row"
               onClick={() => setPasswordDialogOpen(true)}
@@ -135,20 +166,53 @@ export function SettingsPage() {
                 <KeyRound size={17} />
               </span>
               <span className="settings-row-copy">
-                <strong>{t('settings.changePassword')}</strong>
+                <strong>{t(authMethods?.password === false ? 'authSecurity.setPassword' : 'settings.changePassword')}</strong>
                 <span>{t('settings.changePasswordDescription')}</span>
               </span>
+              <ChevronRight size={16} aria-hidden="true" />
+            </button>
+          ) : authToken ? (
+            <button className="settings-row" onClick={() => setLinkEmailOpen(true)} type="button">
+              <span className="settings-row-icon" aria-hidden="true"><KeyRound size={17} /></span>
+              <span className="settings-row-copy"><strong>{t('authSecurity.setPassword')}</strong><span>{t('authSecurity.linkEmailHint')}</span></span>
               <ChevronRight size={16} aria-hidden="true" />
             </button>
           ) : (
             <p className="settings-message error">{t('settings.loginRequired')}</p>
           )}
+          {authToken && authMethods ? <>
+            <h3 className="settings-card-title">{t('authSecurity.methods')}</h3>
+            {authUser?.email ? <p className="settings-field-hint">{t('auth.email')}: {authUser.email}</p>
+              : <button className="settings-row" onClick={() => setLinkEmailOpen(true)} type="button"><span className="settings-row-copy"><strong>{t('authSecurity.linkEmail')}</strong><span>{t('authSecurity.linkEmailHint')}</span></span><ChevronRight size={16} aria-hidden="true" /></button>}
+            {(['apple', 'google'] as const).map((provider) => <div className="settings-row" key={provider}>
+              <span className="settings-row-copy"><strong>{provider === 'apple' ? 'Apple' : 'Google'}</strong><span>{t(authMethods[provider] ? 'authSecurity.enabled' : 'authSecurity.disabled')}{authMethods.providerEmails[provider] ? ` · ${authMethods.providerEmails[provider]}` : ''}</span></span>
+              {authMethods[provider] ? <button className="auth-forgot" onClick={() => setSecurityAction({ kind: 'unlink', provider })} type="button">{t('authSecurity.unlink')}</button> : null}
+            </div>)}
+            <SocialAuthButtons purpose="link" authToken={authToken} allowedProviders={(['apple', 'google'] as const).filter((provider) => !authMethods[provider]) as ('apple' | 'google')[]}
+              onResult={(result) => { if (result.status === 'linked') void apiClient.getAuthMethods(authToken).then(setAuthMethods) }}
+              onError={() => showToast({ title: t('auth.toastErrorTitle'), message: t('authFlow.socialFailed'), tone: 'error' })} />
+            <button className="settings-row" onClick={() => setSecurityAction({ kind: 'delete' })} type="button">
+              <span className="settings-row-copy"><strong>{t('authSecurity.delete')}</strong><span>{t('authSecurity.deleteHint')}</span></span>
+              <ChevronRight size={16} aria-hidden="true" />
+            </button>
+          </> : null}
         </section>
         <ChangePasswordDialog
           authToken={authToken}
           onClose={() => setPasswordDialogOpen(false)}
+          onAuthenticated={handleAuthenticated}
+          hasPassword={authMethods?.password ?? true}
           open={passwordDialogOpen}
         />
+        <SecurityActionDialog action={securityAction} authToken={authToken} onClose={() => setSecurityAction(null)} onDone={(deleted) => {
+          setSecurityAction(null)
+          if (deleted) clearLocalSession()
+          else void apiClient.getAuthMethods(authToken).then(setAuthMethods)
+        }} />
+        <LinkEmailDialog open={linkEmailOpen} authToken={authToken} onClose={() => setLinkEmailOpen(false)} onLinked={() => {
+          void apiClient.getCurrentUser(authToken).then(setAuthUser)
+          void apiClient.getAuthMethods(authToken).then(setAuthMethods)
+        }} />
       </div>
     </div>
   )

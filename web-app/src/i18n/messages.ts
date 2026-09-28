@@ -2,6 +2,8 @@ import { analyticsMessages } from './messages/analytics'
 import type { UiLocale } from '@duolinting/domain'
 import { appMessages } from './messages/app'
 import { authDialogMessages } from './messages/authDialog'
+import { authFlowMessages } from './messages/authFlow'
+import { authSecurityMessages } from './messages/authSecurity'
 import { coreMessages } from './messages/core'
 import { contributeMessages } from './messages/contribute'
 import { courseMapMessages } from './messages/courseMap'
@@ -22,6 +24,8 @@ const modules: Record<UiLocale, Record<string, string>>[] = [
   analyticsMessages,
   appMessages,
   authDialogMessages,
+  authFlowMessages,
+  authSecurityMessages,
   coreMessages,
   contributeMessages,
   courseMapMessages,

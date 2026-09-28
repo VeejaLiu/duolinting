@@ -20,13 +20,13 @@ export default function TermsPage() {
       <article className="site-shell legal-content">
         <p className="eyebrow"><span></span>使用条款</p>
         <h1>尊重内容权利，也尊重学习者。</h1>
-        <p className="legal-updated">最后更新：2026-08-29</p>
+        <p className="legal-updated">最后更新：2026-09-28</p>
 
         <h2>运营主体与联系方式</h2>
         <p>DuolinTing（多邻听）是由 Veeja Liu 作为个人开发者维护的独立开源项目。关于本条款、服务使用或内容权利的问题，请发送邮件至 <a href="mailto:veejaliu@outlook.com">veejaliu@outlook.com</a>，或查看<a href="/support">支持页面</a>。</p>
 
         <h2>服务与账号</h2>
-        <p>DuolinTing 提供真实音视频的听力练习、课程目录、学习进度同步和内容制作工具。你可以在支持的平台上注册账号；请提供准确的信息并妥善保管密码。账号仅供本人使用，不要与他人共享登录凭据。</p>
+        <p>DuolinTing 提供真实音视频的听力练习、课程目录、学习进度同步和内容制作工具。你可以在支持的平台上通过邮箱、Apple 或 Google 创建或登录账号；请提供准确的信息，并妥善保护验证码、第三方登录方式及已设置的密码。账号仅供本人使用，不要与他人共享登录凭据。</p>
 
         <h2>内容权利与使用规则</h2>
         <ul className="legal-list">

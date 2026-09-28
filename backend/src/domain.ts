@@ -495,7 +495,7 @@ export type OpenContentCatalogResponse = {
 
 export type AuthUser = {
     id: number;
-    email: string;
+    email: string | null;
     displayName: string;
 };
 
@@ -592,7 +592,7 @@ export type AcceptedAnswerFeedback = {
     user: {
         id: number;
         displayName: string;
-        email: string;
+        email: string | null;
     };
 };
 

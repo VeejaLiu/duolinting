@@ -1,6 +1,6 @@
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
-import type { Transaction } from 'sequelize';
+import { Op, type Transaction } from 'sequelize';
 import { env } from '../../env';
 import { sendTransactionalEmail, isTransactionalEmailConfigured } from '../email/email-service';
 import { UserEmailChallengeModel, type UserEmailChallengePurpose } from '../../models/schema/UserEmailChallengeDB';
@@ -21,6 +21,7 @@ export type EmailChallengeErrorCode =
     | 'EMAIL_CODE_EXPIRED'
     | 'EMAIL_CODE_LOCKED'
     | 'EMAIL_ALREADY_VERIFIED'
+    | 'EMAIL_SEND_LIMITED'
     | 'INVALID_CREDENTIALS';
 
 export class EmailChallengeError extends Error {
@@ -35,15 +36,32 @@ export class EmailChallengeError extends Error {
 }
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
+const sendLocks = new Map<string, Promise<void>>();
+
+/** The current deployment has one backend instance; serialize simultaneous
+ * sends for an address so two first requests cannot invalidate each other. */
+async function withEmailSendLock<T>(email: string, action: () => Promise<T>): Promise<T> {
+    const key = normalizeEmail(email);
+    const previous = sendLocks.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => { release = resolve; });
+    sendLocks.set(key, current);
+    await previous;
+    try { return await action(); }
+    finally {
+        release();
+        if (sendLocks.get(key) === current) sendLocks.delete(key);
+    }
+}
 
 /**
  * The six-digit code is convenient on web and native clients. It is never
  * stored directly: HMAC ties it to both the normalized email and purpose, so a
  * leaked database cannot be brute-forced without the separate server secret.
  */
-const hashCode = (email: string, purpose: UserEmailChallengePurpose, code: string) =>
-    createHmac('sha256', env.secret.jwt)
-        .update(`${purpose}\0${normalizeEmail(email)}\0${code}`)
+const hashCode = (email: string, purpose: UserEmailChallengePurpose, code: string, challengeId: number) =>
+    createHmac('sha256', env.secret.emailCode)
+        .update(`${challengeId}\0${purpose}\0${normalizeEmail(email)}\0${code}`)
         .digest('hex');
 
 const codesMatch = (expected: string, actual: string) => {
@@ -74,7 +92,25 @@ type EmailLocaleCopy = {
     terms: string;
     support: string;
     home: string;
-    purposes: Record<UserEmailChallengePurpose, EmailPurposeCopy>;
+    purposes: Record<Exclude<UserEmailChallengePurpose, 'email_login' | 'link_email' | `reauth_${string}`>, EmailPurposeCopy>;
+};
+
+const emailLoginCopy: Record<UiLocale, EmailPurposeCopy> = {
+    'zh-CN': { subject: 'DuolinTing 登录验证码', preheader: '验证邮箱后即可继续学习。', heading: '登录或注册', intro: '输入下面的验证码即可继续；首次使用此邮箱时会自动创建账号。', securityNote: '如果不是你本人操作，请忽略此邮件，不要分享验证码。' },
+    'en-US': { subject: 'Your DuolinTing sign-in code', preheader: 'Verify your email to continue learning.', heading: 'Sign in or create an account', intro: 'Enter the code below to continue. A new account is created only after you verify this email.', securityNote: 'If this was not you, ignore this email and never share the code.' },
+    'th-TH': { subject: 'รหัสเข้าสู่ระบบ DuolinTing', preheader: 'ยืนยันอีเมลเพื่อเรียนต่อ', heading: 'เข้าสู่ระบบหรือสมัคร', intro: 'ใส่รหัสด้านล่างเพื่อดำเนินการต่อ บัญชีใหม่จะถูกสร้างหลังยืนยันอีเมลเท่านั้น', securityNote: 'หากไม่ใช่คุณ โปรดละเว้นอีเมลนี้และอย่าแชร์รหัส' },
+    'ja-JP': { subject: 'DuolinTing のログインコード', preheader: 'メールを確認して学習を続けましょう。', heading: 'ログインまたは登録', intro: '以下のコードを入力してください。新しいアカウントはメール確認後に作成されます。', securityNote: '心当たりがない場合は無視し、コードを共有しないでください。' },
+    'fr-FR': { subject: 'Code de connexion DuolinTing', preheader: 'Confirmez votre adresse pour continuer.', heading: 'Connexion ou inscription', intro: 'Saisissez le code ci-dessous. Un nouveau compte est créé uniquement après vérification de cette adresse.', securityNote: 'Si vous n’êtes pas à l’origine de cette demande, ignorez ce message et ne partagez pas le code.' },
+    'es-ES': { subject: 'Código de acceso de DuolinTing', preheader: 'Verifica tu correo para continuar.', heading: 'Iniciar sesión o registrarse', intro: 'Introduce el código siguiente. Solo se creará una cuenta nueva después de verificar este correo.', securityNote: 'Si no fuiste tú, ignora este mensaje y no compartas el código.' },
+};
+
+const reauthCopy: Record<UiLocale, EmailPurposeCopy> = {
+    'zh-CN': { subject: 'DuolinTing 账号安全验证码', preheader: '确认这次账号安全操作。', heading: '确认是你本人', intro: '请输入下面的验证码，确认这次账号安全操作。', securityNote: '如果不是你本人操作，请忽略此邮件并检查账号安全。' },
+    'en-US': { subject: 'Your DuolinTing security code', preheader: 'Confirm this account security action.', heading: 'Confirm it is you', intro: 'Enter this code to confirm the requested account security action.', securityNote: 'If this was not you, ignore this email and review your account security.' },
+    'th-TH': { subject: 'รหัสความปลอดภัย DuolinTing', preheader: 'ยืนยันการดำเนินการกับบัญชี', heading: 'ยืนยันตัวตน', intro: 'ป้อนรหัสนี้เพื่อยืนยันการดำเนินการด้านความปลอดภัยของบัญชี', securityNote: 'หากไม่ใช่คุณ โปรดละเว้นอีเมลนี้และตรวจสอบความปลอดภัยของบัญชี' },
+    'ja-JP': { subject: 'DuolinTing セキュリティコード', preheader: 'アカウントの操作を確認してください。', heading: '本人確認', intro: 'このコードを入力して、アカウントの操作を確認してください。', securityNote: '心当たりがない場合は無視し、アカウントの安全を確認してください。' },
+    'fr-FR': { subject: 'Code de sécurité DuolinTing', preheader: 'Confirmez cette opération sur votre compte.', heading: 'Confirmez votre identité', intro: 'Saisissez ce code pour confirmer cette opération de sécurité.', securityNote: 'Si ce n’était pas vous, ignorez ce message et vérifiez la sécurité de votre compte.' },
+    'es-ES': { subject: 'Código de seguridad de DuolinTing', preheader: 'Confirma esta acción en tu cuenta.', heading: 'Confirma tu identidad', intro: 'Introduce este código para confirmar la acción de seguridad de la cuenta.', securityNote: 'Si no fuiste tú, ignora este mensaje y revisa la seguridad de tu cuenta.' },
 };
 
 const emailCopy: Record<UiLocale, EmailLocaleCopy> = {
@@ -143,7 +179,11 @@ export const renderUserEmailChallengeEmail = (
 ) => {
     const normalizedLocale = normalizeLocale(locale);
     const common = emailCopy[normalizedLocale];
-    const copy = common.purposes[purpose];
+    const copy = purpose === 'email_login'
+        ? emailLoginCopy[normalizedLocale]
+        : purpose === 'link_email' || purpose.startsWith('reauth_')
+            ? reauthCopy[normalizedLocale]
+            : common.purposes[purpose as keyof typeof common.purposes];
     const site = env.resend.PUBLIC_SITE_URL;
     const localizedBase = normalizedLocale === 'zh-CN' ? site : `${site}/en`;
     const links = {
@@ -178,7 +218,7 @@ export const renderUserEmailChallengeEmail = (
     };
 };
 
-export async function requestUserEmailChallenge({
+async function requestUserEmailChallengeUnlocked({
     email,
     purpose,
     password,
@@ -213,6 +253,15 @@ export async function requestUserEmailChallenge({
         return { verificationRequired: true, delivery: 'sent' as const, expiresInSeconds: CODE_TTL_MS / 1000, retryAfterSeconds: RESEND_COOLDOWN_MS / 1000, hourlyLimit: EMAIL_CODE_HOURLY_LIMIT };
     }
 
+    // Count accepted messages in MySQL, not attempts at the HTTP endpoint.
+    // This quota spans registration, sign-in and sensitive-operation codes.
+    const sentInLastHour = await UserEmailChallengeModel.count({
+        where: { email: normalizedEmail, sent_at: { [Op.gte]: new Date(Date.now() - 60 * 60 * 1000) } },
+    });
+    if (sentInLastHour >= EMAIL_CODE_HOURLY_LIMIT) {
+        throw new EmailChallengeError('EMAIL_SEND_LIMITED', 'Email send limit reached.', 429);
+    }
+
     const latest = await UserEmailChallengeModel.findOne({
         // A consumed code must not trigger cooldown: after a successful reset
         // the user may legitimately need to start a fresh recovery flow.
@@ -226,6 +275,9 @@ export async function requestUserEmailChallenge({
         return {
             verificationRequired: true,
             delivery: 'cooldown' as const,
+            challengeId: latest?.id,
+            expiresAt: latest?.expires_at,
+            retryAt: new Date(createdAt + RESEND_COOLDOWN_MS),
             expiresInSeconds: Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)),
             retryAfterSeconds: Math.ceil(cooldownRemaining / 1000),
             hourlyLimit: EMAIL_CODE_HOURLY_LIMIT,
@@ -233,16 +285,19 @@ export async function requestUserEmailChallenge({
     }
 
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
-    const codeHash = hashCode(normalizedEmail, purpose, code);
     const now = new Date();
     const challenge = await UserEmailChallengeModel.create({
         email: normalizedEmail,
         purpose,
-        code_hash: codeHash,
+        code_hash: '',
         failed_attempts: 0,
         expires_at: new Date(now.getTime() + CODE_TTL_MS),
         consumed_at: null,
     } as any);
+    // The HMAC includes the immutable row ID so each challenge has its own
+    // digest even if a code repeats for the same address and purpose.
+    const codeHash = hashCode(normalizedEmail, purpose, code, challenge.id);
+    await challenge.update({ code_hash: codeHash });
 
     try {
         const content = renderUserEmailChallengeEmail(purpose, code, uiLocale, normalizedEmail);
@@ -255,37 +310,33 @@ export async function requestUserEmailChallenge({
             // different recipient/code can never reuse a previous email body.
             idempotencyKey: `user-email-challenge-${challenge.id}-${codeHash.slice(0, 24)}`,
         });
+        await challenge.update({ sent_at: new Date() });
         await UserEmailChallengeModel.update(
             { consumed_at: now },
-            {
-                where: {
-                    email: normalizedEmail,
-                    purpose,
-                    consumed_at: null,
-                } as any,
-            },
-        );
-        await UserEmailChallengeModel.update(
-            { consumed_at: null },
-            { where: { id: challenge.id } },
+            { where: { email: normalizedEmail, purpose, consumed_at: null, id: { [Op.ne]: challenge.id } } },
         );
     } catch (error) {
         await UserEmailChallengeModel.update({ consumed_at: new Date() }, { where: { id: challenge.id } });
         throw error;
     }
 
-    return { verificationRequired: true, delivery: 'sent' as const, expiresInSeconds: CODE_TTL_MS / 1000, retryAfterSeconds: RESEND_COOLDOWN_MS / 1000, hourlyLimit: EMAIL_CODE_HOURLY_LIMIT };
+    return { verificationRequired: true, delivery: 'sent' as const, challengeId: challenge.id, expiresAt: challenge.expires_at, retryAt: new Date(now.getTime() + RESEND_COOLDOWN_MS), expiresInSeconds: CODE_TTL_MS / 1000, retryAfterSeconds: RESEND_COOLDOWN_MS / 1000, hourlyLimit: EMAIL_CODE_HOURLY_LIMIT };
 }
+
+export const requestUserEmailChallenge = (request: Parameters<typeof requestUserEmailChallengeUnlocked>[0]) =>
+    withEmailSendLock(request.email, () => requestUserEmailChallengeUnlocked(request));
 
 export async function consumeUserEmailChallenge({
     email,
     purpose,
     code,
+    challengeId,
     transaction,
 }: {
     email: string;
     purpose: UserEmailChallengePurpose;
     code?: string;
+    challengeId?: number;
     transaction: Transaction;
 }) {
     const normalizedEmail = normalizeEmail(email);
@@ -295,7 +346,7 @@ export async function consumeUserEmailChallenge({
     }
 
     const challenge = await UserEmailChallengeModel.findOne({
-        where: { email: normalizedEmail, purpose, consumed_at: null } as any,
+        where: { email: normalizedEmail, purpose, consumed_at: null, ...(challengeId ? { id: challengeId } : {}) } as any,
         order: [['created_at', 'DESC']],
         transaction,
         lock: transaction.LOCK.UPDATE,
@@ -311,7 +362,7 @@ export async function consumeUserEmailChallenge({
         throw new EmailChallengeError('EMAIL_CODE_LOCKED', 'Too many invalid code attempts.', 429);
     }
 
-    const actualHash = hashCode(normalizedEmail, purpose, normalizedCode);
+    const actualHash = hashCode(normalizedEmail, purpose, normalizedCode, challenge.id);
     if (!codesMatch(challenge.code_hash, actualHash)) {
         const failedAttempts = challenge.failed_attempts + 1;
         await challenge.update(

@@ -57,6 +57,7 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={!authUser}>
         <Stack.Screen name="auth/login" />
+        <Stack.Screen name="oauth" />
       </Stack.Protected>
     </Stack>
     </>

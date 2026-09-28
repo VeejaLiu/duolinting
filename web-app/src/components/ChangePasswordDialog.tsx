@@ -3,18 +3,22 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { apiClient } from '../lib/apiClient'
 import { useLanguage } from '../i18n/LanguageProvider'
 import { useToast } from './ToastProvider'
+import type { AuthResponse } from '@duolinting/domain'
+import { WebReauthForm } from './WebReauthForm'
 
 type ChangePasswordDialogProps = {
   open: boolean
   authToken: string
   onClose: () => void
+  onAuthenticated: (response: AuthResponse) => void
+  hasPassword?: boolean
 }
 
 /** 修改密码弹窗：设置页账号卡片点击进入，表单与校验都在这里闭环。 */
-export function ChangePasswordDialog({ open, authToken, onClose }: ChangePasswordDialogProps) {
+export function ChangePasswordDialog({ open, authToken, onClose, onAuthenticated, hasPassword = true }: ChangePasswordDialogProps) {
   const { t } = useLanguage()
   const { showToast } = useToast()
-  const [currentPassword, setCurrentPassword] = useState('')
+  const [reauthTicket, setReauthTicket] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -22,7 +26,7 @@ export function ChangePasswordDialog({ open, authToken, onClose }: ChangePasswor
 
   // 关闭时重置表单，避免上一次的输入和结果残留到下次打开
   const handleClose = () => {
-    setCurrentPassword('')
+    setReauthTicket('')
     setNewPassword('')
     setConfirmPassword('')
     setFeedback(null)
@@ -45,10 +49,7 @@ export function ChangePasswordDialog({ open, authToken, onClose }: ChangePasswor
     event.preventDefault()
     if (submitting) return
 
-    if (!currentPassword) {
-      setFeedback(t('settings.currentRequired'))
-      return
-    }
+    if (!reauthTicket) return
     if (newPassword.length < 8) {
       setFeedback(t('settings.newMinLength'))
       return
@@ -62,10 +63,16 @@ export function ChangePasswordDialog({ open, authToken, onClose }: ChangePasswor
     setFeedback(null)
     try {
       // changePassword 成功时直接返回 AuthResponse，失败抛 ApiClientError
-      await apiClient.changePassword({ currentPassword, newPassword }, authToken)
+      const response = await apiClient.changePassword({ reauthTicket, newPassword }, authToken)
+      onAuthenticated(response)
       showToast({ title: t('auth.toastSuccessTitle'), message: t('settings.changeSuccess'), tone: 'success' })
       handleClose()
     } catch (error) {
+      if (typeof error === 'object' && error && 'code' in error && error.code === 'REAUTH_REQUIRED') {
+        setReauthTicket('')
+        setFeedback(t('authSecurity.actionFailed'))
+        return
+      }
       showToast({
         title: t('auth.toastErrorTitle'),
         message: error instanceof Error && error.message ? error.message : t('settings.changeFailed'),
@@ -96,21 +103,11 @@ export function ChangePasswordDialog({ open, authToken, onClose }: ChangePasswor
 
         <div className="dialog-hero">
           <p>{t('settings.account')}</p>
-          <h2 id="change-password-dialog-title">{t('settings.changePassword')}</h2>
+          <h2 id="change-password-dialog-title">{hasPassword ? t('settings.changePassword') : t('authSecurity.setPassword')}</h2>
           <span>{t('settings.changePasswordDescription')}</span>
         </div>
 
-        <form onSubmit={(event) => void handleSubmit(event)}>
-          <label className="settings-field">
-            <span className="settings-field-label">{t('settings.currentPassword')}</span>
-            <input
-              autoComplete="current-password"
-              className="settings-input"
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              type="password"
-              value={currentPassword}
-            />
-          </label>
+        {reauthTicket ? <form onSubmit={(event) => void handleSubmit(event)}>
           <label className="settings-field">
             <span className="settings-field-label">{t('settings.newPassword')}</span>
             <input
@@ -135,10 +132,8 @@ export function ChangePasswordDialog({ open, authToken, onClose }: ChangePasswor
           <button className="settings-submit" disabled={submitting} type="submit">
             {submitting ? t('settings.submitting') : t('settings.submit')}
           </button>
-          {feedback ? (
-            <p className="settings-message error">{feedback}</p>
-          ) : null}
-        </form>
+        </form> : <WebReauthForm purpose="set_password" authToken={authToken} onTicket={setReauthTicket} />}
+        {feedback ? <p className="settings-message error">{feedback}</p> : null}
       </section>
     </div>
   )

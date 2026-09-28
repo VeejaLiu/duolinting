@@ -20,7 +20,7 @@ export default function EnglishPrivacyPage() {
       <article className="site-shell legal-content">
         <p className="eyebrow"><span></span>Privacy policy</p>
         <h1>We process only the data needed to provide DuolinTing.</h1>
-        <p className="legal-updated">Last updated: August 29, 2026</p>
+        <p className="legal-updated">Last updated: September 28, 2026</p>
 
         <h2>First-party product analytics</h2>
         <p>Random browser or installation identifiers measure page and course visits, sanitized campaign sources, country-level network regions, effective playback intervals, practice action types and media quality. Analytics exclude dictation and note text, full referring URLs, raw IP addresses and hardware identifiers. Network region does not establish nationality or residence. Product analytics run in the background by default, without an analytics authorization prompt or collection toggle. Registration network region and essential security logs are handled separately.</p>
@@ -30,28 +30,30 @@ export default function EnglishPrivacyPage() {
 
         <h2>Data we process</h2>
         <ul className="legal-list">
-          <li><strong>Account information:</strong> the email address and display name used for registration and sign-in, plus a cryptographic password hash. We do not store passwords in plain text.</li>
+          <li><strong>Account information:</strong> the email address used for email sign-in and your display name. We store a password hash only if you choose to set a password. An account signed in with Apple or Google can have no email sign-in address or password. We do not store passwords in plain text.</li>
+          <li><strong>Third-party sign-in information:</strong> when you choose Apple or Google, we record the provider, its stable account identifier and issuer, the client identifier, and any contact email and verification status the provider supplies. An Apple Hide My Email address may be a relay address. Apple refresh tokens used to manage authorization are encrypted on the server; we do not request a Google offline refresh token.</li>
           <li><strong>Learning data:</strong> course progress, line mastery, repeat counts, dictation, notes, vocabulary, learning preferences, daily activity, and answer feedback.</li>
           <li><strong>Session and security data:</strong> session-token hashes, client type, creation time, and expiry time, used to maintain sign-in, revoke sessions, and prevent abuse.</li>
           <li><strong>Operational logs:</strong> request ID, method and path, response status, duration, source address, and response size, used for security monitoring, troubleshooting, and service operations.</li>
         </ul>
 
         <h2>How we use data</h2>
-        <p>Account information is used for registration, sign-in, and account display. Learning data is used to save and restore progress across devices. Session and operational data are used for authentication, rate limiting, security, and troubleshooting. We do not sell personal information or use advertising networks for targeted advertising.</p>
+        <p>Account and provider identifiers are used to verify sign-in, map linked methods to the same learning account, and show the details you choose to provide. A provider-supplied email is not automatically linked to an existing account without verification. Learning data is used to save and restore progress across devices. Session and operational data are used for authentication, rate limiting, security, and troubleshooting. We do not sell personal information or use advertising networks for targeted advertising.</p>
 
         <h2>Sharing and service providers</h2>
-        <p>Data is processed in the servers, databases, object storage, and logging environments needed to operate the service. Access is limited to what is needed to maintain the service, fix incidents, and protect users. The website currently does not use advertising SDKs or third-party analytics SDKs. If we add a service that collects personal data, we will update this policy first to explain its purpose and scope.</p>
+        <p>Data is processed in the servers, databases, object storage, and logging environments needed to operate the service. Transactional email is used to deliver verification codes. Only when you choose the corresponding sign-in method does Apple or Google process that authorization and return the information needed to verify your identity. We do not request access to Gmail, contacts, or cloud files. Access is limited to what is needed to maintain the service, fix incidents, and protect users. The website currently does not use advertising SDKs or third-party analytics SDKs. If we add a service that collects personal data, we will update this policy first to explain its purpose and scope.</p>
 
         <h2>Data retention</h2>
         <ul className="legal-list">
           <li>Account information and learning data are retained while the account exists so the service can provide sign-in and synchronization.</li>
+          <li>Linked provider identifiers and authorization records are retained until you unlink the provider or delete the account. When Apple is unlinked or the account is deleted, we request revocation of the related Apple authorization.</li>
           <li>Sign-in sessions expire or are removed when they expire, are revoked, or the account is deleted.</li>
           <li>Operational logs are not kept as a long-term learning profile. They are retained only for security and operational needs and are rotated or deleted according to the deployment environment’s policy.</li>
           <li>Records required by law are retained only for the required period and only to the extent needed to meet that obligation.</li>
         </ul>
 
         <h2>Account and data deletion</h2>
-        <p>A signed-in user can open “Settings → Delete account” in the app, enter the current password, and start deletion. After a successful deletion, the account, sessions, course progress, line progress, vocabulary, notes, activity records, preferences, and answer feedback are deleted from the service. If the account is also linked to a content-collaboration identity, that link is removed; public course content maintained by that identity is not deleted.</p>
+        <p>A signed-in user can open “Settings → Account &amp; security → Delete account” in the app, verify their identity again with an available email code, password, or linked provider, and confirm deletion. A password is not required. After a successful deletion, the account, sessions, linked provider identities and authorization records, course progress, line progress, vocabulary, notes, activity records, preferences, and answer feedback are deleted from the service. If the account is also linked to a content-collaboration identity, that link is removed; public course content maintained by that identity is not deleted.</p>
         <p>If you cannot sign in, contact us through the <a href="/en/support">support page</a> to request deletion. Do not send your password by email; we may ask you to confirm the account email and other information needed to verify the request.</p>
 
         <h2>Your choices</h2>

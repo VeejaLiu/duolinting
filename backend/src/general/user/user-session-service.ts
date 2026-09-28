@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { env } from '../../env';
-import { UserSessionModel, type AuthClientType } from '../../models/schema/UserSessionDB';
+import { UserSessionModel, type AuthClientType, type AuthMethod } from '../../models/schema/UserSessionDB';
 import { UserModel } from '../../models/schema/UserDB';
 import { signToken, TOKEN_EXPIRES_IN_SECONDS } from '../../lib/token/signToken';
 import { recordUserDailyAccess } from './user-access-activity-service';
@@ -43,7 +43,7 @@ type SessionTokenPayload = {
     exp?: number;
 };
 
-type VerifyUserSessionResult = { success: true; userId: number } | { success: false };
+type VerifyUserSessionResult = { success: true; userId: number; sessionId: number } | { success: false };
 
 const hashToken = (token: string) => crypto.createHash('sha256').update(token).digest('hex');
 
@@ -53,7 +53,7 @@ export const normalizeAuthClientType = (value: unknown): AuthClientType => {
 
 const createExpiryDate = () => new Date(Date.now() + TOKEN_EXPIRES_IN_SECONDS * 1000);
 
-export async function issueUserSession({ userId, clientType }: { userId: string | number; clientType: AuthClientType }) {
+export async function issueUserSession({ userId, clientType, authMethod = 'email_password' }: { userId: string | number; clientType: AuthClientType; authMethod?: AuthMethod }) {
     /*
      * Session model:
      * - clientType is the product surface that owns the session: web_app, mobile_web, or mobile_app.
@@ -75,6 +75,7 @@ export async function issueUserSession({ userId, clientType }: { userId: string 
             user_id: userSessionId,
             client_type: clientType,
             token_hash: '',
+            auth_method: authMethod,
             expires_at: createExpiryDate(),
             last_seen_at: new Date(),
         } as any));
@@ -87,6 +88,7 @@ export async function issueUserSession({ userId, clientType }: { userId: string 
     await UserSessionModel.update(
         {
             token_hash: hashToken(token),
+            auth_method: authMethod,
             expires_at: createExpiryDate(),
             revoked_at: null,
             last_seen_at: new Date(),
@@ -140,13 +142,13 @@ export async function verifyUserSession(token: string, options: { recordAccess?:
         return { success: false };
     }
 
-    // Legacy sessions were issued before email ownership was recorded. They
-    // cannot authorize any learner API until the owner completes verification.
+    // Legacy password sessions require verified email ownership. Social
+    // sessions prove their provider subject independently of users.email.
     const user = await UserModel.findByPk(userId, { attributes: ['email_verified_at'], raw: true });
-    if (!user?.email_verified_at) return { success: false };
+    if (!user || (!user.email_verified_at && !['apple', 'google'].includes(session.auth_method))) return { success: false };
 
     await UserSessionModel.update({ last_seen_at: new Date() }, { where: { id: sessionId } });
     if (options.recordAccess !== false) await recordUserDailyAccess(userId, clientType);
 
-    return { success: true, userId };
+    return { success: true, userId, sessionId };
 }

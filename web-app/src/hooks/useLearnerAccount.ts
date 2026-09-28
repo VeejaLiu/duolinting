@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AUTH_TOKEN_STORAGE_KEY } from '@duolinting/app-config'
 import type { AuthResponse, AuthUser, StudyStore } from '@duolinting/domain'
 import { apiClient } from '../lib/apiClient'
+import { ApiClientError } from '@duolinting/api-client'
 import { useLanguage } from '../i18n/LanguageProvider'
 
 type UseLearnerAccountOptions = {
@@ -127,13 +128,23 @@ export function useLearnerAccount({
     setStatus({ key: 'account.loggedIn' })
   }
 
-  const handleLogout = () => {
+  const handleLogout = async (): Promise<boolean> => {
+    if (authToken) {
+      try { await apiClient.logout(authToken) }
+      catch (error) {
+        if (!(error instanceof ApiClientError && error.status === 401)) {
+          setStatus({ key: 'account.logoutFailed' })
+          return false
+        }
+      }
+    }
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
     hasPulledProgressRef.current = false
     setProgressSaveReady(false)
     setAuthToken('')
     setAuthUser(null)
     setStatus({ key: 'account.loggedOut' })
+    return true
   }
 
   return {

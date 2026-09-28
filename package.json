@@ -12,7 +12,8 @@
     "packages/*"
   ],
   "overrides": {
-    "expo-asset": "12.0.13"
+    "expo-asset": "12.0.13",
+    "shell-quote": "^1.10.0"
   },
   "scripts": {
     "dev": "npm run build --workspace @duolinting/playback && npm run build --workspace @duolinting/domain && npm run build --workspace @duolinting/app-config && npm run build --workspace @duolinting/ui-tokens && npm run build --workspace @duolinting/api-client && npm run build --workspace @duolinting/shared && concurrently -n backend,web-app,admin -c blue,green,magenta \"npm run dev --workspace @duolinting/backend\" \"npm run dev --workspace @duolinting/web-app\" \"npm run dev --workspace @duolinting/admin\"",

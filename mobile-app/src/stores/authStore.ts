@@ -77,10 +77,19 @@ export const useAuthStore = create<State>((set, get) => ({
     }
   },
   logout: async () => {
-    ++restoreGeneration
     const owner = get().authUser ? String(get().authUser!.id) : null
     // Keep the session if either durable snapshot or credential removal fails.
     if (owner) await saveSessionSnapshot(owner)
+    const token = get().authToken
+    if (token) {
+      try { await apiClient.logout(token) }
+      catch (error) {
+        // An already invalid session needs only local cleanup. Network errors
+        // leave it intact so the user can retry a real server-side logout.
+        if (!(error instanceof ApiClientError && error.status === 401)) throw error
+      }
+    }
+    ++restoreGeneration
     await authStorage.clearToken()
     set({ authToken: '', authUser: null, authReady: false })
     try { await endLearnerSession(owner, false, true) } finally {

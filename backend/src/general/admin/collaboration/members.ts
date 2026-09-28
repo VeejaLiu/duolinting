@@ -86,7 +86,7 @@ export async function listLearnerUsers(search: string) {
     const normalizedSearch = search.trim().slice(0, 120);
     if (!normalizedSearch) return [];
     const rows = await doRawQuery<{
-        id: number | string; email: string; display_name: string;
+        id: number | string; email: string | null; display_name: string;
         bound_admin_member_id: number | string | null; bound_admin_display_name: string | null;
     }>({
         query: `select learners.id, learners.email, learners.display_name,
@@ -359,7 +359,7 @@ export async function listPreviewVolunteers(search?: string) {
         raw: true,
     }) as unknown as Array<{
         id: number | string;
-        email: string;
+        email: string | null;
         display_name: string;
         is_preview_volunteer: boolean | number;
     }>;

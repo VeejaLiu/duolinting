@@ -1,5 +1,6 @@
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { isIP } from 'node:net';
 import { getOsEnvOptional, normalizePort, toBool, toNumber } from './lib/env';
 
 dotenv.config({
@@ -22,6 +23,7 @@ const jwtSecret = optional(
     'SECRET_JWT',
     optional('AUTH_TOKEN_SECRET', 'dev-auth-token-secret'),
 ).trim();
+const emailCodeSecret = optional('EMAIL_CODE_SECRET', '').trim();
 const localUploadThrottleKbps = Number(
     getOsEnvOptional('LOCAL_UPLOAD_THROTTLE_KBPS') ?? '0',
 );
@@ -71,6 +73,25 @@ const emailPublicSiteUrl = normalizeOptionalPublicUrl(
     optional('EMAIL_PUBLIC_SITE_URL', 'https://www.duolinting.cn'),
     'EMAIL_PUBLIC_SITE_URL',
 );
+const oauthWebOrigins = optional('OAUTH_WEB_ORIGINS', optional('OAUTH_WEB_ORIGIN', ''))
+    .split(',').map((origin) => origin.trim()).filter(Boolean);
+for (const origin of oauthWebOrigins) {
+    const parsed = new URL(origin);
+    const isLocalDevelopment = nodeEnv !== 'production' && ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
+    if (parsed.origin !== origin || parsed.username || parsed.password || parsed.search || parsed.hash ||
+        (parsed.protocol !== 'https:' && !(isLocalDevelopment && parsed.protocol === 'http:'))) {
+        throw new Error('OAUTH_WEB_ORIGINS must contain plain HTTPS origins (loopback HTTP only in development).');
+    }
+}
+const appleRedirectUri = optional('APPLE_REDIRECT_URI', '').trim();
+if (appleRedirectUri) {
+    const parsed = new URL(appleRedirectUri);
+    if (parsed.protocol !== 'https:' || !parsed.hostname.includes('.') || isIP(parsed.hostname) ||
+        parsed.username || parsed.password || parsed.search || parsed.hash ||
+        parsed.pathname !== '/api/v1/auth/oauth/apple/callback') {
+        throw new Error('APPLE_REDIRECT_URI must be the public HTTPS Apple callback URL.');
+    }
+}
 const mediaRequireAuth = toBool(optional('MEDIA_REQUIRE_AUTH', 'false'));
 const mediaAuthMode = optional(
     'MEDIA_AUTH_MODE',
@@ -93,6 +114,10 @@ if (
     throw new Error(
         'MEDIA_AUTH_TTL_SECONDS must be an integer between 60 and 86400.',
     );
+}
+if (nodeEnv === 'production' &&
+    (emailCodeSecret.length < 32 || emailCodeSecret === 'replace-with-a-separate-random-secret-in-production')) {
+    throw new Error('EMAIL_CODE_SECRET must contain at least 32 characters in production.');
 }
 
 if (mediaRequireAuth) {
@@ -168,6 +193,22 @@ export const env = {
     },
     secret: {
         jwt: jwtSecret,
+        // Independent from JWT signing so a leaked code digest cannot use the
+        // long-lived session signing key as its guessing oracle.
+        emailCode: emailCodeSecret || 'development-only-email-code-secret',
+    },
+    oauth: {
+        googleWebClientId: optional('GOOGLE_WEB_CLIENT_ID', '').trim(),
+        googleIosClientId: optional('GOOGLE_IOS_CLIENT_ID', '').trim(),
+        googleAndroidClientId: optional('GOOGLE_ANDROID_CLIENT_ID', '').trim(),
+        appleTeamId: optional('APPLE_TEAM_ID', '').trim(),
+        appleKeyId: optional('APPLE_KEY_ID', '').trim(),
+        applePrivateKey: optional('APPLE_PRIVATE_KEY', '').replace(/\\n/g, '\n').trim(),
+        appleBundleId: optional('APPLE_BUNDLE_ID', 'com.duolinting.app').trim(),
+        appleServiceId: optional('APPLE_SERVICE_ID', '').trim(),
+        appleRedirectUri,
+        webOrigins: oauthWebOrigins,
+        refreshTokenKey: optional('OAUTH_REFRESH_TOKEN_KEY', '').trim(),
     },
     mysql: {
         host: optional('MYSQL_HOST', '127.0.0.1'),

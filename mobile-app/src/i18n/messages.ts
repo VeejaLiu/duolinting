@@ -1,13 +1,15 @@
 import frFR from './fr-FR'
 import esES from './es-ES'
+import { authFlowMessages } from './authFlowMessages'
 import { settingsExtra } from './settingsExtra'
 import type { UiLocale } from '@duolinting/domain'
 
 export const messages = {
-  'fr-FR': { ...frFR, ...settingsExtra['fr-FR'] },
-  'es-ES': { ...esES, ...settingsExtra['es-ES'] },
+  'fr-FR': { ...frFR, ...settingsExtra['fr-FR'], ...authFlowMessages['fr-FR'] },
+  'es-ES': { ...esES, ...settingsExtra['es-ES'], ...authFlowMessages['es-ES'] },
   'zh-CN': {
     ...settingsExtra['zh-CN'],
+    ...authFlowMessages['zh-CN'],
     "preview.updateRequired": "请升级 App 后再预览。",
     "study.playbackFailed": "播放未完成，请重试。",
     'tabs.study': '学习',
@@ -333,6 +335,7 @@ export const messages = {
   },
   'en-US': {
     ...settingsExtra['en-US'],
+    ...authFlowMessages['en-US'],
     "preview.updateRequired": "Update the app to preview this course.",
     "study.playbackFailed": "Playback did not complete. Please retry.",
     'tabs.study': 'Study',
@@ -658,6 +661,7 @@ export const messages = {
   },
   'th-TH': {
     ...settingsExtra['th-TH'],
+    ...authFlowMessages['th-TH'],
     "preview.updateRequired": "อัปเดตแอปก่อนดูตัวอย่าง",
     "study.playbackFailed": "เล่นไม่สำเร็จ โปรดลองอีกครั้ง",
     'tabs.study': 'เรียน',
@@ -983,6 +987,7 @@ export const messages = {
   },
   'ja-JP': {
     ...settingsExtra['ja-JP'],
+    ...authFlowMessages['ja-JP'],
     "preview.updateRequired": "アプリを更新してください",
     "study.playbackFailed": "再生が完了しませんでした。再試行してください。",
     'tabs.study': '学習',
