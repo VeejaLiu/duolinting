@@ -92,6 +92,17 @@ if (appleRedirectUri) {
         throw new Error('APPLE_REDIRECT_URI must be the public HTTPS Apple callback URL.');
     }
 }
+const googleCertsBaseUrl = optional('GOOGLE_CERTS_BASE_URL', '').trim();
+if (googleCertsBaseUrl) {
+    const parsed = new URL(googleCertsBaseUrl);
+    // The override may only point to our fixed public-certificate relay path;
+    // arbitrary URLs or IPs must never become a token-verification trust source.
+    if (parsed.protocol !== 'https:' || !parsed.hostname.includes('.') || isIP(parsed.hostname) ||
+        parsed.port || parsed.username || parsed.password || parsed.search || parsed.hash ||
+        parsed.pathname !== '/.well-known/google-certs') {
+        throw new Error('GOOGLE_CERTS_BASE_URL must be a plain HTTPS Google certificate relay URL.');
+    }
+}
 const mediaRequireAuth = toBool(optional('MEDIA_REQUIRE_AUTH', 'false'));
 const mediaAuthMode = optional(
     'MEDIA_AUTH_MODE',
@@ -201,6 +212,7 @@ export const env = {
         googleWebClientId: optional('GOOGLE_WEB_CLIENT_ID', '').trim(),
         googleIosClientId: optional('GOOGLE_IOS_CLIENT_ID', '').trim(),
         googleAndroidClientId: optional('GOOGLE_ANDROID_CLIENT_ID', '').trim(),
+        googleCertsBaseUrl,
         appleTeamId: optional('APPLE_TEAM_ID', '').trim(),
         appleKeyId: optional('APPLE_KEY_ID', '').trim(),
         applePrivateKey: optional('APPLE_PRIVATE_KEY', '').replace(/\\n/g, '\n').trim(),

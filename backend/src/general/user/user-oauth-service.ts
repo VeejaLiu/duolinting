@@ -20,7 +20,15 @@ const APPLE_ISSUER = 'https://appleid.apple.com';
 const GOOGLE_ISSUER = 'https://accounts.google.com';
 type AuthResponse = { user: AuthUser; token: string };
 let appleKeys: any;
-const googleClient = new OAuth2Client();
+// Only certificate retrieval is relayed when the server cannot reach Google.
+// verifyIdToken still validates Google's signature, issuer, audience and time;
+// the transaction nonce is checked below against the verified payload.
+const googleClient = new OAuth2Client(env.oauth.googleCertsBaseUrl ? {
+    endpoints: {
+        oauth2FederatedSignonPemCertsUrl: `${env.oauth.googleCertsBaseUrl}/pem`,
+        oauth2FederatedSignonJwkCertsUrl: `${env.oauth.googleCertsBaseUrl}/jwk`,
+    },
+} : undefined);
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const random = () => randomBytes(32).toString('base64url');
 const validAppleSigningKey = (() => {
