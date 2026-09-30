@@ -27,7 +27,7 @@ export const authFlowMessages = {
     'authFlow.passwordError': 'Email or password is incorrect. You can also use an email code.',
     'authFlow.back': 'Back', 'authFlow.resend': 'Resend code',
     'authFlow.loginMethods': 'Sign-in methods', 'authFlow.enabled': 'Enabled', 'authFlow.disabled': 'Not set', 'authFlow.setPassword': 'Set password',
-    'authFlow.or': 'or', 'authFlow.apple': 'Continue with Apple', 'authFlow.google': 'Continue with Google', 'authFlow.socialFailed': 'Social sign-in did not finish. Try again or use email.', 'authFlow.linkTitle': 'Keep your learning progress', 'authFlow.linkHint': 'Verify {{email}} before linking this sign-in method to your existing account.', 'authFlow.linkContinue': 'Verify and link',
+    'authFlow.or': 'or', 'authFlow.apple': 'Continue with Apple', 'authFlow.google': 'Continue with Google', 'authFlow.socialFailed': 'Social sign-in did not finish. Try again or use email.', 'authFlow.linkTitle': 'Keep your learning progress', 'authFlow.linkHint': 'Verify {{email}} before linking this sign-in method to your existing account.', 'authFlow.linkContinue': 'Verify & link',
     'authFlow.unlinkTitle': 'Unlink sign-in method', 'authFlow.unlinkHint': 'Verify your identity before unlinking {{provider}}. Your final sign-in method cannot be removed.', 'authFlow.unlinkConfirm': 'Unlink', 'authFlow.lastMethod': 'Set up another sign-in method before unlinking this one.',
     'authFlow.linkEmail': 'Set up email sign-in', 'authFlow.linkEmailHint': 'After verifying your email, you can also sign in to this account with a code.', 'authFlow.emailCollision': 'That email belongs to another account. Use a different address.',
     'authFlow.reauthExpired': 'Verification expired. Confirm your identity again.',

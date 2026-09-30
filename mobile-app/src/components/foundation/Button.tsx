@@ -38,7 +38,7 @@ export function Button({
 
   return (
     <Pressable className={className} {...props}>
-      <Text className={textClassName}>{label}</Text>
+      <Text className={textClassName} style={{ flexShrink: 1, maxWidth: '100%' }}>{label}</Text>
     </Pressable>
   )
 }
