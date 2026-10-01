@@ -20,6 +20,23 @@ type WorkflowActivityPanelProps = {
 
 const pageSize = 20
 
+const formatActivityTime = (value: string, uiLocale: string) => {
+  const occurredAt = new Date(value)
+  const today = new Date()
+  const yesterday = new Date(today)
+  // 按浏览器本地日历判断今天、昨天；减去一个日历日可正确跨月、跨年及夏令时。
+  yesterday.setDate(today.getDate() - 1)
+  const relativeDay = occurredAt.toDateString() === today.toDateString()
+    ? 0
+    : occurredAt.toDateString() === yesterday.toDateString() ? -1 : null
+
+  if (relativeDay !== null) {
+    const dayLabel = new Intl.RelativeTimeFormat(uiLocale, { numeric: 'auto' }).format(relativeDay, 'day')
+    return `${dayLabel} ${occurredAt.toLocaleTimeString(uiLocale)}`
+  }
+  return occurredAt.toLocaleString(uiLocale)
+}
+
 const eventOptions: Array<{ label: string; value: AdminWorkflowActivityType }> = [
   { value: 'workflow_assigned', label: '分配任务' },
   { value: 'workflow_unassigned', label: '取消分配' },
@@ -155,7 +172,7 @@ export function WorkflowActivityPanel({ adminToken, currentAdminId, onNotify }: 
       dataIndex: 'occurredAt',
       key: 'occurredAt',
       width: 174,
-      render: (value: string) => new Date(value).toLocaleString(uiLocale),
+      render: (value: string) => formatActivityTime(value, uiLocale),
     },
     {
       title: t('动态'),
