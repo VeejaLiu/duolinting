@@ -274,6 +274,8 @@ export default {
   "study.loadFailed": "Impossible de charger les détails de la leçon",
   "study.submitFailed": "Impossible d’envoyer. Réessayez.",
   "study.chapterSentences": "Phrases du chapitre",
+  "study.openSentenceList": "Ouvrir la liste des phrases",
+  "study.notMastered": "Non maîtrisé",
   "study.difficultSentences": "Phrases difficiles",
   "study.noDifficult": "Aucune phrase difficile",
   "study.noDifficultDescription": "Les phrases marquées comme difficiles apparaîtront ici.",

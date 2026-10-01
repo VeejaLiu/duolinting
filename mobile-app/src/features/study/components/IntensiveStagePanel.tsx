@@ -4,23 +4,21 @@ import type {
   ListeningExercise,
   TranscriptLine,
 } from '@duolinting/domain'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native'
 import { VideoView, type VideoPlayer } from 'expo-video'
 import { AcceptedAnswerFeedbackSheet } from '@/components/composites/AcceptedAnswerFeedbackSheet'
-import { TranscriptLineRow } from '@/components/composites/TranscriptLineRow'
 import { AppTextInput } from '@/components/primitives/AppTextInput'
 import { useLanguage } from '@/i18n/LanguageProvider'
 import { MediaLoadingOverlay } from './MediaLoadingOverlay'
+import { SentenceDrawer } from './SentenceDrawer'
 
-const transcriptRowHeight = 72
 const statusButtonNeutralBackground = '#f7fafd'
 const statusButtonNeutralBorder = '#b8cfe4'
 const statusButtonNeutralText = '#3a5068'
@@ -32,8 +30,6 @@ const masteredButtonActiveBackground = '#78ca3c'
 const SHOW_PRACTICE_TOOLS = false
 // 收词入口（及配套生词功能）暂时下线，同样保留代码便于恢复。
 const SHOW_VOCABULARY = false
-// 底部「章节句子」列表暂时下线：精听聚焦当前句，列表恢复时改回 true 即可。
-const SHOW_SENTENCE_LIST = false
 
 export function IntensiveStagePanel({
   activeLineId,
@@ -107,9 +103,7 @@ export function IntensiveStagePanel({
 }) {
   const { t } = useLanguage()
   const { height: viewportHeight, width: viewportWidth } = useWindowDimensions()
-  const listRef = useRef<ScrollView | null>(null)
-  const listScrollYRef = useRef(0)
-  const listHeightRef = useRef(0)
+  const [sentenceDrawerVisible, setSentenceDrawerVisible] = useState(false)
   const isVeryShortViewport = viewportHeight < 700
   const isShortViewport = viewportHeight < 780
   const panelGap = isVeryShortViewport ? 8 : 12
@@ -127,8 +121,6 @@ export function IntensiveStagePanel({
   const primaryControlIconSize = shouldWrapPrimaryControls ? 16 : 17
   const videoHeight = isVeryShortViewport ? 140 : isShortViewport ? 170 : 220
   const audioHeight = isVeryShortViewport ? 124 : isShortViewport ? 150 : 180
-  const listPadding = isVeryShortViewport ? 8 : 12
-  const minListHeight = isVeryShortViewport ? 170 : 210
   const displayLineNumber = selectedLineNumber ?? selectedLineIndex + 1
   const canMovePrevious = selectedLineIndex > 0
   const canMoveNext = selectedLineIndex < lines.length - 1
@@ -140,7 +132,7 @@ export function IntensiveStagePanel({
   const sentenceVisible = Boolean(revealedLineIds[selectedLine.id])
 
   // ===== 练习工具分段 =====
-  // 听写 / 笔记任一时刻只渲染一段，把垂直空间还给下方的句子列表。
+  // 听写 / 笔记任一时刻只渲染一段，让当前句的学习区保持紧凑。
   // - 默认停在「听写」段（精听主流程）；
   // - 切句时【不】重置分段：用户在笔记中切换上句下句时保持当前工具，
   //   避免每次切句都被弹回听写段打断操作。
@@ -150,30 +142,6 @@ export function IntensiveStagePanel({
     { key: 'note', label: t('study.note'), icon: 'note-sticky' },
   ] as const
 
-  useEffect(() => {
-    const targetY = Math.max(
-      0,
-      selectedLineIndex * transcriptRowHeight - transcriptRowHeight,
-    )
-    const currentY = listScrollYRef.current
-    const listHeight = listHeightRef.current
-    const selectedRowTop = selectedLineIndex * transcriptRowHeight
-    const selectedRowBottom = selectedRowTop + transcriptRowHeight
-    const rowAlreadyVisible =
-      listHeight > 0 &&
-      selectedRowTop >= currentY + transcriptRowHeight * 0.35 &&
-      selectedRowBottom <= currentY + listHeight - transcriptRowHeight * 0.35
-
-    if (rowAlreadyVisible) {
-      return
-    }
-
-    listRef.current?.scrollTo({
-      animated: false,
-      y: targetY,
-    })
-  }, [selectedLineIndex])
-
   return (
     <View className="flex-1" style={{ gap: panelGap }}>
       <View
@@ -181,9 +149,18 @@ export function IntensiveStagePanel({
         style={{ padding: cardPadding }}
       >
         <View className="flex-row items-center justify-between">
-          <Text className="text-sm font-black text-brand">
-            {t('study.sentenceNumber', { current: displayLineNumber, total: lines.length })}
-          </Text>
+          <Pressable
+            accessibilityLabel={`${t('study.sentenceNumber', { current: displayLineNumber, total: lines.length })}. ${t('study.openSentenceList')}`}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: sentenceDrawerVisible }}
+            className="min-h-11 min-w-0 flex-shrink flex-row items-center gap-1.5 pr-2"
+            onPress={() => setSentenceDrawerVisible(true)}
+          >
+            <Text className="flex-shrink text-sm font-black text-brand">
+              {t('study.sentenceNumber', { current: displayLineNumber, total: lines.length })}
+            </Text>
+            <FontAwesome6 color="#1cb0f6" name="chevron-down" size={11} />
+          </Pressable>
           <View className="flex-row items-center gap-2">
             {/* 倍速胶囊：点击由父层在固定档位间循环，文本直接展示当前倍率 */}
             <Pressable
@@ -582,57 +559,15 @@ export function IntensiveStagePanel({
         ) : null}
       </View>
 
-      {SHOW_SENTENCE_LIST ? (
-      <View
-        className="min-h-0 flex-1 rounded-[22px] border-2 border-[#e4eef8] bg-[#f8fbff]"
-        style={{ minHeight: minListHeight, padding: listPadding }}
-      >
-        <View className="mb-2 flex-row items-center justify-between px-1">
-          <View className="flex-row items-center gap-2">
-            <FontAwesome6 color="#1cb0f6" name="list-check" size={15} />
-            <Text className="text-sm font-black text-text-primary">
-              {listTitle ?? t('study.chapterSentences')}
-            </Text>
-          </View>
-          <Text className="text-xs font-black text-text-secondary">
-            {displayLineNumber}/{lines.length}
-          </Text>
-        </View>
-        <ScrollView
-          ref={listRef}
-          className="min-h-0 flex-1"
-          contentContainerStyle={{ gap: 8, paddingBottom: 6 }}
-          indicatorStyle="black"
-          nestedScrollEnabled
-          onLayout={(event) => {
-            listHeightRef.current = event.nativeEvent.layout.height
-          }}
-          onScroll={(event) => {
-            listScrollYRef.current = event.nativeEvent.contentOffset.y
-          }}
-          scrollEventThrottle={32}
-          persistentScrollbar
-          showsVerticalScrollIndicator
-        >
-          {lines.map((line, index) => {
-            const currentLineProgress = progress.lines[line.id]
-            return (
-              <TranscriptLineRow
-                compact
-                key={line.id}
-                line={line}
-                mastered={Boolean(currentLineProgress?.mastered)}
-                onPress={() => onSelectLine(line)}
-                revealed={Boolean(revealedLineIds[line.id]) || Boolean(currentLineProgress?.mastered)}
-                selected={line.id === selectedLine.id}
-                unclear={Boolean(currentLineProgress?.unclear)}
-                visibleIndex={index + 1}
-              />
-            )
-          })}
-        </ScrollView>
-      </View>
-      ) : null}
+      <SentenceDrawer
+        lines={lines}
+        onClose={() => setSentenceDrawerVisible(false)}
+        onSelectLine={onSelectLine}
+        progress={progress}
+        selectedLineId={selectedLine.id}
+        title={listTitle ?? t('study.chapterSentences')}
+        visible={sentenceDrawerVisible}
+      />
     </View>
   )
 }
