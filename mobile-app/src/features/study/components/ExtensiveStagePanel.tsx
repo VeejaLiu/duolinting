@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { VideoView, type VideoPlayer } from 'expo-video'
 import { MediaProgressBar } from './MediaProgressBar'
 import { MediaLoadingOverlay } from './MediaLoadingOverlay'
+import { usePlaybackLoading } from '@/hooks/usePlaybackLoading'
 
 export function ExtensiveStagePanel({
   currentTime,
@@ -30,7 +31,7 @@ export function ExtensiveStagePanel({
   videoAspectRatio: number
   videoPlayer: VideoPlayer
 }) {
-  const showPlaybackLoading = isMediaLoading || isPreparingPlayback
+  const showPlaybackLoading = usePlaybackLoading(isMediaLoading || isPreparingPlayback, exercise.audioUrl)
 
   return (
     <View>
@@ -83,7 +84,7 @@ export function ExtensiveStagePanel({
         <View className="flex-row items-center gap-3">
           <Pressable
             className="h-12 w-12 items-center justify-center rounded-[16px] bg-success"
-            disabled={isPreparingPlayback}
+            accessibilityState={{ busy: showPlaybackLoading }}
             onPress={onTogglePlayback}
             style={{
               shadowColor: '#46a302',
@@ -91,7 +92,6 @@ export function ExtensiveStagePanel({
               shadowOpacity: 1,
               shadowRadius: 0,
               elevation: 3,
-              opacity: isPreparingPlayback ? 0.72 : 1,
             }}
           >
             {showPlaybackLoading ? (

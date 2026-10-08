@@ -1,6 +1,7 @@
 export default {
   "preview.updateRequired": "Mettez à jour l’application.",
   "study.playbackFailed": "La lecture n’a pas abouti. Veuillez réessayer.",
+  'study.playbackTimedOut': 'Le démarrage a pris trop de temps. Appuyez sur lecture pour réessayer.',
   "tabs.study": "Étudier",
   "tabs.leaderboard": "Classement",
   "tabs.growth": "Progrès",

@@ -59,6 +59,7 @@
     "typescript": "~5.9.2"
   },
   "scripts": {
+    "test:playback": "node --conditions=import --import tsx --test tests/*.test.ts",
     "start": "expo start --port 8103",
     "start:logged": "script -q -a ../temp/expo-mobile.log sh -c 'expo start --port 8103 \"$@\"' --",
     "android": "expo start --android --port 8103",

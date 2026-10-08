@@ -13,6 +13,8 @@ import { createExpoPlaybackAdapter, isReleasedPlayerError } from '@/lib/expoPlay
 type UseExercisePlaybackOptions = { exercise?: ListeningExercise; playbackRate: number }
 
 const DEFAULT_VIDEO_ASPECT_RATIO = 16 / 9
+// 网络首次准备和精确定位各有独立上限；移动网络允许更长等待，期间可随时取消。
+const PLAYBACK_OPERATION_TIMEOUT_MS = 15_000
 
 const videoTrackAspectRatio = (track: VideoTrack | null | undefined) => {
   const width = Number(track?.size.width)
@@ -29,18 +31,31 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
   const sourceKey = source && exercise ? coursePlaybackKey(exercise) : ''
   const sourceRef = useRef(sourceKey)
   sourceRef.current = sourceKey
-  const videoSource = useMemo<VideoSource>(() => kind === 'video' && source ? { uri: source } : null, [kind, source])
+  const videoSource = useMemo<VideoSource>(() => kind === 'video' && source
+    // 缓存已下载片段，回听上一句/本句时复用本地数据。Web 的缓存由浏览器管理。
+    ? { uri: source, useCaching: Platform.OS !== 'web' } : null, [kind, source])
   // 按媒体类型加载一个源，避免音频会话竞争和重复下载。
   const audioPlayer = useAudioPlayer(kind === 'audio' ? source : null, { updateInterval: 100, keepAudioSessionActive: true })
   const audioStatus = useAudioPlayerStatus(audioPlayer)
-  const videoPlayer = useVideoPlayer(videoSource, (player) => { player.timeUpdateEventInterval = 0.25 })
-  const adapter = useMemo(() => createExpoPlaybackAdapter(audioPlayer, videoPlayer, kind, () => sourceRef.current),
-    [audioPlayer, videoPlayer, kind])
-  const controller = useMemo(() => createPlaybackController(adapter), [adapter])
+  const videoPlayer = useVideoPlayer(videoSource, (player) => {
+    player.timeUpdateEventInterval = 0.25
+    // 单位为秒：向前预缓冲相邻句子；Android 有 250ms 数据即可起播，
+    // 后续继续填充缓存，避免每次精确定位都等较长的起播缓冲。
+    if (Platform.OS === 'android') {
+      player.bufferOptions = { preferredForwardBufferDuration: 30, minBufferForPlayback: 0.25 }
+    }
+  })
+  const recoverSource = useCallback(async () => {
+    if (kind === 'video') await videoPlayer.replaceAsync(videoSource)
+    else audioPlayer.replace(source)
+  }, [audioPlayer, kind, source, videoPlayer, videoSource])
+  const adapter = useMemo(() => createExpoPlaybackAdapter(audioPlayer, videoPlayer, kind, () => sourceRef.current, recoverSource),
+    [audioPlayer, videoPlayer, kind, recoverSource])
+  const controller = useMemo(() => createPlaybackController(adapter, { operationTimeoutMs: PLAYBACK_OPERATION_TIMEOUT_MS }), [adapter])
   const sessionRef = useRef<PlaybackSession | null>(null)
   const [activeLineId, setActiveLineId] = useState<string | null>(null)
   const [isPreparingPlayback, setIsPreparingPlayback] = useState(false)
-  const [playbackError, setPlaybackError] = useState(false)
+  const [playbackError, setPlaybackError] = useState<'failed' | 'timeout' | null>(null)
   const [videoState, setVideoState] = useState({ currentTime: 0, duration: 0, playing: false, loading: kind === 'video' && Boolean(source) })
   const [videoAspectRatio, setVideoAspectRatio] = useState(DEFAULT_VIDEO_ASPECT_RATIO)
 
@@ -62,7 +77,7 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
           duration: snapshot.durationUs / 1_000_000,
           playing: snapshot.playing,
         }))
-      } catch (error) { if (!isReleasedPlayerError(error)) setPlaybackError(true) }
+      } catch (error) { if (!isReleasedPlayerError(error)) setPlaybackError('failed') }
     }
     const subscriptions = [
       videoPlayer.addListener('timeUpdate', sync),
@@ -71,7 +86,7 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
         // expo-video 的 loading 同时覆盖首次准备和播放中的重新缓冲；同步到
         // React 状态后，画面与播放按钮都能及时给出可见反馈。
         setVideoState((current) => ({ ...current, loading: status === 'loading' }))
-        if (status === 'error') setPlaybackError(true)
+        if (status === 'error') setPlaybackError('failed')
         sync()
       }),
       videoPlayer.addListener('sourceLoad', ({ availableVideoTracks }) => {
@@ -84,6 +99,7 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
     ]
     // 监听器挂载前媒体可能已命中缓存并完成轨道选择，先读一次当前值避免错过事件。
     setVideoAspectRatio(videoTrackAspectRatio(kind === 'video' ? videoPlayer.videoTrack : null))
+    sync()
     return () => subscriptions.forEach((subscription) => subscription.remove())
   }, [adapter, kind, sourceKey, videoPlayer])
 
@@ -98,13 +114,18 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
   useEffect(() => {
     setActiveLineId(null)
     setIsPreparingPlayback(false)
-    setPlaybackError(false)
-    setVideoState((current) => ({
-      ...current,
-      loading: kind === 'video' && Boolean(source) && videoPlayer.status === 'loading',
-    }))
+    setPlaybackError(null)
+    try {
+      const snapshot = adapter.snapshot()
+      setVideoState({
+        currentTime: snapshot.positionUs / 1_000_000,
+        duration: snapshot.durationUs / 1_000_000,
+        playing: snapshot.playing,
+        loading: kind === 'video' && Boolean(source) && videoPlayer.status === 'loading',
+      })
+    } catch (error) { if (!isReleasedPlayerError(error)) setPlaybackError('failed') }
     return () => { sessionRef.current = null; controller.cancel() }
-  }, [controller, kind, source, sourceKey, videoPlayer])
+  }, [adapter, controller, kind, source, sourceKey, videoPlayer])
 
   useEffect(() => {
     if (exercise) void analytics.setCourse(Number(exercise.id), exercise.mediaType, exercise.lines)
@@ -119,7 +140,7 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
     analytics.beginAttempt(requestedPosition ?? exercise?.lines.find(line => line.id === lineId)?.start ?? 0, lineId || requestedPosition !== undefined ? 'sentence' : 'first')
     sessionRef.current = session
     setActiveLineId(lineId)
-    setPlaybackError(false)
+    setPlaybackError(null)
     setIsPreparingPlayback(true)
     void session.finished.then((result) => {
       if (sessionRef.current !== session) return
@@ -128,7 +149,7 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
       setActiveLineId(null)
       setIsPreparingPlayback(false)
       setVideoState((current) => ({ ...current, playing: false }))
-      if (result.reason === 'failed' || result.reason === 'timeout') setPlaybackError(true)
+      if (result.reason === 'failed' || result.reason === 'timeout') setPlaybackError(result.reason)
       // 只有真实到达句尾才进入学习完成/下一轮逻辑。
       if (result.reason === 'range-ended') onEnded?.()
     })
@@ -148,7 +169,7 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
   }, [adapter, controller, track])
 
   const togglePlayAll = useCallback(() => {
-    try { if (adapter.snapshot().playing) pause(); else playAll() } catch { setPlaybackError(true) }
+    try { if (sessionRef.current || adapter.snapshot().playing) pause(); else playAll() } catch { setPlaybackError('failed') }
   }, [adapter, pause, playAll])
 
   const seekTo = useCallback(async (seconds: number) => {
@@ -156,10 +177,18 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
     try { playing = adapter.snapshot().playing } catch { return }
     if (playing) await track(controller.play({ sourceKey: sourceRef.current, startUs: secondsToUs(seconds) }), null, undefined, seconds)
     else {
-      sessionRef.current = null
       setActiveLineId(null)
-      const result = await controller.seek(sourceRef.current, secondsToUs(seconds)).started
-      if (result.reason === 'failed' || result.reason === 'timeout') setPlaybackError(true)
+      setIsPreparingPlayback(true)
+      setPlaybackError(null)
+      const session = controller.seek(sourceRef.current, secondsToUs(seconds))
+      sessionRef.current = session
+      const result = await session.started
+      // 暂停状态下拖动进度条也遵循“最新请求优先”，旧定位的结果不得
+      // 关闭新句的准备状态或把错误写到已经开始播放的新句上。
+      if (sessionRef.current !== session) return
+      sessionRef.current = null
+      setIsPreparingPlayback(false)
+      if (result.reason === 'failed' || result.reason === 'timeout') setPlaybackError(result.reason)
     }
   }, [adapter, controller, track])
 
@@ -182,8 +211,11 @@ export function useExercisePlayback({ exercise, playbackRate }: UseExercisePlayb
     currentTime: kind === 'video' ? videoState.currentTime : audioStatus.currentTime,
     duration: kind === 'video' ? videoState.duration : audioStatus.duration,
     isPlaying: kind === 'video' ? videoState.playing : audioStatus.playing,
-    // 首次加载与播放中缓冲使用同一状态，避免媒体尚不可用时界面静止无反馈。
-    isMediaLoading: Boolean(source) && (kind === 'video'
+    // 失败后关闭加载反馈并开放重试，防止原生 status 停在 loading 时
+    // 同时出现错误提示、遮罩和无法点击的播放按钮。
+    isMediaLoading: Boolean(source) && !playbackError
+      && (isPreparingPlayback || (kind === 'video' ? videoState.playing || videoState.duration === 0 : audioStatus.playing || !audioStatus.isLoaded))
+      && (kind === 'video'
       ? videoState.loading
       : !audioStatus.isLoaded || audioStatus.isBuffering),
     videoAspectRatio,
