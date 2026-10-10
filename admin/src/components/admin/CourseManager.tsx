@@ -1,6 +1,7 @@
 import { directoryName, courseTitle, workflowCourseTitle } from '../../lib/localizedContent'
 import { ArrowDown, ArrowUp, Bell, BookOpen, Copy, Ellipsis, FilePenLine, History, Pencil, PlaySquare, Plus, RefreshCw, RotateCcw, Search, Trash2, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Alert, Badge, Button, Card, Dropdown, Empty, Form, Image, Input, Modal, Popover, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { AdminMember, AdminReviewTask, AdminWorkflowNotifications, UiLocale, CatalogExerciseSummary, ExerciseCategory, ExerciseSubtitleVersion, MaterialCategory } from '@duolinting/shared'
@@ -42,6 +43,12 @@ type CourseStatus = 'all' | 'draft' | 'proofread' | 'published' | 'archived'
 
 const statusLabels = { draft: '草稿', proofread: '已校对', published: '已发布', archived: '已归档' }
 const statusColors = { draft: 'default', proofread: 'processing', published: 'success', archived: 'purple' } as const
+// URL 数值只接受正整数；pageSize 与后台上限 100 保持一致，避免请求值和分页控件不一致。
+const positiveInteger = (value: string | null, fallback: number) => {
+  const parsed = Number(value)
+  return value && /^\d+$/.test(value) && Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
 const LAST_CATEGORY_STORAGE_KEY = 'duolinting.admin.last-course-category-id'
 
 const workflowSteps = ['课程草稿', '字幕校对', '二次审核', '已发布']
@@ -183,17 +190,41 @@ export function CourseManager({
   contributors, onUpdateWorkflowAssignee, reviewTasks, workflowNotifications, onReadWorkflowNotifications, onNotify,
 }: CourseManagerProps) {
   const { t, uiLocale } = useAdminLanguage()
-  // 筛选器不提供"全部"选项：用户必须选中一个具体系列（目录加载完成前
-  // 用 0 表示尚未就绪，此时不发起课程请求）。
-  const [selectedGroupId, setSelectedGroupId] = useState<number>(0)
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number>(0)
-  const [selectedStatus, setSelectedStatus] = useState<CourseStatus>('all')
-  const [searchText, setSearchText] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [lastCategoryId] = useState(() => Number(localStorage.getItem(LAST_CATEGORY_STORAGE_KEY)))
+  const requestedGroupId = positiveInteger(searchParams.get('groupId'), 0)
+  const requestedCategoryId = positiveInteger(searchParams.get('categoryId'), 0)
+  // URL 是列表状态的唯一来源。有效系列优先于分类；无系列参数时才沿用上次系列。
+  // 分类没有系列时保留分类选择，用 0 表示不发起课程请求。
+  const selectedCategory = categories.find((item) => item.id === requestedCategoryId)
+    ?? (categoryGroups.some((item) => item.id === requestedGroupId)
+      ? categories.find((item) => item.groupId === requestedGroupId)
+      : categories.find((item) => item.id === lastCategoryId) ?? categories[0])
+  const selectedCategoryId = selectedCategory?.id ?? 0
+  const selectedGroupId = selectedCategory?.groupId
+    ?? (categoryGroups.some((item) => item.id === requestedGroupId) ? requestedGroupId : 0)
+  const statusParam = searchParams.get('status')
+  const selectedStatus: CourseStatus = statusParam === 'draft' || statusParam === 'proofread'
+    || statusParam === 'published' || statusParam === 'archived' ? statusParam : 'all'
+  const searchText = searchParams.get('search') ?? ''
+  const page = positiveInteger(searchParams.get('page'), 1)
+  const pageSize = Math.min(100, positiveInteger(searchParams.get('pageSize'), 20))
+
+  // 一次更新所有相关字段，防止改变筛选时先请求旧页码。替换当前历史条目，
+  // 进入课程后浏览器“返回”会直接回到完整列表，而不会逐个撤销输入的搜索字符。
+  const updateListParams = useCallback((values: Record<string, string | number>) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      for (const [key, value] of Object.entries(values)) {
+        if (value === '') next.delete(key)
+        else next.set(key, String(value))
+      }
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
   const [renamingExercise, setRenamingExercise] = useState<CatalogExerciseSummary | null>(null)
   const [nextTitle, setNextTitle] = useState('')
   const [isRenaming, setIsRenaming] = useState(false)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
   const [pagedExercises, setPagedExercises] = useState<CatalogExerciseSummary[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
@@ -204,23 +235,25 @@ export function CourseManager({
   const [versions, setVersions] = useState<ExerciseSubtitleVersion[]>([])
   const [versionsLoading, setVersionsLoading] = useState(false)
   const requestSerialRef = useRef(0)
-  const hasRestoredLastCategoryRef = useRef(false)
 
   const visibleCategories = useMemo(() => categories.filter((category) => category.groupId === selectedGroupId), [categories, selectedGroupId])
 
   useEffect(() => {
-    if (categories.length === 0) return
-
-    if (hasRestoredLastCategoryRef.current && selectedCategoryId && categories.some((category) => category.id === selectedCategoryId)) {
-      return
+    // 目录异步加载完成后再把默认系列补进 URL；不重置从链接恢复的筛选与页码。
+    if (isCatalogLoading || (categories.length === 0 && categoryGroups.length === 0)) return
+    const values = {
+      groupId: selectedGroupId,
+      categoryId: selectedCategoryId,
+      status: selectedStatus,
+      page,
+      pageSize,
     }
-
-    const storedCategoryId = Number(localStorage.getItem(LAST_CATEGORY_STORAGE_KEY))
-    const initialCategory = categories.find((item) => item.id === storedCategoryId) ?? categories[0]
-    hasRestoredLastCategoryRef.current = true
-    setSelectedCategoryId(initialCategory.id)
-    setSelectedGroupId(initialCategory.groupId)
-  }, [categories, selectedCategoryId])
+    if (Object.entries(values).some(([key, value]) => searchParams.get(key) !== String(value))) {
+      updateListParams(values)
+    }
+    if (selectedCategoryId) localStorage.setItem(LAST_CATEGORY_STORAGE_KEY, String(selectedCategoryId))
+  }, [categories.length, categoryGroups.length, isCatalogLoading, page, pageSize, searchParams,
+    selectedCategoryId, selectedGroupId, selectedStatus, updateListParams])
 
   const loadPage = useCallback(async () => {
     const requestSerial = ++requestSerialRef.current
@@ -258,30 +291,21 @@ export function CourseManager({
   const createTargetCategoryId = selectedCategoryId || visibleCategories[0]?.id || 0
   const resetFilters = () => {
     const firstCategory = categories[0]
-    setSelectedGroupId(firstCategory?.groupId ?? 0)
-    setSelectedCategoryId(firstCategory?.id ?? 0)
-    setSelectedStatus('all')
-    setSearchText('')
-    setPage(1)
+    updateListParams({
+      groupId: firstCategory?.groupId ?? 0,
+      categoryId: firstCategory?.id ?? 0,
+      status: 'all',
+      search: '',
+      page: 1,
+    })
   }
   const changeGroup = (groupId: number) => {
-    setSelectedGroupId(groupId)
-    setPage(1)
-
     const firstCategory = categories.find((item) => item.groupId === groupId)
-    setSelectedCategoryId(firstCategory?.id ?? 0)
-    if (firstCategory) {
-      localStorage.setItem(LAST_CATEGORY_STORAGE_KEY, String(firstCategory.id))
-    }
+    updateListParams({ groupId, categoryId: firstCategory?.id ?? 0, page: 1 })
   }
   const changeCategory = (categoryId: number) => {
-    setSelectedCategoryId(categoryId)
-    setPage(1)
     const category = categories.find((item) => item.id === categoryId)
-    if (category) {
-      setSelectedGroupId(category.groupId)
-      localStorage.setItem(LAST_CATEGORY_STORAGE_KEY, String(category.id))
-    }
+    if (category) updateListParams({ groupId: category.groupId, categoryId, page: 1 })
   }
   const canMove = (exercise: CatalogExerciseSummary, direction: 'up' | 'down') => {
     // 注意：不能用父层全量 exercises 判断——它是按需加载的（仅 importer/recorder
@@ -596,8 +620,8 @@ export function CourseManager({
     <Form className="course-filter-form" layout="inline">
     <Form.Item label={t('内容分类')}><Select value={selectedGroupId || undefined} placeholder={t('选择内容分类')} onChange={(value) => changeGroup(Number(value))} options={categoryGroups.map((item) => ({ label: directoryName(item, uiLocale), value: item.id }))} /></Form.Item>
       <Form.Item label={t('学习系列')}><Select value={selectedCategoryId || undefined} placeholder={t('选择学习系列')} onChange={(value) => changeCategory(Number(value))} options={visibleCategories.map((item) => ({ label: directoryName(item, uiLocale), value: item.id }))} /></Form.Item>
-      <Form.Item label={t('发布状态')}><Select value={selectedStatus} onChange={(value) => setSelectedStatus(value as CourseStatus)} options={[{ label: t('全部状态'), value: 'all' }, { label: t('草稿'), value: 'draft' }, { label: t('已校对'), value: 'proofread' }, { label: t('已发布'), value: 'published' }, { label: t('已归档'), value: 'archived' }]} /></Form.Item>
-      <Form.Item><Input allowClear prefix={<Search size={15} />} placeholder={t('搜索课程标题、来源或摘要')} value={searchText} onChange={(event) => { setSearchText(event.target.value); setPage(1) }} /></Form.Item>
+      <Form.Item label={t('发布状态')}><Select value={selectedStatus} onChange={(value) => updateListParams({ status: value, page: 1 })} options={[{ label: t('全部状态'), value: 'all' }, { label: t('草稿'), value: 'draft' }, { label: t('已校对'), value: 'proofread' }, { label: t('已发布'), value: 'published' }, { label: t('已归档'), value: 'archived' }]} /></Form.Item>
+      <Form.Item><Input allowClear prefix={<Search size={15} />} placeholder={t('搜索课程标题、来源或摘要')} value={searchText} onChange={(event) => updateListParams({ search: event.target.value, page: 1 })} /></Form.Item>
       <Button onClick={resetFilters} type="link">{t('重置筛选')}</Button>
     </Form>
     <Space className="course-table-summary" direction="vertical" size={2}>
@@ -617,8 +641,7 @@ export function CourseManager({
         showTotal: (count) => t('共 {{count}} 门课程', { count }),
         total,
         onChange: (nextPage, nextPageSize) => {
-          setPage(nextPage)
-          if (nextPageSize !== pageSize) setPageSize(nextPageSize)
+          updateListParams({ page: nextPageSize === pageSize ? nextPage : 1, pageSize: nextPageSize })
         },
       }}
       rowKey="id"
