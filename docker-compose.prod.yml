@@ -91,6 +91,7 @@ services:
       ANALYTICS_COOKIE_DOMAIN: ${ANALYTICS_COOKIE_DOMAIN:-}
       ANALYTICS_TRUST_GEO_HEADER: ${ANALYTICS_TRUST_GEO_HEADER:-false}
       ANALYTICS_GEO_DB_PATH: ${ANALYTICS_GEO_DB_PATH:-}
+      ANALYTICS_GEO_DB_PROVIDER: ${ANALYTICS_GEO_DB_PROVIDER:-}
       ANALYTICS_MAINTENANCE_ENABLED: ${ANALYTICS_MAINTENANCE_ENABLED:-true}
       APP_HOST: 0.0.0.0
       APP_PORT: 4000
@@ -239,6 +240,8 @@ services:
       - official-site
     volumes:
       - ./infra/nginx/reverse-proxy.conf:/etc/nginx/nginx.conf:ro
+      - ./temp/nginx-analytics:/etc/nginx/analytics:ro
+      - ${ANALYTICS_CDN_PEERS_FILE:-./infra/nginx/analytics-cdn-peers.conf}:/etc/nginx/analytics-cdn-peers.conf:ro
       - /etc/letsencrypt:/etc/nginx/ssl:ro
     ports:
       - "80:80"

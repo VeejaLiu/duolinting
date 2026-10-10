@@ -1,4 +1,5 @@
 import { doRawQuery } from '../../models';
+import { accessDaysSql } from '../analytics/access-days';
 
 type GrowthSummaryRow = {
     total_users: number | string;
@@ -35,13 +36,13 @@ const toNumber = (value: number | string | null | undefined) => Number(value ?? 
 const formatDay = (value: Date | string | null) => {
     if (!value) return null;
     if (value instanceof Date) {
-        return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+        return value.toISOString().slice(0, 10);
     }
     return String(value).slice(0, 10);
 };
 
 /**
- * 增长看板统一使用服务器自然日：daily 表的唯一键将端内活跃去重；DAU/WAU/MAU
+ * 增长看板统一使用上海自然日：daily 表的唯一键将端内活跃去重；DAU/WAU/MAU
  * 再按 user_id 去重，因此同一用户跨端不会重复算入总活跃。端侧分布则按端独立
  * 去重，跨端用户会同时出现在多个端，用于观察产品触点而非强行二选一。
  */
@@ -49,30 +50,30 @@ export async function getAdminGrowthReport() {
     const [summaryRows, trendRows, clientDistributionRows] = await Promise.all([
         doRawQuery<GrowthSummaryRow>({
             query: `
-                with eligible_users as (select u.* from users u left join analytics_user_profiles p on p.user_id=u.id where coalesce(p.is_internal,0)=0), eligible_access as (select a.* from user_access_daily a left join analytics_user_profiles p on p.user_id=a.user_id where coalesce(p.is_internal,0)=0)
+                with eligible_users as (select u.* from users u left join analytics_user_profiles p on p.user_id=u.id where coalesce(p.is_internal,0)=0), eligible_access as (select a.* from (${accessDaysSql()}) a left join analytics_user_profiles p on p.user_id=a.user_id where coalesce(p.is_internal,0)=0)
 
                 select
                     (select count(*) from eligible_users) as total_users,
-                    (select count(*) from eligible_users where date(created_at) = curdate()) as registered_today_count,
-                    (select count(*) from eligible_users where created_at >= curdate() - interval 6 day) as registered_7d_count,
-                    (select count(*) from eligible_users where created_at >= curdate() - interval 29 day) as registered_30d_count,
-                    (select count(distinct user_id) from eligible_access where activity_date = curdate()) as dau,
-                    (select count(distinct user_id) from eligible_access where activity_date >= curdate() - interval 6 day) as wau,
-                    (select count(distinct user_id) from eligible_access where activity_date >= curdate() - interval 29 day) as mau,
+                    (select count(*) from eligible_users where date(created_at+interval 8 hour) = date(utc_timestamp()+interval 8 hour)) as registered_today_count,
+                    (select count(*) from eligible_users where created_at >= date(utc_timestamp()+interval 8 hour) - interval 6 day - interval 8 hour) as registered_7d_count,
+                    (select count(*) from eligible_users where created_at >= date(utc_timestamp()+interval 8 hour) - interval 29 day - interval 8 hour) as registered_30d_count,
+                    (select count(distinct user_id) from eligible_access where activity_date = date(utc_timestamp()+interval 8 hour)) as dau,
+                    (select count(distinct user_id) from eligible_access where activity_date >= date(utc_timestamp()+interval 8 hour) - interval 6 day) as wau,
+                    (select count(distinct user_id) from eligible_access where activity_date >= date(utc_timestamp()+interval 8 hour) - interval 29 day) as mau,
                     (select min(activity_date) from eligible_access) as tracking_started_at
             `,
         }),
         doRawQuery<GrowthTrendRow>({
             query: `
-                with recursive eligible_users as (select u.* from users u left join analytics_user_profiles p on p.user_id=u.id where coalesce(p.is_internal,0)=0), eligible_access as (select a.* from user_access_daily a left join analytics_user_profiles p on p.user_id=a.user_id where coalesce(p.is_internal,0)=0), days as (
-                    select curdate() - interval 29 day as activity_date
+                with recursive eligible_users as (select u.* from users u left join analytics_user_profiles p on p.user_id=u.id where coalesce(p.is_internal,0)=0), eligible_access as (select a.* from (${accessDaysSql()}) a left join analytics_user_profiles p on p.user_id=a.user_id where coalesce(p.is_internal,0)=0), days as (
+                    select date(utc_timestamp()+interval 8 hour) - interval 29 day as activity_date
                     union all
-                    select activity_date + interval 1 day from days where activity_date < curdate()
+                    select activity_date + interval 1 day from days where activity_date < date(utc_timestamp()+interval 8 hour)
                 )
                 select
-                    days.activity_date,
-                    (select count(*) from eligible_users where date(created_at) = days.activity_date) as registered_user_count,
-                    (select count(*) from eligible_users where created_at < days.activity_date + interval 1 day) as total_registered_user_count,
+                    date_format(days.activity_date,'%Y-%m-%d') as activity_date,
+                    (select count(*) from eligible_users where date(created_at+interval 8 hour) = days.activity_date) as registered_user_count,
+                    (select count(*) from eligible_users where created_at < days.activity_date + interval 1 day - interval 8 hour) as total_registered_user_count,
                     (select count(distinct user_id) from eligible_access
                         where activity_date = days.activity_date) as active_user_count,
                     (select count(distinct user_id) from eligible_access
@@ -91,15 +92,15 @@ export async function getAdminGrowthReport() {
         }),
         doRawQuery<ClientDistributionRow>({
             query: `
-                with eligible_users as (select u.* from users u left join analytics_user_profiles p on p.user_id=u.id where coalesce(p.is_internal,0)=0), eligible_access as (select a.* from user_access_daily a left join analytics_user_profiles p on p.user_id=a.user_id where coalesce(p.is_internal,0)=0)
+                with eligible_users as (select u.* from users u left join analytics_user_profiles p on p.user_id=u.id where coalesce(p.is_internal,0)=0), eligible_access as (select a.* from (${accessDaysSql()}) a left join analytics_user_profiles p on p.user_id=a.user_id where coalesce(p.is_internal,0)=0)
 
                 select client_types.client_type,
-                    count(distinct case when activity_date = curdate() then access_days.user_id end) as active_today_count,
-                    count(distinct case when activity_date >= curdate() - interval 6 day then access_days.user_id end) as active_7d_count,
-                    count(distinct case when activity_date >= curdate() - interval 29 day then access_days.user_id end) as active_30d_count
+                    count(distinct case when activity_date = date(utc_timestamp()+interval 8 hour) then access_days.user_id end) as active_today_count,
+                    count(distinct case when activity_date >= date(utc_timestamp()+interval 8 hour) - interval 6 day then access_days.user_id end) as active_7d_count,
+                    count(distinct case when activity_date >= date(utc_timestamp()+interval 8 hour) - interval 29 day then access_days.user_id end) as active_30d_count
                 from (select 'web_app' as client_type union all select 'mobile_web' union all select 'mobile_app') client_types
                 left join eligible_access access_days on access_days.client_type = client_types.client_type
-                    and access_days.activity_date >= curdate() - interval 29 day
+                    and access_days.activity_date >= date(utc_timestamp()+interval 8 hour) - interval 29 day
                 group by client_types.client_type
                 order by field(client_types.client_type, 'web_app', 'mobile_web', 'mobile_app')
             `,

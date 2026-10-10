@@ -1,7 +1,9 @@
 import * as AppleAuthentication from 'expo-apple-authentication'
 import type { OAuthStartResponse } from '@duolinting/domain'
 
-export async function authorizeApple(start: OAuthStartResponse) {
+// All platform adapters share this credential shape; an iOS credential has
+// tokens while the browser/Android redirect has a one-time exchange ticket.
+export async function authorizeApple(start: OAuthStartResponse, _popup?: Window | null, _callbackOrigin?: string | null): Promise<{ idToken?: string; authorizationCode?: string; ticket?: string } | null> {
   try {
     const credential = await AppleAuthentication.signInAsync({
       requestedScopes: [AppleAuthentication.AppleAuthenticationScope.EMAIL, AppleAuthentication.AppleAuthenticationScope.FULL_NAME],

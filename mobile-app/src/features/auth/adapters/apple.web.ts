@@ -3,8 +3,9 @@ import type { OAuthStartResponse } from '@duolinting/domain'
 export async function authorizeApple(start: OAuthStartResponse, preparedPopup?: Window | null, callbackOrigin?: string | null) {
   if (!start.authorizationUrl) throw new Error('Apple authorization is unavailable')
   if (!callbackOrigin) throw new Error('Apple callback origin is unavailable')
-  const popup = preparedPopup ?? window.open('', 'duolinting-apple', 'popup,width=520,height=680')
-  if (!popup) throw new Error('Browser blocked Apple sign-in')
+  const opened = preparedPopup ?? window.open('', 'duolinting-apple', 'popup,width=520,height=680')
+  if (!opened) throw new Error('Browser blocked Apple sign-in')
+  const popup: Window = opened
   popup.location.href = start.authorizationUrl
   const expectedOrigin = callbackOrigin
   return new Promise<{ ticket: string } | null>((resolve, reject) => {

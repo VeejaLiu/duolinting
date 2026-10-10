@@ -18,6 +18,16 @@ export const requestClientIp = (req: Request) =>
 let lookup:
   | ((ip: string) => { countryCode: string; version: string } | undefined)
   | undefined;
+let databaseState = "not_configured";
+/** Only configuration state is exposed to Admin, never paths or proxy addresses. */
+export function geoCollectionStatus() {
+  return {
+    database: databaseState,
+    provider: process.env.ANALYTICS_GEO_DB_PROVIDER === "dbip_lite" ? "dbip_lite" : "other",
+    trustedProxyConfigured: trustedProxyRanges().length > 0,
+    trustedHeaderEnabled: process.env.ANALYTICS_TRUST_GEO_HEADER === "true",
+  };
+}
 export function setCountryDatabase(adapter: typeof lookup) {
   lookup = adapter;
 }
@@ -73,6 +83,7 @@ export function resolveRequestGeoContext(req: Request): GeoContext {
 export async function loadCountryDatabase() {
   const file = process.env.ANALYTICS_GEO_DB_PATH;
   if (!file) return;
+  databaseState = "unavailable";
   try {
     const { open } = await import("maxmind");
     const reader = await open<import("maxmind").CountryResponse>(file, {
@@ -89,6 +100,7 @@ export async function loadCountryDatabase() {
           }
         : undefined;
     });
+    databaseState = "ready";
   } catch {
     /* Missing/corrupt optional MMDB yields explicit unknown geography. */
   }

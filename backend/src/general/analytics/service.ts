@@ -1,4 +1,4 @@
-import { readAnonymousCookie } from "./cookie";
+import { readAnonymousCookie, readAnonymousProof, createAnonymousProof } from "./cookie";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { QueryTypes, type Transaction } from "sequelize";
 import type { Request } from "express";
@@ -93,13 +93,14 @@ export async function createContext(req: Request) {
       analyticsSessionId: prior.analytics_session_id,
       identityEpoch: body.identityEpoch,
       anonymousId: prior.anonymous_id,
+      visitorToken: createAnonymousProof(prior.anonymous_id),
       serverTime: new Date(now).toISOString(),
       expiresAt: new Date(utcValue(prior.expires_at)).toISOString(),
     };
   const anonymousId =
     prior && (prior.user_id === null || Number(prior.user_id) === userId)
       ? prior.anonymous_id
-      : (readAnonymousCookie(req) ?? randomUUID());
+      : (readAnonymousCookie(req) ?? readAnonymousProof(body.visitorToken) ?? randomUUID());
   const sessionId = randomUUID(),
     epoch = randomBytes(32).toString("hex");
   const geo = resolveRequestGeoContext(req);
@@ -130,10 +131,14 @@ export async function createContext(req: Request) {
       );
     }
     if (prior) {
+      // Another tab may have linked the same anonymous epoch while this
+      // request waited for an account lock. Recheck under the session lock;
+      // a second account must never overwrite the first link.
+      const [lockedPrior] = await rows("select * from analytics_sessions where id=:id for update", { id: prior.id }, transaction);
       if (
-        prior.user_id === null &&
+        lockedPrior?.user_id === null && !lockedPrior.revoked_at &&
         userId &&
-        now - utcValue(prior.last_activity_at) < 30 * 60000
+        now - utcValue(lockedPrior.last_activity_at) < 30 * 60000
       ) {
         await write(
           "update analytics_events set user_id= :userId where analytics_session_id= :session and user_id is null",
@@ -141,8 +146,8 @@ export async function createContext(req: Request) {
           transaction,
         );
         await write(
-          "update analytics_sessions set user_id= :userId where id= :id",
-          { userId, id: prior.id },
+          "update analytics_sessions set user_id= :userId,linked_at= :now where id= :id",
+          { userId, id: prior.id, now: sqlTime(now) },
           transaction,
         );
         if (prior.environment === "production" && prior.surface === "learner") {
@@ -199,6 +204,7 @@ export async function createContext(req: Request) {
     analyticsSessionId: sessionId,
     identityEpoch: epoch,
     anonymousId,
+    visitorToken: createAnonymousProof(anonymousId),
     serverTime: new Date(now).toISOString(),
     expiresAt: new Date(now + 7 * 86400000).toISOString(),
   };
@@ -356,7 +362,11 @@ export async function ingestEvents(req: Request) {
       );
       if (
         !session ||
-        session.revoked_at ||
+        // A linked anonymous epoch is closed for new activity but may deliver
+        // its pre-login outbox with the verified linked account. Logout or
+        // withdrawal clears linked_at, so revoked account sessions stay closed.
+        (session.revoked_at && (!session.linked_at ||
+          Date.parse(e.occurredAt) > utcValue(session.linked_at))) ||
         utcValue(session.expires_at) < Date.now() ||
         (session.user_id === null ? null : Number(session.user_id)) !== userId
       ) {
@@ -542,13 +552,13 @@ export async function revokeContext(req: Request) {
   const epoch = epochHash(String(req.body?.identityEpoch ?? ""));
   await sequelize.transaction(async (transaction) => {
     await write(
-      "update analytics_sessions set revoked_at=UTC_TIMESTAMP(3) where identity_epoch= :epoch",
+      "update analytics_sessions set revoked_at=UTC_TIMESTAMP(3),linked_at=null where identity_epoch= :epoch",
       { epoch },
       transaction,
     );
     if (userId && req.body?.withdraw !== false) {
       await write(
-        "update analytics_sessions set revoked_at=UTC_TIMESTAMP(3) where user_id= :userId",
+        "update analytics_sessions set revoked_at=UTC_TIMESTAMP(3),linked_at=null where user_id= :userId",
         { userId },
         transaction,
       );

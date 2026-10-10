@@ -1,7 +1,7 @@
 import * as WebBrowser from 'expo-web-browser'
 import type { OAuthStartResponse } from '@duolinting/domain'
 
-export async function authorizeApple(start: OAuthStartResponse) {
+export async function authorizeApple(start: OAuthStartResponse, _popup?: Window | null, _callbackOrigin?: string | null): Promise<{ idToken?: string; authorizationCode?: string; ticket?: string } | null> {
   if (!start.authorizationUrl) throw new Error('Apple authorization is unavailable')
   const result = await WebBrowser.openAuthSessionAsync(start.authorizationUrl, 'duolinting://oauth')
   if (result.type === 'cancel' || result.type === 'dismiss') return null

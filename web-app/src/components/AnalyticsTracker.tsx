@@ -12,10 +12,12 @@ export function AnalyticsTracker({
 }) {
   const path = useLocation().pathname;
   useEffect(() => {
+    let current = true;
     if (ready)
       void analytics
         .configure(true, token, owner, webAttribution())
-        .then(() => analytics.page(path));
+        .then(() => { if (current) analytics.page(path); });
+    return () => { current = false; };
   }, [token, owner, ready, path]);
   useEffect(() => {
     const timer = setInterval(() => void analytics.flush(), 15000);

@@ -1,18 +1,18 @@
 "use client";
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { AnalyticsClient, webAttribution } from "../lib/analytics/web";
+import { AnalyticsClient, webAttribution, browserAnalyticsStorage, browserClientType } from "../lib/analytics/web";
 let client: AnalyticsClient | undefined;
 export function AnalyticsTracker() {
   const path = usePathname();
   useEffect(() => {
     client ??= new AnalyticsClient({
-      storage: localStorage,
+      storage: browserAnalyticsStorage(),
       uuid: () => crypto.randomUUID(),
       url: (p) => p,
-      clientType: "web_app",
+      clientType: browserClientType(),
       surface: "official",
-      build: import.meta.env.VITE_APP_BUILD ?? "development",
+      build: import.meta.env.VITE_APP_BUILD || (import.meta.env.PROD ? "unknown" : "development"),
     });
   }, []);
   useEffect(() => {

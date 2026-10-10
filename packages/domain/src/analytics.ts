@@ -33,6 +33,8 @@ export type AnalyticsContext = {
   serverTime: string;
   expiresAt: string;
   anonymousId: string;
+  /** Server-signed, expiring visitor proof; contains no learner credential. */
+  visitorToken?: string;
 };
 /** Half-open UTC millisecond intervals. Merge before summing: parallel devices never double wall time. */
 export function unionIntervals(values: Interval[]): Interval[] {

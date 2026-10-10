@@ -15,11 +15,13 @@ import {
 } from "antd";
 import {
   analyticsRows,
+  analyticsDisplayValue,
   currentAnalyticsReport,
   type AnalyticsReportResult,
 } from "../../lib/analyticsReportState";
 import { apiClient } from "../../lib/apiClient";
 import { useAdminLanguage } from "../../i18n/AdminLanguageProvider";
+import { statDate } from "@duolinting/domain";
 type Row = Record<string, unknown>;
 type Report = {
   metadata: {
@@ -31,11 +33,13 @@ type Report = {
     generatedAt: string;
     warnings: string[];
     trackingStartedAtByMetricAndClient: Row[];
+    observedVersions?: Row[];
+    geoCollection?: { provider: string };
   };
   data: Record<string, unknown>;
 };
 const day = (offset = 0) =>
-  new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
+  statDate(Date.now() + offset * 86400000);
 const metricKeys = [
   "pageViews",
   "visitors",
@@ -149,7 +153,7 @@ export function GrowthAnalyticsPanel({
           .map((k) => ({
             title: t("analytics." + k),
             dataIndex: k,
-            render: show,
+            render: (value: unknown) => show(analyticsDisplayValue(k, value)),
           }))}
       />
     );
@@ -279,9 +283,18 @@ export function GrowthAnalyticsPanel({
               )}
               description={`${report.metadata.timezone} · ${t("analytics.sampleSize")}: ${report.metadata.sampleSize} · ${t("analytics.excludedCount")}: ${report.metadata.excludedCount} · ${t("analytics.geoCoveragePercent")}: ${show(report.metadata.geoCoveragePercent)}%`}
             />
+            {report.metadata.warnings.filter((warning) => [
+              "coverage_not_configured", "unknown_geography",
+              "unknown_build", "registration_client_unknown",
+            ].includes(warning)).map((warning) => (
+              <Typography.Text key={warning} type="warning">{t("analytics.warning." + warning)}</Typography.Text>
+            ))}
             <Typography.Paragraph type="secondary">
               {t("analytics.definition")}
             </Typography.Paragraph>
+            {report.metadata.geoCollection?.provider === "dbip_lite" && (
+              <Typography.Link href="https://db-ip.com" target="_blank" rel="noopener noreferrer">{t("analytics.geoAttribution")}</Typography.Link>
+            )}
             {tab === "overview" && (
               <>
                 <Space wrap>
@@ -290,9 +303,7 @@ export function GrowthAnalyticsPanel({
                       <Statistic
                         title={t("analytics." + key)}
                         value={show(
-                          key === "playMs" && report.data[key] !== null
-                            ? Number(report.data[key]) / 60000
-                            : report.data[key],
+                          analyticsDisplayValue(key, report.data[key]),
                         )}
                       />
                     </Card>
@@ -389,6 +400,7 @@ export function GrowthAnalyticsPanel({
                 report.metadata.trackingStartedAtByMetricAndClient,
                 "coverage",
               )}
+              {table(report.metadata.observedVersions, "observedVersions")}
               <CoverageEditor
                 adminToken={adminToken}
                 onSaved={() => setRefresh((v) => v + 1)}
