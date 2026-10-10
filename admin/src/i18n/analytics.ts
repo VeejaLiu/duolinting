@@ -1,4 +1,100 @@
 export const analyticsMessages = {
+  "analytics.ongoing": [
+      "持续采集中",
+      "Collection ongoing",
+      "กำลังเก็บข้อมูล",
+      "収集継続中",
+      "Collecte en cours",
+      "Recopilación en curso"
+  ],
+  "analytics.retentionExplanation": [
+      "观察中：目标日期尚未结束。已观测回访：已有访问或学习记录，但采集覆盖未核实，不能计算完整留存率；0 仅表示未记录到回访。修复采集不会补齐缺失的历史记录，等待到期也不会自动消除覆盖缺口。",
+      "Observing: the target day has not ended. Observed returns: recorded visits or learning, with unverified coverage; a complete retention rate is unavailable. Zero means no return was recorded. Fixing collection cannot recover missing history, and elapsed time does not resolve coverage gaps.",
+      "กำลังสังเกต: วันเป้าหมายยังไม่สิ้นสุด การกลับมาที่พบคือการเข้าชมหรือเรียนที่บันทึกไว้ แต่ยังไม่ยืนยันความครบถ้วน จึงคำนวณอัตราที่ครบถ้วนไม่ได้ 0 หมายถึงไม่พบการกลับมา การแก้การเก็บข้อมูลไม่คืนประวัติที่หาย และการรอไม่แก้ช่องว่าง",
+      "観測中：対象日がまだ終了していません。観測済み再訪は記録されたアクセスまたは学習ですが、収集範囲が未検証のため完全な継続率は計算できません。0は再訪記録なしを意味します。収集の修正や時間経過で過去の欠損は解消しません。",
+      "En observation : le jour cible n’est pas terminé. Les retours observés sont des visites ou apprentissages enregistrés avec une couverture non vérifiée ; aucun taux complet ne peut être calculé. Zéro signifie aucun retour enregistré. Corriger la collecte ou attendre ne comble pas les lacunes historiques.",
+      "En observación: el día objetivo no ha terminado. Los retornos observados son visitas o aprendizaje registrados con cobertura sin verificar; no se puede calcular una tasa completa. Cero significa ningún retorno registrado. Corregir la recopilación o esperar no recupera el historial faltante."
+  ],
+  "analytics.observedReturns": [
+      "已观测回访",
+      "Observed returns",
+      "การกลับมาที่พบ",
+      "観測済み再訪",
+      "Retours observés",
+      "Retornos observados"
+  ],
+  "analytics.rateUnverified": [
+      "覆盖未完整核实 · 留存率不可判定",
+      "Coverage unverified · Rate unavailable",
+      "ยังไม่ยืนยันข้อมูลครบ · ระบุอัตราไม่ได้",
+      "収集範囲未検証・継続率判定不可",
+      "Couverture non vérifiée · Taux indisponible",
+      "Cobertura sin verificar · Tasa no disponible"
+  ],
+  "analytics.availableOn": [
+      "起可查看结果（上海时间）",
+      "results available from (Shanghai time)",
+      "เริ่มดูผลได้ (เวลาซี่ยงไฮ้)",
+      "から結果表示（上海時間）",
+      "résultats à partir de (heure de Shanghai)",
+      "resultados desde (hora de Shanghái)"
+  ],
+  "analytics.maturityFilter": [
+      "留存观察期筛选",
+      "Retention maturity filter",
+      "กรองระยะสังเกต",
+      "継続観測期間フィルター",
+      "Filtre de maturité",
+      "Filtro de madurez"
+  ],
+  "analytics.allCohorts": [
+      "全部日期批次",
+      "All date cohorts",
+      "ทุกกลุ่มวันที่",
+      "全日付コホート",
+      "Toutes les cohortes",
+      "Todas las cohortes"
+  ],
+  "analytics.matureOnly": [
+      "只看已到观察期",
+      "Mature cohorts only",
+      "เฉพาะกลุ่มที่ครบระยะ",
+      "観測期間終了のみ",
+      "Cohortes arrivées à échéance",
+      "Solo cohortes maduras"
+  ],
+  "analytics.noCohorts": [
+      "所选范围没有对应的用户批次",
+      "No user cohorts in the selected range",
+      "ไม่มีกลุ่มผู้ใช้ในช่วงที่เลือก",
+      "選択期間に該当するユーザーなし",
+      "Aucune cohorte dans la période choisie",
+      "No hay cohortes en el período elegido"
+  ],
+  "analytics.noMatureCohorts": [
+      "所选范围尚无已到该观察期的批次，可切换“全部日期批次”",
+      "No cohorts have reached this window. Select all date cohorts to view pending windows.",
+      "ยังไม่มีกลุ่มครบระยะ เลือกทุกกลุ่มวันที่เพื่อดู",
+      "対象期間に観測終了したコホートなし。全日付コホートで確認できます。",
+      "Aucune cohorte arrivée à cette échéance. Affichez toutes les cohortes.",
+      "Ninguna cohorte ha alcanzado este plazo. Seleccione todas las cohortes."
+  ],
+  "analytics.reason.unverified_coverage": [
+      "该批次至目标日期间，部分产品端没有已核实的完整采集覆盖；已观测人数仅供参考。",
+      "Some clients lack verified complete collection between the cohort and target dates. Observed counts are indicative only.",
+      "บางแพลตฟอร์มไม่มีการยืนยันข้อมูลครบระหว่างวันเริ่มและวันเป้าหมาย จำนวนที่พบใช้เป็นข้อมูลอ้างอิงเท่านั้น",
+      "開始日から対象日まで一部端末の収集範囲が未検証です。観測人数は参考値です。",
+      "Certains clients n’ont pas de couverture complète vérifiée entre les deux dates. Les nombres observés sont indicatifs.",
+      "Algunos clientes carecen de cobertura completa verificada entre las fechas. Los recuentos observados son orientativos."
+  ],
+  "analytics.reason.consent_history": [
+      "部分用户在该批次开始时没有可验证的学习采集记录，无法保证分母完整。",
+      "Some users lack verifiable learning collection eligibility at cohort start, so the denominator is not fully observable.",
+      "ผู้ใช้บางคนไม่มีหลักฐานการเก็บข้อมูลการเรียนตอนเริ่มกลุ่ม จึงยืนยันตัวหารครบไม่ได้",
+      "開始時の学習収集対象として一部ユーザーを検証できず、分母全体の観測を保証できません。",
+      "L’éligibilité à la collecte au début de la cohorte est non vérifiable pour certains utilisateurs ; le dénominateur n’est pas entièrement observable.",
+      "No se puede verificar la elegibilidad de recopilación al inicio para algunos usuarios; el denominador no es totalmente observable."
+  ],
   "analytics.accessHistory": [
     "注册与已登录访问 · 最近30天",
     "Registration & authenticated visits · Last 30 days",

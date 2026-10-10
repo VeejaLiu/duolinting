@@ -3,6 +3,7 @@ import {
   analyticsRows,
   currentAnalyticsReport,
   analyticsDisplayValue,
+  retentionRows,
 } from "../admin/src/lib/analyticsReportState.ts";
 
 const requestKey = (tab, query = "range-a", refresh = 0) =>
@@ -56,6 +57,19 @@ assert.deepEqual(
   [...new Set(analyticsRows(rows).flatMap(Object.keys))],
   ["numerator", "denominator"],
 );
+// An incomplete but mature window must remain visible. Sorting must not mutate
+// a cached response, and D7 filtering must not use D1's maturity.
+const cohorts = [
+  { cohortDate: "2026-09-01", cells: [{ offset: 1, status: "complete" }, { offset: 7, status: "incomplete" }], windowRetention: { status: "incomplete" } },
+  { cohortDate: "2026-10-10", cells: [{ offset: 1, status: "observing" }, { offset: 7, status: "observing" }], windowRetention: { status: "observing" } },
+  { cohortDate: "2026-10-07", cells: [{ offset: 1, status: "incomplete" }, { offset: 7, status: "observing" }], windowRetention: { status: "observing" } },
+];
+assert.deepEqual(retentionRows(cohorts, "all").map((row) => row.cohortDate), ["2026-10-10", "2026-10-07", "2026-09-01"]);
+assert.equal(cohorts[0].cohortDate, "2026-09-01");
+assert.deepEqual(retentionRows(cohorts, "1").map((row) => row.cohortDate), ["2026-10-07", "2026-09-01"]);
+assert.deepEqual(retentionRows(cohorts, "7").map((row) => row.cohortDate), ["2026-09-01"]);
+assert.deepEqual(retentionRows(cohorts, "w1").map((row) => row.cohortDate), ["2026-09-01"]);
+assert.deepEqual(retentionRows([], "30"), []);
 console.log(
   "Analytics report regression checks passed: tab/filter/refresh isolation, late responses, missing summaries and valid zero/null metrics.",
 );

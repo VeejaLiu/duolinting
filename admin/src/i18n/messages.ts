@@ -2899,3 +2899,16 @@ for (const [key, enUS, thTH, jaJP, frFR, esES] of auditedAdminErrorMessages) {
 for (const [key, values] of Object.entries(analyticsMessages)) {
   for (const [index, locale] of (['zh-CN', 'en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const).entries()) adminMessages[locale][key] = values[index]
 }
+
+const navigationGroupMessages = [
+  ['团队协作', 'Team collaboration', 'การทำงานร่วมกัน', 'チーム協業', 'Collaboration', 'Colaboración'],
+  ['用户运营', 'User operations', 'การดูแลผู้ใช้', 'ユーザー運営', 'Gestion des utilisateurs', 'Gestión de usuarios'],
+  ['系统管理', 'System management', 'จัดการระบบ', 'システム管理', 'Administration du système', 'Administración del sistema'],
+] as const
+
+for (const [key, ...values] of navigationGroupMessages) {
+  adminMessages['zh-CN'][key] = key
+  for (const [index, locale] of (['en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const).entries()) {
+    adminMessages[locale][key] = values[index]
+  }
+}

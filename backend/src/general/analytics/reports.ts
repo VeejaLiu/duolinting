@@ -57,6 +57,8 @@ export function reportRange(query: Record<string, unknown>) {
     throw Object.assign(new Error("Unsupported definition version"), {
       status: 400,
     });
+  if (query.matureWindow !== undefined && !["all", "1", "7", "30", "w1"].includes(String(query.matureWindow)))
+    throw Object.assign(new Error("Invalid retention maturity filter"), { status: 400 });
   return { today, from, to, client, country, group };
 }
 async function buildAnalyticsReport(
@@ -271,7 +273,7 @@ async function buildAnalyticsReport(
       groups.set(day, [...(groups.get(day) ?? []), u]);
     }
     return [...groups]
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => b.localeCompare(a))
       .map(([day, members]) => ({
         cohortDate: day,
         cohortType,
@@ -294,9 +296,9 @@ async function buildAnalyticsReport(
                       dateMs(addDay(day, 1)),
                 )
               : members;
-          const complete =
-            completeRange(metric, day, target) &&
-            eligible.length === members.length;
+          const coverageComplete = completeRange(metric, day, target);
+          const consentComplete = eligible.length === members.length;
+          const complete = coverageComplete && consentComplete;
           const retained = members.filter((u) =>
             cohortType === "learning"
               ? qualified.some(
@@ -320,6 +322,14 @@ async function buildAnalyticsReport(
           ).length;
           return {
             offset,
+            // Observed counts remain useful with gaps, but cannot establish a
+            // complete rate. Future/unfinished windows never expose a final count.
+            observedRetained: mature ? retained : null,
+            availableOn: addDay(target, 1),
+            incompleteReasons: [
+              ...(!coverageComplete ? ["unverified_coverage"] : []),
+              ...(!consentComplete ? ["consent_history"] : []),
+            ],
             retained: mature && complete ? retained : null,
             denominator: members.length,
             percent:
@@ -339,19 +349,20 @@ async function buildAnalyticsReport(
               Date.now() >=
               dateMs(end) +
                 dayMs,
-            complete =
-              (cohortType !== "learning" ||
+            consentComplete =
+              cohortType !== "learning" ||
                 members.every(
                   (u) =>
                     profile.get(Number(u.id))?.consent === "granted" &&
                     utcMs(profile.get(Number(u.id))?.consent_changed_at) <=
                       dateMs(addDay(day, 1)),
-                )) &&
-              completeRange(
+                ),
+            coverageComplete = completeRange(
                 cohortType === "learning" ? "learning" : "legacy_access",
                 day,
                 end,
-              );
+              ),
+            complete = consentComplete && coverageComplete;
           const count = members.filter((u) =>
             cohortType === "learning"
               ? qualified.some(
@@ -377,6 +388,12 @@ async function buildAnalyticsReport(
           ).length;
           return {
             label: "W1",
+            observedRetained: mature ? count : null,
+            availableOn: addDay(end, 1),
+            incompleteReasons: [
+              ...(!coverageComplete ? ["unverified_coverage"] : []),
+              ...(!consentComplete ? ["consent_history"] : []),
+            ],
             retained: mature && complete ? count : null,
             denominator: members.length,
             status: !mature
@@ -386,7 +403,15 @@ async function buildAnalyticsReport(
                 : "complete",
           };
         })(),
-      }));
+      }))
+      // Apply the same maturity filter to API rows and CSV exports. An
+      // incomplete window can be mature; completeness is a separate property.
+      .filter((row) => {
+        const window = String(query.matureWindow ?? "all");
+        if (window === "all") return true;
+        const cell = window === "w1" ? row.windowRetention : row.cells.find((cell) => cell.offset === Number(window));
+        return Boolean(cell && cell.status !== "observing");
+      });
   };
   let data: unknown;
   if (kind === "retention") {

@@ -55,6 +55,8 @@ Deployment is a separate owner-authorized operation; follow the ignored local ru
 
 After verifying deployment coverage and outages, use **Growth analytics V2 → Collection coverage & versions** to enter per-metric, per-client spans. Open-ended complete spans assert continued collection; record outages/partial spans when that assertion stops being true. The first event is not proof of coverage. Reports label incompleteness and restrict learning-retention interpretation to consenting, observable users.
 
+Retention cohorts default to newest first, with reversible date sorting. The D1/D7/D30/W1 maturity filter includes incomplete but elapsed windows and also applies to CSV exports. `availableOn` is the first Shanghai calendar date after the target day/window ends. Mature cells expose `observedRetained` even without verified coverage, with `incompleteReasons` distinguishing coverage gaps from unverifiable collection eligibility. `retained` and `percent` remain null unless mature and complete. An observed zero means no recorded return, not proven zero retention. Open-ended partial spans continue to block a complete rate until independently verified; waiting or repairing collection cannot restore missing history.
+
 ## Traffic source onboarding
 
 No provider account was read, configured or billed. Cloudflare/Tencent export permissions, plans, actual topology and log availability must be verified before connecting a live source. The product/quality implementation works with traffic disconnected.

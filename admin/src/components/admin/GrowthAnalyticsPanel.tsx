@@ -12,12 +12,16 @@ import {
   Tabs,
   Typography,
   Switch,
+  Tooltip,
 } from "antd";
 import {
   analyticsRows,
   analyticsDisplayValue,
   currentAnalyticsReport,
   type AnalyticsReportResult,
+  retentionRows,
+  type RetentionCell,
+  type RetentionCohort,
 } from "../../lib/analyticsReportState";
 import { apiClient } from "../../lib/apiClient";
 import { useAdminLanguage } from "../../i18n/AdminLanguageProvider";
@@ -74,6 +78,7 @@ export function GrowthAnalyticsPanel({
   const [client, setClient] = useState("all");
   const [region, setRegion] = useState("all");
   const [cohort, setCohort] = useState("access");
+  const [matureWindow, setMatureWindow] = useState("all");
   const [refresh, setRefresh] = useState(0);
   const [reportResult, setReportResult] =
     useState<AnalyticsReportResult<Report> | null>(null);
@@ -89,6 +94,7 @@ export function GrowthAnalyticsPanel({
     clientType: client,
     regionGroup: region,
     cohortType: cohort,
+    ...(tab === "retention" ? { matureWindow } : {}),
     ...(country ? { countryCode: country } : {}),
     ...(build ? { appBuild: build } : {}),
     ...(exercise ? { exerciseId: String(exercise) } : {}),
@@ -153,27 +159,40 @@ export function GrowthAnalyticsPanel({
           .map((k) => ({
             title: t("analytics." + k),
             dataIndex: k,
-            render: (value: unknown) => show(analyticsDisplayValue(k, value)),
+            render: (value: unknown) =>
+              k === "endsAt" && value === null ? t("analytics.ongoing")
+                : ["status", "clientType", "metric"].includes(k) && typeof value === "string"
+                  ? t("analytics." + value)
+                  : show(analyticsDisplayValue(k, value)),
           }))}
       />
     );
   };
-  const retention = analyticsRows(report?.data.cohorts) as
-    | (Row & {
-        windowRetention: {
-          status: string;
-          retained: number | null;
-          denominator: number;
-        };
-        cells: {
-          offset: number;
-          status: string;
-          retained: number | null;
-          denominator: number;
-          percent: number | null;
-        }[];
-      })[]
-    | undefined;
+  const retention = retentionRows(
+    analyticsRows(report?.data.cohorts) as RetentionCohort[], matureWindow,
+  );
+  const retentionValue = (cell: RetentionCell | undefined, smallSample: boolean) => {
+    if (!cell) return t("analytics.unavailable");
+    if (cell.status === "observing") return (
+      <Space direction="vertical" size={0}>
+        <Typography.Text type="secondary">{t("analytics.observing")}</Typography.Text>
+        {cell.availableOn && <Typography.Text type="secondary">{cell.availableOn} {t("analytics.availableOn")}</Typography.Text>}
+      </Space>
+    );
+    if (cell.status === "complete") return `${cell.retained} / ${cell.denominator}${cell.percent === undefined ? "" : ` (${cell.percent?.toFixed(1)}%)`}${smallSample ? " *" : ""}`;
+    // A zero observed count means no recorded return, not proven zero retention.
+    // Never render a percentage for an unverified observation window.
+    return (
+      <Tooltip title={(cell.incompleteReasons ?? ["unverified_coverage"]).map((reason) => t("analytics.reason." + reason)).join(" ")}>
+        <Space direction="vertical" size={0}>
+          <Typography.Text>{cell.observedRetained === null || cell.observedRetained === undefined
+            ? t("analytics.incomplete")
+            : `${t("analytics.observedReturns")} ${cell.observedRetained} / ${cell.denominator}${smallSample ? " *" : ""}`}</Typography.Text>
+          <Typography.Text type="warning">{t("analytics.rateUnverified")}</Typography.Text>
+        </Space>
+      </Tooltip>
+    );
+  };
   const exportCsv = async () => {
     try {
       await apiClient.downloadAnalyticsCsv(tab, query, adminToken);
@@ -314,6 +333,8 @@ export function GrowthAnalyticsPanel({
             )}
             {tab === "retention" && (
               <>
+                <Alert type="info" showIcon message={t("analytics.retentionExplanation")} />
+                <Space wrap>
                 <Select
                   value={cohort}
                   onChange={setCohort}
@@ -322,44 +343,51 @@ export function GrowthAnalyticsPanel({
                     label: t("analytics." + value),
                   }))}
                 />
+                <Select
+                  aria-label={t("analytics.maturityFilter")}
+                  value={matureWindow}
+                  onChange={setMatureWindow}
+                  options={[
+                    { value: "all", label: t("analytics.allCohorts") },
+                    ...[1, 7, 30].map((offset) => ({ value: String(offset), label: `D${offset} · ${t("analytics.matureOnly")}` })),
+                    { value: "w1", label: `W1 · ${t("analytics.matureOnly")}` },
+                  ]}
+                />
+                </Space>
                 <Table
+                  key={JSON.stringify([query, matureWindow])}
                   scroll={{ x: true }}
                   size="small"
                   rowKey="cohortDate"
                   dataSource={retention}
+                  locale={{ emptyText: t(matureWindow === "all" ? "analytics.noCohorts" : "analytics.noMatureCohorts") }}
                   columns={[
                     {
                       title: t("analytics.cohortDate"),
                       dataIndex: "cohortDate",
+                      sorter: (a, b) => a.cohortDate.localeCompare(b.cohortDate),
+                      defaultSortOrder: "descend",
+                      sortDirections: ["descend", "ascend"],
                     },
                     { title: t("analytics.size"), dataIndex: "size" },
                     {
                       title: "W1 (D7–D13)",
                       render: (
                         _: unknown,
-                        row: NonNullable<typeof retention>[number],
+                        row: RetentionCohort,
                       ) =>
-                        row.windowRetention?.status === "complete"
-                          ? `${row.windowRetention.retained} / ${row.windowRetention.denominator}`
-                          : t(
-                              "analytics." +
-                                (row.windowRetention?.status ?? "unavailable"),
-                            ),
+                        retentionValue(row.windowRetention, Number(row.size) < 20),
                     },
                     ...[1, 7, 30].map((offset) => ({
                       title: `D${offset}`,
                       render: (
                         _: unknown,
-                        row: NonNullable<typeof retention>[number],
+                        row: RetentionCohort,
                       ) => {
                         const cell = row.cells?.find(
                           (c) => c.offset === offset,
                         );
-                        return !cell
-                          ? t("analytics.unavailable")
-                          : cell.status !== "complete"
-                            ? t("analytics." + cell.status)
-                            : `${cell.retained} / ${cell.denominator} (${cell.percent?.toFixed(1)}%)${Number(row.size) < 20 ? " *" : ""}`;
+                        return retentionValue(cell, Number(row.size) < 20);
                       },
                     })),
                   ]}
