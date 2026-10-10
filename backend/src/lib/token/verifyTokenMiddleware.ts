@@ -1,10 +1,14 @@
 import jwt from 'jsonwebtoken';
 import { env } from '../../env';
-import { verifyUserSession } from '../../general/user/user-session-service';
+import { verifyUserSession, AUTH_CLIENT_TYPES, inferAuthClientTypeFromRequest, type AuthClientType } from '../../general/user/user-session-service';
 import { Logger } from '../logger';
 
 const JWT_SECRET = env.secret.jwt;
 const logger = new Logger(__filename);
+const accessClientType = (req: any): AuthClientType => {
+    const header = req.headers['x-duolinting-client-type'];
+    return AUTH_CLIENT_TYPES.includes(header) ? header : inferAuthClientTypeFromRequest({ origin: req.headers.origin, userAgent: req.headers['user-agent'] });
+};
 
 export async function verifyToken(token: string): Promise<{ success: boolean; data?: { id: number } }> {
     try {
@@ -36,7 +40,7 @@ export function verifyTokenMiddleware(req: any, res: any, next: any) {
          * web_app, mobile_web, or mobile_app. That replaces the old users.token
          * single-slot check, which made every new login invalidate every other surface.
          */
-        const result = await verifyUserSession(token).catch((error) => {
+        const result = await verifyUserSession(token, { accessClientType: accessClientType(req) }).catch((error) => {
             logger.error(`[verifyTokenMiddleware] session error: ${error}`);
             return { success: false } as const;
         });
@@ -57,7 +61,7 @@ export async function optionalUserTokenMiddleware(req: any, _res: any, next: any
         req.user = undefined;
         return next();
     }
-    const result = await verifyUserSession(token).catch(() => ({ success: false } as const));
+    const result = await verifyUserSession(token, { accessClientType: accessClientType(req) }).catch(() => ({ success: false } as const));
     req.user = result.success && result.userId ? { userId: result.userId } : undefined;
     next();
 }

@@ -88,8 +88,8 @@ export async function verifyEmailLogin({
                 email_verified_at: new Date(),
             } as any, { transaction });
             await user.update({ display_name: `Learner ${user.id}` }, { transaction });
-            await write('insert into analytics_user_profiles(user_id,registration_country) values(:id,:country)', {
-                id: user.id, country: geo?.countryCode ?? 'unknown',
+            await write('insert into analytics_user_profiles(user_id,registration_country,registration_client_type) values(:id,:country,:registrationClient)', {
+                id: user.id, country: geo?.countryCode ?? 'unknown', registrationClient: normalizeAuthClientType(clientType),
             }, transaction);
             // The email-first path is now the primary registration route. Keep
             // its conversion attribution identical to legacy /register.
@@ -158,7 +158,7 @@ export async function registerUser(request: RegisterRequest, geo?: GeoContext, a
         password_hash: passwordHash,
         email_verified_at: new Date(),
     } as any, { transaction });
-      await write('insert into analytics_user_profiles(user_id,registration_country) values(:id,:country)', { id: plainUser(account).id, country: geo?.countryCode ?? 'unknown' }, transaction);
+      await write('insert into analytics_user_profiles(user_id,registration_country,registration_client_type) values(:id,:country,:registrationClient)', { id: plainUser(account).id, country: geo?.countryCode ?? 'unknown', registrationClient: normalizeAuthClientType(request.clientType) }, transaction);
       const context = analyticsEpoch && /^[a-f0-9]{64}$/.test(analyticsEpoch) ? (await rows('select * from analytics_sessions where identity_epoch=:epoch and user_id is null and revoked_at is null and expires_at>UTC_TIMESTAMP(3) for update', {epoch:createHash('sha256').update(analyticsEpoch).digest('hex')}, transaction))[0] : undefined;
       if(context && Date.now()-utcValue(context.last_activity_at)<30*60000) {
         const source=json<Record<string,string>>(context.attribution).utm_source ?? 'direct_or_unknown';
@@ -485,6 +485,7 @@ export async function deleteUserAccount({
             'user_daily_activity',
             'user_activity_operations',
             'user_access_daily',
+            'user_access_daily_v2',
             'user_auth_identities',
             'user_auth_grants',
             'user_reauth_tickets',

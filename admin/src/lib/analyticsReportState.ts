@@ -1,4 +1,8 @@
 export type AnalyticsRow = Record<string, unknown>;
+/** Backend playMs is always milliseconds; every presentation uses minutes. */
+export function analyticsDisplayValue(key: string, value: unknown): unknown {
+  return key === "playMs" && value !== null && value !== undefined ? Number(value) / 60000 : value;
+}
 
 export type AnalyticsReportResult<T> = {
   requestKey: string;

@@ -15,6 +15,9 @@ export const sequelize = new Sequelize(env.mysql.database, env.mysql.username, e
     host: env.mysql.host,
     port: env.mysql.port,
     dialect: 'mysql',
+    // TIMESTAMP reads and ORM dates have explicit UTC meaning. Reporting adds
+    // Shanghai's offset only when deriving a calendar-day label.
+    timezone: '+00:00',
     pool: {
         max: 20,
         min: 0,

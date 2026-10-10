@@ -23,6 +23,7 @@ const db = await mysql.createConnection({
 });
 let sequelize;
 try {
+  await db.query("set time_zone='+00:00'");
   await db.query(`create database \`${database}\``);
   await db.query(`use \`${database}\``);
   for (const table of [
@@ -37,6 +38,11 @@ try {
     "user_preferences",
     "user_daily_activity",
     "admin_users",
+    "user_auth_identities",
+    "user_auth_grants",
+    "user_reauth_tickets",
+    "auth_transactions",
+    "user_email_challenges",
   ])
     await db.query(`create table \`${table}\` like \`${source}\`.\`${table}\``);
   await db.query(
@@ -51,6 +57,7 @@ try {
       "utf8",
     ),
   );
+  await db.query(fs.readFileSync("infra/mysql/migrations/V202610100001__analytics_identity_and_stat_days.sql", "utf8"));
   Object.assign(process.env, e, {
     MYSQL_DATABASE: database,
     MYSQL_LOGGING: "false",
@@ -66,14 +73,14 @@ try {
     "insert into users(id,email,display_name,password_hash) values(1,'analytics-fixture@example.invalid','Fixture','not-a-login-hash')",
   );
   await db.query(
-    "insert into analytics_user_profiles(user_id,registration_country,consent) values(1,'CN','granted')",
+    "insert into analytics_user_profiles(user_id,registration_country,registration_client_type,consent) values(1,'CN','web_app','granted')",
   );
   await db.query(
     "insert into exercises(id,category_id,title,source,difficulty,duration_label,audio_url,summary,transcript_json,status) values(1,1,'Fixture','fixture','beginner','1 min','/fixture.mp3','Fixture',?,'published')",
     [JSON.stringify([{ id: "line-1", start: 0, end: 10, text: "fixture" }])],
   );
   const { default: bcrypt } = await import("bcryptjs");
-  await db.query("update users set password_hash=? where id=1", [
+  await db.query("update users set password_hash=?,email_verified_at=UTC_TIMESTAMP(3),created_at=UTC_TIMESTAMP()-interval 10 minute where id=1", [
     await bcrypt.hash("fixture-password", 4),
   ]);
   const token = await sessions.issueUserSession({
@@ -242,6 +249,52 @@ try {
     if (kind === "traffic") assert.equal(report.data.downstreamBytes, null);
   }
 
+  // A sealed anonymous epoch can finish pre-login delivery, but cannot collect
+  // activity after the link or be reassigned to another account.
+  const anonymousReq = { ...req, headers: {}, body: { consent: true, clientType: "web_app", surface: "learner" } };
+  const anonymous = await service.createContext(anonymousReq);
+  const pendingPage = {
+    eventId: crypto.randomUUID(), eventName: "page_view", occurredAt: anonymous.serverTime,
+    analyticsSessionId: anonymous.analyticsSessionId, identityEpoch: anonymous.identityEpoch,
+    seq: 1, appBuild: "fixture", properties: { pageViewId: crypto.randomUUID(), path: "/before-login" },
+  };
+  await service.createContext({ ...req, body: { ...anonymousReq.body, identityEpoch: anonymous.identityEpoch } });
+  assert.equal((await ingest([pendingPage])).results[0].status, "accepted");
+  assert.equal((await ingest([{ ...pendingPage, eventId: crypto.randomUUID(), seq: 2, occurredAt: new Date(Date.now()+10000).toISOString() }])).results[0].code, "identity_mismatch");
+  await db.query("insert into users(id,email,display_name,email_verified_at) values(3,'other-fixture@example.invalid','Other fixture',UTC_TIMESTAMP())");
+  await db.query("insert into analytics_user_profiles(user_id,is_internal) values(3,1)");
+  const otherToken = await sessions.issueUserSession({ userId: 3, clientType: "web_app" });
+  await service.createContext({ ...req, headers: { authorization: "Bearer " + otherToken }, body: { ...anonymousReq.body, identityEpoch: anonymous.identityEpoch } });
+  assert.equal(Number((await service.rows("select user_id from analytics_sessions where analytics_session_id=:id", { id:anonymous.analyticsSessionId }))[0].user_id), 1);
+  assert.equal((await service.ingestEvents({ ...req, headers: { authorization: "Bearer "+otherToken }, body: { schemaVersion:1, events:[pendingPage] } })).results[0].code, "identity_mismatch");
+  const proofContext = await service.createContext({ ...anonymousReq, body:{...anonymousReq.body,visitorToken:anonymous.visitorToken} });
+  assert.equal(proofContext.anonymousId, anonymous.anonymousId);
+  const forged = await service.createContext({ ...anonymousReq, body:{...anonymousReq.body,visitorToken:anonymous.visitorToken.slice(0,-1)+"x"} });
+  assert.notEqual(forged.anonymousId, anonymous.anonymousId);
+
+  // Include missing profiles in unknown-source registration totals. A client
+  // filter uses registration evidence, not the user's most recent login.
+  await db.query("insert into users(id,email,display_name,created_at) values(4,'missing-profile@example.invalid','Missing profile',UTC_TIMESTAMP())");
+  reports.clearAnalyticsReportCache();
+  const allOverview = await reports.analyticsReport("overview", {});
+  const allAcquisition = await reports.analyticsReport("acquisition", {});
+  assert.equal(allAcquisition.data.channels.reduce((n,row)=>n+row.registrations,0),allOverview.data.registrations);
+  assert.equal(allAcquisition.data.channels.reduce((n,row)=>n+row.visitors,0),allOverview.data.visitors);
+  assert.equal(allOverview.data.activation.numerator, null);
+  assert.ok(allOverview.data.activation.observedActivated >= 1);
+  await db.query("insert into analytics_user_profiles(user_id,registration_client_type) values(4,'mobile_app')");
+  reports.clearAnalyticsReportCache();
+  assert.equal((await reports.analyticsReport("overview",{clientType:"mobile_app"})).data.registrations,1);
+  assert.equal((await reports.analyticsReport("overview",{clientType:"web_app"})).data.registrations,1);
+  await db.query("update analytics_user_profiles set is_internal=1 where user_id=4");
+
+  // One UTC bucket can contain observations on both sides of Shanghai
+  // midnight. The normalized access query must preserve both observed days.
+  await db.query("insert into user_access_daily(user_id,client_type,activity_date,first_seen_at,last_seen_at) values(3,'web_app','2026-10-01','2026-10-01 15:59:00','2026-10-01 16:01:00')");
+  const { accessDaysSql } = await import("../backend/src/general/analytics/access-days.ts");
+  const midnightDays = await service.rows(`select activity_date from (${accessDaysSql()}) a where user_id=3 and activity_date between '2026-10-01' and '2026-10-02' order by activity_date`);
+  assert.deepEqual(midnightDays.map((row)=>row.activity_date),["2026-10-01","2026-10-02"]);
+
   // A report's cohort range is not its observation cutoff: D7 can lie after `to`.
   const cohortDay = new Date(Date.now() - 20 * 86400000)
     .toISOString()
@@ -258,8 +311,8 @@ try {
     [cohortDay + " 04:00:00", cohortDay + " 04:10:00"],
   );
   await db.query(
-    "insert into user_access_daily(user_id,client_type,activity_date,first_seen_at,last_seen_at) values(2,'web_app',?,UTC_TIMESTAMP(),UTC_TIMESTAMP())",
-    [returnDay],
+    "insert into user_access_daily(user_id,client_type,activity_date,first_seen_at,last_seen_at) values(2,'web_app',?,?,?)",
+    [returnDay, returnDay + " 04:00:00", returnDay + " 04:05:00"],
   );
   await db.query(
     "insert into analytics_user_daily(user_id,stat_date,play_ms,qualified,intervals,practiced_lines) values(2,?,60000,1,'[]','[]')",
@@ -351,6 +404,7 @@ try {
     "analytics_user_profiles",
     "analytics_user_daily",
     "analytics_user_dimension_daily",
+    "user_access_daily_v2",
   ])
     assert.equal(
       Number(
@@ -365,6 +419,9 @@ try {
   console.log(
     "Analytics database checks passed: atomic ingestion, repeated delivery, operation identity, activation, practice uniqueness, auth/access isolation, six reports, traffic replacement and consent revocation.",
   );
+} catch (error) {
+  process.exitCode = 1;
+  throw error;
 } finally {
   if (sequelize) await sequelize.close();
   await db.query(`drop database if exists \`${database}\``);

@@ -115,7 +115,7 @@ export async function revokeAllUserSessions(userId: string | number) {
     );
 }
 
-export async function verifyUserSession(token: string, options: { recordAccess?: boolean } = {}): Promise<VerifyUserSessionResult> {
+export async function verifyUserSession(token: string, options: { recordAccess?: boolean; accessClientType?: AuthClientType } = {}): Promise<VerifyUserSessionResult> {
     const decoded = jwt.verify(token, env.secret.jwt) as SessionTokenPayload;
     const userId = Number(decoded.id);
     const sessionId = Number(decoded.sessionId);
@@ -148,7 +148,9 @@ export async function verifyUserSession(token: string, options: { recordAccess?:
     if (!user || (!user.email_verified_at && !['apple', 'google'].includes(session.auth_method))) return { success: false };
 
     await UserSessionModel.update({ last_seen_at: new Date() }, { where: { id: sessionId } });
-    if (options.recordAccess !== false) await recordUserDailyAccess(userId, clientType);
+    // Authentication still checks the token's original session surface. Visit
+    // reporting may use the current browser device after a token was restored.
+    if (options.recordAccess !== false) await recordUserDailyAccess(userId, options.accessClientType ?? clientType);
 
     return { success: true, userId, sessionId };
 }

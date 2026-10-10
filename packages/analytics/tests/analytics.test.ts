@@ -261,6 +261,7 @@ test("an authenticated queue survives process recreation with its original ident
   let contexts = 0;
   const options = {
     storage: {
+      getAllKeys: () => [...values.keys()],
       getItem: (k: string) => values.get(k) ?? null,
       setItem: (k: string, v: string) => {
         values.set(k, v);
@@ -301,8 +302,10 @@ test("an authenticated queue survives process recreation with its original ident
   const eventId = savedBefore.queue[0].eventId;
   const restored = new AnalyticsClient(options);
   await restored.configure(true, "token", "account");
-  const savedAfter = JSON.parse(values.values().next().value!);
+  const savedAfter = JSON.parse([...values.values()].at(-1)!);
   assert.equal(savedAfter.queue[0].eventId, eventId);
+  assert.equal(savedAfter.queue[0].analyticsSessionId, savedBefore.context.analyticsSessionId);
+  assert.notEqual(savedAfter.context.analyticsSessionId, savedBefore.context.analyticsSessionId);
   assert.equal(savedAfter.owner, "account");
   assert.equal(contexts, 2);
 });

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { usePathname } from 'expo-router'
-import { Platform } from 'react-native'
+import { Platform, AppState } from 'react-native'
 import { webAttribution } from '@duolinting/analytics/web'
 import { analytics, clearLegacyAnalyticsChoice } from '@/lib/analytics'
 import { useAuthStore } from '@/stores/authStore'
@@ -30,7 +30,12 @@ export function AnalyticsTracker() {
 
   useEffect(() => {
     const timer = setInterval(() => void analytics.flush(), 15_000)
-    return () => clearInterval(timer)
+    // Native backgrounding does not dispatch browser pagehide. Persist and
+    // attempt the final outbox delivery before the OS suspends JS timers.
+    const listener = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') void analytics.flush()
+    })
+    return () => { clearInterval(timer); listener.remove() }
   }, [])
   return null
 }

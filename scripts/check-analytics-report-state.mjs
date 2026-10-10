@@ -2,10 +2,15 @@ import assert from "node:assert/strict";
 import {
   analyticsRows,
   currentAnalyticsReport,
+  analyticsDisplayValue,
 } from "../admin/src/lib/analyticsReportState.ts";
 
 const requestKey = (tab, query = "range-a", refresh = 0) =>
   JSON.stringify([tab, query, "test-identity", refresh]);
+assert.equal(analyticsDisplayValue("playMs", 6008551), 6008551 / 60000);
+assert.equal(analyticsDisplayValue("playMs", null), null);
+assert.equal(analyticsDisplayValue("playMs", 0), 0);
+assert.equal(analyticsDisplayValue("registrations", 34), 34);
 const overview = {
   requestKey: requestKey("overview"),
   report: { activation: { numerator: 2, denominator: 9 } },

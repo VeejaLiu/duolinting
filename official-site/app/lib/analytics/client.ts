@@ -10,6 +10,7 @@ type Storage = {
   getItem(key: string): Promise<string | null> | string | null;
   setItem(key: string, value: string): Promise<unknown> | void;
   removeItem(key: string): Promise<unknown> | void;
+  getAllKeys?(): Promise<readonly string[]> | readonly string[];
 };
 type Options = {
   storage: Storage;
@@ -27,8 +28,12 @@ type Saved = {
   owner: string;
   lastActivity: number;
   dropped: number;
+  clientType?: string;
+  surface?: string;
 };
 const key = "duolinting.analytics.v1";
+const queuePrefix = "duolinting.analytics.queue.v2.";
+const visitorKey = "duolinting.analytics.visitor.v1";
 /** Bounded persisted queue. Credentials live only in memory; account switches invalidate old pending work. */
 export class AnalyticsClient {
   private saved: Saved | undefined;
@@ -39,6 +44,7 @@ export class AnalyticsClient {
   private generation = 0;
   private pending: Promise<void> | undefined;
   private flushing = false;
+  private pendingTracks = new Set<Promise<void>>();
   private retryAt = 0;
   private failures = 0;
   private anchor = 0;
@@ -72,9 +78,15 @@ export class AnalyticsClient {
   private lastSample = 0;
   private attribution: Record<string, string> = {};
   private previousEpoch: string | undefined;
+  private handoff: Saved | undefined;
+  private visitorToken: string | undefined;
+  private readonly storageKey: string;
   private options: Options;
   constructor(options: Options) {
     this.options = options;
+    // Each running producer owns its snapshot. Tabs never overwrite another
+    // tab's outbox or reuse its next sequence number. Event IDs survive recovery.
+    this.storageKey = queuePrefix + options.uuid();
   }
   get contextEpoch() {
     return this.consent ? this.saved?.context.identityEpoch : undefined;
@@ -112,6 +124,8 @@ export class AnalyticsClient {
     this.consent = consent;
     this.attribution = sanitizeAttribution(attribution);
     if (!consent) {
+      this.visitorToken = undefined;
+      this.handoff = undefined;
       if (this.saved)
         void this.request("revoke", {
           identityEpoch: this.saved.context.identityEpoch,
@@ -122,13 +136,18 @@ export class AnalyticsClient {
       this.resetPlayback();
       this.course = undefined;
       try {
-        await this.options.storage.removeItem(key);
+        await this.options.storage.removeItem(this.storageKey);
+        await this.options.storage.removeItem(visitorKey);
       } catch {
         /* Optional local telemetry storage. */
       }
       return;
     }
     if (changed) {
+      // Only an anonymous -> authenticated transition may carry pending work.
+      // The server seals the old epoch at the link time before accepting it
+      // with the new account token. Account A -> B never carries A's queue.
+      this.handoff = this.owner === "anonymous" ? this.saved : undefined;
       this.previousEpoch =
         this.owner === "anonymous"
           ? this.saved?.context.identityEpoch
@@ -140,8 +159,9 @@ export class AnalyticsClient {
         }).catch(() => {});
       this.saved = undefined;
       this.resetPlayback();
+      this.course = undefined;
       try {
-        await this.options.storage.removeItem(key);
+        if (!this.handoff) await this.options.storage.removeItem(this.storageKey);
       } catch {
         /* Optional local telemetry storage. */
       }
@@ -161,6 +181,26 @@ export class AnalyticsClient {
       /* Optional analysis must not block account or player workflows. */
     }
   }
+  /** End a login session without changing the user's stored analytics choice. */
+  async suspendSession() {
+    this.generation++;
+    const previous = this.saved;
+    const previousToken = this.token;
+    this.consent = false;
+    this.saved = undefined;
+    this.token = "";
+    this.owner = "anonymous";
+    this.pending = undefined;
+    this.resetPlayback();
+    this.course = undefined;
+    if (previous) {
+      void this.request("revoke", {
+        identityEpoch: previous.context.identityEpoch,
+        withdraw: false,
+      }, previousToken).catch(() => {});
+    }
+    try { await this.options.storage.removeItem(this.storageKey); } catch { /* Optional queue. */ }
+  }
   private resetPlayback() {
     this.intervals = [];
     this.study = "";
@@ -172,7 +212,7 @@ export class AnalyticsClient {
   }
   private async persist() {
     if (this.saved)
-      await this.options.storage.setItem(key, JSON.stringify(this.saved));
+      await this.options.storage.setItem(this.storageKey, JSON.stringify(this.saved));
   }
   private async ensure() {
     if (!this.consent) return;
@@ -185,25 +225,50 @@ export class AnalyticsClient {
       return;
     const generation = this.generation;
     this.pending = (async () => {
-      let old = this.saved;
+      let old = this.saved ?? this.handoff;
+      let recovered: AnalyticsEvent[] = old?.queue ?? [];
       if (!old)
         try {
-          const stored = await this.options.storage.getItem(key);
-          if (stored) {
-            const parsed = JSON.parse(stored) as Saved;
-            if (parsed.owner === this.owner && Array.isArray(parsed.queue))
-              old = parsed;
+          const keys = this.options.storage.getAllKeys
+            ? await this.options.storage.getAllKeys()
+            : [key];
+          const snapshots: Saved[] = [];
+          for (const storedKey of keys.filter((k) => k === key || k.startsWith(queuePrefix))) {
+            const stored = await this.options.storage.getItem(storedKey);
+            if (!stored) continue;
+            let parsed: Saved;
+            try { parsed = JSON.parse(stored) as Saved; } catch { continue; }
+            if (Date.now() - parsed.lastActivity > 7 * 86400000) {
+              await this.options.storage.removeItem(storedKey);
+              continue;
+            }
+            if (parsed.owner === this.owner && Array.isArray(parsed.queue) &&
+                (!parsed.clientType || parsed.clientType === this.options.clientType) &&
+                (!parsed.surface || parsed.surface === this.options.surface)) snapshots.push(parsed);
           }
+          snapshots.sort((a, b) => b.lastActivity - a.lastActivity);
+          old = snapshots[0];
+          // Recover orphaned work without touching live producers' snapshots.
+          // Concurrent replay is safe because the server deduplicates event IDs.
+          recovered = [...new Map(snapshots.flatMap((s) => s.queue).map((e) => [e.eventId, e])).values()]
+            .filter((e) => Date.parse(e.occurredAt) >= Date.now() - 7 * 86400000)
+            .sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt)).slice(-500);
         } catch {
           /* Corrupt local telemetry is disposable. */
         }
       // Queued events keep their original context. A reload resumes a recent context; idle sessions rotate.
+      if (!this.visitorToken) {
+        try { this.visitorToken = (await this.options.storage.getItem(visitorKey)) ?? undefined; } catch { /* Optional identity storage. */ }
+      }
       const response = await this.request("context", {
         consent: true,
         clientType: this.options.clientType,
         surface: this.options.surface,
         identityEpoch: old?.context.identityEpoch ?? this.previousEpoch,
-        resume: !!old && Date.now() - old.lastActivity < 30 * 60000,
+        // A new JS instance always owns a new session; only the anonymous
+        // visitor identity is reused. This prevents cross-tab sequence clashes.
+        resume: false,
+        visitorToken: this.visitorToken,
         attribution: this.attribution,
       });
       if (!response.ok) throw new Error("context_unavailable");
@@ -211,16 +276,20 @@ export class AnalyticsClient {
       if (generation !== this.generation) return;
       this.saved = {
         context,
-        queue: old?.queue ?? [],
-        seq:
-          old?.context.analyticsSessionId === context.analyticsSessionId
-            ? old.seq
-            : 0,
+        queue: recovered,
+        seq: 0,
         owner: this.owner,
         lastActivity: Date.now(),
         dropped: old?.dropped ?? 0,
+        clientType: this.options.clientType,
+        surface: this.options.surface,
       };
       this.previousEpoch = undefined;
+      this.handoff = undefined;
+      if (context.visitorToken) {
+        this.visitorToken = context.visitorToken;
+        try { await this.options.storage.setItem(visitorKey, context.visitorToken); } catch { /* Optional identity storage. */ }
+      }
       this.anchor = Date.parse(context.serverTime);
       this.mono = performance.now();
       this.clock.reset();
@@ -233,7 +302,17 @@ export class AnalyticsClient {
     });
     return this.pending;
   }
-  async track(
+  track(
+    eventName: EventName,
+    properties: Record<string, unknown> = {},
+    extra: Partial<AnalyticsEvent> = {},
+  ) {
+    const work = this.enqueue(eventName, properties, extra);
+    this.pendingTracks.add(work);
+    void work.finally(() => this.pendingTracks.delete(work));
+    return work;
+  }
+  private async enqueue(
     eventName: EventName,
     properties: Record<string, unknown> = {},
     extra: Partial<AnalyticsEvent> = {},
@@ -274,6 +353,12 @@ export class AnalyticsClient {
     }
   }
   async flush() {
+    if (!this.consent || this.flushing) return;
+    // Background/pagehide can run immediately after the sampler schedules its
+    // final heartbeat. Materialize intervals and wait for queued writes before
+    // taking the batch, otherwise the last few seconds miss that final send.
+    this.heartbeat();
+    await Promise.all([...this.pendingTracks]);
     if (
       !this.consent ||
       !this.saved ||

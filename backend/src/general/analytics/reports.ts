@@ -1,4 +1,6 @@
 import { rows, json, sqlTime, publishedVersion } from "./service";
+import { accessDaysSql } from "./access-days";
+import { geoCollectionStatus } from "./geo";
 import { intervalDuration, statDate, type Interval } from "./contracts";
 const dayMs = 86400000;
 const dateMs = (day: string) => Date.parse(`${day}T00:00:00+08:00`);
@@ -78,11 +80,13 @@ async function buildAnalyticsReport(
     daily,
     dimensions,
     sessions,
-    access,
     excluded,
   ] = await Promise.all([
     rows(
-      "select u.id,u.created_at from users u left join analytics_user_profiles p on p.user_id=u.id where coalesce(p.is_internal,0)=0",
+      `select u.id,u.created_at,coalesce(p.registration_client_type,
+        (select e.client_type from analytics_events e where e.user_id=u.id and e.event_name='signup_completed' order by e.event_at,e.id limit 1),
+        (select a.client_type from user_sessions a where a.user_id=u.id and a.created_at>=u.created_at and a.created_at<=u.created_at+interval 1 minute order by a.created_at,a.id limit 1)
+      ) as registration_client_type from users u left join analytics_user_profiles p on p.user_id=u.id where coalesce(p.is_internal,0)=0`,
     ),
     rows("select * from analytics_user_profiles where is_internal=0"),
     rows(
@@ -101,28 +105,20 @@ async function buildAnalyticsReport(
       params,
     ),
     rows(
-      "select s.* from analytics_sessions s left join analytics_user_profiles p on p.user_id=s.user_id where s.started_at>= :start and s.started_at< :end and s.environment='production' and s.surface<>'admin' and coalesce(p.is_internal,0)=0",
-      params,
-    ),
-    rows(
-      "select a.user_id,a.client_type,a.activity_date from user_access_daily a left join analytics_user_profiles p on p.user_id=a.user_id where a.activity_date>= :from and a.activity_date<=date_add(:to,interval 30 day) and coalesce(p.is_internal,0)=0",
+      "select s.* from analytics_sessions s left join analytics_user_profiles p on p.user_id=s.user_id where s.last_activity_at>= :start and s.started_at< :end and s.environment='production' and s.surface<>'admin' and coalesce(p.is_internal,0)=0",
       params,
     ),
     rows(
       "select count(*) as n from analytics_user_profiles where is_internal=1",
     ),
   ]);
-  const legacyZones = [
-    ...new Set(
-      coverage
-        .filter((c) => c.metric === "legacy_access" && c.status === "complete")
-        .map((c) => c.source_timezone),
-    ),
-  ];
-  const legacyTimezone = legacyZones.length === 1 ? legacyZones[0] : null;
-  const legacyOffset = (
-    { UTC: 0, "Asia/Shanghai": 8, "Asia/Bangkok": 7 } as Record<string, number>
-  )[legacyTimezone ?? ""];
+  // Access dates are reconstructed from UTC TIMESTAMP endpoints, never from
+  // the legacy DATE bucket whose server-local source zone may be unknown.
+  const legacyTimezone = "UTC";
+  const access = await rows(
+    `select a.* from (${accessDaysSql()}) a left join analytics_user_profiles p on p.user_id=a.user_id
+     where a.activity_date>= :from and a.activity_date<=date_add(:to,interval 30 day) and coalesce(p.is_internal,0)=0`, params,
+  );
   const profile = new Map(profiles.map((p) => [Number(p.user_id), p]));
   const geoMatch = (c: string) =>
     (r.country === "all" || c === r.country) &&
@@ -144,10 +140,7 @@ async function buildAnalyticsReport(
         (c) => c.metric === metric && c.client_type === client,
       );
       const start =
-          dateMs(day) +
-          (metric === "legacy_access" && legacyOffset !== undefined
-            ? (8 - legacyOffset) * 3600000
-            : 0),
+          dateMs(day),
         end = start + dayMs;
       return (
         spans.some(
@@ -182,6 +175,12 @@ async function buildAnalyticsReport(
     rangeEnd: r.to,
     generatedAt: new Date().toISOString(),
     dataThrough: new Date().toISOString(),
+    geoCollection: geoCollectionStatus(),
+    observedVersions: [...new Set(filteredEvents.map((e) => `${e.client_type}|${e.app_build}`))].map((key) => {
+      const [clientType,appBuild]=key.split("|");
+      const matching=filteredEvents.filter((e)=>e.client_type===clientType && e.app_build===appBuild);
+      return { clientType,appBuild,sampleSize:matching.length,firstObservedAt:new Date(Math.min(...matching.map((e)=>utcMs(e.event_at)))).toISOString(),lastObservedAt:new Date(Math.max(...matching.map((e)=>utcMs(e.event_at)))).toISOString() };
+    }),
     trackingStartedAtByMetricAndClient: coverage.map((c) => ({
       metric: c.metric,
       clientType: c.client_type,
@@ -211,6 +210,9 @@ async function buildAnalyticsReport(
       "telemetry_observable_population",
       "network_location_not_residence",
       ...(r.to === r.today ? ["provisional_day"] : []),
+      ...(unknown ? ["unknown_geography"] : []),
+      ...(filteredEvents.some((e) => ["development", "unknown", ""].includes(e.app_build)) ? ["unknown_build"] : []),
+      ...(r.client !== "all" && users.some((u) => !u.registration_client_type && utcMs(u.created_at)>=dateMs(r.from) && utcMs(u.created_at)<dateMs(addDay(r.to,1))) ? ["registration_client_unknown"] : []),
       ...(!coverage.length ? ["coverage_not_configured"] : []),
     ],
   };
@@ -245,7 +247,8 @@ async function buildAnalyticsReport(
     (u) =>
       utcMs(u.created_at) >= dateMs(r.from) &&
       utcMs(u.created_at) < dateMs(addDay(r.to, 1)) &&
-      geoMatch(profile.get(Number(u.id))?.registration_country ?? "unknown"),
+      geoMatch(profile.get(Number(u.id))?.registration_country ?? "unknown") &&
+      (r.client === "all" || u.registration_client_type === r.client),
   );
   const retention = (cohortType: string) => {
     const groups = new Map<string, Record<string, any>[]>();
@@ -253,6 +256,7 @@ async function buildAnalyticsReport(
       const p = profile.get(Number(u.id));
       const time = cohortType === "learning" ? p?.activated_at : u.created_at;
       if (
+        (r.client !== "all" && u.registration_client_type !== r.client && cohortType === "access") ||
         !time ||
         !geoMatch(
           cohortType === "learning"
@@ -262,11 +266,7 @@ async function buildAnalyticsReport(
       )
         continue;
       const day =
-        cohortType === "access" && legacyOffset !== undefined
-          ? new Date(utcMs(time) + legacyOffset * 3600000)
-              .toISOString()
-              .slice(0, 10)
-          : statDate(utcMs(time));
+        statDate(utcMs(time));
       if (day < r.from || day > r.to) continue;
       groups.set(day, [...(groups.get(day) ?? []), u]);
     }
@@ -283,13 +283,8 @@ async function buildAnalyticsReport(
           const mature =
             Date.now() >=
             dateMs(target) +
-              dayMs +
-              (cohortType === "access" && legacyOffset !== undefined
-                ? (8 - legacyOffset) * 3600000
-                : 0);
+              dayMs;
           // Legacy date buckets require an explicitly verified source timezone before comparison.
-          const legacyZone =
-            cohortType !== "access" || legacyOffset !== undefined;
           const eligible =
             cohortType === "learning"
               ? members.filter(
@@ -301,7 +296,6 @@ async function buildAnalyticsReport(
               : members;
           const complete =
             completeRange(metric, day, target) &&
-            legacyZone &&
             eligible.length === members.length;
           const retained = members.filter((u) =>
             cohortType === "learning"
@@ -344,12 +338,8 @@ async function buildAnalyticsReport(
             mature =
               Date.now() >=
               dateMs(end) +
-                dayMs +
-                (cohortType === "access" && legacyOffset !== undefined
-                  ? (8 - legacyOffset) * 3600000
-                  : 0),
+                dayMs,
             complete =
-              (cohortType !== "access" || legacyOffset !== undefined) &&
               (cohortType !== "learning" ||
                 members.every(
                   (u) =>
@@ -606,7 +596,7 @@ async function buildAnalyticsReport(
       channels: [...sources].map((source) => {
         const cohort = sessions.filter(
           (s) =>
-            dimensionMatch(s) &&
+            dimensionMatch(s) && filteredEvents.some((e) => e.analytics_session_id === s.analytics_session_id) &&
             (json<Record<string, string>>(s.attribution).utm_source ??
               "direct_or_unknown") === source,
         );
@@ -653,7 +643,7 @@ async function buildAnalyticsReport(
               ) >= 60000,
           ).length,
           registrations: registered.filter(
-            (u) => profile.get(Number(u.id))?.registration_source === source,
+            (u) => (profile.get(Number(u.id))?.registration_source ?? "direct_or_unknown") === source,
           ).length,
         };
       }),
@@ -843,10 +833,16 @@ async function buildAnalyticsReport(
     data = {
       pageViews: filteredEvents.filter((e) => e.event_name === "page_view")
         .length,
-      visitors: new Set(filteredEvents.map((e) => e.anonymous_id)).size,
+      visitors: new Set(filteredEvents.map((e) => e.anonymous_id).filter(Boolean)).size,
       registrations: registered.length,
       activation: {
-        numerator: activated.length,
+        // Observed positives remain visible even if the denominator is not
+        // verified. Unknown coverage must not masquerade as zero activation.
+        observedActivated: registered.filter((u) => {
+          const at=profile.get(Number(u.id))?.activated_at;
+          return at && utcMs(at)>=utcMs(u.created_at) && utcMs(at)<=utcMs(u.created_at)+7*dayMs;
+        }).length,
+        numerator: observable.length ? activated.length : null,
         denominator: observable.length,
         unobservable: mature.length - observable.length,
         percent: observable.length
@@ -888,7 +884,7 @@ async function buildAnalyticsReport(
               0,
             ),
       learningUsers: new Set(qWindow.map((d) => d.user_id)).size,
-      legacyAccessUsers: new Set(
+      legacyAccessUsers: r.country !== "all" || r.group !== "all" ? null : new Set(
         access
           .filter(
             (a) =>

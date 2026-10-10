@@ -1,5 +1,19 @@
 import { AnalyticsClient } from "./client";
 export { AnalyticsClient };
+/** Classify the browser device separately from which Web project served it. */
+export function browserClientType(userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent, touchPoints = typeof navigator === "undefined" ? 0 : navigator.maxTouchPoints) {
+  return /android|iphone|ipad|ipod|mobile/i.test(userAgent) ||
+    (/Macintosh/i.test(userAgent) && touchPoints > 1) ? "mobile_web" : "web_app";
+}
+/** Expose key enumeration so a new page can recover bounded durable outboxes. */
+export function browserAnalyticsStorage() {
+  return {
+    getItem: (key: string) => localStorage.getItem(key),
+    setItem: (key: string, value: string) => localStorage.setItem(key, value),
+    removeItem: (key: string) => localStorage.removeItem(key),
+    getAllKeys: () => Object.keys(localStorage),
+  };
+}
 export function webAttribution() {
   const params = new URLSearchParams(location.search);
   let referrer_host = "";

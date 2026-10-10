@@ -82,3 +82,25 @@ These are deployment/source/device acceptance requirements, not claims of verifi
 ## Collection interface update
 
 The Web, Mobile and official-site analytics trackers render no UI. Collection starts in the background without an authorization banner. All three trackers initialize collection unconditionally and no longer read `duolinting.analytics.consent`, including old denied values. There is no user-facing collection setting. The public privacy pages describe default background collection.
+
+## Accuracy fixes (2026-10-10)
+
+- Each SDK producer persists its own outbox and creates its own analytics session. Recovery keeps original event IDs and epochs; parallel replay remains idempotent. This prevents tabs from overwriting one another's pending work or colliding on a shared sequence counter.
+- Anonymous login preserves pending events. The server locks the old session, links it once, and records `linked_at` as a UTC cutoff. Only events that occurred before the cutoff can finish delivery with the linked account. Later anonymous activity, other accounts, logout and withdrawal remain rejected. An expiring, server-signed visitor proof supports native continuity independently of the browser cookie jar; it contains no login credential.
+- Registration/client reporting records the registration client explicitly. Historical fallback uses a signup event or a session created within one minute of account creation, never a later login. Unattributed accounts stay in the all-client total and are disclosed when a client filter excludes them. Missing analysis profiles belong to `direct_or_unknown` rather than disappearing.
+- Registration and visits use Shanghai calendar days. Legacy access endpoints are MySQL **TIMESTAMP**, so the backend's explicit UTC connection can reconstruct their observed Shanghai dates without guessing the old DATE bucket's timezone. Only observed first/last endpoint dates are counted. The new `user_access_daily_v2` table stores explicit UTC endpoint times and Shanghai `stat_date`; legacy rows are preserved.
+- Source visitors require an observed event, matching the overview population. Empty contexts are not visitors. Observed activation positives are shown independently; an unverified activation-rate numerator is null rather than zero. Coverage is still a verified operational assertion, never inferred from the first event.
+- All playback-minute displays divide backend milliseconds by 60,000. Browser device classification is shared by auth and collection, including mobile browsers and iPad desktop user agents. Native build labels use the real application version/build, while Expo Go is identified separately. Historical `development` labels remain unavailable evidence; they are not rewritten into invented versions.
+
+Apply `V202610100001__analytics_identity_and_stat_days.sql` through Flyway before switching backend. The database regression uses an isolated temporary schema and checks handoff bounds, account isolation, missing profiles, client filters, Shanghai midnight, visitor population and deletion of the new access facts.
+
+Optional runtime preparation, from the repository root:
+
+```sh
+node scripts/prepare-analytics-country-db.mjs YYYY-MM PUBLISHER_MMDB_SHA1
+node scripts/prepare-analytics-ingress.mjs
+```
+
+The first command validates and prepares DB-IP's country-only MMDB under ignored `temp/geoip`; the publisher checksum applies to the decompressed database. DB-IP attribution is displayed across the analytics workspace when that provider is configured. The second command downloads the current official Cloudflare peer lists and prepares ignored ingress files. The `geo` module's peer include uses an exact filename; the default tracked file trusts no external country header, so an unconfigured deployment still starts. Keep actual proxy ranges, cookie parent domain, paths and deployment steps in the ignored runbook. Source/configuration preparation does not deploy anything.
+
+Real visitor IP restoration and local lookup require the verified private runtime configuration and an ingress switch. Keep trusted country headers disabled if any frontend can be reached through a path that bypasses public-ingress header sanitization. Partial coverage should begin at the actual release time; complete spans still require device, offline, background and outage verification. The project currently has no `expo-updates`; native delivery must use its established release process. Lost historical events and unknown historical countries cannot be recreated by a reporting fix.

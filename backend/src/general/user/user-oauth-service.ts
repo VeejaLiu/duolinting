@@ -267,7 +267,7 @@ async function resolveVerifiedProviderIdentity(txId: number, verified: Verified,
         }
         const user = await UserModel.create({ email: null, display_name: 'Learner', password_hash: null, email_verified_at: null } as any, { transaction });
         await user.update({ display_name: `Learner ${user.id}` }, { transaction });
-        await write('insert into analytics_user_profiles(user_id,registration_country) values(:id,:country)', { id: user.id, country: tx.registration_country ?? 'unknown' }, transaction);
+        await write('insert into analytics_user_profiles(user_id,registration_country,registration_client_type) values(:id,:country,:registrationClient)', { id: user.id, country: tx.registration_country ?? 'unknown', registrationClient: tx.client_type }, transaction);
         const context = tx.analytics_epoch_hash
             ? (await rows('select * from analytics_sessions where identity_epoch=:epoch and user_id is null and revoked_at is null and expires_at>UTC_TIMESTAMP(3) for update', { epoch: tx.analytics_epoch_hash }, transaction))[0]
             : undefined;

@@ -7,8 +7,7 @@ const signature = (body: string) =>
   createHmac("sha256", env.secret.jwt)
     .update("analytics-cookie:" + body)
     .digest("hex");
-export function readAnonymousCookie(req: Request) {
-  const value = req.cookies?.[name];
+export function readAnonymousProof(value: unknown) {
   if (typeof value !== "string") return undefined;
   const [id, expiry, sig] = value.split(".");
   const body = id + "." + expiry;
@@ -24,6 +23,12 @@ export function readAnonymousCookie(req: Request) {
     ? id
     : undefined;
 }
+export const readAnonymousCookie = (req: Request) => readAnonymousProof(req.cookies?.[name]);
+/** A visitor proof is telemetry identity only, never an authentication token. */
+export function createAnonymousProof(id: string) {
+  const body = id + "." + (Date.now() + 30 * 86400000);
+  return body + "." + signature(body);
+}
 export function setAnonymousCookie(req: Request, res: Response, id: string) {
   const configured = (process.env.ANALYTICS_COOKIE_DOMAIN ?? "")
     .replace(/^\./, "")
@@ -35,9 +40,7 @@ export function setAnonymousCookie(req: Request, res: Response, id: string) {
     (req.hostname === configured || req.hostname.endsWith("." + configured))
       ? configured
       : undefined;
-  const expires = Date.now() + 30 * 86400000,
-    body = id + "." + expires;
-  res.cookie(name, body + "." + signature(body), {
+  res.cookie(name, createAnonymousProof(id), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
