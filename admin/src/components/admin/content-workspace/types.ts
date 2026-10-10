@@ -2,6 +2,7 @@ import type { AdminUser, CatalogExerciseSummary, ExerciseCategory, MaterialCateg
 import type { AdminNoticeTone } from '../AdminFeedback'
 
 export type ContentAdminProps = {
+  catalogRevision: number
   adminToken: string
   categoryGroups: MaterialCategory[]
   categories: ExerciseCategory[]

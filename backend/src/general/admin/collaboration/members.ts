@@ -29,18 +29,18 @@ type AdminMemberRow = Omit<ContributorRow, 'role'> & {
 };
 
 /** 人员管理需要同时列出超级管理员和字幕贡献者；课程分配仅对后者有效。 */
-export async function listAdminMembers() {
+export async function listAdminMembers(includeAssignments = true) {
     const rows = await doRawQuery<AdminMemberRow>({
         query: `
             select a.id, a.username, a.email, a.display_name, a.role, a.must_change_password,
                    a.is_active, a.created_at, a.last_login_at, a.learner_user_id,
                    learners.email as learner_email, learners.display_name as learner_display_name,
-                   assignments.exercise_id
+                   ${includeAssignments ? 'assignments.exercise_id' : 'null as exercise_id'}
             from admin_users a
             left join users learners on learners.id = a.learner_user_id
-            left join exercise_contributor_assignments assignments on assignments.admin_user_id = a.id
+            ${includeAssignments ? 'left join exercise_contributor_assignments assignments on assignments.admin_user_id = a.id' : ''}
             order by field(a.role, 'super_admin', 'admin', 'subtitle_contributor'),
-                     a.display_name asc, a.username asc, assignments.exercise_id asc
+                     a.display_name asc, a.username asc${includeAssignments ? ', assignments.exercise_id asc' : ''}
         `,
     });
     const members = new Map<number, {

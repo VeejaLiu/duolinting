@@ -1,3 +1,4 @@
+import { readCourseListCache, writeCourseListCache } from '../../lib/courseListCache'
 import { directoryName, courseTitle, workflowCourseTitle } from '../../lib/localizedContent'
 import { ArrowDown, ArrowUp, Bell, BookOpen, Copy, Ellipsis, FilePenLine, History, Pencil, PlaySquare, Plus, RefreshCw, RotateCcw, Search, Trash2, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -11,6 +12,7 @@ import { BatchCourseImporter } from './BatchCourseImporter'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
 type CourseManagerProps = {
+  catalogRevision: number
   adminToken: string
   currentAdminId: number
   categoryGroups: MaterialCategory[]
@@ -185,7 +187,7 @@ function CourseWorkflow({
 }
 
 export function CourseManager({
-  adminToken, currentAdminId, categoryGroups, categories, isCatalogLoading, catalogLoadError, onRefreshCatalog, isSaving, onCreateCourse,
+  catalogRevision, adminToken, currentAdminId, categoryGroups, categories, isCatalogLoading, catalogLoadError, onRefreshCatalog, isSaving, onCreateCourse,
   onDeleteCourse, onEditCourse, onMoveCourse, onOpenRecorder, onRenameCourse, canManageCourses = true, onReviewSubtitleDraft,
   contributors, onUpdateWorkflowAssignee, reviewTasks, workflowNotifications, onReadWorkflowNotifications, onNotify,
 }: CourseManagerProps) {
@@ -207,6 +209,11 @@ export function CourseManager({
   const selectedStatus: CourseStatus = statusParam === 'draft' || statusParam === 'proofread'
     || statusParam === 'published' || statusParam === 'archived' ? statusParam : 'all'
   const searchText = searchParams.get('search') ?? ''
+  const [debouncedSearchText, setDebouncedSearchText] = useState(searchText)
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedSearchText(searchText), 300)
+    return () => window.clearTimeout(timeout)
+  }, [searchText])
   const page = positiveInteger(searchParams.get('page'), 1)
   const pageSize = Math.min(100, positiveInteger(searchParams.get('pageSize'), 20))
 
@@ -235,6 +242,7 @@ export function CourseManager({
   const [versions, setVersions] = useState<ExerciseSubtitleVersion[]>([])
   const [versionsLoading, setVersionsLoading] = useState(false)
   const requestSerialRef = useRef(0)
+  const pageAbortRef = useRef<AbortController | null>(null)
 
   const visibleCategories = useMemo(() => categories.filter((category) => category.groupId === selectedGroupId), [categories, selectedGroupId])
 
@@ -257,35 +265,47 @@ export function CourseManager({
 
   const loadPage = useCallback(async () => {
     const requestSerial = ++requestSerialRef.current
-    // 先加载目录并确定系列，再请求该系列课程，避免空筛选请求与目录请求竞态。
-    if (categories.length === 0 || !selectedCategoryId) {
+    pageAbortRef.current?.abort()
+    const controller = new AbortController()
+    pageAbortRef.current = controller
+    // 目录刷新不会触发重复加载：只依赖选中的 ID。搜索稳定后再发请求。
+    if (searchText !== debouncedSearchText) return
+    if (!selectedCategoryId) {
       setPagedExercises([])
       setTotal(0)
       setIsLoading(false)
       return
     }
-
-    setIsLoading(true)
+    const options = {
+      page, pageSize, groupId: selectedGroupId, categoryId: selectedCategoryId,
+      ...(selectedStatus === 'all' ? {} : { status: selectedStatus }),
+      ...(debouncedSearchText.trim() ? { search: debouncedSearchText.trim() } : {}),
+    }
+    const cacheKey = JSON.stringify([catalogRevision, options])
+    const cached = readCourseListCache(adminToken, cacheKey)
+    if (cached) { setPagedExercises(cached.items); setTotal(cached.total) }
+    setIsLoading(!cached)
     try {
-      const result = await apiClient.getAdminExercisesPage(adminToken, {
-        page,
-        pageSize,
-        groupId: selectedGroupId,
-        categoryId: selectedCategoryId,
-        ...(selectedStatus === 'all' ? {} : { status: selectedStatus }),
-        ...(searchText.trim() ? { search: searchText } : {}),
-      })
-      if (requestSerial === requestSerialRef.current) {
+      const result = await apiClient.getAdminExercisesPage(adminToken, options, controller.signal)
+      if (requestSerial === requestSerialRef.current && !controller.signal.aborted) {
+        writeCourseListCache(adminToken, cacheKey, result)
         setPagedExercises(result.items)
         setTotal(result.total)
+      }
+    } catch (error) {
+      if (requestSerial === requestSerialRef.current && !controller.signal.aborted) {
+        onNotify(error instanceof Error ? error.message : t('课程数据加载失败'), 'error')
       }
     } finally {
       if (requestSerial === requestSerialRef.current) setIsLoading(false)
     }
-  }, [adminToken, categories, page, pageSize, searchText, selectedCategoryId, selectedGroupId, selectedStatus])
+  }, [adminToken, catalogRevision, debouncedSearchText, onNotify, page, pageSize, searchText, selectedCategoryId, selectedGroupId, selectedStatus, t])
 
   useEffect(() => {
     void loadPage()
+    return () => {
+      pageAbortRef.current?.abort()
+    }
   }, [loadPage])
 
   const createTargetCategoryId = selectedCategoryId || visibleCategories[0]?.id || 0

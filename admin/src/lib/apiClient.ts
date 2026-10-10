@@ -1,3 +1,4 @@
+import { clearCourseListCache } from './courseListCache'
 import type {
   AcceptedAnswerFeedbackListResponse,
   AdminContentResponse,
@@ -131,9 +132,17 @@ const reportUnauthorizedIfNeeded = (
   options?: { adminToken?: string; authToken?: string },
 ) => {
   if (status === 401 && options?.adminToken) {
+    clearCourseListCache()
     onUnauthorizedHandler?.()
   }
 }
+
+const listTimingPaths = new Set([
+  '/api/v1/admin/catalog', '/api/v1/admin/exercises', '/api/v1/admin/collaboration/members',
+  '/api/v1/admin/subtitle-review-tasks', '/api/v1/admin/subtitle-workflow-inbox',
+  '/api/v1/admin/workflow-notifications',
+])
+let previousListTiming: { path: string; requestId: string; fetchMs: number; parseMs: number } | undefined
 
 const fetchJson = async <T>(
   path: string,
@@ -143,10 +152,16 @@ const fetchJson = async <T>(
     authToken?: string
   },
 ): Promise<T> => {
+  const timingPath = path.split('?')[0]
+  const isListTiming = listTimingPaths.has(timingPath) && Boolean(options?.adminToken)
+  const startedAt = performance.now()
+  const previousTiming = isListTiming ? previousListTiming : undefined
+  if (isListTiming) previousListTiming = undefined
   const response = await fetch(apiUrl(path), {
     ...init,
     headers: {
       'content-type': 'application/json',
+      ...(previousTiming ? { 'X-Admin-List-Timing': JSON.stringify(previousTiming) } : {}),
       ...(options?.adminToken
         ? { authorization: `Bearer ${options.adminToken}` }
         : {}),
@@ -165,7 +180,22 @@ const fetchJson = async <T>(
     throw new ApiClientError(formatApiError(errorBody, response.status), response.status)
   }
 
-  return response.json() as Promise<T>
+  const receivedAt = performance.now()
+  const result = await response.json() as T
+  // 课程、字幕、分配等后台写入成功后作废列表缓存；读取失败不会把旧数据当新数据。
+  if (options?.adminToken && init?.method && !['GET', 'HEAD'].includes(init.method.toUpperCase())) {
+    clearCourseListCache()
+  }
+  const requestId = response.headers.get('X-Request-Id')
+  if (isListTiming && requestId) {
+    // fetchMs 到响应头；parseMs 含正文下载及 JSON 解析，可与同 ID 的后台总耗时对照。
+    previousListTiming = {
+      path: timingPath, requestId,
+      fetchMs: Math.round((receivedAt - startedAt) * 10) / 10,
+      parseMs: Math.round((performance.now() - receivedAt) * 10) / 10,
+    }
+  }
+  return result
 }
 
 const uploadFile = async <T>(
@@ -380,6 +410,7 @@ export const apiClient = {
       search?: string
       status?: 'draft' | 'proofread' | 'published' | 'archived'
     },
+    signal?: AbortSignal,
   ) => {
     const params = new URLSearchParams({
       page: String(options.page),
@@ -391,7 +422,7 @@ export const apiClient = {
     if (options.search?.trim()) params.set('search', options.search.trim())
     return fetchJson<AdminExercisePage>(
       `/api/v1/admin/exercises?${params.toString()}`,
-      { method: 'GET' },
+      { method: 'GET', signal },
       { adminToken },
     )
   },
@@ -679,9 +710,9 @@ export const apiClient = {
       { method: 'GET' },
       { adminToken },
     ),
-  getAdminMembers: (adminToken: string) =>
+  getAdminMembers: (adminToken: string, view?: 'assignees') =>
     fetchJson<{ items: AdminMember[] }>(
-      '/api/v1/admin/collaboration/members',
+      `/api/v1/admin/collaboration/members${view ? '?view=assignees' : ''}`,
       { method: 'GET' },
       { adminToken },
     ),

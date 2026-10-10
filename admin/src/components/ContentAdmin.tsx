@@ -25,6 +25,7 @@ import { WorkflowActivityPanel } from './admin/WorkflowActivityPanel'
 import type { ContentAdminProps } from './admin/content-workspace/types'
 
 export function ContentAdmin({
+  catalogRevision,
   adminToken,
   categoryGroups,
   categories,
@@ -112,6 +113,7 @@ export function ContentAdmin({
     adminUser,
     exercises,
     onEnsureCatalog,
+    onRefreshCatalog,
     onEnsureExercises,
     localizedNotify,
     activeSection,
@@ -205,13 +207,14 @@ export function ContentAdmin({
 
       {activeSection === 'courses' && (
         <CourseManager
+          catalogRevision={catalogRevision}
           adminToken={adminToken}
           currentAdminId={adminUser.id}
           categoryGroups={categoryGroups}
           categories={categories}
           isCatalogLoading={isCatalogLoading}
           catalogLoadError={catalogLoadError}
-          onRefreshCatalog={refreshWorkspaceCatalog}
+          onRefreshCatalog={() => refreshWorkspaceCatalog(true)}
           isSaving={isSaving}
           onCreateCourse={(categoryId) => {
             void openImporterForCategory(categoryId)

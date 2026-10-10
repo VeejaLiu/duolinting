@@ -1,3 +1,6 @@
+import { adminListPerformance, measureAdminListStep } from '../../lib/admin-list-performance';
+import { loadPageWorkflow } from './page-workflow';
+import { countTranscriptLines } from './transcript-line-count';
 import { cachedMediaWaveform } from '../media/media-waveform';
 import type {
     CatalogExerciseSummary,
@@ -468,7 +471,7 @@ const buildExerciseSummary = (
     };
 };
 
-// 该片段被 Admin 的所有课程列表复用，避免列表与详情因不同 SQL 规则而显示不同阶段。
+// 全量管理接口沿用此片段；分页接口用 page-workflow 批量组装，并通过只读回归检查保持语义一致。
 const adminWorkflowSelect = (exerciseAlias: string) => `
     (
       select count(*) from exercise_subtitle_drafts subtitle_drafts
@@ -741,10 +744,13 @@ export async function listCatalog(
 ): Promise<CatalogResponse> {
     // Let database failures reach the API error handler so clients show a load error,
     // rather than treating a missing migration or unavailable database as an empty catalog.
-    const categoryGroupRows = await loadCategoryGroupRows();
-    const categoryRows = await loadCategoryRows();
-    const categoryIdsWithExercises =
-        await loadCategoryIdsWithExercises(includeDrafts, previewExerciseIds);
+    const [categoryGroupRows, categoryRows, categoryIdsWithExercises] = await Promise.all([
+        measureAdminListStep('catalog_groups', loadCategoryGroupRows),
+        measureAdminListStep('catalog_series', loadCategoryRows),
+        // Admin 显示空目录，无需再扫描课程表判断哪些系列有课程。
+        includeEmptyDirectories ? Promise.resolve(new Set<number>())
+            : loadCategoryIdsWithExercises(includeDrafts, previewExerciseIds),
+    ]);
 
     const mappedCategories: ExerciseCategory[] = categoryRows.map(
         (row: any) => ({
@@ -982,33 +988,39 @@ export async function listAdminExercisesPage(
     }
 
     const where = conditions.length ? `where ${conditions.join(' and ')}` : '';
-    const countRows = await doRawQuery<{ total: number | string }>({
+    const countRows = await measureAdminListStep('count', () => doRawQuery<{ total: number | string }>({
         query: `select count(*) as total from exercises e inner join categories c on c.id = e.category_id ${where}`,
         params: replacements,
-    });
+    }));
     const total = Number(countRows[0]?.total ?? 0);
     const offset = (options.page - 1) * options.pageSize;
-    const rows = await doRawQuery<ExerciseRow>({
+    const rows = await measureAdminListStep('page', () => doRawQuery<ExerciseRow>({
         query: `
             select e.id, e.category_id, e.title, e.source, e.source_url, e.difficulty, e.duration_label,
                    e.media_type, e.audio_url, e.audio_object_name, e.cover_image_url, e.summary,
-                   e.transcript_json, e.status, e.sort_order, e.created_at,
-                   ${adminWorkflowSelect('e')}
+                   e.status, e.sort_order, e.created_at, e.claim_blocked, e.transcript_json
             from exercises e inner join categories c on c.id = e.category_id
             ${where}
             order by e.sort_order asc, e.created_at desc, e.title asc
             limit :limit offset :offset
         `,
         params: { ...replacements, limit: options.pageSize, offset },
-    });
+    }));
+    const workflow = await measureAdminListStep('workflow', () => loadPageWorkflow(rows.map((row) => Number(row.id))));
+    const trace = adminListPerformance.getStore();
+    if (trace) {
+        trace.counts.page = options.page;
+        trace.counts.pageSize = options.pageSize;
+        trace.counts.hasSearch = options.search ? 1 : 0;
+        trace.counts.rows = rows.length;
+    }
+    const items = await measureAdminListStep('assemble', async () => rows.map((row) =>
+        buildExerciseSummary({ ...row, ...workflow.get(Number(row.id)) },
+            countTranscriptLines(row.transcript_json)),
+    ));
 
     return {
-        items: rows.map((row) =>
-            buildExerciseSummary(
-                row,
-                parseTranscriptJson(row.transcript_json).length,
-            ),
-        ),
+        items,
         page: options.page,
         pageSize: options.pageSize,
         total,

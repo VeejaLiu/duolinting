@@ -13,7 +13,7 @@ import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 import { apiClient } from '../../lib/apiClient'
 import type { ContentAdminProps } from '../../components/admin/content-workspace/types'
 
-type WorkspaceDataOptions = Pick<ContentAdminProps, 'adminToken' | 'adminUser' | 'exercises' | 'onEnsureCatalog' | 'onEnsureExercises'> & {
+type WorkspaceDataOptions = Pick<ContentAdminProps, 'adminToken' | 'adminUser' | 'exercises' | 'onEnsureCatalog' | 'onRefreshCatalog' | 'onEnsureExercises'> & {
   localizedNotify: ContentAdminProps['onNotify']
   activeSection: AdminSection
 }
@@ -23,6 +23,7 @@ export function useWorkspaceData({
   adminUser,
   exercises,
   onEnsureCatalog,
+  onRefreshCatalog,
   onEnsureExercises,
   localizedNotify,
   activeSection,
@@ -42,11 +43,11 @@ export function useWorkspaceData({
   const [workflowInbox, setWorkflowInbox] = useState<AdminSubtitleWorkflowTaskInbox>({ items: [], counts: { proofreading: 0, awaitingReview: 0, returned: 0, completedProofreading: 0, completedSecondReview: 0 } })
   const [workflowNotifications, setWorkflowNotifications] = useState<AdminWorkflowNotifications>({ items: [], unreadCount: 0 })
 
-  const refreshWorkspaceCatalog = useCallback(async () => {
+  const refreshWorkspaceCatalog = useCallback(async (force = false) => {
     setIsCatalogLoading(true)
     setCatalogLoadError('')
     try {
-      await onEnsureCatalog()
+      await (force ? onRefreshCatalog() : onEnsureCatalog())
     } catch (error) {
       const message = error instanceof Error ? error.message : t('目录数据加载失败')
       setCatalogLoadError(message)
@@ -55,7 +56,7 @@ export function useWorkspaceData({
     } finally {
       setIsCatalogLoading(false)
     }
-  }, [localizedNotify, onEnsureCatalog, t])
+  }, [localizedNotify, onEnsureCatalog, onRefreshCatalog, t])
 
   const refreshWorkflowContributors = useCallback(async () => {
     if (adminUser.role !== 'super_admin') {
@@ -63,7 +64,7 @@ export function useWorkspaceData({
       return
     }
     try {
-      const result = await apiClient.getAdminMembers(adminToken)
+      const result = await apiClient.getAdminMembers(adminToken, 'assignees')
       // 校对和二次审核都由字幕贡献者承担；超级管理员只在此配置负责人。
       setWorkflowContributors(result.items.filter((member) => member.role === 'subtitle_contributor'))
     } catch (error) {
@@ -71,16 +72,16 @@ export function useWorkspaceData({
     }
   }, [adminToken, adminUser.role, localizedNotify])
 
-  const refreshWorkflowInbox = useCallback(async () => {
+  const refreshWorkflowInbox = useCallback(async (includeInbox = true) => {
     try {
       const [tasks, notifications, inbox] = await Promise.all([
         apiClient.getMySubtitleReviewTasks(adminToken),
         apiClient.getMyWorkflowNotifications(adminToken),
-        apiClient.getMySubtitleWorkflowInbox(adminToken),
+        includeInbox ? apiClient.getMySubtitleWorkflowInbox(adminToken) : Promise.resolve(null),
       ])
       setReviewTasks(tasks.items)
       setWorkflowNotifications(notifications)
-      setWorkflowInbox(inbox)
+      if (inbox) setWorkflowInbox(inbox)
     } catch (error) {
       localizedNotify(error instanceof Error ? error.message : '工作流待办加载失败', 'error')
     }
@@ -125,7 +126,7 @@ export function useWorkspaceData({
   useEffect(() => {
     if (activeSection === 'courses' || activeSection === 'pool') {
       void refreshWorkflowContributors()
-      void refreshWorkflowInbox()
+      void refreshWorkflowInbox(activeSection === 'pool')
     }
   }, [activeSection, refreshWorkflowContributors, refreshWorkflowInbox])
 
