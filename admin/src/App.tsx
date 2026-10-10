@@ -1,3 +1,4 @@
+import { clearCourseListCache } from './lib/courseListCache'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { LockKeyhole } from 'lucide-react'
 import { App as AntdApp } from 'antd'
@@ -39,6 +40,7 @@ function App() {
   const { t, uiLocale, setUiLocale } = useAdminLanguage()
   const [categoryGroups, setCategoryGroups] = useState<MaterialCategory[]>([])
   const [categories, setCategories] = useState<ExerciseCategory[]>([])
+  const [catalogRevision, setCatalogRevision] = useState(0)
   const [exercises, setExercises] = useState<CatalogExerciseSummary[]>([])
   const [adminToken, setAdminToken] = useState(
     () => localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ?? '',
@@ -79,6 +81,7 @@ function App() {
 
   // 清空本地管理员会话（token 过期或主动退出时调用），回到登录页
   const clearAdminSession = () => {
+    clearCourseListCache()
     localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY)
     localStorage.removeItem(ADMIN_USER_STORAGE_KEY)
     setAdminToken('')
@@ -148,7 +151,9 @@ function App() {
     confirmResolverRef.current = null
   }
 
-  const refreshCatalog = useCallback(async () => {
+  // 目录按账号缓存一分钟；写入后的 refreshCatalog 仍强制刷新，避免缓存掩盖修改。
+  const catalogCacheRef = useRef<{ token: string; loadedAt: number; pending?: Promise<void> }>({ token: '', loadedAt: 0 })
+  const refreshCatalog = useCallback(async (force = true) => {
     const requestSerial = ++catalogRequestSerialRef.current
     const catalog = await apiClient.getAdminCatalog(adminToken)
     if (requestSerial !== catalogRequestSerialRef.current) {
@@ -156,7 +161,25 @@ function App() {
     }
     setCategoryGroups(catalog.categoryGroups)
     setCategories(catalog.categories)
+    catalogCacheRef.current = { token: adminToken, loadedAt: Date.now() }
+    if (force) {
+      clearCourseListCache()
+      setCatalogRevision((revision) => revision + 1)
+    }
   }, [adminToken])
+
+  const ensureCatalog = useCallback(() => {
+    const cached = catalogCacheRef.current
+    if (cached.token === adminToken) {
+      if (cached.pending) return cached.pending
+      if (Date.now() - cached.loadedAt < 60_000) return Promise.resolve()
+    }
+    const pending = refreshCatalog(false).finally(() => {
+      if (catalogCacheRef.current.pending === pending) catalogCacheRef.current.pending = undefined
+    })
+    catalogCacheRef.current = { token: adminToken, loadedAt: 0, pending }
+    return pending
+  }, [adminToken, refreshCatalog])
 
   const loadExercises = useCallback(async () => {
     const nextExercises = await apiClient.getAdminExercises(adminToken)
@@ -428,7 +451,8 @@ function App() {
               categories={categories}
               exercises={exercises}
               onRefreshCatalog={refreshCatalog}
-              onEnsureCatalog={refreshCatalog}
+              catalogRevision={catalogRevision}
+              onEnsureCatalog={ensureCatalog}
               onEnsureExercises={loadExercises}
               onNotify={showNotice}
               onRequestConfirm={requestConfirm}

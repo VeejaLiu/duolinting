@@ -1,3 +1,4 @@
+import { measureAdminListStep } from '../../lib/admin-list-performance';
 import { getAdminByToken } from './admin-service';
 
 export async function requireAdminToken(req: any, res: any, next: any) {
@@ -6,7 +7,7 @@ export async function requireAdminToken(req: any, res: any, next: any) {
         return res.status(401).send({ success: false, message: 'Admin login required' });
     }
 
-    const admin = await getAdminByToken(bearerToken);
+    const admin = await measureAdminListStep('auth', () => getAdminByToken(bearerToken));
     if (!admin) {
         return res.status(401).send({ success: false, message: 'Admin session is not valid' });
     }

@@ -1,3 +1,4 @@
+import { measureAdminListStep } from '../../lib/admin-list-performance';
 import adminAnalyticsRouter from './admin-analytics';
 import express, { type Request, type Response } from 'express';
 import { body, param } from 'express-validator';
@@ -531,7 +532,7 @@ router.get('/exercises', async (req: any, res) => {
     if (req.query.page !== undefined || req.query.pageSize !== undefined) {
         const assignedExerciseIds = isSuperAdmin(req.admin)
             ? undefined
-            : await getAssignedExerciseIds(req.admin.id);
+            : await measureAdminListStep('permissions', () => getAssignedExerciseIds(req.admin.id));
         return res.status(200).send(await listAdminExercisesPage({
             page,
             pageSize,
@@ -543,7 +544,7 @@ router.get('/exercises', async (req: any, res) => {
         }));
     }
     if (!isSuperAdmin(req.admin)) {
-        const assignedExerciseIds = await getAssignedExerciseIds(req.admin.id);
+        const assignedExerciseIds = await measureAdminListStep('permissions', () => getAssignedExerciseIds(req.admin.id));
         const page = await listAdminExercisesPage({ page: 1, pageSize: 100, assignedExerciseIds });
         return res.status(200).send(page.items);
     }
@@ -833,8 +834,8 @@ router.put(
     },
 );
 
-router.get('/collaboration/members', requireSuperAdmin, async (_req, res) => {
-    res.status(200).send({ items: await listAdminMembers() });
+router.get('/collaboration/members', requireSuperAdmin, async (req, res) => {
+    res.status(200).send({ items: await measureAdminListStep('members', () => listAdminMembers(req.query.view !== 'assignees')) });
 });
 
 router.get('/collaboration/learner-users', requireSuperAdmin, async (req, res) => {
