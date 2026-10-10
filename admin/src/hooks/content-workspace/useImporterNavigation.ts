@@ -18,6 +18,14 @@ export function useImporterNavigation({
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const lastCoursesUrlRef = useRef('/courses')
+
+  // 编辑页通过侧栏返回时也复用完整列表 URL；浏览器返回由其历史条目自行恢复。
+  useEffect(() => {
+    if (location.pathname === '/courses') {
+      lastCoursesUrlRef.current = `${location.pathname}${location.search}`
+    }
+  }, [location.pathname, location.search])
   const [importerDraft, setImporterDraft] = useState<ImporterDraft>(null)
   const [importerHasUnsavedChanges, setImporterHasUnsavedChanges] = useState(false)
   const importerHasUnsavedChangesRef = useRef(false)
@@ -279,7 +287,7 @@ export function useImporterNavigation({
         : section === 'pool'
           ? '/pool'
           : section === 'courses'
-          ? '/courses'
+          ? lastCoursesUrlRef.current
           : section === 'sponsors'
             ? '/sponsors'
           : section === 'donations'
