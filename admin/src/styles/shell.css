@@ -185,7 +185,7 @@
   padding: 20px 24px 32px;
 }
 
-.ant-layout-sider .ant-menu {
+.ant-layout-sider .admin-workspace-menu {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -193,7 +193,23 @@
   overflow-y: auto;
 }
 
-.ant-layout-sider .ant-menu.is-collapsed .ant-menu-title-content {
+.ant-layout-sider .admin-account-menu {
+  flex: 0 0 auto;
+  border-top: 1px solid #eef0f3;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.admin-workspace-menu > .ant-menu-submenu > .ant-menu-submenu-title {
+  font-weight: 600;
+}
+
+.admin-workspace-menu .ant-menu-sub .ant-menu-item {
+  font-size: 13px;
+}
+
+.ant-layout-sider .ant-menu.is-collapsed > .ant-menu-item .ant-menu-title-content,
+.ant-layout-sider .ant-menu.is-collapsed > .ant-menu-submenu > .ant-menu-submenu-title .ant-menu-title-content {
   display: none;
 }
 

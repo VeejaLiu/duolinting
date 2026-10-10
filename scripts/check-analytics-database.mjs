@@ -318,12 +318,40 @@ try {
     "insert into analytics_user_daily(user_id,stat_date,play_ms,qualified,intervals,practiced_lines) values(2,?,60000,1,'[]','[]')",
     [returnDay],
   );
+  // Missing coverage used to hide existing visits/learning entirely. Preserve
+  // observed counts without inventing a rate; an unfinished D30 stays pending.
+  reports.clearAnalyticsReportCache();
+  for (const cohortType of ["access", "learning"]) {
+    const report = await reports.analyticsReport("retention", { from: cohortDay, to: cohortDay, cohortType });
+    const row = report.data.cohorts[0];
+    const d7 = row.cells.find((cell) => cell.offset === 7);
+    assert.equal(d7.status, "incomplete");
+    assert.equal(d7.observedRetained, 1);
+    assert.equal(d7.retained, null);
+    assert.equal(d7.percent, null);
+    assert.deepEqual(d7.incompleteReasons, ["unverified_coverage"]);
+    const d1 = row.cells.find((cell) => cell.offset === 1);
+    assert.equal(d1.observedRetained, 0);
+    assert.equal(d1.percent, null);
+    assert.equal(row.windowRetention.observedRetained, 1);
+    assert.equal(row.windowRetention.retained, null);
+    const d30 = row.cells.find((cell) => cell.offset === 30);
+    assert.equal(d30.status, "observing");
+    assert.equal(d30.observedRetained, null);
+    assert.match(d30.availableOn, /^\d{4}-\d{2}-\d{2}$/);
+    const mature = await reports.analyticsReport("retention", { from: cohortDay, to: cohortDay, cohortType, matureWindow: "7" });
+    assert.equal(mature.data.cohorts.length, 1);
+    const pending = await reports.analyticsReport("retention", { from: cohortDay, to: cohortDay, cohortType, matureWindow: "30" });
+    assert.equal(pending.data.cohorts.length, 0);
+  }
   for (const metric of ["learning", "legacy_access"])
     for (const client of ["web_app", "mobile_web", "mobile_app"])
       await db.query(
         "insert into analytics_coverage(metric,client_type,starts_at,status,source_timezone) values(?, ?, UTC_TIMESTAMP()-interval 1 year,'complete','Asia/Bangkok')",
         [metric, client],
       );
+  // Test-only SQL bypasses the API write route which normally invalidates caches.
+  reports.clearAnalyticsReportCache();
   for (const cohortType of ["access", "learning"]) {
     const retention = await reports.analyticsReport("retention", {
       from: cohortDay,
@@ -340,6 +368,21 @@ try {
       "observing",
     );
   }
+  await db.query("insert into analytics_coverage(metric,client_type,starts_at,status,source_timezone) values('legacy_access','mobile_app',UTC_TIMESTAMP()-interval 1 year,'partial','UTC')");
+  reports.clearAnalyticsReportCache();
+  const partialReport = await reports.analyticsReport("retention", { from: cohortDay, to: cohortDay, cohortType: "access" });
+  const partialD7 = partialReport.data.cohorts[0].cells.find((cell) => cell.offset === 7);
+  assert.equal(partialD7.observedRetained, 1);
+  assert.equal(partialD7.retained, null);
+  assert.equal(partialD7.percent, null);
+  await db.query("delete from analytics_coverage where metric='legacy_access' and status='partial'");
+  await db.query("update analytics_user_profiles set consent_changed_at=UTC_TIMESTAMP() where user_id=2");
+  reports.clearAnalyticsReportCache();
+  const consentReport = await reports.analyticsReport("retention", { from: cohortDay, to: cohortDay, cohortType: "learning" });
+  const consentD7 = consentReport.data.cohorts[0].cells.find((cell) => cell.offset === 7);
+  assert.equal(consentD7.observedRetained, 1);
+  assert.equal(consentD7.percent, null);
+  assert.deepEqual(consentD7.incompleteReasons, ["consent_history"]);
   await db.query(
     "update analytics_user_profiles set is_internal=1 where user_id=2",
   );

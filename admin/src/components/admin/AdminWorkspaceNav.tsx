@@ -1,6 +1,7 @@
 import { Menu, Select, Typography } from 'antd'
+import { useState } from 'react'
 import type { MenuProps } from 'antd'
-import { BookOpen, Clapperboard, HandHeart, Inbox, KeyRound, Layers3, ListChecks, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, UserRound, Users, UsersRound, type LucideIcon } from 'lucide-react'
+import { BookOpen, Clapperboard, HandHeart, Inbox, KeyRound, Layers3, ListChecks, LogOut, MessageSquareWarning, PanelLeftClose, PanelLeftOpen, Settings, UserRound, Users, UsersRound, type LucideIcon } from 'lucide-react'
 import type { AdminUser } from '@duolinting/shared'
 import { adminUiLocaleLabels, useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 
@@ -51,6 +52,18 @@ const adminSections: Array<{
   { id: 'account-settings', label: '我的账号', Icon: UserRound },
 ]
 
+const workspaceGroups: Array<{
+  key: string
+  label: string
+  Icon: LucideIcon
+  sections: AdminSection[]
+}> = [
+  { key: 'content', label: '内容管理', Icon: BookOpen, sections: ['directory', 'courses', 'recorder'] },
+  { key: 'team', label: '团队协作', Icon: UsersRound, sections: ['pool', 'activity', 'collaboration'] },
+  { key: 'operations', label: '用户运营', Icon: Users, sections: ['users', 'feedback', 'donations', 'sponsors'] },
+  { key: 'system', label: '系统管理', Icon: Settings, sections: ['api-keys', 'account-settings'] },
+]
+
 type AdminWorkspaceNavProps = {
   activeSection: AdminSection
   adminUser: AdminUser
@@ -69,6 +82,14 @@ export function AdminWorkspaceNav({
   onSectionChange,
 }: AdminWorkspaceNavProps) {
   const { t, uiLocale, setUiLocale } = useAdminLanguage()
+  // The course editor is a detail page, so retain the course menu selection.
+  const selectedSection = activeSection === 'importer' ? 'courses' : activeSection
+  const activeGroup = workspaceGroups.find((group) => group.sections.includes(selectedSection))?.key
+  const [expanded, setExpanded] = useState({ section: selectedSection, keys: activeGroup ? [activeGroup] : [] })
+  // Route changes (including browser Back) reveal the selected entry. Manual
+  // expansion remains intact while staying on the same page; collapsing the
+  // entire sidebar does not discard the user's expanded groups.
+  const openKeys = expanded.section === selectedSection ? expanded.keys : activeGroup ? [activeGroup] : []
   // 制课工作台只作为“课程管理”里某门课程的编辑页入口，不在侧栏单独出现。
   // 贡献者因此只看到自己获授权的课程管理入口；超级管理员保留完整管理菜单。
   const visibleSections = adminSections.filter((section) =>
@@ -80,15 +101,16 @@ export function AdminWorkspaceNav({
     visibleSections.push({ id: 'collaboration', label: t('人员管理'), Icon: UsersRound })
     visibleSections.push({ id: 'api-keys', label: t('开放内容 API'), Icon: KeyRound })
   }
-  const workspaceItems: MenuProps['items'] = visibleSections.map(({
-    id,
-    label,
-    Icon,
-  }) => ({
-    key: id,
-    icon: <Icon size={17} aria-hidden="true" />,
-    label: t(label),
-  }))
+  // Apply role visibility before grouping, so empty groups and unauthorized
+  // child entries never appear for contributors.
+  const workspaceItems: MenuProps['items'] = workspaceGroups.flatMap((group) => {
+    const children = group.sections.flatMap((id) => {
+      const section = visibleSections.find((item) => item.id === id)
+      if (!section) return []
+      return [{ key: id, icon: <section.Icon size={17} aria-hidden="true" />, label: t(section.label) }]
+    })
+    return children.length ? [{ key: group.key, icon: <group.Icon size={17} aria-hidden="true" />, label: t(group.label), children }] : []
+  })
 
   const menuItems: MenuProps['items'] = [
     {
@@ -106,7 +128,8 @@ export function AdminWorkspaceNav({
       label: collapsed ? 'DuolinTing' : `DuolinTing ${t('管理后台')}`,
     },
     ...workspaceItems,
-    { type: 'divider' },
+  ]
+  const accountItems: MenuProps['items'] = [
     {
       className: 'admin-menu-account',
       icon: <UserRound size={17} aria-hidden="true" />,
@@ -155,8 +178,10 @@ export function AdminWorkspaceNav({
     if (key === 'language') {
       return
     }
-    if (key !== 'account') {
-      onSectionChange(key as AdminSection)
+    // Only leaf workspace keys navigate. Group keys are expansion controls.
+    const section = visibleSections.find((item) => item.id === key)
+    if (section) {
+      onSectionChange(section.id)
     }
   }
 
@@ -165,9 +190,22 @@ export function AdminWorkspaceNav({
       <Menu
         className={collapsed ? 'admin-workspace-menu is-collapsed' : 'admin-workspace-menu'}
         items={menuItems}
+        mode="inline"
+        inlineCollapsed={collapsed}
+        inlineIndent={20}
+        openKeys={collapsed ? undefined : openKeys}
+        onOpenChange={(keys) => {
+          if (!collapsed) setExpanded({ section: selectedSection, keys })
+        }}
+        onClick={handleMenuClick}
+        selectedKeys={[selectedSection]}
+      />
+      <Menu
+        className={collapsed ? 'admin-account-menu is-collapsed' : 'admin-account-menu'}
+        items={accountItems}
         mode="vertical"
         onClick={handleMenuClick}
-        selectedKeys={[activeSection]}
+        selectedKeys={[]}
       />
     </div>
   )
