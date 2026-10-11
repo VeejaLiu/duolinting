@@ -1,7 +1,7 @@
 import { activeTranscriptLines } from '@duolinting/shared'
 import { directoryName, courseTitle } from '../../lib/localizedContent'
 import * as Select from '@radix-ui/react-select'
-import { Button, Drawer, Progress, Tag } from 'antd'
+import { Button, Drawer, Modal, Progress, Tag } from 'antd'
 import {
   Check,
   ChevronDown,
@@ -171,6 +171,7 @@ export function MediaCourseForm({
   const [previewTime, setPreviewTime] = useState(0)
   const [isCourseMetaOpen, setIsCourseMetaOpen] = useState(false)
   const [isSubtitleImporterOpen, setIsSubtitleImporterOpen] = useState(false)
+  const [isSubmitConfirmationOpen, setIsSubmitConfirmationOpen] = useState(false)
   const [videoColumnPercent, setVideoColumnPercent] = useState(66)
   const [waveformHeight, setWaveformHeight] = useState(190)
   const [activeResizeMode, setActiveResizeMode] = useState<MediaEditorResizeMode | null>(null)
@@ -759,7 +760,7 @@ export function MediaCourseForm({
               <button
                 className="command-button meta-save-command"
                 disabled={isSaving || Boolean(saveDisabledReason)}
-                onClick={onSubmitSubtitleDraft}
+                onClick={() => setIsSubmitConfirmationOpen(true)}
                 title={saveDisabledReason ? t(saveDisabledReason) : undefined}
                 type="button"
               >
@@ -769,6 +770,23 @@ export function MediaCourseForm({
             )}
           </div>
         </div>
+
+        <Modal
+          title={t('确认提交校对？')}
+          open={isSubmitConfirmationOpen}
+          okText={t('确认提交')}
+          cancelText={t('继续编辑')}
+          okButtonProps={{ disabled: isSaving || Boolean(saveDisabledReason) || !onSubmitSubtitleDraft }}
+          onCancel={() => setIsSubmitConfirmationOpen(false)}
+          onOk={() => {
+            // 仅在二次确认后提交当前字幕；取消弹窗保留编辑内容。
+            if (isSaving || saveDisabledReason || !onSubmitSubtitleDraft) return
+            setIsSubmitConfirmationOpen(false)
+            onSubmitSubtitleDraft()
+          }}
+        >
+          <p>{t('确认将当前校对内容提交给超级管理员审核？请确保字幕文本和时间轴已检查完成。')}</p>
+        </Modal>
 
         <Drawer
           className="subtitle-import-drawer"
