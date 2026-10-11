@@ -1,3 +1,5 @@
+import { syncExerciseWaveform, WaveformCacheConflict } from '../../general/media/media-waveform';
+import { validWaveformPeaks } from '../../general/media/waveform-format';
 import { measureAdminListStep } from '../../lib/admin-list-performance';
 import adminAnalyticsRouter from './admin-analytics';
 import express, { type Request, type Response } from 'express';
@@ -567,6 +569,33 @@ router.get('/exercises/:exerciseId', async (req: any, res) => {
 
     res.status(200).send(exercise);
 });
+
+// Cache synchronization is silent maintenance for any member who can open the
+// course. It does not edit media, subtitles or publication state.
+router.post('/exercises/:exerciseId/waveform-cache',
+    param('exerciseId').isInt({ min: 1 }),
+    body('mediaUrl').isString().isLength({ min: 1, max: 4096 }),
+    body('waveform').optional().custom(validWaveformPeaks),
+    body('sourceRevision').if(body('waveform').exists()).isString().matches(/^[a-f0-9]{64}$/),
+    validateErrorCheck,
+    async (req: any, res) => {
+        const exerciseId = toId(req.params.exerciseId);
+        if (!(await canAccessExerciseWorkflow(req.admin, exerciseId))) {
+            return res.status(403).send({ message: 'Course access required' });
+        }
+        try {
+            const state = await syncExerciseWaveform(exerciseId, req.body.mediaUrl,
+                req.body.waveform ? { sourceRevision: req.body.sourceRevision, waveform: req.body.waveform } : undefined);
+            res.setHeader('Cache-Control', 'no-store');
+            return res.status(200).send(state);
+        } catch (error) {
+            if (error instanceof WaveformCacheConflict) return res.status(409).send({ message: 'Media changed' });
+            if (error instanceof TypeError) return res.status(400).send({ message: 'Invalid waveform summary' });
+            // Cache infrastructure errors must not surface as editor failures.
+            return res.status(503).send({ message: 'Waveform cache temporarily unavailable' });
+        }
+    },
+);
 
 router.post(
     '/category-groups',

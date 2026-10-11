@@ -7,11 +7,12 @@
   align-items: center;
   display: flex;
   gap: 12px;
-  justify-content: space-between;
+  flex-wrap: nowrap;
 }
 
 .workflow-activity-filter {
-  min-width: 174px;
+  width: 174px;
+  min-width: 100px;
 }
 
 .subtitle-task-section-label {
@@ -32,10 +33,40 @@
   min-height: 46px;
 }
 
+.workflow-activity-timeline .ant-card-head-wrapper {
+  gap: 12px;
+}
+
+.workflow-activity-timeline .ant-card-extra {
+  min-width: 0;
+}
+
 .workflow-activity-timeline .workflow-activity-row-is-current-user > td {
   background: #eef9ff !important;
 }
 
 .workflow-activity-timeline .workflow-activity-row-is-current-user:hover > td {
   background: #e0f4fe !important;
+}
+
+/* 动态信息保持单行；正文可缩短，编号与意见入口保留，完整内容由悬停提示展示。 */
+.workflow-activity-timeline .ant-table-cell {
+  white-space: nowrap;
+}
+
+.workflow-activity-inline-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workflow-activity-inline-cell > .ant-typography:not(.workflow-activity-fixed-detail) {
+  flex: 1;
+  min-width: 0;
+}
+
+.workflow-activity-fixed-detail {
+  flex-shrink: 0;
+  margin-inline-end: 0;
 }

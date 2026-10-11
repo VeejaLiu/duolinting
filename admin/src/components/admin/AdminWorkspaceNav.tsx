@@ -85,11 +85,15 @@ export function AdminWorkspaceNav({
   // The course editor is a detail page, so retain the course menu selection.
   const selectedSection = activeSection === 'importer' ? 'courses' : activeSection
   const activeGroup = workspaceGroups.find((group) => group.sections.includes(selectedSection))?.key
-  const [expanded, setExpanded] = useState({ section: selectedSection, keys: activeGroup ? [activeGroup] : [] })
-  // Route changes (including browser Back) reveal the selected entry. Manual
-  // expansion remains intact while staying on the same page; collapsing the
-  // entire sidebar does not discard the user's expanded groups.
-  const openKeys = expanded.section === selectedSection ? expanded.keys : activeGroup ? [activeGroup] : []
+  const [expanded, setExpanded] = useState({
+    section: selectedSection,
+    keys: workspaceGroups.map((group) => group.key),
+  })
+  // 分组默认全部展开；切换页面保留现有展开项，只补充当前页面所属分组，
+  // 避免导航后其它分组被自动收起。用户仍可手动收起分组或整个侧栏。
+  const openKeys = expanded.section === selectedSection
+    ? expanded.keys
+    : [...new Set([...expanded.keys, ...(activeGroup ? [activeGroup] : [])])]
   // 制课工作台只作为“课程管理”里某门课程的编辑页入口，不在侧栏单独出现。
   // 贡献者因此只看到自己获授权的课程管理入口；超级管理员保留完整管理菜单。
   const visibleSections = adminSections.filter((section) =>

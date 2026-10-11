@@ -2965,3 +2965,11 @@ for (const [key, ...values] of defaultImportScopeMessages) {
   adminMessages['zh-CN'][key] = key
   for (const [index, locale] of (['en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const).entries()) adminMessages[locale][key] = values[index]
 }
+
+const workflowActivityDetailMessages = [
+  ['字幕稿 #{{id}}', 'Subtitle draft #{{id}}', 'ร่างคำบรรยาย #{{id}}', '字幕原稿 #{{id}}', 'Brouillon de sous-titres nº {{id}}', 'Borrador de subtítulos n.º {{id}}'],
+] as const
+for (const [key, ...values] of workflowActivityDetailMessages) {
+  adminMessages['zh-CN'][key] = key
+  for (const [index, locale] of (['en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const).entries()) adminMessages[locale][key] = values[index]
+}

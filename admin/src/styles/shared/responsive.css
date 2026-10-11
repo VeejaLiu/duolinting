@@ -63,11 +63,10 @@
   }
 
   .workflow-activity-toolbar {
-    align-items: stretch;
-    flex-direction: column;
+    gap: 8px;
   }
 
   .workflow-activity-filter {
-    min-width: min(100%, 220px);
+    width: 140px;
   }
 }

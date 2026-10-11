@@ -1,6 +1,6 @@
-import { workflowCourseTitle } from '../../lib/localizedContent'
+import { directoryName, workflowCourseTitle } from '../../lib/localizedContent'
 import { ReloadOutlined } from '@ant-design/icons'
-import { Button, Card, Empty, Select, Space, Table, Tag, Typography } from 'antd'
+import { Button, Card, Empty, Select, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
@@ -78,10 +78,10 @@ const eventLabel = (event: AdminWorkflowActivity, t: (key: string, values?: Reco
           actor,
           proofreader: target,
           reviewer: event.secondReviewerDisplayName,
-          note: event.reviewNote ? `：${event.reviewNote}` : '',
+          note: '',
         })
       }
-      return t('{{actor}} 将 {{target}} 的已发布字幕回退到草稿{{note}}', { actor, target, note: event.reviewNote ? `：${event.reviewNote}` : '' })
+      return t('{{actor}} 将 {{target}} 的已发布字幕回退到草稿{{note}}', { actor, target, note: '' })
   }
 }
 
@@ -172,7 +172,11 @@ export function WorkflowActivityPanel({ adminToken, currentAdminId, onNotify }: 
       dataIndex: 'occurredAt',
       key: 'occurredAt',
       width: 174,
-      render: (value: string) => formatActivityTime(value, uiLocale),
+      render: (value: string) => (
+        <Typography.Text title={new Date(value).toLocaleString(uiLocale)}>
+          {formatActivityTime(value, uiLocale)}
+        </Typography.Text>
+      ),
     },
     {
       title: t('动态'),
@@ -187,57 +191,88 @@ export function WorkflowActivityPanel({ adminToken, currentAdminId, onNotify }: 
       title: t('课程'),
       dataIndex: 'exerciseTitle',
       key: 'exerciseTitle',
-      width: 260,
+      width: 240,
       render: (_: string, event) => (
-        <Space direction="vertical" size={0}>
-          <Typography.Text strong ellipsis={{ tooltip: workflowCourseTitle(event, uiLocale) }}>{workflowCourseTitle(event, uiLocale)}</Typography.Text>
-          <Typography.Text type="secondary">{t('课程 #{{id}}', { id: event.exerciseId })}</Typography.Text>
-        </Space>
+        <div className="workflow-activity-inline-cell">
+          <Typography.Text strong ellipsis={{ tooltip: workflowCourseTitle(event, uiLocale) }}>
+            {workflowCourseTitle(event, uiLocale)}
+          </Typography.Text>
+          <Typography.Text className="workflow-activity-fixed-detail" type="secondary" title={t('课程 #{{id}}', { id: event.exerciseId })}>
+            #{event.exerciseId}
+          </Typography.Text>
+        </div>
       ),
+    },
+    {
+      title: t('学习系列'),
+      key: 'categoryName',
+      width: 200,
+      render: (_, event) => {
+        const name = event.categoryName
+          ? directoryName({ name: event.categoryName, localizations: event.categoryLocalizations }, uiLocale)
+          : '—'
+        return <Typography.Text ellipsis={{ tooltip: name }}>{name}</Typography.Text>
+      },
+    },
+    {
+      title: t('内容分类'),
+      key: 'groupName',
+      width: 150,
+      render: (_, event) => {
+        const name = event.groupName
+          ? directoryName({ name: event.groupName, localizations: event.groupLocalizations }, uiLocale)
+          : '—'
+        return <Typography.Text ellipsis={{ tooltip: name }}>{name}</Typography.Text>
+      },
     },
     {
       title: t('操作记录'),
       key: 'description',
-      render: (_, event) => (
-        <Space size={8} wrap>
-          <Typography.Text strong={isCurrentUserRelated(event)}>{eventLabel(event, t)}</Typography.Text>
-          {isCurrentUserRelated(event) && <Tag color="blue">{t('与我相关')}</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: t('审核意见'),
-      dataIndex: 'reviewNote',
-      key: 'reviewNote',
-      width: 250,
-      render: (reviewNote?: string) => reviewNote ? (
-        <Typography.Paragraph ellipsis={{ rows: 2, expandable: 'collapsible', symbol: t('展开') }} style={{ marginBottom: 0 }}>
-          {reviewNote}
-        </Typography.Paragraph>
-      ) : <Typography.Text type="secondary">-</Typography.Text>,
+      render: (_, event) => {
+        const description = [
+          eventLabel(event, t),
+          event.workflowRole ? roleLabel(event.workflowRole, t) : undefined,
+          event.subtitleDraftId ? t('字幕稿 #{{id}}', { id: event.subtitleDraftId }) : undefined,
+        ].filter(Boolean).join(' · ')
+        return (
+          <div className="workflow-activity-inline-cell">
+            <Typography.Text strong={isCurrentUserRelated(event)} ellipsis={{ tooltip: description }}>
+              {description}
+            </Typography.Text>
+            {event.reviewNote && (
+              <Tooltip title={<span style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{event.reviewNote}</span>}>
+                <Tag className="workflow-activity-fixed-detail">{t('审核意见')}</Tag>
+              </Tooltip>
+            )}
+            {isCurrentUserRelated(event) && <Tag className="workflow-activity-fixed-detail" color="blue">{t('与我相关')}</Tag>}
+          </div>
+        )
+      },
     },
   ]
 
   return (
     <section className="admin-section workflow-activity-panel">
-      <div className="panel-title"><span>{t('协作动态')}</span></div>
-      <div className="workflow-activity-toolbar">
-        <Space wrap>
-          <Select
-            allowClear
-            className="workflow-activity-filter"
-            onChange={resetToFirstPage}
-            options={eventOptions.map((option) => ({ ...option, label: t(option.label) }))}
-            placeholder={t('全部动态')}
-            value={eventType}
-          />
-        </Space>
-        <Button icon={<ReloadOutlined />} loading={isLoading} onClick={() => void loadActivity()}>
-          {t('刷新')}
-        </Button>
-      </div>
-
-      <Card className="workflow-activity-timeline" size="small" title={t('团队时间线')}>
+      <Card
+        className="workflow-activity-timeline"
+        size="small"
+        title={t('协作动态')}
+        extra={(
+          <div className="workflow-activity-toolbar">
+            <Select
+              allowClear
+              className="workflow-activity-filter"
+              onChange={resetToFirstPage}
+              options={eventOptions.map((option) => ({ ...option, label: t(option.label) }))}
+              placeholder={t('全部动态')}
+              value={eventType}
+            />
+            <Button icon={<ReloadOutlined />} loading={isLoading} onClick={() => void loadActivity()}>
+              {t('刷新')}
+            </Button>
+          </div>
+        )}
+      >
         {data || isLoading ? (
           <Table<AdminWorkflowActivity>
             columns={columns}
@@ -253,7 +288,9 @@ export function WorkflowActivityPanel({ adminToken, currentAdminId, onNotify }: 
             }}
             rowClassName={(event) => isCurrentUserRelated(event) ? 'workflow-activity-row-is-current-user' : ''}
             rowKey="id"
-            scroll={{ x: 980 }}
+            size="small"
+            tableLayout="fixed"
+            scroll={{ x: 1320 }}
           />
         ) : <Empty description={t('暂无协作动态')} />}
       </Card>

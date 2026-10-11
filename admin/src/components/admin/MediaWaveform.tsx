@@ -1,3 +1,5 @@
+import { persistServerWaveform } from '../../lib/serverWaveformCache'
+import { getCachedWaveform, validWaveform, type CachedWaveform } from '../../lib/waveformCache'
 import type { CourseWaveform } from '@duolinting/shared'
 import {
   Button,
@@ -56,6 +58,11 @@ type MediaWaveformProps = {
   draftLines: DraftLine[]
   mediaRef: React.MutableRefObject<HTMLMediaElement | null>
   sourceUrl: string
+  sourceFile?: Blob
+  sourceWaveformRevision?: string
+  serverExerciseId?: number
+  serverMediaUrl?: string
+  adminToken?: string
   sourceWaveform?: CourseWaveform
   showInspector?: boolean
   showSubtitleList?: boolean
@@ -216,7 +223,12 @@ export function MediaWaveform({
   draftLines,
   mediaRef,
   sourceUrl,
+  sourceFile,
   sourceWaveform,
+  sourceWaveformRevision,
+  serverExerciseId,
+  serverMediaUrl,
+  adminToken,
   showInspector = true,
   showSubtitleList = false,
   historyControls,
@@ -274,6 +286,9 @@ export function MediaWaveform({
   })
   const zoomRef = useRef(zoom)
   const waveformStatusRef = useRef(waveform.status)
+  const preparedWaveformRef = useRef<{
+    url: string; file?: Blob; wave: CachedWaveform; sourceRevision?: string; serverHit: boolean
+  } | null>(null)
 
   const activeLine = draftLines[activeLineIndex]
 
@@ -414,8 +429,9 @@ export function MediaWaveform({
   useEffect(() => {
     let mediaReadyCleanup: (() => void) | null = null
     let wavesurferCleanup: (() => void) | null = null
+    let cancelled = false
 
-    const timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(async () => {
 	      const media = mediaRef.current
 	      const waveformContainer = waveformContainerRef.current
 	      if (!sourceUrl) {
@@ -494,6 +510,20 @@ export function MediaWaveform({
         zoom: zoomRef.current,
       })
 
+      const supplied = sourceWaveform && !sourceFile
+        ? { peaks: sourceWaveform.peaks, duration: sourceWaveform.durationUs / 1_000_000 }
+        : undefined
+      let cached = validWaveform(supplied) ? supplied : undefined
+      if (!cached) {
+        try { cached = await getCachedWaveform(sourceUrl, sourceFile) }
+        catch {
+          // Cache/fetch/decode failures fall back to WaveSurfer's original loader.
+          logMediaDebug('waveform-cache-fallback')
+        }
+      }
+      // A completed old load must never attach to a new course or unmounted editor.
+      if (cancelled) return
+
       // 波形仅用独立、静音的媒体元素解码。若把主 audio 交给 WaveSurfer，
       // WaveSurfer 自带的播放计时器会与下方的主播放器同步循环同时刷新画布。
       // 两套进度循环叠加会使长音频播放与光标更新出现卡顿。
@@ -533,7 +563,7 @@ export function MediaWaveform({
         // 8k 足够绘制语音波形，并避免长音频解码与画布重绘占用过多主线程时间。
         sampleRate: 8000,
         media: waveformMedia,
-        ...(sourceWaveform ? { peaks: [sourceWaveform.peaks], duration: sourceWaveform.durationUs / 1_000_000 } : {}),
+        ...(cached ? { peaks: [cached.peaks], duration: cached.duration } : {}),
         waveColor: '#64748b',
       })
 
@@ -863,6 +893,18 @@ export function MediaWaveform({
           seekMainMedia(toMediaTime(time, wavesurfer))
         }),
         wavesurfer.on('ready', (readyDuration) => {
+          const summary = cached ?? {
+            duration: wavesurfer.getDecodedData()?.duration ?? readyDuration,
+            peaks: wavesurfer.exportPeaks({ channels: 1, maxLength: Math.ceil((wavesurfer.getDecodedData()?.duration ?? readyDuration) * 100), precision: 10000 })[0],
+          }
+          if (validWaveform(summary)) {
+            preparedWaveformRef.current = {
+              url: sourceUrl, file: sourceFile, wave: summary,
+              sourceRevision: sourceFile ? undefined : sourceWaveformRevision,
+              serverHit: validWaveform(supplied),
+            }
+          }
+
           const decodedDuration = wavesurfer.getDecodedData()?.duration
           logMediaDebug('wavesurfer-ready', {
             duration: readyDuration,
@@ -1108,13 +1150,29 @@ export function MediaWaveform({
 
     // Cleanup function: clear timeout if effect re-runs, or call timeoutCleanupRef if timeout already fired
     return () => {
+      cancelled = true
       if (timeoutCleanupRef.current) {
         timeoutCleanupRef.current()
         timeoutCleanupRef.current = null
       }
       clearTimeout(timeoutId)
     }
-  }, [isMediaReady, mediaRef, sourceUrl, sourceWaveform, t])
+  }, [isMediaReady, mediaRef, sourceUrl, sourceFile, sourceWaveform, sourceWaveformRevision, t])
+
+  useEffect(() => {
+    const prepared = preparedWaveformRef.current
+    if (waveform.status !== 'ready' || !prepared || prepared.url !== sourceUrl ||
+      prepared.file !== sourceFile || prepared.serverHit || !serverExerciseId || !serverMediaUrl || !adminToken) return
+    let stopped = false
+    // Rendering has already finished. Persist/retry in the background, including
+    // locally selected media once its existing upload/binding workflow completes.
+    void persistServerWaveform({
+      exerciseId: serverExerciseId, adminToken, mediaUrl: serverMediaUrl, sourceUrl,
+      file: sourceFile, wave: prepared.wave, sourceRevision: prepared.sourceRevision,
+      stopped: () => stopped,
+    }).then((saved) => { if (saved && !stopped) prepared.serverHit = true })
+    return () => { stopped = true }
+  }, [waveform.status, sourceUrl, sourceFile, serverExerciseId, serverMediaUrl, adminToken])
 
   useEffect(() => {
     zoomRef.current = zoom
