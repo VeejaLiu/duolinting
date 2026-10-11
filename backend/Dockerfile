@@ -47,6 +47,8 @@ RUN --mount=type=cache,id=duolinting-npm,target=/root/.npm,sharing=locked \
     --workspace @duolinting/domain --workspace @duolinting/shared
 
 FROM node:22-bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=production-deps /app/node_modules node_modules
