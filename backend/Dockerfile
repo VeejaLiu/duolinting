@@ -47,7 +47,11 @@ RUN --mount=type=cache,id=duolinting-npm,target=/root/.npm,sharing=locked \
     --workspace @duolinting/domain --workspace @duolinting/shared
 
 FROM node:22-bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+# Keep the official Debian source, but use TLS and bounded retries so a blocked
+# HTTP mirror cannot hold a production build indefinitely.
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get -o Acquire::Retries=2 -o Acquire::https::Timeout=30 update \
+    && apt-get -o Acquire::Retries=2 -o Acquire::https::Timeout=30 install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
