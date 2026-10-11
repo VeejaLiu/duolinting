@@ -49,9 +49,13 @@ RUN --mount=type=cache,id=duolinting-npm,target=/root/.npm,sharing=locked \
 FROM node:22-bookworm-slim
 # Keep the official Debian source, but use TLS and bounded retries so a blocked
 # HTTP mirror cannot hold a production build indefinitely.
-RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+# The slim base can omit system CA files. Bootstrap HTTPS with Node's bundled
+# public trust roots, then install Debian's maintained CA bundle with ffmpeg.
+RUN mkdir -p /etc/ssl/certs \
+    && node -e "const fs=require('node:fs'); const p='/etc/ssl/certs/ca-certificates.crt'; if(!fs.existsSync(p)) fs.writeFileSync(p,require('node:tls').rootCertificates.join('\n')+'\n')" \
+    && sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
     && apt-get -o Acquire::Retries=2 -o Acquire::https::Timeout=30 update \
-    && apt-get -o Acquire::Retries=2 -o Acquire::https::Timeout=30 install -y --no-install-recommends ffmpeg \
+    && apt-get -o Acquire::Retries=2 -o Acquire::https::Timeout=30 install -y --no-install-recommends ca-certificates ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
