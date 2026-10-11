@@ -347,6 +347,15 @@ export type AdminWorkflowActivity = {
   exerciseTitle: string
   /** Existing title translations for display only; the base title remains English. */
   exerciseLocalizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>
+  /** 当前课程的目录归属；category 表示学习系列，group 表示内容分类。非历史快照。
+   *  使用可选字段兼容旧接口；课程或目录已删除时不影响历史动态返回。
+   */
+  categoryId?: number
+  categoryName?: string
+  categoryLocalizations?: Partial<Record<ContentLocale, LocalizedDirectoryContent>>
+  groupId?: number
+  groupName?: string
+  groupLocalizations?: Partial<Record<ContentLocale, LocalizedDirectoryContent>>
   /** 仅供已登录后台成员判断“是否与我相关”，页面不展示该内部 ID。 */
   actorAdminUserId?: number
   targetAdminUserId?: number

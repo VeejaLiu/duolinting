@@ -347,7 +347,8 @@ export function StudyScreen() {
           }}
         />
 
-        {playbackError && <ErrorState message={t(nativePlaybackAvailable ? 'study.playbackFailed' : 'preview.updateRequired')} />}
+        {playbackError && <ErrorState message={t(!nativePlaybackAvailable ? 'preview.updateRequired'
+          : playbackError === 'timeout' ? 'study.playbackTimedOut' : 'study.playbackFailed')} />}
         {stage === 'intensive' || stage === 'review' ? (
           <AppScrollView
             className="flex-1"

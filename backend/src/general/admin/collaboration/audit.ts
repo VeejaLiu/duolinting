@@ -10,7 +10,7 @@ import { doRawQuery } from '../../../models';
 import type { CourseWorkflowCredits } from '../../../domain';
 import type { AdminWorkflowActivityPage } from '../../../domain';
 import type { AdminWorkflowActivity } from '../../../domain';
-import { parseWorkflowLocalizations } from '.././workflow-localizations';
+import { parseWorkflowDirectoryLocalizations, parseWorkflowLocalizations } from '.././workflow-localizations';
 import { parseSubtitleDraftLines } from './drafts';
 
 type WorkflowActivityEventInput = {
@@ -140,6 +140,12 @@ type WorkflowActivityRow = {
     exercise_id: number | string;
     exercise_title: string;
     exercise_localizations: unknown;
+    category_id: number | string | null;
+    category_name: string | null;
+    category_localizations: unknown;
+    group_id: number | string | null;
+    group_name: string | null;
+    group_localizations: unknown;
     actor_display_name: string | null;
     target_display_name: string | null;
     second_reviewer_display_name: string | null;
@@ -194,12 +200,18 @@ export async function listWorkflowActivity({
                            events.exercise_id,
                            coalesce(exercises.title, concat('已删除课程 #', events.exercise_id)) as exercise_title,
                            exercises.localizations_json as exercise_localizations,
+                           categories.id as category_id, categories.name as category_name,
+                           categories.localizations_json as category_localizations,
+                           category_groups.id as group_id, category_groups.name as group_name,
+                           category_groups.localizations_json as group_localizations,
                            actor.display_name as actor_display_name,
                            target.display_name as target_display_name,
                            second_reviewer.display_name as second_reviewer_display_name,
                            events.subtitle_draft_id, events.workflow_role, events.review_note, events.occurred_at
                     from admin_workflow_activity_events events
                     left join exercises on exercises.id = events.exercise_id
+                    left join categories on categories.id = exercises.category_id
+                    left join category_groups on category_groups.id = categories.group_id
                     left join admin_users actor on actor.id = events.actor_admin_user_id
                     left join admin_users target on target.id = events.target_admin_user_id
                     left join admin_users second_reviewer on second_reviewer.id = events.second_reviewer_admin_user_id
@@ -221,7 +233,14 @@ export async function listWorkflowActivity({
         type: row.event_type,
         exerciseId: Number(row.exercise_id),
         exerciseTitle: row.exercise_title,
-            exerciseLocalizations: parseWorkflowLocalizations(row.exercise_localizations),
+        exerciseLocalizations: parseWorkflowLocalizations(row.exercise_localizations),
+        // LEFT JOIN 只补充当前目录信息；删除课程/目录后，审计事件及分页总数仍保留。
+        categoryId: row.category_id == null ? undefined : Number(row.category_id),
+        categoryName: row.category_name ?? undefined,
+        categoryLocalizations: parseWorkflowDirectoryLocalizations(row.category_localizations),
+        groupId: row.group_id == null ? undefined : Number(row.group_id),
+        groupName: row.group_name ?? undefined,
+        groupLocalizations: parseWorkflowDirectoryLocalizations(row.group_localizations),
         actorAdminUserId: row.actor_admin_user_id === null ? undefined : Number(row.actor_admin_user_id),
         targetAdminUserId: row.target_admin_user_id === null ? undefined : Number(row.target_admin_user_id),
         secondReviewerAdminUserId: row.second_reviewer_admin_user_id === null

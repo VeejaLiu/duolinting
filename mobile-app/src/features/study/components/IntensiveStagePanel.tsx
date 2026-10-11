@@ -16,6 +16,7 @@ import { VideoView, type VideoPlayer } from 'expo-video'
 import { AcceptedAnswerFeedbackSheet } from '@/components/composites/AcceptedAnswerFeedbackSheet'
 import { AppTextInput } from '@/components/primitives/AppTextInput'
 import { useLanguage } from '@/i18n/LanguageProvider'
+import { usePlaybackLoading } from '@/hooks/usePlaybackLoading'
 import { MediaLoadingOverlay } from './MediaLoadingOverlay'
 import { SentenceDrawer } from './SentenceDrawer'
 
@@ -127,8 +128,7 @@ export function IntensiveStagePanel({
   const currentLineIsActive = activeLineId === selectedLine.id
   const currentLineIsPreparing = isPreparingPlayback && currentLineIsActive
   const currentLineIsPlaying = isPlaying && currentLineIsActive
-  const showPlaybackLoading = isMediaLoading || currentLineIsPreparing
-  const canToggleCurrentLine = !showPlaybackLoading
+  const showPlaybackLoading = usePlaybackLoading(isMediaLoading || currentLineIsPreparing, selectedLine.id)
   const sentenceVisible = Boolean(revealedLineIds[selectedLine.id])
 
   // ===== 练习工具分段 =====
@@ -266,9 +266,9 @@ export function IntensiveStagePanel({
           </Pressable>
           <Pressable
             className={`${shouldWrapPrimaryControls ? 'w-[48%]' : 'flex-1'} flex-row items-center justify-center gap-1.5 rounded-[16px] bg-brand px-1`}
-            disabled={!canToggleCurrentLine}
+            accessibilityState={{ busy: showPlaybackLoading }}
             onPress={() => {
-              if (currentLineIsPlaying) {
+              if (currentLineIsActive) {
                 onPause()
                 return
               }
@@ -278,7 +278,6 @@ export function IntensiveStagePanel({
             style={{
               minHeight: primaryControlHeight,
               minWidth: 0,
-              opacity: canToggleCurrentLine ? 1 : 0.6,
             }}
           >
             {showPlaybackLoading ? (
