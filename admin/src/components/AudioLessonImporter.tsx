@@ -1153,6 +1153,11 @@ export function AudioLessonImporter({
                 draftLines={draftLines}
                 mediaRef={mediaRef}
                 sourceUrl={localMediaUrl}
+                sourceFile={mediaFile ?? undefined}
+                sourceWaveformRevision={!mediaFile && loadedExercise?.audioUrl === courseForm.audioUrl ? loadedExercise.waveformSourceRevision : undefined}
+                serverExerciseId={!isUploadingMedia && courseForm.audioUrl ? courseForm.id : undefined}
+                serverMediaUrl={courseForm.audioUrl}
+                adminToken={adminToken}
                 sourceWaveform={!mediaFile && loadedExercise?.audioUrl === courseForm.audioUrl ? loadedExercise.waveform : undefined}
                 showInspector={false}
                 historyControls={(

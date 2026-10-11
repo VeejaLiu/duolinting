@@ -155,6 +155,17 @@ const parseRangeHeader = (rangeHeader: string | undefined, size: number) => {
 const sendMediaObject = async (req: express.Request, res: express.Response, objectName: string) => {
     const stat = await statMediaObject(objectName);
     const range = parseRangeHeader(req.headers.range, stat.size);
+    // HEAD validates persistent waveform caches without opening a media stream.
+    // The strong ETag changes when bytes change, including same-object replacements.
+    res.setHeader('ETag', `"${stat.etag}"`);
+    if (req.method === 'HEAD') {
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('Content-Type', stat.contentType);
+        res.setHeader('Content-Length', String(stat.size));
+        res.end();
+        return;
+    }
+
 
     // 对象名在上传时带时间戳前缀天然唯一，内容不会原地变化，
     // 可按 immutable 长缓存：客户端磁盘缓存 + 浏览器缓存可直接复用，节省带宽。

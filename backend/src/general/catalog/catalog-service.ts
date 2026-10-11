@@ -1,7 +1,7 @@
 import { adminListPerformance, measureAdminListStep } from '../../lib/admin-list-performance';
 import { loadPageWorkflow } from './page-workflow';
 import { countTranscriptLines } from './transcript-line-count';
-import { cachedMediaWaveform } from '../media/media-waveform';
+import { mediaWaveformState } from '../media/media-waveform';
 import type {
     CatalogExerciseSummary,
     CatalogResponse,
@@ -1095,7 +1095,7 @@ export async function getExercise(
         allowMediaDelivery,
         allowCoverImageDelivery,
     );
-    return { ...detail, waveform: await cachedMediaWaveform(row.audio_url) };
+    return { ...detail, ...await mediaWaveformState(row.audio_url) };
 }
 
 /**

@@ -25,6 +25,7 @@ import type {
   CreateOpenContentApiKeyRequest,
   CreateOpenContentApiKeyResponse,
   CatalogExerciseSummary,
+  CourseWaveform,
   CatalogResponse,
   CreateCategoryGroupRequest,
   CreateCategoryRequest,
@@ -333,6 +334,22 @@ const fetchApiResult = async <T>(
     throw new Error(result.message)
   }
   return result.data
+}
+
+/** Cache maintenance never changes login notices or course-list state. */
+export async function syncWaveformCache(
+  exerciseId: number,
+  adminToken: string,
+  mediaUrl: string,
+  input?: { sourceRevision: string; waveform: { duration: number; peaks: number[] } },
+) {
+  const response = await fetch(apiUrl(`/api/v1/admin/exercises/${exerciseId}/waveform-cache`), {
+    method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(15000),
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken}` },
+    body: JSON.stringify({ mediaUrl, ...input }),
+  })
+  if (!response.ok) throw new ApiClientError('Waveform cache unavailable', response.status)
+  return response.json() as Promise<{ waveformSourceRevision?: string; waveform?: CourseWaveform }>
 }
 
 export const apiClient = {

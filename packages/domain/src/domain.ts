@@ -76,6 +76,8 @@ export type TranscriptLine = {
 
 export type ListeningExercise = {
   waveform?: CourseWaveform
+  /** Opaque current media byte revision for silent waveform-cache fills. */
+  waveformSourceRevision?: string
 
   id: number
   categoryId: number

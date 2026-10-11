@@ -76,6 +76,9 @@ async function Main() {
     app.use(cookieParser());
     app.use('/api/v1/analytics', express.json({ limit: '64kb' }));
     app.use('/api/v1/client-errors', express.json({ limit: '16kb' }));
+    // At most two million 10 ms buckets, rounded to four decimals on the wire.
+    // Scope the larger limit to waveform summaries; all ordinary APIs stay at 10 MiB.
+    app.use('/api/v1/admin/exercises/:exerciseId/waveform-cache', express.json({ limit: '20mb' }));
     app.use(express.json({ limit: '10mb' }));
     app.use(express.urlencoded({ extended: true }));
     app.use('/api', index);
