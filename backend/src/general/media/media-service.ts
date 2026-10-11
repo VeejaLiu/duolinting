@@ -476,3 +476,17 @@ export async function deleteMediaObject(objectName: string) {
         throw error;
     }
 }
+
+/** Import uploads use server-generated staging keys only; callers cannot choose a storage path. */
+export async function signImportUpload(objectName: string, expiresInSeconds: number) {
+    if (!/^imports\/staging\/[a-f0-9-]+\/(media|subtitle|cover)$/.test(objectName)) {
+        throw new Error('Invalid import staging key');
+    }
+    await ensureMediaBucket();
+    return objectStorage.presignedPutObject(storage.bucket, objectName, expiresInSeconds);
+}
+
+/** Copy to a separate key: an unexpired PUT capability must never overwrite an accepted course file. */
+export async function promoteImportFile(objectName: string, destination: string) {
+    await objectStorage.copyObject(storage.bucket, destination, `/${storage.bucket}/${objectName}`);
+}

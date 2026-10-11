@@ -105,7 +105,7 @@ export function useWorkspaceData({
     // 课程授权要按“内容分类 → 学习系列 → 课程”分级显示，
     // 因此进入人员管理时也必须刷新目录数据，不能只依赖此前访问过课程页的缓存。
     // 任务广场的分类筛选器同样依赖目录数据，直接进入 /pool 时也要加载。
-    if (activeSection !== 'directory' && activeSection !== 'courses' && activeSection !== 'importer' && activeSection !== 'recorder' && activeSection !== 'collaboration' && activeSection !== 'pool') {
+    if (activeSection !== 'directory' && activeSection !== 'courses' && activeSection !== 'importer' && activeSection !== 'recorder' && activeSection !== 'collaboration' && activeSection !== 'pool' && activeSection !== 'api-keys') {
       return
     }
 

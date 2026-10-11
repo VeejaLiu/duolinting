@@ -19,24 +19,11 @@
   margin-bottom: 6px;
 }
 
-.open-content-api-documentation-header .ant-typography.ant-typography-h2 {
-  align-items: center;
-  display: flex;
-  font-size: 22px;
-  gap: 9px;
-}
 
 .open-content-api-documentation-section {
   max-width: 100%;
 }
 
-.open-content-api-documentation-section .ant-typography-h4 {
-  align-items: center;
-  display: flex;
-  font-size: 16px;
-  gap: 8px;
-  margin-bottom: 8px;
-}
 
 .open-content-api-documentation-section > .ant-typography {
   max-width: 920px;
@@ -130,4 +117,83 @@
 
 .open-content-api-field-table {
   max-width: 920px;
+}
+
+/* Semantic heading levels reflect the document outline: title → chapter → endpoint/topic → field reference. */
+.open-content-api-documentation-header h1.ant-typography {
+  font-size: 26px;
+  line-height: 1.35;
+  margin-top: 0;
+}
+
+.open-content-api-toc {
+  background: #f5f7fb;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 28px;
+  padding: 12px;
+}
+
+.open-content-api-toc a {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #245674;
+  padding: 6px 10px;
+}
+
+.open-content-api-toc a:hover,
+.open-content-api-toc a:focus-visible {
+  border-color: #1cb0f6;
+  color: #147fac;
+}
+
+.open-content-api-documentation-section {
+  scroll-margin-top: 20px;
+}
+
+.open-content-api-documentation-section > h2.ant-typography {
+  border-bottom: 1px solid #e8edf3;
+  font-size: 21px;
+  margin: 28px 0 18px;
+  padding-bottom: 12px;
+}
+
+.open-content-api-documentation-section > h3.ant-typography {
+  align-items: center;
+  display: flex;
+  font-size: 17px;
+  gap: 8px;
+  margin: 28px 0 12px;
+}
+
+.open-content-api-documentation-section > h4.ant-typography {
+  font-size: 14px;
+  margin: 22px 0 10px;
+}
+
+.open-content-api-documentation .ant-table-cell code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+@media (max-width: 640px) {
+  .open-content-api-documentation {
+    padding: 16px;
+  }
+
+  .open-content-api-documentation-header {
+    flex-direction: column;
+  }
+
+  .open-content-api-toc {
+    flex-direction: column;
+  }
+
+  .open-content-api-request-empty {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

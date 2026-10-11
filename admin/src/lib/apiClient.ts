@@ -2,6 +2,9 @@ import { clearCourseListCache } from './courseListCache'
 import type {
   AcceptedAnswerFeedbackListResponse,
   AdminContentResponse,
+  AdminContentImportToken,
+  CreateContentImportTokenRequest,
+  CreateContentImportTokenResponse,
   AdminAuthResponse,
   AdminExercisePage,
   AdminLoginRequest,
@@ -426,6 +429,12 @@ export const apiClient = {
       { adminToken },
     )
   },
+  getContentImportTokens: (adminToken: string) =>
+    fetchJson<{ items: AdminContentImportToken[] }>('/api/v1/admin/content-imports/tokens', { method: 'GET' }, { adminToken }),
+  createContentImportToken: (request: CreateContentImportTokenRequest, adminToken: string) =>
+    fetchJson<CreateContentImportTokenResponse>('/api/v1/admin/content-imports/tokens', { method: 'POST', body: JSON.stringify(request) }, { adminToken }),
+  revokeContentImportToken: (id: number, adminToken: string) =>
+    fetchJson<{ ok: boolean }>(`/api/v1/admin/content-imports/tokens/${id}`, { method: 'DELETE' }, { adminToken }),
   getOpenContentApiKeys: (adminToken: string) =>
     fetchJson<{ items: AdminOpenContentApiKey[] }>(
       '/api/v1/admin/open-content/api-keys',

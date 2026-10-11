@@ -16,6 +16,7 @@ import { CourseManager } from './admin/CourseManager'
 import { DirectoryManager } from './admin/DirectoryManager'
 import { ListeningVideoRecorder } from './admin/ListeningVideoRecorder'
 import { OpenContentApiDocumentation } from './admin/OpenContentApiDocumentation'
+import { ContentImportTokenManager } from './admin/ContentImportTokenManager'
 import { OpenContentApiKeyManager } from './admin/OpenContentApiKeyManager'
 import { TaskPoolManager } from './admin/TaskPoolManager'
 import { SponsorManager } from './admin/SponsorManager'
@@ -375,12 +376,12 @@ export function ContentAdmin({
             onBack={() => navigate('/api-keys')}
             onNotify={localizedNotify}
           />
-          : <OpenContentApiKeyManager
+          : <><OpenContentApiKeyManager
             adminToken={adminToken}
             onNotify={localizedNotify}
             onOpenDocumentation={() => navigate('/api-keys/docs')}
             onRequestConfirm={onRequestConfirm}
-          />
+          /><ContentImportTokenManager adminToken={adminToken} categories={categories} onNotify={localizedNotify} onRequestConfirm={onRequestConfirm} /></>
       )}
 
       <Modal

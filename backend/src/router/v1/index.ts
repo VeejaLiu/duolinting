@@ -11,6 +11,7 @@ import feedbackRouter from './feedback';
 import leaderboardRouter from './leaderboard';
 import mediaRouter from './media';
 import openContentRouter from './open-content';
+import contentImportsRouter, { importManagementRouter } from './content-imports';
 import progressRouter from './progress';
 import userRouter from './user';
 
@@ -28,6 +29,8 @@ router.use('/progress', progressRouter);
 router.use('/feedback', feedbackRouter);
 router.use('/leaderboard', leaderboardRouter);
 router.use('/admin', adminRouter);
+router.use('/admin/content-imports', importManagementRouter);
+router.use('/content-imports', contentImportsRouter);
 router.use('/open-content', openContentRouter);
 router.use('/media', mediaRouter);
 

@@ -1,3 +1,4 @@
+import { contentImportDocumentationMessages } from './contentImportDocumentation'
 import { analyticsMessages } from './analytics'
 import thSupplement from './supplement-th-TH'
 import jaSupplement from './supplement-ja-JP'
@@ -2911,4 +2912,56 @@ for (const [key, ...values] of navigationGroupMessages) {
   for (const [index, locale] of (['en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const).entries()) {
     adminMessages[locale][key] = values[index]
   }
+}
+
+const contentImportMessages = [
+  ['确认提交校对？', 'Submit proofreading?', 'ส่งงานตรวจทานหรือไม่?', '校正を提出しますか？', 'Soumettre la correction ?', '¿Enviar la corrección?'],
+  ['确认提交', 'Confirm submission', 'ยืนยันการส่ง', '提出を確認', 'Confirmer l’envoi', 'Confirmar envío'],
+  ['确认将当前校对内容提交给超级管理员审核？请确保字幕文本和时间轴已检查完成。', 'Submit the current proofreading to a super administrator for review? Please make sure you have checked the subtitle text and timing.', 'ส่งงานตรวจทานปัจจุบันให้ผู้ดูแลระบบสูงสุดตรวจสอบหรือไม่? โปรดตรวจสอบข้อความคำบรรยายและเวลาให้เรียบร้อย', '現在の校正内容をスーパー管理者に提出しますか？字幕のテキストとタイミングの確認を完了していることをご確認ください。', 'Soumettre la correction actuelle à un super administrateur ? Veuillez vérifier que le texte et le minutage des sous-titres ont été contrôlés.', '¿Enviar la corrección actual a un superadministrador para su revisión? Asegúrate de haber comprobado el texto y los tiempos de los subtítulos.'],
+  ['自动采集工具导入', 'Automated content imports', 'นำเข้าเนื้อหาอัตโนมัติ', '自動収集ツールのインポート', 'Importation automatisée', 'Importación automática'],
+  ['创建导入凭据', 'Create import token', 'สร้างโทเคนนำเข้า', 'インポートトークンを作成', 'Créer un jeton d’importation', 'Crear token de importación'],
+  ['撤销导入凭据', 'Revoke import token', 'เพิกถอนโทเคนนำเข้า', 'インポートトークンを失効', 'Révoquer le jeton d’importation', 'Revocar token de importación'],
+  ['保存导入凭据', 'Save import token', 'บันทึกโทเคนนำเข้า', 'インポートトークンを保存', 'Enregistrer le jeton d’importation', 'Guardar token de importación'],
+  ['允许导入的系列', 'Allowed learning series', 'ชุดบทเรียนที่อนุญาต', 'インポート可能なシリーズ', 'Séries autorisées', 'Series permitidas'],
+  ['仅可创建草稿，不能发布、覆盖或删除课程。', 'Can only create drafts. Cannot publish, overwrite, or delete courses.', 'สร้างได้เฉพาะฉบับร่าง ไม่สามารถเผยแพร่ เขียนทับ หรือลบบทเรียน', '下書きのみ作成可能です。公開・上書き・削除はできません。', 'Création de brouillons uniquement. Publication, remplacement et suppression interdits.', 'Solo permite crear borradores. No permite publicar, sobrescribir ni eliminar cursos.'],
+  ['凭据有效期为90天，只能向选定系列导入。媒体和字幕校验后仍需人工审核。', 'Tokens last 90 days and allow imports into selected series only. Media and subtitles still require human review.', 'โทเคนมีอายุ 90 วัน นำเข้าได้เฉพาะชุดที่เลือก สื่อและคำบรรยายยังต้องตรวจโดยผู้ดูแล', '有効期間は90日で、指定シリーズのみインポートできます。検証後も人による確認が必要です。', 'Validité de 90 jours, pour les séries choisies uniquement. Une vérification humaine reste nécessaire.', 'Validez de 90 días, solo para las series elegidas. Se requiere revisión humana.'],
+  ['撤销后，该工具将无法继续上传或创建草稿。', 'After revocation, the tool can no longer request uploads or create drafts.', 'หลังเพิกถอน เครื่องมือจะขออัปโหลดหรือสร้างฉบับร่างไม่ได้', '失効後はアップロード要求や下書き作成ができなくなります。', 'Après révocation, l’outil ne peut plus demander de téléversements ni créer de brouillons.', 'Tras revocarlo, la herramienta no podrá solicitar cargas ni crear borradores.'],
+  ['确认撤销', 'Confirm revocation', 'ยืนยันการเพิกถอน', '失効を確認', 'Confirmer la révocation', 'Confirmar revocación'],
+  ['导入凭据加载失败', 'Failed to load import tokens', 'โหลดโทเคนนำเข้าไม่สำเร็จ', 'インポートトークンの読み込みに失敗', 'Chargement des jetons impossible', 'Error al cargar los tokens'],
+  ['导入凭据创建失败', 'Failed to create import token', 'สร้างโทเคนนำเข้าไม่สำเร็จ', 'インポートトークンの作成に失敗', 'Création du jeton impossible', 'Error al crear el token'],
+  ['导入凭据撤销失败', 'Failed to revoke import token', 'เพิกถอนโทเคนนำเข้าไม่สำเร็จ', 'インポートトークンの失効に失敗', 'Révocation du jeton impossible', 'Error al revocar el token'],
+  ['已撤销', 'Revoked', 'เพิกถอนแล้ว', '失効済み', 'Révoqué', 'Revocado'],
+  ['已过期', 'Expired', 'หมดอายุ', '期限切れ', 'Expiré', 'Caducado'],
+  ['有效', 'Active', 'ใช้งานได้', '有効', 'Actif', 'Activo'],
+] as const
+for (const [key, ...values] of contentImportMessages) {
+  adminMessages['zh-CN'][key] = key
+  for (const [index, locale] of (['en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const).entries()) adminMessages[locale][key] = values[index]
+}
+
+for (const [key, ...values] of contentImportDocumentationMessages) {
+  adminMessages['zh-CN'][key] = key
+  for (const [index, locale] of (['en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const).entries()) adminMessages[locale][key] = values[index]
+}
+
+const contentImportScopeMessages = [
+  ['指定系列', 'Selected series', 'ชุดบทเรียนที่เลือก', '指定シリーズ', 'Séries sélectionnées', 'Series seleccionadas'],
+  ['全部系列（含以后新增系列）', 'All series (including future series)', 'ทุกชุดบทเรียน (รวมชุดที่เพิ่มในอนาคต)', '全シリーズ（今後追加されるものを含む）', 'Toutes les séries (y compris les futures)', 'Todas las series (incluidas las futuras)'],
+  ['凭据有效期为90天，可授权指定系列或全部系列。媒体和字幕校验后仍需人工审核。', 'Tokens last 90 days and can allow selected or all series. Media and subtitles still require human review.', 'โทเคนมีอายุ 90 วัน อนุญาตชุดที่เลือกหรือทุกชุดได้ สื่อและคำบรรยายยังต้องตรวจโดยผู้ดูแล', '有効期間は90日で、指定シリーズまたは全シリーズを許可できます。検証後も人による確認が必要です。', 'Validité de 90 jours, pour les séries choisies ou toutes les séries. Une vérification humaine reste nécessaire.', 'Validez de 90 días, para series elegidas o todas las series. Se requiere revisión humana.'],
+  ['可选“指定系列”或“全部系列（含以后新增系列）”。全部系列只扩大目标范围，仍然只能创建草稿；已有凭据不会自动升级权限。', 'Choose selected series or all series, including future ones. All-series access only expands destination scope and still creates drafts only. Existing tokens are not upgraded automatically.', 'เลือกชุดที่ระบุหรือทุกชุดรวมชุดในอนาคต การเลือกทุกชุดเพิ่มเพียงปลายทางและยังสร้างได้เฉพาะฉบับร่าง โทเคนเดิมไม่เพิ่มสิทธิ์อัตโนมัติ', '指定シリーズまたは今後追加分を含む全シリーズを選べます。全シリーズは対象範囲だけを広げ、下書きのみ作成できます。既存トークンの権限は自動変更しません。', 'Choisissez des séries précises ou toutes, y compris les futures. Cela élargit uniquement les destinations, avec création de brouillons seulement. Les jetons existants ne sont pas élargis automatiquement.', 'Elija series específicas o todas, incluidas las futuras. Solo amplía destinos y sigue creando únicamente borradores. Los tokens existentes no amplían permisos automáticamente.'],
+  ['创建全部系列凭据：设置 allCategories 为 true，省略 categoryIds；指定系列则提供1–100个 categoryIds，allCategories 为 false 或省略。', 'To create an all-series token, set allCategories to true and omit categoryIds. For selected series, supply 1–100 categoryIds and set allCategories to false or omit it.', 'สร้างโทเคนทุกชุดโดยตั้ง allCategories เป็น true และไม่ส่ง categoryIds หากระบุชุดให้ส่ง categoryIds 1–100 ค่า และตั้ง allCategories เป็น false หรือไม่ระบุ', '全シリーズはallCategoriesをtrueにしcategoryIdsを省略します。指定シリーズはcategoryIdsを1～100件指定し、allCategoriesはfalseまたは省略します。', 'Pour toutes les séries, allCategories vaut true et categoryIds est omis. Pour une sélection, fournir 1 à 100 categoryIds et allCategories false ou omis.', 'Para todas las series, establezca allCategories en true y omita categoryIds. Para series seleccionadas, indique 1–100 categoryIds y allCategories false u omitido.'],
+] as const
+for (const [key, ...values] of contentImportScopeMessages) {
+  adminMessages['zh-CN'][key] = key
+  for (const [index, locale] of (['en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const).entries()) adminMessages[locale][key] = values[index]
+}
+
+const defaultImportScopeMessages = [
+  ['不选则允许全部系列（含以后新增系列）', 'Leave empty for all series (including future series)', 'เว้นว่างเพื่ออนุญาตทุกชุด (รวมชุดในอนาคต)', '未選択なら全シリーズ（今後の追加分を含む）', 'Laisser vide pour toutes les séries (y compris les futures)', 'Dejar vacío para todas las series (incluidas las futuras)'],
+  ['留空默认全部系列（含以后新增系列）；选择后只允许所选系列。', 'Leaving this empty allows all series, including future ones. Selecting series limits access to those series.', 'เว้นว่างจะอนุญาตทุกชุดรวมชุดในอนาคต หากเลือกจะอนุญาตเฉพาะชุดที่เลือก', '未選択なら今後追加されるシリーズも含め全シリーズを許可します。選択すると指定したシリーズのみになります。', 'Laisser vide autorise toutes les séries, y compris les futures. Une sélection limite l’accès aux séries choisies.', 'Dejar vacío permite todas las series, incluidas las futuras. Al seleccionar, se limita a esas series.'],
+  ['创建凭据时，categoryIds 省略或为空数组默认全部系列；提供1–100个系列 ID 则限制到这些系列。也可显式传入 allCategories，false 时必须提供非空系列列表。', 'When creating a token, omitted or empty categoryIds allows all series. Providing 1–100 IDs restricts access to those series. An explicit allCategories override is supported; false requires a nonempty list.', 'เมื่อสร้างโทเคน categoryIds ที่ไม่ระบุหรือเป็นอาร์เรย์ว่างอนุญาตทุกชุด ระบุ 1–100 ID เพื่อจำกัดชุด สามารถระบุ allCategories ได้ หากเป็น false ต้องมีรายการไม่ว่าง', '作成時にcategoryIdsを省略または空配列にすると全シリーズを許可します。1～100件のIDで範囲を制限できます。allCategoriesも指定可能ですが、falseなら空でない一覧が必須です。', 'À la création, categoryIds omis ou vide autorise toutes les séries. Fournir 1 à 100 ID limite l’accès. allCategories peut être explicite ; false exige une liste non vide.', 'Al crear, categoryIds omitido o vacío permite todas las series. Indicar 1–100 ID limita el acceso. Se admite allCategories explícito; false exige una lista no vacía.'],
+] as const
+for (const [key, ...values] of defaultImportScopeMessages) {
+  adminMessages['zh-CN'][key] = key
+  for (const [index, locale] of (['en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const).entries()) adminMessages[locale][key] = values[index]
 }

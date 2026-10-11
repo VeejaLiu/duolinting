@@ -1,8 +1,10 @@
-import { Alert, Button, Divider, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Alert, Button, Divider, Space, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { ArrowLeft, BookOpenText, Copy, Download, KeyRound } from 'lucide-react'
+import { ArrowLeft, BookOpenText, Download, KeyRound } from 'lucide-react'
 import type { AdminNoticeTone } from './AdminFeedback'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
+import { CodeExample } from './ApiDocumentationCodeExample'
+import { ContentImportApiDocumentation } from './ContentImportApiDocumentation'
 
 type OpenContentApiDocumentationProps = {
   onBack: () => void
@@ -12,12 +14,6 @@ type OpenContentApiDocumentationProps = {
 type DltjsonField = {
   field: string
   description: string
-}
-
-type CodeExampleProps = {
-  code: string
-  language: string
-  onNotify: OpenContentApiDocumentationProps['onNotify']
 }
 
 type ApiRequestHeader = {
@@ -33,39 +29,6 @@ type ApiRequestCardProps = {
   description: string
   headers: ApiRequestHeader[]
   pathParams?: Array<{ name: string; description: string; example: string }>
-}
-
-const copyText = async (
-  value: string,
-  onNotify: OpenContentApiDocumentationProps['onNotify'],
-) => {
-  try {
-    await navigator.clipboard.writeText(value)
-    onNotify('示例已复制', 'success')
-  } catch {
-    onNotify('复制失败，请手动复制', 'error')
-  }
-}
-
-function CodeExample({ code, language, onNotify }: CodeExampleProps) {
-  const { t } = useAdminLanguage()
-  return (
-    <div className="open-content-code-example">
-      <div className="open-content-code-toolbar">
-        <Tag>{language}</Tag>
-        <Tooltip title={t('复制代码')}>
-          <Button
-            aria-label={t('复制代码')}
-            icon={<Copy size={15} />}
-            onClick={() => void copyText(code, onNotify)}
-            size="small"
-            type="text"
-          />
-        </Tooltip>
-      </div>
-      <pre><code>{code}</code></pre>
-    </div>
-  )
 }
 
 function ApiRequestCard({ method, path, description, headers, pathParams }: ApiRequestCardProps) {
@@ -133,6 +96,7 @@ function ApiRequestCard({ method, path, description, headers, pathParams }: ApiR
           columns={apiRequestHeaderColumns}
           dataSource={headers}
           pagination={false}
+          scroll={{ x: 640 }}
           rowKey="name"
           size="small"
         />
@@ -165,6 +129,7 @@ const catalogExample = [
   '      "categoryId": 21,',
   '      "title": "Muddy Puddles",',
   '      "lineCount": 68,',
+  '      "sortOrder": 10,',
   '      "mediaType": "video",',
   '      "mediaUrl": "/api/v1/media/objects?key=video/2026/08/19/muddy-puddles.mp4",',
   '      "dltjsonUrl": "/api/v1/open-content/courses/123/dltjson"',
@@ -331,126 +296,155 @@ export function OpenContentApiDocumentation({
     <main className="open-content-api-documentation">
       <div className="open-content-api-documentation-header">
         <div>
-          <Typography.Title level={2}>{t('开放内容 API 文档')}</Typography.Title>
+          <Typography.Title level={1}>{t('开放内容 API 文档')}</Typography.Title>
           <Typography.Paragraph type="secondary">
-            {t('用独立 API Key 将已发布课程的目录、源媒体地址和字幕同步到本地工具或开源仓库。接口只提供已发布课程的媒体读取地址，不在服务器执行视频生成。')}
+            {t('统一查看已发布内容读取与自动采集草稿导入的认证方式、接口和示例。')}
           </Typography.Paragraph>
         </div>
         <Button icon={<ArrowLeft size={16} />} onClick={onBack}>{t('返回 API Key')}</Button>
       </div>
 
-      <Alert
-        message={t('仅同步已发布课程')}
-        description={t('目录中的课程都带有 dltjsonUrl。草稿、校对中、已归档或不存在的课程不会通过此接口导出。')}
-        showIcon
-        type="info"
-      />
+      <nav className="open-content-api-toc" aria-label={t('文档目录')}>
+        <a href="#api-overview">1. {t('接入概览')}</a>
+        <a href="#published-content">2. {t('已发布内容读取')}</a>
+        <a href="#draft-imports">3. {t('自动采集草稿导入')}</a>
+      </nav>
 
-      <section className="open-content-api-documentation-section">
-        <Typography.Title level={4}><KeyRound size={18} />1. {t('配置访问凭据')}</Typography.Title>
-        <Typography.Paragraph>
-          {t('先在 API Key 管理页创建一个 Key 并立即保存明文。之后将它放入环境变量；不要将 Key 写进仓库、提交记录或浏览器前端代码。')}
-        </Typography.Paragraph>
-        <CodeExample code={environmentExample} language="shell" onNotify={onNotify} />
-        <Typography.Paragraph type="secondary">
-          {t('当前后台所在域名已预填为')} <Typography.Text code>{apiOrigin}</Typography.Text>。{t('外部同步仓库部署到其他环境时，只需改动 DUOLINTING_API_BASE。')}
-        </Typography.Paragraph>
+      <section id="api-overview" className="open-content-api-documentation-section">
+        <Typography.Title level={2}>1. {t('接入概览')}</Typography.Title>
+        <Table className="open-content-api-field-table" pagination={false} rowKey="path" size="small" scroll={{ x: 640 }} columns={[
+          { title: t('用途'), dataIndex: 'purpose' },
+          { title: t('认证方式'), dataIndex: 'auth', render: (value: string) => <Typography.Text code>{value}</Typography.Text> },
+          { title: t('接口前缀'), dataIndex: 'path', render: (value: string) => <Typography.Text code>{value}</Typography.Text> },
+        ]} dataSource={[
+          { purpose: t('读取已发布课程的目录、字幕和媒体'), auth: 'X-DuolinTing-API-Key: dltak_…', path: '/api/v1/open-content' },
+          { purpose: t('将采集成品导入为新的草稿课程'), auth: 'Authorization: Bearer dltimp_…', path: '/api/v1/content-imports' },
+        ]} />
+        <Typography.Paragraph>{t('两类凭据独立管理，不能互换。导入凭据仅可创建草稿，不能发布、覆盖或删除课程。')}</Typography.Paragraph>
       </section>
 
       <Divider />
 
-      <section className="open-content-api-documentation-section">
-        <Typography.Title level={4}><BookOpenText size={18} />2. {t('读取目录')}</Typography.Title>
-        <Typography.Paragraph>
-          {t('先请求目录，再依据')} <Typography.Text code>groupId</Typography.Text> {t('和')} <Typography.Text code>categoryId</Typography.Text> {t('组织“内容分类 / 学习系列 / 课程”三级目录。每门课程还会返回')} <Typography.Text code>mediaType</Typography.Text> {t('和')} <Typography.Text code>mediaUrl</Typography.Text>，{t('供本地生成器读取源媒体；字幕仍通过')} <Typography.Text code>dltjsonUrl</Typography.Text> {t('下载。')}
-        </Typography.Paragraph>
-        <ApiRequestCard
-          description={t('返回所有已发布课程的目录、字幕下载地址和源媒体读取地址。')}
-          headers={apiKeyHeaders}
-          method="GET"
-          path="/api/v1/open-content/catalog"
+      <section id="published-content" className="open-content-api-documentation-section">
+        <Typography.Title level={2}>2. {t('已发布内容读取')}</Typography.Title>
+        <Alert
+          message={t('仅同步已发布课程')}
+          description={t('目录中的课程都带有 dltjsonUrl。草稿、校对中、已归档或不存在的课程不会通过此接口导出。')}
+          showIcon
+          type="info"
         />
-        <CodeExample code={catalogRequestExample} language="shell" onNotify={onNotify} />
-        <Typography.Text className="open-content-response-label" strong>{t('响应示例（200 OK）')}</Typography.Text>
-        <CodeExample code={catalogExample} language="json" onNotify={onNotify} />
+
+        <section className="open-content-api-documentation-section">
+          <Typography.Title level={3}><KeyRound size={18} />2.1 {t('配置访问凭据')}</Typography.Title>
+          <Typography.Paragraph>
+            {t('先在 API Key 管理页创建一个 Key 并立即保存明文。之后将它放入环境变量；不要将 Key 写进仓库、提交记录或浏览器前端代码。')}
+          </Typography.Paragraph>
+          <CodeExample code={environmentExample} language="shell" onNotify={onNotify} />
+          <Typography.Paragraph type="secondary">
+            {t('当前后台所在域名已预填为')} <Typography.Text code>{apiOrigin}</Typography.Text>。{t('外部同步仓库部署到其他环境时，只需改动 DUOLINTING_API_BASE。')}
+          </Typography.Paragraph>
+        </section>
+
+        <Divider />
+
+        <section className="open-content-api-documentation-section">
+          <Typography.Title level={3}><BookOpenText size={18} />2.2 {t('读取目录')}</Typography.Title>
+          <Typography.Paragraph>
+            {t('先请求目录，再依据')} <Typography.Text code>groupId</Typography.Text> {t('和')} <Typography.Text code>categoryId</Typography.Text> {t('组织“内容分类 / 学习系列 / 课程”三级目录。每门课程还会返回')} <Typography.Text code>mediaType</Typography.Text> {t('和')} <Typography.Text code>mediaUrl</Typography.Text>，{t('供本地生成器读取源媒体；字幕仍通过')} <Typography.Text code>dltjsonUrl</Typography.Text> {t('下载。')}
+          </Typography.Paragraph>
+          <ApiRequestCard
+            description={t('返回所有已发布课程的目录、字幕下载地址和源媒体读取地址。')}
+            headers={apiKeyHeaders}
+            method="GET"
+            path="/api/v1/open-content/catalog"
+          />
+          <CodeExample code={catalogRequestExample} language="shell" onNotify={onNotify} />
+          <Typography.Text className="open-content-response-label" strong>{t('响应示例（200 OK）')}</Typography.Text>
+          <CodeExample code={catalogExample} language="json" onNotify={onNotify} />
+        </section>
+
+        <Divider />
+
+        <section className="open-content-api-documentation-section">
+          <Typography.Title level={3}><Download size={18} />2.3 {t('下载单门课程')}</Typography.Title>
+          <Typography.Paragraph>
+            {t('把目录响应中的')} <Typography.Text code>dltjsonUrl</Typography.Text> {t('拼接到 API 域名后下载。下面的')} <Typography.Text code>123</Typography.Text> {t('仅为示例，请替换为目录返回的课程 ID。')}
+          </Typography.Paragraph>
+          <ApiRequestCard
+            description={t('返回一门已发布课程的 dltjson 字幕文件。')}
+            headers={apiKeyHeaders}
+            method="GET"
+            path="/api/v1/open-content/courses/:courseId/dltjson"
+            pathParams={[{ name: 'courseId', example: '123', description: t('目录响应中的课程 ID，必须是正整数。') }]}
+          />
+          <CodeExample code={courseDownloadExample} language="shell" onNotify={onNotify} />
+          <Typography.Text className="open-content-response-label" strong>{t('响应示例（200 OK）')}</Typography.Text>
+          <CodeExample code={dltjsonExample} language="json" onNotify={onNotify} />
+        </section>
+
+        <Divider />
+
+        <section className="open-content-api-documentation-section">
+          <Typography.Title level={3}><Download size={18} />2.4 {t('下载源媒体（本地生成器）')}</Typography.Title>
+          <Typography.Paragraph>
+            {t('目录中的')} <Typography.Text code>mediaUrl</Typography.Text> {t('是课程已经配置好的源媒体地址。只在本地视频生成任务需要时下载它；服务器只负责读取和传输对象，不参与解码或编码。媒体地址支持 Range 请求，下载工具可以安全地断点续传或利用 CDN 缓存。')}
+          </Typography.Paragraph>
+          <CodeExample code={mediaDownloadExample} language="shell" onNotify={onNotify} />
+          <Typography.Paragraph type="secondary">
+            <Typography.Text code>mediaType</Typography.Text> {t('为')} <Typography.Text code>audio</Typography.Text> {t('或')} <Typography.Text code>video</Typography.Text>。{t('推荐使用项目中的本地 CLI，它会自动读取这两个字段并把媒体缓存到本机。')}
+          </Typography.Paragraph>
+        </section>
+
+        <Divider />
+
+        <section className="open-content-api-documentation-section">
+          <Typography.Title level={3}>2.5 {t('完整同步脚本')}</Typography.Title>
+          <Typography.Paragraph>
+            {t('将下面代码保存为')} <Typography.Text code>sync-open-content.mjs</Typography.Text>，{t('使用 Node.js 22 或更高版本执行。它会保存目录快照，并将所有课程写入“内容分类 / 学习系列 / 课程.dltjson”。文件名会自动清理跨平台不支持的字符并保留排序号。')}
+          </Typography.Paragraph>
+          <CodeExample code={syncScript} language="node" onNotify={onNotify} />
+          <CodeExample
+            code="node sync-open-content.mjs"
+            language="shell"
+            onNotify={onNotify}
+          />
+        </section>
+
+        <Divider />
+
+        <section className="open-content-api-documentation-section">
+          <Typography.Title level={3}>2.6 {t('dltjson 格式')}</Typography.Title>
+          <Typography.Paragraph>
+            <Typography.Text code>start</Typography.Text> {t('与')} <Typography.Text code>end</Typography.Text> {t('的单位为秒，且应保持与原课程时间轴一致。同步脚本按原样保存每个文件，不会合成、重排或修改字幕。')}
+          </Typography.Paragraph>
+          <Table
+            className="open-content-api-field-table"
+            columns={dltjsonColumns}
+            dataSource={dltjsonFields}
+            pagination={false}
+            scroll={{ x: 640 }}
+            rowKey="field"
+            size="small"
+          />
+        </section>
+
+        <Divider />
+
+        <section className="open-content-api-documentation-section">
+          <Typography.Title level={3}>2.7 {t('鉴权与错误处理')}</Typography.Title>
+          <Space direction="vertical" size={8} style={{ display: 'flex' }}>
+            <Typography.Text><Tag color="blue">{t('请求头兼容')}</Tag> {t('新接入使用')} <Typography.Text code>X-DuolinTing-API-Key</Typography.Text>；<Typography.Text code>X-API-Key</Typography.Text> {t('仅为兼容通用命令行工具保留。上面的请求卡片展示的是推荐写法。')}</Typography.Text>
+            <Typography.Text><Tag color="red">401</Tag> {t('未提供、无效、已过期或已删除的 API Key。请由超级管理员检查 Key 的状态，必要时新建 Key 或调整到期时间。')}</Typography.Text>
+            <Typography.Text><Tag color="orange">404</Tag> {t('课程不存在，或课程尚未发布，不能导出。')}</Typography.Text>
+            <Typography.Text><Tag color="gold">400</Tag> {t('课程 ID 不是正整数。')}</Typography.Text>
+            <Typography.Text type="secondary">{t('目录和字幕接口使用 private, no-store 缓存策略；媒体对象沿用对象级长缓存。视频生成仍由本地任务完成，不会在服务器编码。')}</Typography.Text>
+          </Space>
+        </section>
       </section>
 
       <Divider />
 
-      <section className="open-content-api-documentation-section">
-        <Typography.Title level={4}><Download size={18} />3. {t('下载单门课程')}</Typography.Title>
-        <Typography.Paragraph>
-          {t('把目录响应中的')} <Typography.Text code>dltjsonUrl</Typography.Text> {t('拼接到 API 域名后下载。下面的')} <Typography.Text code>123</Typography.Text> {t('仅为示例，请替换为目录返回的课程 ID。')}
-        </Typography.Paragraph>
-        <ApiRequestCard
-          description={t('返回一门已发布课程的 dltjson 字幕文件。')}
-          headers={apiKeyHeaders}
-          method="GET"
-          path="/api/v1/open-content/courses/:courseId/dltjson"
-          pathParams={[{ name: 'courseId', example: '123', description: t('目录响应中的课程 ID，必须是正整数。') }]}
-        />
-        <CodeExample code={courseDownloadExample} language="shell" onNotify={onNotify} />
-        <Typography.Text className="open-content-response-label" strong>{t('响应示例（200 OK）')}</Typography.Text>
-        <CodeExample code={dltjsonExample} language="json" onNotify={onNotify} />
-      </section>
-
-      <Divider />
-
-      <section className="open-content-api-documentation-section">
-        <Typography.Title level={4}><Download size={18} />4. {t('下载源媒体（本地生成器）')}</Typography.Title>
-        <Typography.Paragraph>
-          {t('目录中的')} <Typography.Text code>mediaUrl</Typography.Text> {t('是课程已经配置好的源媒体地址。只在本地视频生成任务需要时下载它；服务器只负责读取和传输对象，不参与解码或编码。媒体地址支持 Range 请求，下载工具可以安全地断点续传或利用 CDN 缓存。')}
-        </Typography.Paragraph>
-        <CodeExample code={mediaDownloadExample} language="shell" onNotify={onNotify} />
-        <Typography.Paragraph type="secondary">
-          <Typography.Text code>mediaType</Typography.Text> {t('为')} <Typography.Text code>audio</Typography.Text> {t('或')} <Typography.Text code>video</Typography.Text>。{t('推荐使用项目中的本地 CLI，它会自动读取这两个字段并把媒体缓存到本机。')}
-        </Typography.Paragraph>
-      </section>
-
-      <Divider />
-
-      <section className="open-content-api-documentation-section">
-        <Typography.Title level={4}>5. {t('完整同步脚本')}</Typography.Title>
-        <Typography.Paragraph>
-          {t('将下面代码保存为')} <Typography.Text code>sync-open-content.mjs</Typography.Text>，{t('使用 Node.js 22 或更高版本执行。它会保存目录快照，并将所有课程写入“内容分类 / 学习系列 / 课程.dltjson”。文件名会自动清理跨平台不支持的字符并保留排序号。')}
-        </Typography.Paragraph>
-        <CodeExample code={syncScript} language="node" onNotify={onNotify} />
-        <CodeExample
-          code="node sync-open-content.mjs"
-          language="shell"
-          onNotify={onNotify}
-        />
-      </section>
-
-      <Divider />
-
-      <section className="open-content-api-documentation-section">
-        <Typography.Title level={4}>6. {t('dltjson 格式')}</Typography.Title>
-        <Typography.Paragraph>
-          <Typography.Text code>start</Typography.Text> {t('与')} <Typography.Text code>end</Typography.Text> {t('的单位为秒，且应保持与原课程时间轴一致。同步脚本按原样保存每个文件，不会合成、重排或修改字幕。')}
-        </Typography.Paragraph>
-        <Table
-          className="open-content-api-field-table"
-          columns={dltjsonColumns}
-          dataSource={dltjsonFields}
-          pagination={false}
-          rowKey="field"
-          size="small"
-        />
-      </section>
-
-      <Divider />
-
-      <section className="open-content-api-documentation-section">
-        <Typography.Title level={4}>7. {t('鉴权与错误处理')}</Typography.Title>
-        <Space direction="vertical" size={8} style={{ display: 'flex' }}>
-          <Typography.Text><Tag color="blue">{t('请求头兼容')}</Tag> {t('新接入使用')} <Typography.Text code>X-DuolinTing-API-Key</Typography.Text>；<Typography.Text code>X-API-Key</Typography.Text> {t('仅为兼容通用命令行工具保留。上面的请求卡片展示的是推荐写法。')}</Typography.Text>
-          <Typography.Text><Tag color="red">401</Tag> {t('未提供、无效、已过期或已删除的 API Key。请由超级管理员检查 Key 的状态，必要时新建 Key 或调整到期时间。')}</Typography.Text>
-          <Typography.Text><Tag color="orange">404</Tag> {t('课程不存在，或课程尚未发布，不能导出。')}</Typography.Text>
-          <Typography.Text><Tag color="gold">400</Tag> {t('课程 ID 不是正整数。')}</Typography.Text>
-          <Typography.Text type="secondary">{t('目录和字幕接口使用 private, no-store 缓存策略；媒体对象沿用对象级长缓存。视频生成仍由本地任务完成，不会在服务器编码。')}</Typography.Text>
-        </Space>
-      </section>
+      <ContentImportApiDocumentation onNotify={onNotify} />
     </main>
   )
 }

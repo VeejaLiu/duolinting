@@ -14,6 +14,7 @@ import { startAuthMaintenance } from './general/user/user-auth-maintenance';
 import { preparePublicMediaDelivery } from './general/media/media-service';
 import { closeSequelize } from './models/db-config-mysql';
 import { requestLogger } from './lib/requestLogger';
+import { startImportWorker, stopImportWorker } from './general/content-imports/worker';
 
 const logger = new Logger(__filename);
 
@@ -38,6 +39,7 @@ async function Main() {
     await loadCountryDatabase();
     startAnalyticsMaintenance();
     startAuthMaintenance();
+    startImportWorker();
 
     app.use(requestLogger);
     app.use((req, res, next) => {
@@ -104,6 +106,7 @@ async function Main() {
     });
 
     process.on('SIGINT', async () => {
+        stopImportWorker();
         logger.info('SIGINT signal received.');
         await closeSequelize();
         process.exit();
