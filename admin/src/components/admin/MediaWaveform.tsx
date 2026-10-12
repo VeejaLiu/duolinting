@@ -1,5 +1,6 @@
 import { persistServerWaveform } from '../../lib/serverWaveformCache'
-import { getCachedWaveform, validWaveform, type CachedWaveform } from '../../lib/waveformCache'
+import { validWaveform, type CachedWaveform } from '../../lib/waveformCache'
+import { resolveWaveformSource } from '../../lib/waveformSource'
 import type { CourseWaveform } from '@duolinting/shared'
 import {
   Button,
@@ -278,8 +279,6 @@ export function MediaWaveform({
   const [zoom, setZoom] = useState(1)
   const [finishedDrag, setFinishedDrag] = useState(0)
   const [isBatchTimingOpen, setIsBatchTimingOpen] = useState(false)
-  // 等待媒体完全加载后再解析波形
-  const [isMediaReady, setIsMediaReady] = useState(false)
   const [waveform, setWaveform] = useState<WaveformState>({
     status: 'idle',
     message: t('选择媒体后显示音轨波形'),
@@ -417,17 +416,15 @@ export function MediaWaveform({
     logMediaDebug('waveform-source-changed', {
       sourceUrl,
     })
-	    setIsMediaReady(false)
 	  }, [sourceUrl])
 
   // Use setTimeout to defer execution to the next event loop iteration.
   // This ensures that when sourceUrl changes from empty to a valid URL,
   // the <audio>/<video> element has time to mount and attach to mediaRef
   // before we try to initialize WaveSurfer with it.
-  // Additionally, we wait for the media to be playable (canplay) before
-  // parsing the waveform, ensuring WaveSurfer can decode the audio data reliably.
+  // Waveform rendering is independent of the main player's network/buffering
+  // state. Server/browser peaks render directly; selected files decode locally.
   useEffect(() => {
-    let mediaReadyCleanup: (() => void) | null = null
     let wavesurferCleanup: (() => void) | null = null
     let cancelled = false
 
@@ -457,48 +454,6 @@ export function MediaWaveform({
         return
       }
 
-	      // Check if media is already playable (readyState >= 3 means canplay)
-	      if (media.readyState >= 3) {
-        logMediaDebug('waveform-media-ready-immediate', {
-          media: getMediaSnapshot(media),
-          sourceUrl,
-        })
-	        setIsMediaReady(true)
-	        // Media is ready, continue to initWaveSurfer below
-	      } else {
-        logMediaDebug('waveform-media-wait-canplay', {
-          media: getMediaSnapshot(media),
-          sourceUrl,
-        })
-	        setWaveform({
-	          status: 'loading',
-          message: t('正在等待媒体加载...'),
-        })
-
-	        const onCanPlay = () => {
-          logMediaDebug('waveform-media-canplay', {
-            media: getMediaSnapshot(media),
-            sourceUrl,
-          })
-	          setIsMediaReady(true)
-	          media.removeEventListener('canplay', onCanPlay)
-	          mediaReadyCleanup = null
-        }
-        media.addEventListener('canplay', onCanPlay)
-        mediaReadyCleanup = () => {
-          media.removeEventListener('canplay', onCanPlay)
-        }
-
-        // Store cleanup to be called on next run or unmount (critical for preventing memory leaks)
-        timeoutCleanupRef.current = () => {
-          if (mediaReadyCleanup) {
-            mediaReadyCleanup()
-          }
-        }
-
-        return // Wait for canplay, will re-trigger when isMediaReady changes
-      }
-
 	      setWaveform({
 	        status: 'loading',
         message: t('正在解析媒体波形...'),
@@ -510,17 +465,9 @@ export function MediaWaveform({
         zoom: zoomRef.current,
       })
 
-      const supplied = sourceWaveform && !sourceFile
-        ? { peaks: sourceWaveform.peaks, duration: sourceWaveform.durationUs / 1_000_000 }
-        : undefined
-      let cached = validWaveform(supplied) ? supplied : undefined
-      if (!cached) {
-        try { cached = await getCachedWaveform(sourceUrl, sourceFile) }
-        catch {
-          // Cache/fetch/decode failures fall back to WaveSurfer's original loader.
-          logMediaDebug('waveform-cache-fallback')
-        }
-      }
+      const prepared = await resolveWaveformSource(sourceUrl, sourceFile, sourceWaveform)
+      const cached = prepared.waveform
+      if (!cached) logMediaDebug('waveform-cache-fallback')
       // A completed old load must never attach to a new course or unmounted editor.
       if (cancelled) return
 
@@ -530,8 +477,9 @@ export function MediaWaveform({
       const waveformMedia = document.createElement('audio')
       waveformMedia.crossOrigin = 'anonymous'
       waveformMedia.muted = true
-      waveformMedia.preload = 'auto'
-      waveformMedia.src = sourceUrl
+      // Cached rendering uses an empty source: even a muted/preload=none element
+      // with a real URL can make metadata requests in some browsers.
+      waveformMedia.preload = cached ? 'none' : 'metadata'
       const stopWaveformMediaDiagnostics = observeMediaElement(waveformMedia, 'waveform-decoder')
 
       const regions = RegionsPlugin.create()
@@ -563,6 +511,7 @@ export function MediaWaveform({
         // 8k 足够绘制语音波形，并避免长音频解码与画布重绘占用过多主线程时间。
         sampleRate: 8000,
         media: waveformMedia,
+        url: prepared.mediaUrl,
         ...(cached ? { peaks: [cached.peaks], duration: cached.duration } : {}),
         waveColor: '#64748b',
       })
@@ -808,7 +757,11 @@ export function MediaWaveform({
 
       const syncDuration = () => {
         if (!wavesurfer.getDecodedData()) return
-        setWaveform({ status: 'ready', duration: wavesurfer.getDuration() })
+        // Use the cached duration until the main video's metadata arrives. Keep
+        // peaks on their original decoded/source timeline; never decode again.
+        const mediaDuration = media.duration
+        setWaveform({ status: 'ready', duration: Number.isFinite(mediaDuration) && mediaDuration > 0
+          ? mediaDuration : wavesurfer.getDuration() })
         syncWaveformToMainMedia()
       }
 
@@ -833,7 +786,7 @@ export function MediaWaveform({
         waveformMedia.load()
       }
 
-      media.addEventListener('loadedmetadata', syncWaveformToMainMedia)
+      media.addEventListener('loadedmetadata', syncDuration)
       media.addEventListener('durationchange', syncDuration)
       media.addEventListener('seeking', syncWaveformToMainMedia)
       media.addEventListener('seeked', syncWaveformToMainMedia)
@@ -880,7 +833,7 @@ export function MediaWaveform({
 	        () => document.removeEventListener('pointercancel', cancelRegionDrag, true),
 	        () => window.removeEventListener('blur', cancelRegionDrag),
 	        () => window.removeEventListener('keydown', onDragKeyDown, true),
-	        () => media.removeEventListener('loadedmetadata', syncWaveformToMainMedia),
+	        () => media.removeEventListener('loadedmetadata', syncDuration),
 	        () => media.removeEventListener('durationchange', syncDuration),
 	        () => media.removeEventListener('seeking', syncWaveformToMainMedia),
 	        () => media.removeEventListener('seeked', syncWaveformToMainMedia),
@@ -901,7 +854,7 @@ export function MediaWaveform({
             preparedWaveformRef.current = {
               url: sourceUrl, file: sourceFile, wave: summary,
               sourceRevision: sourceFile ? undefined : sourceWaveformRevision,
-              serverHit: validWaveform(supplied),
+              serverHit: prepared.serverHit,
             }
           }
 
@@ -912,11 +865,7 @@ export function MediaWaveform({
             media: getMediaSnapshot(media),
             regionCount: draftLinesRef.current.length,
           })
-          setWaveform({
-	            status: 'ready',
-	            duration: readyDuration,
-          })
-          syncWaveformToMainMedia()
+          syncDuration()
           startWaveformCursorSync()
           window.requestAnimationFrame(() => captureWaveformHealth('ready-next-frame'))
         }),
@@ -1142,9 +1091,6 @@ export function MediaWaveform({
       // Store cleanup to be called on next run or unmount
       timeoutCleanupRef.current = () => {
         wavesurferCleanup?.()
-        if (mediaReadyCleanup) {
-          mediaReadyCleanup()
-        }
       }
     }, 0)
 
@@ -1157,7 +1103,7 @@ export function MediaWaveform({
       }
       clearTimeout(timeoutId)
     }
-  }, [isMediaReady, mediaRef, sourceUrl, sourceFile, sourceWaveform, sourceWaveformRevision, t])
+  }, [mediaRef, sourceUrl, sourceFile, sourceWaveform, sourceWaveformRevision, t])
 
   useEffect(() => {
     const prepared = preparedWaveformRef.current

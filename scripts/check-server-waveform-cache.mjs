@@ -149,3 +149,46 @@ stop=true; calls=[]
 assert.equal(await client.persistServerWaveform(options), false)
 assert.equal(calls.length,0)
 console.log('PASS: temporary failures retry quietly; exhausted retries and disposed editors never reject')
+
+let waveformReads = 0
+const sourceResolver = await load('admin/src/lib/waveformSource.ts', {
+  './waveformCache': {
+    validWaveform: format.validWaveformPeaks,
+    getCachedWaveform: async () => { waveformReads++; return remoteWave },
+  },
+})
+const instant = await sourceResolver.resolveWaveformSource('https://media.test/stalled-video', undefined, shared.waveform)
+assert.equal(instant.mediaUrl, '')
+assert.equal(instant.serverHit, true)
+assert.equal(waveformReads, 0)
+const selected = await sourceResolver.resolveWaveformSource('blob:new-video', {localFile:true}, shared.waveform)
+assert.equal(selected.mediaUrl, '')
+assert.equal(selected.serverHit, false)
+assert.equal(waveformReads, 1)
+const fallbackResolver = await load('admin/src/lib/waveformSource.ts', {
+  './waveformCache': {validWaveform: format.validWaveformPeaks, getCachedWaveform: async () => { throw new Error('unsupported codec') }},
+})
+const fallback = await fallbackResolver.resolveWaveformSource('https://media.test/unsupported')
+assert.equal(fallback.mediaUrl, 'https://media.test/unsupported')
+assert.equal(fallback.waveform, undefined)
+console.log('PASS: server/local peaks render without a media URL or buffering; only decode failure uses the original loader')
+
+const {webcrypto} = await import('node:crypto')
+let fileReads = 0, localDecodes = 0, downloads = 0, decoderCloses = 0
+const browserCache = await load('admin/src/lib/waveformCache.ts', {}, {
+  crypto: webcrypto, TextEncoder, clearTimeout, setTimeout,
+  fetch: async () => { downloads++; throw new Error('local files must not download') },
+  AudioContext: class {
+    async decodeAudioData() { localDecodes++; return {duration:1, getChannelData:()=>new Float32Array(8000).fill(.25)} }
+    async close() { decoderCloses++ }
+  },
+})
+const localFile = {arrayBuffer:async()=>{fileReads++;return new Uint8Array([70,80,90]).buffer}}
+const firstLocal = await browserCache.getCachedWaveform('blob:before-upload',localFile)
+const reopenedLocal = await browserCache.getCachedWaveform('blob:after-binding',localFile)
+assert.equal(firstLocal,reopenedLocal)
+assert.equal(fileReads,1)
+assert.equal(localDecodes,1)
+assert.equal(downloads,0)
+assert.equal(decoderCloses,1)
+console.log('PASS: first local selection decodes without network/player readiness; remount/binding reuses the same file result')

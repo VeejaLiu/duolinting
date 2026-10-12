@@ -818,6 +818,7 @@ export function MediaCourseForm({
                       className="media-player video-player"
                       controls
                       playsInline
+                      preload="metadata"
                       src={localMediaUrl}
                       onError={handleMediaError}
                       onTimeUpdate={(event) => updatePreviewTime(event.currentTarget.currentTime)}
@@ -851,6 +852,7 @@ export function MediaCourseForm({
                         ref={setMediaElement}
                         className="media-player audio-player"
                         controls
+                        preload="metadata"
                         src={localMediaUrl}
                         onError={handleMediaError}
                         onTimeUpdate={(event) => updatePreviewTime(event.currentTarget.currentTime)}

@@ -21,6 +21,8 @@ import {
   type FileUploadProgress,
 } from '../lib/apiClient'
 import { ADMIN_TOKEN_STORAGE_KEY } from '../lib/contentTools'
+import { getCachedWaveform } from '../lib/waveformCache'
+import { persistServerWaveform } from '../lib/serverWaveformCache'
 import { useSubtitleHistory } from '../hooks/useSubtitleHistory'
 import { SubtitleHistoryControls } from './admin/SubtitleHistoryControls'
 import { useMediaPlayback } from '../hooks/useMediaPlayback'
@@ -624,6 +626,7 @@ export function AudioLessonImporter({
       mediaUrl?: string
       mediaType?: CreateExerciseRequest['mediaType']
       forceDraft?: boolean
+      onMediaBound?: (exerciseId: number) => void
     },
   ) => {
     const payload: CreateExerciseRequest = {
@@ -646,6 +649,9 @@ export function AudioLessonImporter({
 
     const result = await apiClient.createExercise(payload, adminToken)
     const savedId = result.id ?? payload.id
+    // Cache maintenance starts as soon as binding succeeds, before navigation or
+    // catalog refresh can dispose the editor or fail independently of the upload.
+    if (savedId) options?.onMediaBound?.(savedId)
     // 函数式更新：上传/保存期间用户可能仍在编辑表单（标题、系列等），
     // 这里只回写服务端返回的 id 与本次绑定的媒体字段，保留其余字段的当前值，
     // 避免用旧快照整体覆盖掉用户期间的编辑。
@@ -659,6 +665,7 @@ export function AudioLessonImporter({
       navigate(`/importer/${savedId}`, { replace: true })
     }
     await onRefreshCatalog()
+    return savedId
   }
 
   const uploadMediaFile = useCallback(async (file: File) => {
@@ -710,7 +717,11 @@ export function AudioLessonImporter({
     }
 
     const mediaType = file.type.startsWith('video/') ? 'video' : 'audio'
-    setLocalMediaUrl(URL.createObjectURL(file))
+    const localSourceUrl = URL.createObjectURL(file)
+    setLocalMediaUrl(localSourceUrl)
+    // Start from local bytes while upload runs. The result also becomes the first
+    // browser/server cache, independently of video buffering and editor lifetime.
+    const firstWaveform = getCachedWaveform(localSourceUrl, file).catch(() => undefined)
     setMediaSize(file.size)
 
     // 用户文件名只用于浏览器选择文件，不写入课程标题；新课程标题保持当前值，
@@ -736,12 +747,19 @@ export function AudioLessonImporter({
     setIsUploadingMedia(true)
     try {
       const uploaded = await uploadMediaFile(file)
+      const cacheBoundMedia = (exerciseId: number) => {
+        void firstWaveform.then((wave) => wave && persistServerWaveform({
+          exerciseId, adminToken, mediaUrl: uploaded.publicUrl, sourceUrl: localSourceUrl,
+          file, wave, stopped: () => false,
+        }))
+      }
       if (courseForm.id) {
         await apiClient.updateExerciseMedia(
           courseForm.id,
           { mediaType: uploaded.mediaType, audioUrl: uploaded.publicUrl },
           adminToken,
         )
+        cacheBoundMedia(courseForm.id)
         await onRefreshCatalog()
         onStatusChange('媒体已替换，课程和个人字幕稿已保留，请核对字幕时间', 'success')
       } else {
@@ -749,6 +767,7 @@ export function AudioLessonImporter({
           mediaUrl: uploaded.publicUrl,
           mediaType: uploaded.mediaType,
           forceDraft: true,
+          onMediaBound: cacheBoundMedia,
         })
         onStatusChange('媒体已绑定到草稿课程，刷新后不会丢失', 'success')
       }
@@ -964,6 +983,15 @@ export function AudioLessonImporter({
       if (!savedExerciseId) {
         throw new Error('课程保存后没有返回有效 ID')
       }
+      // A save can retry a failed initial upload/binding. Reuse the same local
+      // file result and fill its server cache before any subsequent navigation.
+      if (mediaFile) {
+        const file = mediaFile
+        void getCachedWaveform(localMediaUrl, file).then((wave) => persistServerWaveform({
+          exerciseId: savedExerciseId, adminToken, mediaUrl: uploaded.publicUrl,
+          sourceUrl: localMediaUrl, file, wave, stopped: () => false,
+        })).catch(() => undefined)
+      }
       const persistedCourseForm = { ...nextCourseForm, id: savedExerciseId }
       setCourseForm(persistedCourseForm)
       if (savedExerciseId !== courseForm.id) {
@@ -998,6 +1026,7 @@ export function AudioLessonImporter({
     courseForm,
     draftLines,
     exercises,
+    localMediaUrl,
     mediaFile,
     navigate,
     onRefreshCatalog,

@@ -5,6 +5,9 @@ const MAX_PEAKS = 2_000_000
 const memory = new Map<string, CachedWaveform>()
 const pending = new Map<string, Promise<CachedWaveform>>()
 const sources = new Map<string, Promise<CachedWaveform>>()
+// File/Blob contents are immutable. Reuse a selected file's result even when its
+// object URL changes, without rereading/hash-checking it on every editor mount.
+const files = new WeakMap<Blob, Promise<CachedWaveform>>()
 
 export function validWaveform(value: unknown): value is CachedWaveform {
   const wave = value as CachedWaveform | null
@@ -171,6 +174,14 @@ async function prepare(url: string, file?: Blob): Promise<CachedWaveform> {
 }
 
 export function getCachedWaveform(url: string, file?: Blob): Promise<CachedWaveform> {
+  if (file) {
+    const existing = files.get(file)
+    if (existing) return existing
+    const work = prepare(url, file)
+    files.set(file, work)
+    void work.catch(() => files.delete(file))
+    return work
+  }
   let work = sources.get(url)
   if (!work) {
     work = prepare(url, file)
