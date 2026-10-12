@@ -1,6 +1,6 @@
 import { useEffect, useRef, type RefObject } from 'react'
 import { createPlaybackController, secondsToUs, type StartedResult } from '@duolinting/playback'
-import { createWebPlaybackAdapter } from '@duolinting/playback/web'
+import { createAdminPlaybackAdapter } from '../lib/adminPlaybackAdapter'
 
 type UseMediaPlaybackOptions = {
   mediaRef: RefObject<HTMLMediaElement | null>
@@ -16,7 +16,10 @@ export function useMediaPlayback({ mediaRef, sourceKey }: UseMediaPlaybackOption
   sourceRef.current = sourceKey
   const controllerRef = useRef<ReturnType<typeof createPlaybackController> | null>(null)
   if (!controllerRef.current) {
-    controllerRef.current = createPlaybackController(createWebPlaybackAdapter(() => mediaRef.current, () => sourceRef.current))
+    controllerRef.current = createPlaybackController(
+      createAdminPlaybackAdapter(() => mediaRef.current, () => sourceRef.current),
+      { operationTimeoutMs: 15000 },
+    )
   }
   const controller = controllerRef.current
   useEffect(() => () => controller.cancel(), [controller, sourceKey])

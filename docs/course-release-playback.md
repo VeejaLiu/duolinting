@@ -20,6 +20,10 @@ The native playback module requires a rebuilt mobile binary. Precision on physic
 
 ## Admin waveform cache
 
+The waveform instance is pinned to the actual media revision (or source URL when no revision is available) and selected immutable file. Fresh cache objects, refreshed signatures and UI language changes update refs without destroying a ready canvas. Routine diagnostics inspect geometry/context only; optional pixel checks use a bounded CPU canvas instead of repeatedly reading the renderer's GPU canvases. Performance/network warnings persist asynchronously, and a `stalled` event without a media error remains a warning.
+
+Explicit Admin play/seek temporarily permits buffering (`preload=auto`), waits for metadata before assigning the target, and allows 15 seconds for each startup operation. Session cancellation/completion restores metadata-only preload and prevents an older operation from altering a newer one. These policies are Admin-only; learner/native playback contracts are unchanged.
+
 Waveform rendering starts as soon as cached peaks are available, independently of the preview player's `canplay`, buffering or download state. The hidden WaveSurfer media element has no source URL when peaks are supplied, so it makes no extra media request. The main preview requests metadata only; playback fetches the needed ranges separately. Main-player metadata later updates the editor duration and cursor without decoding again or changing the peaks' source timeline.
 
 A selected local file starts decoding in parallel with its upload. Its immutable File/Blob object shares the same result across editor remounts without rereading or hashing the bytes. As soon as the server binds the uploaded object to a course, the first waveform is silently persisted, even if navigation/catalog refresh disposes the editor. A save retry also fills the cache after binding succeeds. Invalid caches/unsupported decoding still fall back to the original loader.

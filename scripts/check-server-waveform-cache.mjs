@@ -192,3 +192,48 @@ assert.equal(localDecodes,1)
 assert.equal(downloads,0)
 assert.equal(decoderCloses,1)
 console.log('PASS: first local selection decodes without network/player readiness; remount/binding reuses the same file result')
+
+assert.equal(sourceResolver.waveformMediaIdentity('media?token=old','bytes-v1',shared.waveform),
+  sourceResolver.waveformMediaIdentity('media?token=new','bytes-v1',{...shared.waveform,peaks:[...shared.waveform.peaks]}))
+assert.notEqual(sourceResolver.waveformMediaIdentity('media','bytes-v1'),sourceResolver.waveformMediaIdentity('media','bytes-v2'))
+assert.equal(sourceResolver.waveformMediaIdentity('','bytes-v1'),'')
+console.log('PASS: fresh cache objects/signed URLs preserve waveform identity; actual media revisions change it')
+
+let seekTargets=[]
+const fakeMedia=Object.assign(new EventTarget(),{readyState:0,currentTime:0,seeking:false,preload:'metadata'})
+const webModule={createWebPlaybackAdapter:()=>({seek:async(target)=>{assert.equal(fakeMedia.preload,'auto');seekTargets.push(target)},snapshot:()=>({}),play:async()=>{},pause:()=>{},subscribe:()=>()=>{}})}
+const {createAdminPlaybackAdapter}=await load('admin/src/lib/adminPlaybackAdapter.ts',{'@duolinting/playback/web':webModule})
+const adminAdapter=createAdminPlaybackAdapter(()=>fakeMedia,()=> 'media')
+const firstSignal=new AbortController()
+const preparing=adminAdapter.prepare(15_000_000,16_000_000,firstSignal.signal)
+assert.equal(fakeMedia.preload,'auto')
+assert.equal(seekTargets.length,0)
+fakeMedia.readyState=1;fakeMedia.dispatchEvent(new Event('loadedmetadata'))
+await preparing
+assert.deepEqual(seekTargets,[15_000_000])
+firstSignal.abort();assert.equal(fakeMedia.preload,'metadata')
+fakeMedia.readyState=0
+const cancelledSignal=new AbortController();const pendingMetadata=adminAdapter.prepare(5_000_000,6_000_000,cancelledSignal.signal)
+cancelledSignal.abort();await assert.rejects(pendingMetadata,/cancelled/)
+fakeMedia.readyState=1;fakeMedia.dispatchEvent(new Event('loadedmetadata'))
+assert.equal(seekTargets.length,1)
+const older=new AbortController(),newer=new AbortController()
+await adminAdapter.prepare(5_000_000,6_000_000,older.signal)
+await adminAdapter.prepare(15_000_000,16_000_000,newer.signal)
+older.abort();assert.equal(fakeMedia.preload,'auto')
+newer.abort();assert.equal(fakeMedia.preload,'metadata')
+console.log('PASS: explicit play/seek enables buffering after metadata; cancellation restores preload and cannot overwrite a newer operation')
+
+let originalPixelReads=0,scratchPixelReads=0,frequentReadOption=false
+const rect={left:0,top:0,right:600,bottom:200,width:600,height:200}
+const canvas={width:600,height:200,isConnected:true,getBoundingClientRect:()=>rect,getContext:()=>({isContextLost:()=>false,getImageData:()=>{originalPixelReads++;throw new Error('GPU readback forbidden')}})}
+const container={isConnected:true,getBoundingClientRect:()=>rect,firstElementChild:{shadowRoot:{querySelectorAll:selector=>selector==='canvas'?[canvas]:[]}}}
+const {getWaveformDomSnapshot}=await load('admin/src/lib/mediaDiagnostics.ts',{}, {
+ URLSearchParams,performance:{now:()=>0},window:{location:{search:''},getComputedStyle:()=>({display:'block',opacity:'1',visibility:'visible'})},
+ document:{createElement:()=>({width:0,height:0,getContext:(_type,options)=>{frequentReadOption=options.willReadFrequently;return {drawImage:()=>{},getImageData:(_x,_y,w,h)=>{assert.ok(w<=256&&h<=64);scratchPixelReads++;const data=new Uint8ClampedArray(w*h*4);data[3]=255;return {data}}}}})},
+})
+assert.equal(getWaveformDomSnapshot(container).canvases[0].nonTransparentProbePixels,null)
+assert.equal(originalPixelReads,0);assert.equal(scratchPixelReads,0)
+assert.equal(getWaveformDomSnapshot(container,{probePixels:true}).canvases[0].nonTransparentProbePixels,1)
+assert.equal(originalPixelReads,0);assert.equal(scratchPixelReads,1);assert.equal(frequentReadOption,true)
+console.log('PASS: routine diagnostics never read pixels; explicit probes use one bounded CPU canvas read')

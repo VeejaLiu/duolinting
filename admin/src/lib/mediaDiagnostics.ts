@@ -35,6 +35,7 @@ const sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice
 const entries: DiagnosticEntry[] = []
 
 const sanitizeUrl = (value: string) => {
+  if (!value) return ''
   try {
     const url = new URL(value, window.location.href)
     // 媒体诊断只需要来源和路径；查询参数/片段可能包含临时凭证，不写入持久日志。
@@ -180,7 +181,10 @@ export const getMediaSnapshot = (media: HTMLMediaElement | null) =>
       }
     : null
 
-export const getWaveformDomSnapshot = (container: HTMLElement | null) => {
+export const getWaveformDomSnapshot = (
+  container: HTMLElement | null,
+  options: { probePixels?: boolean } = {},
+) => {
   if (!container) return null
 
   const host = container.firstElementChild
@@ -220,32 +224,22 @@ export const getWaveformDomSnapshot = (container: HTMLElement | null) => {
           const context = canvas.getContext('2d')
           if (context) {
             contextLost = context.isContextLost?.() ?? false
-            let visiblePixels = 0
-            // 只读取少量竖线，足以区分“仍有波形绘制”和“canvas 被完全清空”，
-            // 又不会像读取整张超宽 canvas 那样制造额外内存压力。
-            for (let step = 1; step <= 8; step += 1) {
-              const x = Math.min(canvas.width - 1, Math.floor((canvas.width * step) / 9))
-              const pixels = context.getImageData(x, 0, 1, canvas.height).data
-              for (let offset = 3; offset < pixels.length; offset += 4) {
-                if (pixels[offset] > 0) visiblePixels += 1
-              }
-            }
-            nonTransparentProbePixels = visiblePixels
-            // 等距竖线可能全部落入柱状波形的间隙。只有抽样为空时才分块检查
-            // 完整画布；每次最多读取 128 列，避免一次分配超宽画布的像素数组。
-            if (visiblePixels === 0 && !contextLost) {
-              blankConfirmed = true
-              for (let x = 0; x < canvas.width; x += 128) {
-                const pixels = context.getImageData(
-                  x, 0, Math.min(128, canvas.width - x), canvas.height,
-                ).data
+            // Ordinary health checks inspect layout/context only. Reading a GPU
+            // canvas synchronously every five seconds can itself stall editing.
+            if (options.probePixels && !contextLost) {
+              const probe = document.createElement('canvas')
+              probe.width = Math.min(canvas.width, 256)
+              probe.height = Math.min(canvas.height, 64)
+              const reader = probe.getContext('2d', { willReadFrequently: true })
+              if (reader) {
+                reader.drawImage(canvas, 0, 0, probe.width, probe.height)
+                const pixels = reader.getImageData(0, 0, probe.width, probe.height).data
+                let visiblePixels = 0
                 for (let offset = 3; offset < pixels.length; offset += 4) {
-                  if (pixels[offset] > 0) {
-                    blankConfirmed = false
-                    break
-                  }
+                  if (pixels[offset] > 0) visiblePixels += 1
                 }
-                if (!blankConfirmed) break
+                nonTransparentProbePixels = visiblePixels
+                blankConfirmed = visiblePixels === 0
               }
             }
           }
@@ -305,7 +299,9 @@ export const logMediaDiagnostic = (
 
   // 同时输出可直接复制的 JSON，避免开发者工具把关键对象折叠成 “Object”。
   console[level](MEDIA_LOG_PREFIX, event, entry, JSON.stringify(entry))
-  schedulePersist(level !== 'info' || event.includes('error') || event.includes('blank'))
+  // Performance/network warnings are batched; a warning must not synchronously
+  // serialize the entire diagnostic history and create another long task.
+  schedulePersist(level === 'error')
 }
 
 export const observeMediaElement = (media: HTMLMediaElement, role: string) => {
@@ -335,7 +331,7 @@ export const observeMediaElement = (media: HTMLMediaElement, role: string) => {
       logMediaDiagnostic(
         `media-${role}-${eventName}`,
         { media: getMediaSnapshot(media) },
-        eventName === 'error' || eventName === 'stalled' ? 'error' : 'info',
+        eventName === 'error' ? 'error' : eventName === 'stalled' ? 'warn' : 'info',
       )
     }
     media.addEventListener(eventName, listener)

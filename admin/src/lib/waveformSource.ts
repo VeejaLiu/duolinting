@@ -1,6 +1,13 @@
 import type { CourseWaveform } from '@duolinting/shared'
 import { getCachedWaveform, validWaveform, type CachedWaveform } from './waveformCache'
 
+/** Rendering identity describes media bytes, not a fresh cache object or signed URL. */
+export function waveformMediaIdentity(url: string, revision?: string, supplied?: CourseWaveform) {
+  if (!url) return ''
+  const mediaRevision = revision || supplied?.mediaRevision
+  return mediaRevision ? `revision:${mediaRevision}` : `url:${url}`
+}
+
 /** Peaks and duration are sufficient for rendering; no player readiness is needed. */
 export async function resolveWaveformSource(
   url: string,

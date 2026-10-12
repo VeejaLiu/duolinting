@@ -1,6 +1,6 @@
 import { persistServerWaveform } from '../../lib/serverWaveformCache'
 import { validWaveform, type CachedWaveform } from '../../lib/waveformCache'
-import { resolveWaveformSource } from '../../lib/waveformSource'
+import { resolveWaveformSource, waveformMediaIdentity } from '../../lib/waveformSource'
 import type { CourseWaveform } from '@duolinting/shared'
 import {
   Button,
@@ -248,6 +248,10 @@ export function MediaWaveform({
   onEditEnd,
 }: MediaWaveformProps) {
   const { t } = useAdminLanguage()
+  const translateRef = useRef(t)
+  const sourceInputRef = useRef({ sourceUrl, sourceWaveform, sourceWaveformRevision })
+  const mediaIdentity = sourceFile && sourceUrl
+    ? 'local-file' : waveformMediaIdentity(sourceUrl, sourceWaveformRevision, sourceWaveform)
   const waveformContainerRef = useRef<HTMLDivElement | null>(null)
   const waveSurferRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<RegionsPlugin | null>(null)
@@ -402,6 +406,11 @@ export function MediaWaveform({
   }, [activeLineIndex])
 
   useEffect(() => {
+    translateRef.current = t
+    sourceInputRef.current = { sourceUrl, sourceWaveform, sourceWaveformRevision }
+  }, [sourceUrl, sourceWaveform, sourceWaveformRevision, t])
+
+  useEffect(() => {
     onActiveLineChangeRef.current = onActiveLineChange
     onAddLineRef.current = onAddLine
     onUpdateLineRef.current = onUpdateLine
@@ -429,6 +438,8 @@ export function MediaWaveform({
     let cancelled = false
 
     const timeoutId = setTimeout(async () => {
+      const { sourceUrl, sourceWaveform, sourceWaveformRevision } = sourceInputRef.current
+      const t: typeof translateRef.current = (...args) => translateRef.current(...args)
 	      const media = mediaRef.current
 	      const waveformContainer = waveformContainerRef.current
 	      if (!sourceUrl) {
@@ -552,10 +563,10 @@ export function MediaWaveform({
       }
 
       const captureWaveformHealth = (reason: string) => {
-        if (disposed) return
+        if (disposed || !waveformContainer.isConnected) return
         // 读取 canvas 像素会同步占用主线程；播放时留给音频和光标更新，
         // 暂停或下次空闲检查时再判断画布是否需要恢复。
-        if ((!media.paused && !media.ended) ||
+        if ((!media.paused && !media.ended) || media.seeking ||
           isDraggingRegionRef.current ||
           document.visibilityState !== 'visible' ||
           waveformStatusRef.current !== 'ready' ||
@@ -564,7 +575,7 @@ export function MediaWaveform({
           scheduleHealth('redraw-settled', 1600)
           return
         }
-        const dom = getWaveformDomSnapshot(waveformContainer)
+        const dom = getWaveformDomSnapshot(waveformContainer, { probePixels: isMediaDiagnosticsVerbose })
         const currentActiveLineIndex = activeLineIndexRef.current
         const currentActiveLine = draftLinesRef.current[currentActiveLineIndex]
         const visibleCanvases = dom?.canvases.filter((canvas) => canvas.isVisibleInContainer) ?? []
@@ -1103,7 +1114,9 @@ export function MediaWaveform({
       }
       clearTimeout(timeoutId)
     }
-  }, [mediaRef, sourceUrl, sourceFile, sourceWaveform, sourceWaveformRevision, t])
+    // A subtitle selection, play action, fresh-but-identical cache response or
+    // language change must not destroy a ready canvas. Only real media changes do.
+  }, [mediaRef, mediaIdentity, sourceFile])
 
   useEffect(() => {
     const prepared = preparedWaveformRef.current
