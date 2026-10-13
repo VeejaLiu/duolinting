@@ -74,7 +74,11 @@ class Course:
 
 @dataclass(frozen=True)
 class RenderLine:
-    """One generated pass, including the intentional 300ms breathing gap."""
+    """One pass on the output frame clock, including its padded breathing gap.
+
+    timeline_start/end are seconds converted from integer output-frame offsets;
+    line.start/end remain the unmodified seconds on the original source media.
+    """
 
     line: TranscriptLine
     round_number: int

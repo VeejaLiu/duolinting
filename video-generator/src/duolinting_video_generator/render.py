@@ -642,6 +642,23 @@ def _filter_value(value: str) -> str:
     return value.replace("\\", "\\\\").replace("'", "\\'").replace(":", "\\:")
 
 
+def _build_render_lines(lines: list[TranscriptLine], options: RenderOptions) -> list[RenderLine]:
+    """Plan every pass on the output frame clock, including its breathing gap."""
+
+    result: list[RenderLine] = []
+    cursor_frames = 0
+    for line in lines:
+        # A video cannot end between frames. Round UP so the original sentence
+        # is never shortened; the tiny extra hold belongs to the trailing gap.
+        # The tolerance only removes binary-float noise at exact frame edges.
+        frames = max(1, math.ceil((line.duration + options.gap_seconds) * options.fps - 1e-7))
+        for round_number in (1, 2, 3):
+            result.append(RenderLine(line, round_number, cursor_frames / options.fps,
+                                     (cursor_frames + frames) / options.fps))
+            cursor_frames += frames
+    return result
+
+
 def _build_filter_graph(
     *,
     media: ProbedMedia,
@@ -651,20 +668,11 @@ def _build_filter_graph(
     has_logo: bool,
 ) -> tuple[str, list[RenderLine]]:
     theme = options.theme
-    render_lines: list[RenderLine] = []
-    cursor = 0.0
-    for line in lines:
-        for round_number in (1, 2, 3):
-            duration = line.duration
-            render_lines.append(
-                RenderLine(
-                    line=line,
-                    round_number=round_number,
-                    timeline_start=cursor,
-                    timeline_end=cursor + duration + options.gap_seconds,
-                )
-            )
-            cursor += duration + options.gap_seconds
+    render_lines = _build_render_lines(lines, options)
+    # Use an integer number of audio samples per video frame. Normally this is
+    # 48 kHz / 30 fps = 1600 samples; unusual integer fps use a nearby sample rate
+    # internally, then the final continuous stream is encoded at 48 kHz.
+    audio_rate = options.fps * math.ceil(48000 / options.fps)
 
     segment_count = len(render_lines)
     parts: list[str] = []
@@ -677,36 +685,52 @@ def _build_filter_graph(
         parts.append(f"[0:v]scale=w='max(2,round(iw*if(gt(sar,0),sar,1)/2)*2)':h=ih,setsar=1,split={segment_count}{source_labels}")
     if media.has_audio:
         source_labels = "".join(f"[asrc{i}]" for i in range(segment_count))
-        parts.append(f"[0:a]asplit={segment_count}{source_labels}")
+        parts.append(f"[0:a]aresample={audio_rate},asplit={segment_count}{source_labels}")
 
     for index, render_line in enumerate(render_lines):
         start = _decimal(render_line.line.start)
         end = _decimal(render_line.line.end)
-        segment_duration = _decimal(render_line.line.duration + options.gap_seconds)
+        segment_frames = round((render_line.timeline_end - render_line.timeline_start) * options.fps)
+        segment_samples = segment_frames * (audio_rate // options.fps)
         if media.has_video:
             parts.extend(
                 [
-                    f"[vsrc{index}]trim=start={start}:end={end},setpts=PTS-STARTPTS,fps={options.fps},split=2[vfg{index}][vbg{index}]",
+                    # Fix each pass's frame count BEFORE concat. FPS conversion
+                    # and clone padding otherwise produce a source-dependent
+                    # duration that slowly runs ahead of the ASS phase labels.
+                    # Keep the requested source cut as time zero. STARTPTS
+                    # would advance low-fps video by the delay to its first
+                    # retained frame, while audio starts at the requested cut.
+                    f"[vsrc{index}]trim=start={start}:end={end},setpts=PTS-{start}/TB,"
+                    f"fps={options.fps}:start_time=0:eof_action=pass,"
+                    f"tpad=stop_mode=clone:stop=-1,trim=end_frame={segment_frames},"
+                    f"setpts=N/({options.fps}*TB),split=2[vfg{index}][vbg{index}]",
                     f"[vbg{index}]scale={theme.width}:{theme.media_height}:force_original_aspect_ratio=increase,crop={theme.width}:{theme.media_height},setsar=1,boxblur={theme.blur_radius}:2[blur{index}]",
                     f"[vfg{index}]scale={theme.width}:{theme.media_height}:force_original_aspect_ratio=decrease,setsar=1[fit{index}]",
                     f"[blur{index}][fit{index}]overlay=(W-w)/2:(H-h)/2:shortest=1[media{index}]",
-                    f"[media{index}]pad={theme.width}:{theme.height}:0:{theme.header_height}:color={theme.background},tpad=stop_mode=clone:stop_duration={_decimal(options.gap_seconds)}[v{index}]",
+                    f"[media{index}]pad={theme.width}:{theme.height}:0:{theme.header_height}:color={theme.background}[v{index}]",
                 ]
             )
         else:
             parts.append(
-                f"color=c={theme.audio_background}:s={theme.width}x{theme.media_height}:r={options.fps}:d={_decimal(render_line.line.duration)},"
-                f"pad={theme.width}:{theme.height}:0:{theme.header_height}:color={theme.background},tpad=stop_mode=clone:stop_duration={_decimal(options.gap_seconds)}[v{index}]"
+                f"color=c={theme.audio_background}:s={theme.width}x{theme.media_height}:r={options.fps},"
+                f"trim=end_frame={segment_frames},setpts=N/({options.fps}*TB),"
+                f"pad={theme.width}:{theme.height}:0:{theme.header_height}:color={theme.background}[v{index}]"
             )
         video_labels.append(f"[v{index}]")
 
         if media.has_audio:
             parts.append(
                 f"[asrc{index}]atrim=start={start}:end={end},asetpts=PTS-STARTPTS,"
-                f"apad=pad_dur={_decimal(options.gap_seconds)},atrim=duration={segment_duration}[a{index}]"
+                # Pad and trim by SAMPLE COUNT, not rounded decimal seconds.
+                # Both streams now have exactly the same length in each pass,
+                # so concat cannot silently extend the following pass.
+                f"apad=whole_len={segment_samples},atrim=end_sample={segment_samples},"
+                f"asetpts=N/SR/TB[a{index}]"
             )
         else:
-            parts.append(f"anullsrc=r=48000:cl=stereo:d={segment_duration}[a{index}]")
+            parts.append(f"anullsrc=r={audio_rate}:cl=stereo,atrim=end_sample={segment_samples},"
+                         f"asetpts=N/SR/TB[a{index}]")
         audio_labels.append(f"[a{index}]")
 
     concat_inputs = "".join(
@@ -761,6 +785,27 @@ def _tail(path: Path, limit: int = 12) -> str:
     except OSError:
         return ""
     return "\n".join(lines[-limit:])
+
+
+def _validate_output_timing(path: Path, expected_seconds: float, fps: int) -> None:
+    """Reject an encoded MP4 whose streams no longer match the planned clock."""
+
+    result = _run_checked([_ffprobe_binary(), "-v", "error", "-show_entries",
+                           "stream=codec_type,duration", "-of", "json", str(path)],
+                          label="检查成片时间轴")
+    try:
+        streams = json.loads(result.stdout)["streams"]
+        for kind in ("video", "audio"):
+            actual = float(next(stream["duration"] for stream in streams
+                                if stream.get("codec_type") == kind))
+            # One video frame plus one AAC packet covers only end-of-stream
+            # quantization; a seconds-long cumulative drift must fail delivery.
+            tolerance = 1 / fps + 1024 / 48000 + .005
+            if not math.isfinite(actual) or abs(actual - expected_seconds) > tolerance:
+                raise RenderError(f"成片 {kind} 时间轴不匹配：计划 {expected_seconds:.3f} 秒，"
+                                  f"实际 {actual:.3f} 秒，请勿交付该文件")
+    except (ValueError, KeyError, StopIteration, TypeError) as error:
+        raise RenderError("成片缺少可核对的音视频时长，请勿交付该文件") from error
 
 
 def _run_ffmpeg(
@@ -844,7 +889,6 @@ def render_course(
         lines = [lines[options.preview_line - 1]]
     ensure_subtitle_filter()
     media = probe_media(media_path)
-    total_duration = sum(line.duration + options.gap_seconds for line in lines) * 3
 
     with tempfile.TemporaryDirectory(prefix="dlt-video-render-") as temporary_directory:
         temporary = Path(temporary_directory)
@@ -857,6 +901,7 @@ def render_course(
             ass_path=ass_path,
             has_logo=logo_path is not None,
         )
+        total_duration = render_lines[-1].timeline_end
         _build_ass(
             course=course,
             lines=lines,
@@ -905,6 +950,8 @@ def render_course(
                 str(options.fps),
                 "-c:a",
                 "aac",
+                "-ar",
+                "48000",
                 "-b:a",
                 "160k",
                 "-movflags",
@@ -913,3 +960,4 @@ def render_course(
             ]
         )
         _run_ffmpeg(command, duration=total_duration, on_progress=on_progress)
+        _validate_output_timing(output_path, total_duration, options.fps)
