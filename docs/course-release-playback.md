@@ -20,6 +20,8 @@ The native playback module requires a rebuilt mobile binary. Precision on physic
 
 ## Admin waveform cache
 
+Opening a course is one cancellable navigation command. Parent rerenders, fresh notice callbacks and catalog updates do not refetch its details; consuming/replacing the command makes late responses inert. Detail, player URL and waveform are applied together. Cache ownership compares course ID and the media object locator, removing only our temporary CDN/backend authorization fields while retaining object keys and content-selecting query parameters. Renewing a signature therefore preserves peaks; replacing the media still invalidates them.
+
 The waveform instance is pinned to the actual media revision (or source URL when no revision is available) and selected immutable file. Fresh cache objects, refreshed signatures and UI language changes update refs without destroying a ready canvas. Routine diagnostics inspect geometry/context only; optional pixel checks use a bounded CPU canvas instead of repeatedly reading the renderer's GPU canvases. Performance/network warnings persist asynchronously, and a `stalled` event without a media error remains a warning.
 
 Explicit Admin play/seek temporarily permits buffering (`preload=auto`), waits for metadata before assigning the target, and allows 15 seconds for each startup operation. Session cancellation/completion restores metadata-only preload and prevents an older operation from altering a newer one. These policies are Admin-only; learner/native playback contracts are unchanged.

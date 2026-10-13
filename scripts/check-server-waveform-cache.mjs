@@ -12,7 +12,7 @@ async function load(path, dependencies, extra = {}) {
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
   const module = { exports: {} }
   vm.runInNewContext(code, {
-    module, exports: module.exports, __filename: path,
+    module, exports: module.exports, __filename: path, URL,
     require: (name) => dependencies[name] ?? require(name),
     setTimeout: (fn) => { fn(); return 0 }, ...extra,
   }, { filename: path })
@@ -198,6 +198,84 @@ assert.equal(sourceResolver.waveformMediaIdentity('media?token=old','bytes-v1',s
 assert.notEqual(sourceResolver.waveformMediaIdentity('media','bytes-v1'),sourceResolver.waveformMediaIdentity('media','bytes-v2'))
 assert.equal(sourceResolver.waveformMediaIdentity('','bytes-v1'),'')
 console.log('PASS: fresh cache objects/signed URLs preserve waveform identity; actual media revisions change it')
+
+const oldSign = `1-${'a'.repeat(16)}-0-${'a'.repeat(32)}`
+const newSign = `2-${'b'.repeat(16)}-0-${'b'.repeat(32)}`
+const boundCourse = { id: 1, audioUrl: `https://media.test/video.mp4?sign=${oldSign}&quality=480` }
+const refreshedDetail = { ...boundCourse, audioUrl: `https://media.test/video.mp4?quality=480&sign=${newSign}`,
+  waveform: shared.waveform, waveformSourceRevision: 'bytes-v1' }
+assert.equal(sourceResolver.waveformForEditor(refreshedDetail, boundCourse).waveform, shared.waveform)
+assert.equal(sourceResolver.waveformForEditor(refreshedDetail, boundCourse).revision, 'bytes-v1')
+assert.equal(sourceResolver.waveformForEditor({...refreshedDetail,id:2},boundCourse).waveform,undefined)
+assert.equal(sourceResolver.waveformForEditor(refreshedDetail,{...boundCourse,audioUrl:'https://media.test/replacement.mp4'}).waveform,undefined)
+assert.equal(sourceResolver.waveformForEditor(refreshedDetail,{...boundCourse,audioUrl:'https://media.test/video.mp4?quality=720'}).waveform,undefined)
+assert.equal(sourceResolver.waveformForEditor(refreshedDetail,boundCourse,{localFile:true}).waveform,undefined)
+assert.equal(sourceResolver.waveformForEditor(null,{audioUrl:boundCourse.audioUrl}).waveform,undefined)
+assert.equal(sourceResolver.waveformMediaLocator('/api/v1/media/objects?key=one&expires=1&mediaToken=old'),
+  sourceResolver.waveformMediaLocator('/api/v1/media/objects?mediaToken=new&key=one&expires=2'))
+assert.notEqual(sourceResolver.waveformMediaLocator('/api/v1/media/objects?key=one&expires=1&mediaToken=old'),
+  sourceResolver.waveformMediaLocator('/api/v1/media/objects?key=two&expires=2&mediaToken=new'))
+assert.notEqual(sourceResolver.waveformMediaLocator('https://media.test/video.mp4?sign=variant-one'),
+  sourceResolver.waveformMediaLocator('https://media.test/video.mp4?sign=variant-two'))
+console.log('PASS: renewed media signatures retain bound peaks; course/object/query/file changes reject them')
+
+// Drive the real loading hook with isolated effect lifecycles and deferred
+// requests. Fresh owner callbacks must not refetch or apply a retired command.
+let hookCursor = 0
+const hookSlots = []
+const detailRequests = []
+const applied = [], failuresReported = [], created = []
+const draftLoader = await load('admin/src/hooks/useImporterDraftLoad.ts', {
+  react: {
+    useEffectEvent(callback) {
+      const index = hookCursor++
+      if (!hookSlots[index]) {
+        hookSlots[index] = { current: callback, invoke: (...args) => hookSlots[index].current(...args) }
+      }
+      hookSlots[index].current = callback
+      return hookSlots[index].invoke
+    },
+    useEffect(effect, dependencies) {
+      const index = hookCursor++
+      const previous = hookSlots[index]
+      if (previous && dependencies.every((value, i) => Object.is(value, previous.dependencies[i]))) return
+      previous?.cleanup?.()
+      hookSlots[index] = { dependencies, cleanup: effect() }
+    },
+  },
+  '../lib/apiClient': { apiClient: { getAdminExercise: (id) => new Promise((resolve, reject) => {
+    detailRequests.push({id,resolve,reject})
+  }) } },
+})
+const renderDraft = (draft, generation = 0) => {
+  hookCursor = 0
+  draftLoader.useImporterDraftLoad({ draft, adminToken: 'fixture',
+    onCreate: id => created.push(id), onLoad: exercise => applied.push([exercise.id,generation]),
+    onError: error => failuresReported.push(error.message) })
+}
+const firstCommand = {mode:'edit',exercise:{id:1}}
+renderDraft(firstCommand)
+for (let i = 1; i <= 6; i++) renderDraft(firstCommand, i)
+assert.equal(detailRequests.length, 1)
+detailRequests[0].resolve({id:1})
+await Promise.resolve()
+assert.deepEqual(applied, [[1,6]])
+renderDraft(null)
+renderDraft({mode:'edit',exercise:{id:2}})
+renderDraft({mode:'edit',exercise:{id:3}})
+detailRequests[2].resolve({id:3})
+await Promise.resolve()
+detailRequests[1].resolve({id:2})
+await Promise.resolve()
+assert.deepEqual(applied, [[1,6],[3,0]])
+renderDraft({mode:'edit',exercise:{id:4}})
+renderDraft(null)
+detailRequests[3].reject(new Error('late failure'))
+await Promise.resolve()
+assert.deepEqual(failuresReported, [])
+renderDraft({mode:'create',categoryId:5})
+assert.deepEqual(created,[5])
+console.log('PASS: owner rerenders keep one detail request; retired responses/errors cannot overwrite the editor')
 
 let seekTargets=[]
 const fakeMedia=Object.assign(new EventTarget(),{readyState:0,currentTime:0,seeking:false,preload:'metadata'})

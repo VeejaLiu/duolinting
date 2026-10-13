@@ -24,6 +24,8 @@ import { ADMIN_TOKEN_STORAGE_KEY } from '../lib/contentTools'
 import { getCachedWaveform } from '../lib/waveformCache'
 import { persistServerWaveform } from '../lib/serverWaveformCache'
 import { useSubtitleHistory } from '../hooks/useSubtitleHistory'
+import { useImporterDraftLoad, type ImporterDraft } from '../hooks/useImporterDraftLoad'
+import { waveformForEditor } from '../lib/waveformSource'
 import { SubtitleHistoryControls } from './admin/SubtitleHistoryControls'
 import { useMediaPlayback } from '../hooks/useMediaPlayback'
 import { useAdminLanguage } from '../i18n/AdminLanguageProvider'
@@ -46,16 +48,7 @@ type AudioLessonImporterProps = {
   categoryGroups: MaterialCategory[]
   categories: ExerciseCategory[]
   exercises: CatalogExerciseSummary[]
-  draft:
-    | {
-        mode: 'create'
-        categoryId: number
-      }
-    | {
-        mode: 'edit'
-        exercise: CatalogExerciseSummary
-  }
-    | null
+  draft: ImporterDraft
   onRefreshCatalog: () => Promise<void>
   onStatusChange: (message: string, tone?: AdminNoticeTone) => void
   onDraftConsumed: () => void
@@ -383,16 +376,15 @@ export function AudioLessonImporter({
     subtitleDraft,
   ])
 
-  useEffect(() => {
-    if (!draft) {
-      return
-    }
-
-    if (draft.mode === 'create') {
-      const targetCategory = categories.find((category) => category.id === draft.categoryId)
+  useImporterDraftLoad({
+    draft,
+    adminToken,
+    onCreate: (categoryId) => {
+      setLoadedExercise(null)
+      const targetCategory = categories.find((category) => category.id === categoryId)
       const nextDraftLines = [createEmptyDraftLine()]
       const nextCourseForm: CreateExerciseRequest = {
-        categoryId: draft.categoryId,
+        categoryId,
         title: '',
         source: targetCategory?.name ?? '真实媒体导入',
         sourceUrl: '',
@@ -402,7 +394,7 @@ export function AudioLessonImporter({
         audioUrl: '',
         coverImageUrl: '',
         summary: '',
-        sortOrder: getNextExerciseSortOrder(exercises, draft.categoryId),
+        sortOrder: getNextExerciseSortOrder(exercises, categoryId),
         status: 'draft',
       }
       setMediaFile(null)
@@ -418,78 +410,68 @@ export function AudioLessonImporter({
       setSavedImporterSnapshot(
         createImporterSnapshot(nextCourseForm, nextDraftLines, ''),
       )
-    onStatusChange('已切换到制课工作台，请继续创建课程', 'info')
-    onDraftConsumed()
-    return
-    }
-
-    setLoadedExercise(null)
-    void (async () => {
-      try {
-        const exercise = await apiClient.getAdminExercise(draft.exercise.id, adminToken)
-        setLoadedExercise(exercise)
-      } catch (error) {
-        onStatusChange(error instanceof Error ? error.message : '课程加载失败', 'error')
-        onDraftConsumed()
+      onStatusChange('已切换到制课工作台，请继续创建课程', 'info')
+      onDraftConsumed()
+    },
+    onLoad: (exercise) => {
+      // Bind the detail, player URL and peaks in one React update. A ready editor
+      // never observes a refreshed detail paired with the previous form URL.
+      setLoadedExercise(exercise)
+      // 贡献者重开课程时优先载入自己的工作稿（包括被退回的版本），
+      // 而不是再次显示课程当前的正式字幕，避免保存后看似“丢稿”。
+      const editableLines = adminRole === 'subtitle_contributor' && exercise.subtitleDrafts?.[0]
+        ? exercise.subtitleDrafts[0].lines
+        : exercise.lines
+      const nextDraftLines =
+        editableLines.length > 0
+          ? editableLines.map(toDraftLine)
+          : [createEmptyDraftLine()]
+      const nextCourseForm: CreateExerciseRequest = {
+        id: exercise.id,
+        categoryId: exercise.categoryId,
+        title: exercise.title,
+        source: exercise.source,
+        sourceUrl: exercise.sourceUrl ?? '',
+        difficulty: exercise.difficulty,
+        durationLabel: exercise.durationLabel,
+        mediaType: exercise.mediaType,
+        audioUrl: exercise.audioUrl,
+        coverImageUrl: exercise.coverImageUrl ?? '',
+        summary: exercise.summary,
+        // Restore every locale when reopening; saving already sends this map.
+        localizations: exercise.localizations ?? {},
+        sortOrder: exercise.sortOrder,
+        // 透传原状态，避免把 archived 课程改回 published
+        status: exercise.status,
       }
-    })()
-  }, [adminToken, categories, draft, exercises, onDraftConsumed, onStatusChange, resetSubtitles, setActiveLineIndex])
+      setMediaFile(null)
+      setLocalMediaUrl(resolveApiUrl(exercise.audioUrl))
+      setUploadedMediaUrl(exercise.audioUrl)
+      // 课程详情接口会按媒体对象统计文件大小；编辑已有课程时保留该元数据，
+      // 让工作台可以完整展示当前媒体，而不是退化成“媒体已加载”的笼统提示。
+      setMediaSize(exercise.mediaSize ?? null)
+      setSubtitleDraft('')
+      setSubtitleAnalysis(EMPTY_SUBTITLE_ANALYSIS)
+      setSubtitleImportMode('single')
+      setActiveLineIndex(0)
+      resetSubtitles(nextDraftLines)
+      setCourseForm(nextCourseForm)
+      setSavedImporterSnapshot(
+        createImporterSnapshot(nextCourseForm, nextDraftLines, ''),
+      )
+      const returnedNote = adminRole === 'subtitle_contributor' && exercise.subtitleDrafts?.[0]?.status === 'returned'
+        ? t('；审核意见：{{note}}', { note: exercise.subtitleDrafts[0].reviewNote ?? t('请按意见修改后重新提交') })
+        : ''
+      onStatusChange(t('已载入课程：{{title}}{{note}}', { title: exercise.title, note: returnedNote }), 'success')
+      onDraftConsumed()
+    },
+    onError: (error) => {
+      onStatusChange(error instanceof Error ? error.message : '课程加载失败', 'error')
+      onDraftConsumed()
+    },
+  })
 
-  useEffect(() => {
-    if (!draft || draft.mode !== 'edit' || !loadedExercise) {
-      return
-    }
-
-    const { exercise } = { exercise: loadedExercise }
-    // 贡献者重开课程时优先载入自己的工作稿（包括被退回的版本），
-    // 而不是再次显示课程当前的正式字幕，避免保存后看似“丢稿”。
-    const editableLines = adminRole === 'subtitle_contributor' && exercise.subtitleDrafts?.[0]
-      ? exercise.subtitleDrafts[0].lines
-      : exercise.lines
-    const nextDraftLines =
-      editableLines.length > 0
-        ? editableLines.map(toDraftLine)
-        : [createEmptyDraftLine()]
-    const nextCourseForm: CreateExerciseRequest = {
-      id: exercise.id,
-      categoryId: exercise.categoryId,
-      title: exercise.title,
-      source: exercise.source,
-      sourceUrl: exercise.sourceUrl ?? '',
-      difficulty: exercise.difficulty,
-      durationLabel: exercise.durationLabel,
-      mediaType: exercise.mediaType,
-      audioUrl: exercise.audioUrl,
-      coverImageUrl: exercise.coverImageUrl ?? '',
-      summary: exercise.summary,
-      // Restore every locale when reopening; saving already sends this map.
-      localizations: exercise.localizations ?? {},
-      sortOrder: exercise.sortOrder,
-      // 透传原状态，避免把 archived 课程改回 published
-      status: exercise.status,
-    }
-    setMediaFile(null)
-    setLocalMediaUrl(resolveApiUrl(exercise.audioUrl))
-    setUploadedMediaUrl(exercise.audioUrl)
-    // 课程详情接口会按媒体对象统计文件大小；编辑已有课程时保留该元数据，
-    // 让工作台可以完整展示当前媒体，而不是退化成“媒体已加载”的笼统提示。
-    setMediaSize(exercise.mediaSize ?? null)
-    setSubtitleDraft('')
-    setSubtitleAnalysis(EMPTY_SUBTITLE_ANALYSIS)
-    setSubtitleImportMode('single')
-    setActiveLineIndex(0)
-    resetSubtitles(nextDraftLines)
-    setCourseForm(nextCourseForm)
-    setSavedImporterSnapshot(
-      createImporterSnapshot(nextCourseForm, nextDraftLines, ''),
-    )
-    const returnedNote = adminRole === 'subtitle_contributor' && exercise.subtitleDrafts?.[0]?.status === 'returned'
-      ? t('；审核意见：{{note}}', { note: exercise.subtitleDrafts[0].reviewNote ?? t('请按意见修改后重新提交') })
-      : ''
-    onStatusChange(t('已载入课程：{{title}}{{note}}', { title: exercise.title, note: returnedNote }), 'success')
-    onDraftConsumed()
-  }, [adminRole, draft, loadedExercise, onDraftConsumed, onStatusChange, resetSubtitles, setActiveLineIndex, t])
-
+  const editorWaveform = waveformForEditor(loadedExercise, courseForm, mediaFile)
   const activeLine = draftLines[activeLineIndex] ?? draftLines[0]
   const validLineCount = useMemo(() => {
     try {
@@ -1183,11 +1165,11 @@ export function AudioLessonImporter({
                 mediaRef={mediaRef}
                 sourceUrl={localMediaUrl}
                 sourceFile={mediaFile ?? undefined}
-                sourceWaveformRevision={!mediaFile && loadedExercise?.audioUrl === courseForm.audioUrl ? loadedExercise.waveformSourceRevision : undefined}
+                sourceWaveformRevision={editorWaveform.revision}
                 serverExerciseId={!isUploadingMedia && courseForm.audioUrl ? courseForm.id : undefined}
                 serverMediaUrl={courseForm.audioUrl}
                 adminToken={adminToken}
-                sourceWaveform={!mediaFile && loadedExercise?.audioUrl === courseForm.audioUrl ? loadedExercise.waveform : undefined}
+                sourceWaveform={editorWaveform.waveform}
                 showInspector={false}
                 historyControls={(
                   <SubtitleHistoryControls
