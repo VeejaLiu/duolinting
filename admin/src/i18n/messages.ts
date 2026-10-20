@@ -1,5 +1,6 @@
 import { contentImportDocumentationMessages } from './contentImportDocumentation'
 import { analyticsMessages } from './analytics'
+import { subtitleReviewMessages } from './subtitleReview'
 import thSupplement from './supplement-th-TH'
 import jaSupplement from './supplement-ja-JP'
 import frFR from './fr-FR'
@@ -2972,4 +2973,11 @@ const workflowActivityDetailMessages = [
 for (const [key, ...values] of workflowActivityDetailMessages) {
   adminMessages['zh-CN'][key] = key
   for (const [index, locale] of (['en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const).entries()) adminMessages[locale][key] = values[index]
+}
+
+for (const [key, ...values] of subtitleReviewMessages) {
+  adminMessages['zh-CN'][key] = key
+  for (const [index, locale] of (['en-US', 'th-TH', 'ja-JP', 'fr-FR', 'es-ES'] as const).entries()) {
+    adminMessages[locale][key] = values[index]
+  }
 }

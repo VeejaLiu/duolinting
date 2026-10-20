@@ -37,7 +37,6 @@ export function useWorkspaceData({
   const [growthReport, setGrowthReport] = useState<AdminGrowthReport | null>(null)
   const [growthLoading, setGrowthLoading] = useState(false)
   const [reviewingExercise, setReviewingExercise] = useState<import('@duolinting/shared').ListeningExercise | null>(null)
-  const [reviewNote, setReviewNote] = useState('')
   const [workflowContributors, setWorkflowContributors] = useState<AdminMember[]>([])
   const [reviewTasks, setReviewTasks] = useState<AdminReviewTask[]>([])
   const [workflowInbox, setWorkflowInbox] = useState<AdminSubtitleWorkflowTaskInbox>({ items: [], counts: { proofreading: 0, awaitingReview: 0, returned: 0, completedProofreading: 0, completedSecondReview: 0 } })
@@ -90,12 +89,13 @@ export function useWorkspaceData({
   const openSubtitleReview = useCallback(async (exerciseId: number) => {
     try {
       const detail = await apiClient.getAdminExercise(exerciseId, adminToken)
-      if (!detail.subtitleDrafts?.length) {
+      // 同时负责校对和二审时，详情还会带个人编辑稿；审核入口只接受已提交稿。
+      const submittedDrafts = detail.subtitleDrafts?.filter((draft) => draft.status === 'submitted') ?? []
+      if (!submittedDrafts.length) {
         localizedNotify('这门课程当前没有待二次审核的字幕稿', 'info')
         return
       }
-      setReviewNote('')
-      setReviewingExercise(detail)
+      setReviewingExercise({ ...detail, subtitleDrafts: submittedDrafts })
     } catch (error) {
       localizedNotify(error instanceof Error ? error.message : '加载字幕稿失败', 'error')
     }
@@ -189,8 +189,6 @@ export function useWorkspaceData({
     refreshGrowth,
     reviewingExercise,
     setReviewingExercise,
-    reviewNote,
-    setReviewNote,
     workflowContributors,
     reviewTasks,
     workflowInbox,

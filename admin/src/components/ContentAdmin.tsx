@@ -1,5 +1,5 @@
 import type { CatalogExerciseSummary } from '@duolinting/shared'
-import { ConfigProvider, Input, Layout, Modal, Space, Typography } from 'antd'
+import { ConfigProvider, Layout } from 'antd'
 import { useCallback, useState } from 'react'
 import { useCatalogActions } from '../hooks/content-workspace/useCatalogActions'
 import { useImporterNavigation } from '../hooks/content-workspace/useImporterNavigation'
@@ -20,6 +20,7 @@ import { ContentImportTokenManager } from './admin/ContentImportTokenManager'
 import { OpenContentApiKeyManager } from './admin/OpenContentApiKeyManager'
 import { TaskPoolManager } from './admin/TaskPoolManager'
 import { SponsorManager } from './admin/SponsorManager'
+import { SubtitleReviewModal } from './admin/SubtitleReviewModal'
 import { DonationManager } from './admin/DonationManager'
 import { UserActivityPanel } from './admin/UserActivityPanel'
 import { WorkflowActivityPanel } from './admin/WorkflowActivityPanel'
@@ -100,8 +101,6 @@ export function ContentAdmin({
     refreshGrowth,
     reviewingExercise,
     setReviewingExercise,
-    reviewNote,
-    setReviewNote,
     workflowContributors,
     reviewTasks,
     workflowInbox,
@@ -384,53 +383,25 @@ export function ContentAdmin({
           /><ContentImportTokenManager adminToken={adminToken} categories={categories} onNotify={localizedNotify} onRequestConfirm={onRequestConfirm} /></>
       )}
 
-      <Modal
-        footer={null}
-        onCancel={() => { setReviewingExercise(null); setReviewNote('') }}
-        open={Boolean(reviewingExercise)}
-        title={reviewingExercise ? t('二次审核：{{title}}', { title: reviewingExercise.title }) : t('二次审核')}
-        width={760}
-      >
-        {reviewingExercise?.subtitleDrafts?.map((subtitleDraft) => (
-          <section key={subtitleDraft.id} style={{ borderTop: '1px solid #f0f0f0', marginTop: 16, paddingTop: 16 }}>
-            <Space direction="vertical" size={10} style={{ display: 'flex' }}>
-              <Typography.Text><strong>{subtitleDraft.contributorDisplayName}</strong> {t('提交的校对稿，共 {{count}} 句。', { count: subtitleDraft.lines.length })}</Typography.Text>
-              <Typography.Paragraph style={{ maxHeight: 230, overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-                {subtitleDraft.lines.map((line) => `[${line.start.toFixed(3)}–${line.end.toFixed(3)}] ${line.text}`).join('\n')}
-              </Typography.Paragraph>
-              <Input.TextArea
-                onChange={(event) => setReviewNote(event.target.value)}
-                placeholder={t('退回时请填写修改意见')}
-                rows={3}
-                value={reviewNote}
-              />
-              <Space>
-                <Typography.Text type="secondary">{t('作为本课程指定的二审负责人，审核通过会替换正式字幕并发布；退回不会影响当前已发布版本。')}</Typography.Text>
-                <Space>
-                  <button className="ant-btn" disabled={!reviewNote.trim()} onClick={() => {
-                    void runAdminTask(async () => {
-                      await apiClient.returnSubtitleDraft(subtitleDraft.id, reviewNote.trim(), adminToken)
-                      setReviewingExercise(null)
-                      await onRefreshCatalog()
-                      await refreshWorkflowInbox()
-                      localizedNotify('字幕稿已退回并附上修改意见', 'success')
-                    }, '退回字幕稿失败')
-                  }}>{t('退回修改')}</button>
-                  <button className="ant-btn ant-btn-primary" onClick={() => {
-                    void runAdminTask(async () => {
-                      await apiClient.approveSubtitleDraft(subtitleDraft.id, adminToken)
-                      setReviewingExercise(null)
-                      await onRefreshCatalog()
-                      await refreshWorkflowInbox()
-                      localizedNotify('字幕稿已通过二次审核并发布', 'success')
-                    }, '审核发布失败')
-                  }}>{t('审核通过并发布')}</button>
-                </Space>
-              </Space>
-            </Space>
-          </section>
-        ))}
-      </Modal>
+      {reviewingExercise && <SubtitleReviewModal
+        exercise={reviewingExercise}
+        key={reviewingExercise.id}
+        onClose={() => setReviewingExercise(null)}
+        onApprove={(draftId) => runAdminTask(async () => {
+          await apiClient.approveSubtitleDraft(draftId, adminToken)
+          setReviewingExercise(null)
+          await onRefreshCatalog()
+          await refreshWorkflowInbox()
+          localizedNotify('字幕稿已通过二次审核并发布', 'success')
+        }, '审核发布失败')}
+        onReturn={(draftId, note) => runAdminTask(async () => {
+          await apiClient.returnSubtitleDraft(draftId, note, adminToken)
+          setReviewingExercise(null)
+          await onRefreshCatalog()
+          await refreshWorkflowInbox()
+          localizedNotify('字幕稿已退回并附上修改意见', 'success')
+        }, '退回字幕稿失败')}
+      />}
         </Layout.Content>
       </Layout>
     </ConfigProvider>

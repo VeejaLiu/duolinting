@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, type RefObject } from 'react'
 import { createPlaybackController, secondsToUs, type StartedResult } from '@duolinting/playback'
 import { createAdminPlaybackAdapter } from '../lib/adminPlaybackAdapter'
 
@@ -32,9 +32,9 @@ export function useMediaPlayback({ mediaRef, sourceKey }: UseMediaPlaybackOption
       startUs: start === undefined ? undefined : secondsToUs(start) })
     return playbackOutcome(await session.started)
   }
-  const playRangeSession = ({ start, end }: { start: number; end?: number }) =>
+  const playRangeSession = useCallback(({ start, end }: { start: number; end?: number }) =>
     controller.play({ sourceKey: sourceRef.current, startUs: secondsToUs(start),
-      endUs: end === undefined ? undefined : secondsToUs(end) })
+      endUs: end === undefined ? undefined : secondsToUs(end) }), [controller])
   // Admin 的既有按钮等待“开始”；其他端可以等待同一个 session.finished。
   const playMediaRange = async (range: { start: number; end?: number }) =>
     playbackOutcome(await playRangeSession(range).started)

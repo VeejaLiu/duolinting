@@ -24,5 +24,6 @@
 @import './subtitles/versions.css';
 @import './course-editor/readonly.css';
 @import './subtitles/history.css';
+@import './subtitles/review.css';
 @import './directory/editor.css';
 @import './course-editor/ai-tools.css';
