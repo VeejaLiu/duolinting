@@ -6,7 +6,7 @@ import { useLanguage } from '../i18n/LanguageProvider'
 type GoogleCredential = { credential?: string }
 type GoogleApi = { accounts: { id: {
   initialize: (config: { client_id: string; nonce: string; callback: (response: GoogleCredential) => void }) => void
-  renderButton: (element: HTMLElement, options: { theme: string; size: string; text: string; width: number }) => void
+  renderButton: (element: HTMLElement, options: { theme: string; size: string; text: string; shape: string; locale: string; width: number }) => void
 } } }
 declare global { interface Window { google?: GoogleApi } }
 
@@ -26,29 +26,48 @@ const loadGoogle = () => {
 const makeVerifier = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('')
 
 function GoogleButton({ clientId, purpose, reauthPurpose, authToken, onResult, onError }: { clientId: string; purpose: OAuthPurpose; reauthPurpose?: ReauthPurpose; authToken?: string; onResult: (result: OAuthResult) => void; onError: () => void }) {
+  const { uiLocale } = useLanguage()
   const container = useRef<HTMLDivElement>(null)
   const callbacks = useRef({ onResult, onError })
   callbacks.current = { onResult, onError }
   useEffect(() => {
+    const element = container.current
+    if (!element) return
     let active = true
     let timer: number | undefined
+    let render: (() => void) | undefined
+    const resize = new ResizeObserver(() => render?.())
+    resize.observe(element)
     const prepare = async () => {
       try {
         const start = await apiClient.startOAuth({ provider: 'google', purpose, platform: 'web', reauthPurpose }, authToken)
         await loadGoogle()
-        if (!active || !window.google || !container.current) return
-        container.current.replaceChildren()
-        window.google.accounts.id.initialize({ client_id: clientId, nonce: start.nonce, callback: (response) => {
+        if (!active || !window.google) return
+        const google = window.google.accounts.id
+        google.initialize({ client_id: clientId, nonce: start.nonce, callback: (response) => {
           if (!active || !response.credential) { callbacks.current.onError(); return }
           void apiClient.completeOAuth({ transactionId: start.transactionId, idToken: response.credential }, authToken).then(callbacks.current.onResult).catch(callbacks.current.onError)
         } })
-        window.google.accounts.id.renderButton(container.current, { theme: 'outline', size: 'large', text: 'continue_with', width: Math.min(300, Math.max(200, container.current.clientWidth)) })
+        // GIS renders its own iframe: pass pixel widths instead of stretching it
+        // with CSS. Google caps buttons at 400px; narrower dialogs use the actual
+        // available width. Only redraw when that width changes to avoid a loop
+        // when rendering the iframe itself triggers ResizeObserver.
+        let renderedWidth = 0
+        render = () => {
+          if (!active) return
+          const width = Math.min(400, Math.floor(element.clientWidth))
+          if (width <= 0 || width === renderedWidth) return
+          renderedWidth = width
+          element.replaceChildren()
+          google.renderButton(element, { theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill', locale: uiLocale.replace('-', '_'), width })
+        }
+        render()
         timer = window.setTimeout(() => { if (active) void prepare() }, 4 * 60 * 1000)
       } catch { if (active) callbacks.current.onError() }
     }
     void prepare()
-    return () => { active = false; if (timer) window.clearTimeout(timer) }
-  }, [clientId, purpose, reauthPurpose, authToken])
+    return () => { active = false; resize.disconnect(); if (timer) window.clearTimeout(timer) }
+  }, [clientId, purpose, reauthPurpose, authToken, uiLocale])
   return <div className="social-google-button" ref={container} />
 }
 

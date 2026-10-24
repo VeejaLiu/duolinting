@@ -181,11 +181,11 @@ export function AuthDialog({ open, user, onClose, onAuthenticated, onLogout }: A
         </>}
         {error ? <p className="field-error" role="alert">{error}</p> : null}
       </div>}
-      {!user && step === 'entry' ? <SocialAuthButtons onResult={onSocialResult} onError={() => setError(t('authFlow.socialFailed'))} /> : null}
       <div className="dialog-actions">{user ?
         <button className="danger-command" onClick={() => { void Promise.resolve(onLogout()).then((done) => { if (done) showToast({ title: t('auth.toastNoticeTitle'), message: t('auth.loggedOutToast'), tone: 'info' }); else showToast({ title: t('auth.toastErrorTitle'), message: t('account.logoutFailed'), tone: 'error' }) }) }} type="button"><LogOut size={17} aria-hidden="true" />{t('auth.logout')}</button>
         : <button className="command-button large full" disabled={isBusy || (step === 'code' && (code.length !== 6 || expiresSeconds === 0))} onClick={() => void (step === 'entry' || step === 'link' ? startEmail() : step === 'code' ? verify() : loginWithPassword())} type="button">{step === 'entry' ? t('authFlow.continue') : step === 'link' || step === 'code' && pendingLink ? t('authFlow.linkContinue') : step === 'code' ? t('authFlow.verifyContinue') : t('auth.login')}</button>}
       </div>
+      {!user && step === 'entry' ? <SocialAuthButtons onResult={onSocialResult} onError={() => setError(t('authFlow.socialFailed'))} /> : null}
     </section>
   </div>
 }
