@@ -42,9 +42,12 @@ COPY packages/app-config/package.json packages/app-config/package.json
 COPY packages/ui-tokens/package.json packages/ui-tokens/package.json
 COPY packages/api-client/package.json packages/api-client/package.json
 COPY packages/shared/package.json packages/shared/package.json
+# npm may hoist every production dependency into /app/node_modules. Keep the
+# optional workspace directory copyable without discarding nested dependencies.
 RUN --mount=type=cache,id=duolinting-npm,target=/root/.npm,sharing=locked \
     npm ci --omit=dev --workspace @duolinting/backend \
-    --workspace @duolinting/domain --workspace @duolinting/shared
+    --workspace @duolinting/domain --workspace @duolinting/shared \
+    && mkdir -p backend/node_modules
 
 FROM node:22-bookworm-slim
 # Use the cloud vendor's public Debian mirror with TLS and Debian's original
