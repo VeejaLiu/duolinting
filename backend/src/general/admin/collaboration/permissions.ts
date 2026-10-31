@@ -102,17 +102,25 @@ async function isWorkflowAssignee(
     return rows.length > 0;
 }
 
-/** 课程详情对两种当前负责人均可见；过期负责人不再获得工作流访问权。 */
+/** 当前任务允许工作流访问；已完成的作者和实际二审人另有正式发布内容的只读访问权。 */
 export async function canAccessExerciseWorkflow(admin: AdminActor, exerciseId: number) {
     if (isSuperAdmin(admin)) return true;
     if (await canEditExerciseSubtitles(admin, exerciseId)) return true;
     if (await isWorkflowAssignee(exerciseId, admin.id, 'second_reviewer')) return true;
-    const reviewTasks = await doRawQuery<{ id: number | string }>({
-        query: `select id from exercise_subtitle_drafts
-                where exercise_id = ? and reviewer_admin_user_id = ? and status = 'submitted' limit 1`,
-        params: [exerciseId, admin.id],
+    const readableDrafts = await doRawQuery<{ id: number | string }>({
+        // Completion is tied to the actual author/reviewer, not the current assignee. Only published
+        // courses qualify: a subsequent revert must not expose new, unpublished work to past members.
+        // Subtitle writes still use canEditExerciseSubtitles and remain locked after approval.
+        query: `select drafts.id from exercise_subtitle_drafts drafts
+                inner join exercises on exercises.id = drafts.exercise_id
+                where drafts.exercise_id = ? and (
+                    (drafts.reviewer_admin_user_id = ? and drafts.status = 'submitted')
+                    or (drafts.status = 'approved' and exercises.status = 'published'
+                        and (drafts.admin_user_id = ? or drafts.reviewed_by_admin_user_id = ?))
+                ) limit 1`,
+        params: [exerciseId, admin.id, admin.id, admin.id],
     });
-    return reviewTasks.length > 0;
+    return readableDrafts.length > 0;
 }
 
 /**

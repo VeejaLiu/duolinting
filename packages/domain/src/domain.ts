@@ -206,6 +206,8 @@ export type AdminSubtitleWorkflowTask = {
   draftId: number
   exerciseId: number
   exerciseTitle: string
+  /** Current publication state, so completed history does not offer a published view after reversion. */
+  courseStatus?: ExerciseStatus
   /** Existing title translations for display only; the base title remains English. */
   exerciseLocalizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>
   contributorDisplayName: string

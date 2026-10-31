@@ -7,7 +7,8 @@ export type ContentAdminProps = {
   categoryGroups: MaterialCategory[]
   categories: ExerciseCategory[]
   exercises: CatalogExerciseSummary[]
-  onRefreshCatalog: () => Promise<void>
+  /** false refreshes directory metadata without independently triggering another course-page request. */
+  onRefreshCatalog: (forceCourseReload?: boolean) => Promise<void>
   onEnsureCatalog: () => Promise<void>
   onEnsureExercises: () => Promise<CatalogExerciseSummary[]>
   onNotify: (message: string, tone?: AdminNoticeTone) => void

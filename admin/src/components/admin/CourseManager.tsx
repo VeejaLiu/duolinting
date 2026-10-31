@@ -1,4 +1,5 @@
 import { readCourseListCache, writeCourseListCache } from '../../lib/courseListCache'
+import { canEditCourseSubtitles } from '../../lib/subtitleWorkflow'
 import { directoryName, courseTitle, workflowCourseTitle } from '../../lib/localizedContent'
 import { ArrowDown, ArrowUp, Bell, BookOpen, Copy, Ellipsis, FilePenLine, History, Pencil, PlaySquare, Plus, RefreshCw, RotateCcw, Search, Trash2, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -20,6 +21,7 @@ type CourseManagerProps = {
   isCatalogLoading: boolean
   catalogLoadError: string
   onRefreshCatalog: () => Promise<void>
+  onRegisterRefresh: (refresh: (() => Promise<boolean>) | null) => void
   isSaving: boolean
   onCreateCourse: (categoryId: number) => void
   onDeleteCourse: (exercise: CatalogExerciseSummary) => void
@@ -29,6 +31,7 @@ type CourseManagerProps = {
   onRenameCourse: (exercise: CatalogExerciseSummary, title: string) => Promise<void>
   canManageCourses?: boolean
   onReviewSubtitleDraft?: (exerciseId: number) => void
+  onViewPublishedSubtitles: (exerciseId: number) => void
   reviewTasks: AdminReviewTask[]
   workflowNotifications: AdminWorkflowNotifications
   onReadWorkflowNotifications: () => Promise<void>
@@ -189,7 +192,7 @@ function CourseWorkflow({
 export function CourseManager({
   catalogRevision, adminToken, currentAdminId, categoryGroups, categories, isCatalogLoading, catalogLoadError, onRefreshCatalog, isSaving, onCreateCourse,
   onDeleteCourse, onEditCourse, onMoveCourse, onOpenRecorder, onRenameCourse, canManageCourses = true, onReviewSubtitleDraft,
-  contributors, onUpdateWorkflowAssignee, reviewTasks, workflowNotifications, onReadWorkflowNotifications, onNotify,
+  contributors, onUpdateWorkflowAssignee, reviewTasks, workflowNotifications, onReadWorkflowNotifications, onNotify, onViewPublishedSubtitles, onRegisterRefresh,
 }: CourseManagerProps) {
   const { t, uiLocale } = useAdminLanguage()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -263,18 +266,18 @@ export function CourseManager({
   }, [categories.length, categoryGroups.length, isCatalogLoading, page, pageSize, searchParams,
     selectedCategoryId, selectedGroupId, selectedStatus, updateListParams])
 
-  const loadPage = useCallback(async () => {
+  const loadPage = useCallback(async (notifyOnError = true): Promise<boolean> => {
     const requestSerial = ++requestSerialRef.current
     pageAbortRef.current?.abort()
     const controller = new AbortController()
     pageAbortRef.current = controller
     // 目录刷新不会触发重复加载：只依赖选中的 ID。搜索稳定后再发请求。
-    if (searchText !== debouncedSearchText) return
+    if (searchText !== debouncedSearchText) return false
     if (!selectedCategoryId) {
       setPagedExercises([])
       setTotal(0)
       setIsLoading(false)
-      return
+      return true
     }
     const options = {
       page, pageSize, groupId: selectedGroupId, categoryId: selectedCategoryId,
@@ -291,14 +294,17 @@ export function CourseManager({
         writeCourseListCache(adminToken, cacheKey, result)
         setPagedExercises(result.items)
         setTotal(result.total)
+        return true
       }
     } catch (error) {
-      if (requestSerial === requestSerialRef.current && !controller.signal.aborted) {
+      if (notifyOnError && requestSerial === requestSerialRef.current && !controller.signal.aborted) {
         onNotify(error instanceof Error ? error.message : t('课程数据加载失败'), 'error')
       }
     } finally {
       if (requestSerial === requestSerialRef.current) setIsLoading(false)
     }
+    // An aborted/superseded response did not update the table and must retain the completion retry action.
+    return false
   }, [adminToken, catalogRevision, debouncedSearchText, onNotify, page, pageSize, searchText, selectedCategoryId, selectedGroupId, selectedStatus, t])
 
   useEffect(() => {
@@ -307,6 +313,11 @@ export function CourseManager({
       pageAbortRef.current?.abort()
     }
   }, [loadPage])
+
+  useEffect(() => {
+    onRegisterRefresh(() => loadPage(false))
+    return () => onRegisterRefresh(null)
+  }, [loadPage, onRegisterRefresh])
 
   const createTargetCategoryId = selectedCategoryId || visibleCategories[0]?.id || 0
   const resetFilters = () => {
@@ -339,20 +350,6 @@ export function CourseManager({
     return index < siblings.length - 1 || page * pageSize < total
   }
   const canRecord = (exercise: CatalogExerciseSummary) => exercise.status === 'published' && Boolean(exercise.audioUrl) && exercise.lineCount > 0
-  // 二审负责人只处理已提交稿，不应被“编辑”入口带到校对工作台。
-  // 未分配二审人的历史课程则保留原有的被授权即可编辑行为。
-  const canEditCourseSubtitles = (exercise: CatalogExerciseSummary) => (
-    canManageCourses
-    || (
-      exercise.workflow?.proofreaderAssignee?.adminUserId === currentAdminId
-      && !['submitted', 'approved'].includes(
-        exercise.workflow?.drafts?.find((draft) => draft.adminUserId === currentAdminId)?.status ?? '',
-      )
-    )
-    // 已流转给当前成员的审核任务只能从“开始审核”进入，避免把审核人误带进校对编辑器。
-    || (!reviewTasks.some((task) => task.exerciseId === exercise.id)
-      && exercise.workflow?.secondReviewerAssignee?.adminUserId !== currentAdminId)
-  )
   const openRecorder = (exercise: CatalogExerciseSummary) => {
     if (canRecord(exercise)) {
       onOpenRecorder(exercise.id)
@@ -548,7 +545,8 @@ export function CourseManager({
     {
       title: t('操作'), key: 'actions', width: 200, fixed: 'right',
       render: (_, exercise) => <Space size={4}>
-        {canEditCourseSubtitles(exercise) && <Button disabled={isSaving} icon={<FilePenLine size={15} />} onClick={() => onEditCourse(exercise)} size="small">{t('编辑')}</Button>}
+        {canEditCourseSubtitles(exercise, currentAdminId, canManageCourses, reviewTasks) && <Button disabled={isSaving} icon={<FilePenLine size={15} />} onClick={() => onEditCourse(exercise)} size="small">{t('编辑')}</Button>}
+        {exercise.status === 'published' && <Button onClick={() => onViewPublishedSubtitles(exercise.id)} size="small">{t('查看已发布字幕')}</Button>}
         <Tooltip title={t('查看字幕版本历史')}><Button icon={<History size={15} />} onClick={() => void openVersions(exercise)} size="small" type="text" /></Tooltip>
         {canManageCourses && <Tooltip title={t('在系列内上移')}><Button disabled={isSaving || !canMove(exercise, 'up')} icon={<ArrowUp size={15} />} onClick={() => onMoveCourse(exercise.id, 'up')} size="small" type="text" /></Tooltip>}
         {canManageCourses && <Tooltip title={t('在系列内下移')}><Button disabled={isSaving || !canMove(exercise, 'down')} icon={<ArrowDown size={15} />} onClick={() => onMoveCourse(exercise.id, 'down')} size="small" type="text" /></Tooltip>}

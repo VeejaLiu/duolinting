@@ -1,11 +1,13 @@
 import type { CatalogExerciseSummary } from '@duolinting/shared'
-import { ConfigProvider, Layout } from 'antd'
-import { useCallback, useState } from 'react'
+import { Alert, Button, ConfigProvider, Layout } from 'antd'
+import { useCallback, useRef, useState } from 'react'
 import { useCatalogActions } from '../hooks/content-workspace/useCatalogActions'
 import { useImporterNavigation } from '../hooks/content-workspace/useImporterNavigation'
 import { useWorkspaceData } from '../hooks/content-workspace/useWorkspaceData'
 import { useAdminLanguage } from '../i18n/AdminLanguageProvider'
 import { apiClient } from '../lib/apiClient'
+import { courseTitle } from '../lib/localizedContent'
+import { refreshReviewLists, runSubtitleReviewDecision } from '../lib/subtitleWorkflow'
 import { AudioLessonImporter } from './AudioLessonImporter'
 import { AcceptedAnswerFeedbackPanel } from './admin/AcceptedAnswerFeedbackPanel'
 import { AccountSettingsPanel } from './admin/AccountSettingsPanel'
@@ -21,6 +23,7 @@ import { OpenContentApiKeyManager } from './admin/OpenContentApiKeyManager'
 import { TaskPoolManager } from './admin/TaskPoolManager'
 import { SponsorManager } from './admin/SponsorManager'
 import { SubtitleReviewModal } from './admin/SubtitleReviewModal'
+import { PublishedSubtitleModal } from './admin/PublishedSubtitleModal'
 import { DonationManager } from './admin/DonationManager'
 import { UserActivityPanel } from './admin/UserActivityPanel'
 import { WorkflowActivityPanel } from './admin/WorkflowActivityPanel'
@@ -42,7 +45,7 @@ export function ContentAdmin({
   onRequestConfirm,
   onRequestUnsavedLeaveConfirm,
 }: ContentAdminProps) {
-  const { t } = useAdminLanguage()
+  const { t, uiLocale } = useAdminLanguage()
   const localizedNotify = useCallback((message: string, tone?: AdminNoticeTone) => {
     onNotify(t(message), tone)
   }, [onNotify, t])
@@ -107,6 +110,7 @@ export function ContentAdmin({
     workflowNotifications,
     setWorkflowNotifications,
     refreshWorkflowInbox,
+    completeSubtitleReview,
     openSubtitleReview,
   } = useWorkspaceData({
     adminToken,
@@ -120,6 +124,63 @@ export function ContentAdmin({
   })
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [publishedExerciseId, setPublishedExerciseId] = useState<number | null>(null)
+  const [reviewResult, setReviewResult] = useState<{
+    exerciseId: number
+    title: string
+    decision: 'approved' | 'returned'
+    refresh: 'refreshing' | 'current' | 'stale'
+  } | null>(null)
+  const reviewResultSerialRef = useRef(0)
+  const courseListRefreshRef = useRef<(() => Promise<boolean>) | null>(null)
+  const registerCourseListRefresh = useCallback((refresh: (() => Promise<boolean>) | null) => {
+    courseListRefreshRef.current = refresh
+  }, [])
+
+  // These are independent reads. Retrying them never repeats the already committed review.
+  const refreshAfterReview = () => refreshReviewLists({
+    // The active course page is awaited below; a revision bump would launch a duplicate and abort it.
+    refreshCatalog: () => onRefreshCatalog(false),
+    refreshInbox: () => refreshWorkflowInbox(true, false),
+    refreshCourseList: courseListRefreshRef.current ?? undefined,
+  })
+
+  const retryReviewRefresh = async () => {
+    const serial = ++reviewResultSerialRef.current
+    setReviewResult((result) => result && { ...result, refresh: 'refreshing' })
+    const succeeded = await refreshAfterReview()
+    if (serial === reviewResultSerialRef.current) {
+      setReviewResult((result) => result && { ...result, refresh: succeeded ? 'current' : 'stale' })
+    }
+  }
+
+  const submitReview = async (draftId: number, decision: 'approved' | 'returned', note = '') => {
+    if (!reviewingExercise) return false
+    const exercise = reviewingExercise
+    let serial = 0
+    try {
+      return await runSubtitleReviewDecision({
+        commit: () => decision === 'approved'
+          ? apiClient.approveSubtitleDraft(draftId, adminToken)
+          : apiClient.returnSubtitleDraft(draftId, note, adminToken),
+        onCommitted: () => {
+          serial = ++reviewResultSerialRef.current
+          completeSubtitleReview(draftId, decision)
+          setReviewResult({ exerciseId: exercise.id, title: courseTitle(exercise, uiLocale), decision, refresh: 'refreshing' })
+          setReviewingExercise(null)
+        },
+        refresh: refreshAfterReview,
+        onRefreshed: (succeeded) => {
+          if (serial === reviewResultSerialRef.current) {
+            setReviewResult((result) => result && { ...result, refresh: succeeded ? 'current' : 'stale' })
+          }
+        },
+      })
+    } catch (error) {
+      localizedNotify(error instanceof Error ? error.message : decision === 'approved' ? '审核发布失败' : '退回字幕稿失败', 'error')
+      return false
+    }
+  }
 
   return (
     <ConfigProvider theme={{ token: { colorPrimary: '#1cb0f6' } }}>
@@ -144,6 +205,27 @@ export function ContentAdmin({
           />
         </Layout.Sider>
         <Layout.Content className="admin-workspace-content" aria-label={t('内容管理')}>
+
+      {reviewResult && <div aria-live="polite" style={{ marginBottom: 16 }}>
+        <Alert
+          type="success"
+          showIcon
+          closable
+          onClose={() => { reviewResultSerialRef.current += 1; setReviewResult(null) }}
+          title={t(reviewResult.decision === 'approved' ? '《{{title}}》已审核通过并发布' : '《{{title}}》已退回修改', { title: reviewResult.title })}
+          description={t(reviewResult.decision === 'approved' ? '正式字幕已更新，本次审核已完成。' : '修改意见已发送给校对人，本次审核已完成。')}
+          action={reviewResult.decision === 'approved' && <Button onClick={() => setPublishedExerciseId(reviewResult.exerciseId)}>{t('查看已发布字幕')}</Button>}
+        />
+        {reviewResult.refresh !== 'current' && <Alert
+          style={{ marginTop: 8 }}
+          type={reviewResult.refresh === 'stale' ? 'warning' : 'info'}
+          showIcon
+          title={t(reviewResult.refresh === 'stale'
+            ? '审核已完成，但部分列表数据未能刷新。无需重复审核，请重试刷新。'
+            : '正在刷新列表…审核结果已保存。')}
+          action={<Button loading={reviewResult.refresh === 'refreshing'} onClick={() => void retryReviewRefresh()}>{t('重试刷新')}</Button>}
+        />}
+      </div>}
 
       {activeSection === 'importer' && (
         <AudioLessonImporter
@@ -215,6 +297,7 @@ export function ContentAdmin({
           isCatalogLoading={isCatalogLoading}
           catalogLoadError={catalogLoadError}
           onRefreshCatalog={() => refreshWorkspaceCatalog(true)}
+          onRegisterRefresh={registerCourseListRefresh}
           isSaving={isSaving}
           onCreateCourse={(categoryId) => {
             void openImporterForCategory(categoryId)
@@ -259,6 +342,7 @@ export function ContentAdmin({
           onReviewSubtitleDraft={(exerciseId) => {
             void openSubtitleReview(exerciseId)
           }}
+          onViewPublishedSubtitles={setPublishedExerciseId}
           reviewTasks={reviewTasks}
           workflowNotifications={workflowNotifications}
           onReadWorkflowNotifications={async () => {
@@ -352,6 +436,7 @@ export function ContentAdmin({
           onReviewSubtitleDraft={(exerciseId) => {
             void openSubtitleReview(exerciseId)
           }}
+          onViewPublishedSubtitles={setPublishedExerciseId}
           onEditCourse={(exerciseId) => {
             void openImporterForExercise({ id: exerciseId } as CatalogExerciseSummary)
           }}
@@ -387,20 +472,14 @@ export function ContentAdmin({
         exercise={reviewingExercise}
         key={reviewingExercise.id}
         onClose={() => setReviewingExercise(null)}
-        onApprove={(draftId) => runAdminTask(async () => {
-          await apiClient.approveSubtitleDraft(draftId, adminToken)
-          setReviewingExercise(null)
-          await onRefreshCatalog()
-          await refreshWorkflowInbox()
-          localizedNotify('字幕稿已通过二次审核并发布', 'success')
-        }, '审核发布失败')}
-        onReturn={(draftId, note) => runAdminTask(async () => {
-          await apiClient.returnSubtitleDraft(draftId, note, adminToken)
-          setReviewingExercise(null)
-          await onRefreshCatalog()
-          await refreshWorkflowInbox()
-          localizedNotify('字幕稿已退回并附上修改意见', 'success')
-        }, '退回字幕稿失败')}
+        onApprove={(draftId) => submitReview(draftId, 'approved')}
+        onReturn={(draftId, note) => submitReview(draftId, 'returned', note)}
+      />}
+      {publishedExerciseId !== null && <PublishedSubtitleModal
+        key={publishedExerciseId}
+        adminToken={adminToken}
+        exerciseId={publishedExerciseId}
+        onClose={() => setPublishedExerciseId(null)}
       />}
         </Layout.Content>
       </Layout>

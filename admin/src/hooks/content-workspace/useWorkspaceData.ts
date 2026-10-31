@@ -7,10 +7,11 @@ import type {
   AdminWorkflowNotifications,
   FeedbackStatus,
 } from '@duolinting/shared'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { type AdminSection } from '../../components/admin/AdminWorkspaceNav'
 import { useAdminLanguage } from '../../i18n/AdminLanguageProvider'
 import { apiClient } from '../../lib/apiClient'
+import { applySubtitleReviewDecision, refreshWorkflowData } from '../../lib/subtitleWorkflow'
 import type { ContentAdminProps } from '../../components/admin/content-workspace/types'
 
 type WorkspaceDataOptions = Pick<ContentAdminProps, 'adminToken' | 'adminUser' | 'exercises' | 'onEnsureCatalog' | 'onRefreshCatalog' | 'onEnsureExercises'> & {
@@ -41,6 +42,7 @@ export function useWorkspaceData({
   const [reviewTasks, setReviewTasks] = useState<AdminReviewTask[]>([])
   const [workflowInbox, setWorkflowInbox] = useState<AdminSubtitleWorkflowTaskInbox>({ items: [], counts: { proofreading: 0, awaitingReview: 0, returned: 0, completedProofreading: 0, completedSecondReview: 0 } })
   const [workflowNotifications, setWorkflowNotifications] = useState<AdminWorkflowNotifications>({ items: [], unreadCount: 0 })
+  const workflowRequestSerialRef = useRef(0)
 
   const refreshWorkspaceCatalog = useCallback(async (force = false) => {
     setIsCatalogLoading(true)
@@ -71,20 +73,34 @@ export function useWorkspaceData({
     }
   }, [adminToken, adminUser.role, localizedNotify])
 
-  const refreshWorkflowInbox = useCallback(async (includeInbox = true) => {
-    try {
-      const [tasks, notifications, inbox] = await Promise.all([
-        apiClient.getMySubtitleReviewTasks(adminToken),
-        apiClient.getMyWorkflowNotifications(adminToken),
-        includeInbox ? apiClient.getMySubtitleWorkflowInbox(adminToken) : Promise.resolve(null),
-      ])
-      setReviewTasks(tasks.items)
-      setWorkflowNotifications(notifications)
-      if (inbox) setWorkflowInbox(inbox)
-    } catch (error) {
-      localizedNotify(error instanceof Error ? error.message : '工作流待办加载失败', 'error')
+  const refreshWorkflowInbox = useCallback(async (includeInbox = true, notifyOnError = true) => {
+    const serial = ++workflowRequestSerialRef.current
+    const succeeded = await refreshWorkflowData([
+      async () => {
+        const tasks = await apiClient.getMySubtitleReviewTasks(adminToken)
+        if (serial === workflowRequestSerialRef.current) setReviewTasks(tasks.items)
+      },
+      async () => {
+        const notifications = await apiClient.getMyWorkflowNotifications(adminToken)
+        if (serial === workflowRequestSerialRef.current) setWorkflowNotifications(notifications)
+      },
+      ...(includeInbox ? [async () => {
+        const inbox = await apiClient.getMySubtitleWorkflowInbox(adminToken)
+        if (serial === workflowRequestSerialRef.current) setWorkflowInbox(inbox)
+      }] : []),
+    ])
+    if (!succeeded && notifyOnError && serial === workflowRequestSerialRef.current) {
+      localizedNotify('部分工作流数据未能刷新，请重试刷新', 'error')
     }
+    return succeeded
   }, [adminToken, localizedNotify])
+
+  const completeSubtitleReview = (draftId: number, decision: 'approved' | 'returned') => {
+    // Invalidate older reads before removing the task so a late response cannot resurrect it.
+    workflowRequestSerialRef.current += 1
+    setReviewTasks((tasks) => tasks.filter((task) => task.draftId !== draftId))
+    setWorkflowInbox((inbox) => applySubtitleReviewDecision(inbox, draftId, decision, new Date().toISOString()))
+  }
 
   const openSubtitleReview = useCallback(async (exerciseId: number) => {
     try {
@@ -195,6 +211,7 @@ export function useWorkspaceData({
     workflowNotifications,
     setWorkflowNotifications,
     refreshWorkflowInbox,
+    completeSubtitleReview,
     openSubtitleReview,
   }
 }

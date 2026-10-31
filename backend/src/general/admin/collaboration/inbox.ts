@@ -6,6 +6,7 @@ import type { AdminSubtitleWorkflowTaskInbox } from '../../../domain';
 import type { CourseWorkflowAssignmentSource } from '../../../domain';
 import type { SubtitleDraftStatus } from '../../../domain';
 import type { AdminWorkflowNotifications } from '../../../domain';
+import type { ExerciseStatus } from '../../../domain';
 import { sequelize } from '../../../models/db-config-mysql';
 import { isClaimWindowActive } from './policy';
 
@@ -56,6 +57,7 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
         draft_id: number | string;
         exercise_id: number | string;
         exercise_title: string;
+        exercise_status: ExerciseStatus;
     exercise_localizations: unknown;
         contributor_display_name: string;
         proofreader_id: number | string | null;
@@ -69,7 +71,7 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
         updated_at: Date | string | null;
         review_note: string | null;
     }>({
-        query: `select drafts.id as draft_id, drafts.exercise_id, exercises.title as exercise_title, exercises.localizations_json as exercise_localizations,
+        query: `select drafts.id as draft_id, drafts.exercise_id, exercises.title as exercise_title, exercises.status as exercise_status, exercises.localizations_json as exercise_localizations,
                        contributors.display_name as contributor_display_name,
                        proofreader.admin_user_id as proofreader_id,
                        proofreader.assignment_source as proofreader_source,
@@ -98,6 +100,7 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
     for (const row of rows) {
         const base = {
             draftId: Number(row.draft_id), exerciseId: Number(row.exercise_id), exerciseTitle: row.exercise_title,
+            courseStatus: row.exercise_status,
             exerciseLocalizations: parseWorkflowLocalizations(row.exercise_localizations),
             contributorDisplayName: row.contributor_display_name,
             submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : undefined,
@@ -129,11 +132,12 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
     const unstartedRows = await doRawQuery<{
         exercise_id: number | string;
         exercise_title: string;
+        exercise_status: ExerciseStatus;
     exercise_localizations: unknown;
         assignment_source: CourseWorkflowAssignmentSource;
         claim_expires_at: Date | string | null;
     }>({
-        query: `select assignees.exercise_id, exercises.title as exercise_title, exercises.localizations_json as exercise_localizations,
+        query: `select assignees.exercise_id, exercises.title as exercise_title, exercises.status as exercise_status, exercises.localizations_json as exercise_localizations,
                        assignees.assignment_source, assignees.claim_expires_at
                 from exercise_workflow_assignees assignees
                 inner join exercises on exercises.id = assignees.exercise_id
@@ -154,6 +158,7 @@ export async function listMySubtitleWorkflowInbox(adminId: number): Promise<Admi
             draftId: 0,
             exerciseId: Number(row.exercise_id),
             exerciseTitle: row.exercise_title,
+            courseStatus: row.exercise_status,
             exerciseLocalizations: parseWorkflowLocalizations(row.exercise_localizations),
             contributorDisplayName: '尚未创建校对稿',
             role: 'proofreader',

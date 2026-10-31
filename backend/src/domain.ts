@@ -196,6 +196,8 @@ export type AdminSubtitleWorkflowTask = {
     draftId: number;
     exerciseId: number;
     exerciseTitle: string;
+    /** Current publication state, independent of the historical completed contribution. */
+    courseStatus?: ExerciseStatus;
   /** Existing title translations for display only; the base title remains English. */
   exerciseLocalizations?: Partial<Record<ContentLocale, LocalizedExerciseContent>>;
     contributorDisplayName: string;

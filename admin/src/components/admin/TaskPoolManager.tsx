@@ -60,6 +60,7 @@ type TaskPoolManagerProps = {
   workflowInbox: AdminSubtitleWorkflowTaskInbox
   reviewTasks: AdminReviewTask[]
   onReviewSubtitleDraft?: (exerciseId: number) => void
+  onViewPublishedSubtitles: (exerciseId: number) => void
   onEditCourse: (exerciseId: number) => void
 }
 
@@ -122,6 +123,7 @@ export function TaskPoolManager({
   workflowInbox,
   reviewTasks,
   onReviewSubtitleDraft,
+  onViewPublishedSubtitles,
   onEditCourse,
 }: TaskPoolManagerProps) {
   const { t, uiLocale } = useAdminLanguage()
@@ -430,6 +432,9 @@ export function TaskPoolManager({
                   {task.role === 'second_reviewer' ? t('已完成二次审核') : t('已完成字幕校对')}{task.updatedAt ? ` · ${formatDateTime(task.updatedAt, uiLocale)}` : ''}
                 </Typography.Text>
               </div>
+              {task.courseStatus === 'published'
+                ? <Button onClick={() => onViewPublishedSubtitles(task.exerciseId)} size="small">{t('查看已发布字幕')}</Button>
+                : <Typography.Text type="secondary">{t('课程当前未发布')}</Typography.Text>}
             </div>
           ))}
         </div>
