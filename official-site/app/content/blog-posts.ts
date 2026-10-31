@@ -49,18 +49,18 @@ export const blogPosts: BlogPost[] = [
   {
     slug: "intensive-listening-method",
     publishedAt: "2026-09-01",
-    lastModified: "2026-09-01",
+    lastModified: "2026-10-31",
     ogImage: "/og-intensive-listening-method.png",
     locales: {
       zh: {
         metaTitle: "什么是精听？精听的正确步骤（逐句精听方法）",
         metaDescription:
-          "精听怎么做才有效？这篇指南讲清精听与泛听的区别、逐句精听的正确步骤（先听、判断、核对、重复），以及单句循环和变速怎么用，帮你真正听懂每一句。",
+          "精听怎么做才有效？这篇指南讲清精听与泛听的区别、逐句精听的正确步骤（先听、判断、核对、重复），以及单句重听和变速怎么用，帮你真正听懂每一句。",
         ogTitle: "什么是精听？精听的正确步骤",
-        ogDescription: "逐句精听的正确步骤：先听、判断、核对、重复，配合单句循环与变速，练到真正听懂。",
+        ogDescription: "逐句精听的正确步骤：先听、判断、核对、重复，配合单句重听与变速，练到真正听懂。",
         ogAlt: "DuolinTing 多邻听——精听方法与逐句精听步骤",
         title: "什么是精听？精听的正确步骤",
-        lead: "泛听让你跟上大意，精听才让你听懂每一个词。这篇指南把精听拆成一套可以照做的步骤，并讲清单句循环、变速这些工具到底该怎么用。",
+        lead: "泛听让你跟上大意，精听才让你听懂每一个词。这篇指南把精听拆成一套可以照做的步骤，并讲清单句重听、变速这些工具到底该怎么用。",
         sections: [
           {
             heading: "为什么「泛听很久了还是听不懂」",
@@ -85,18 +85,18 @@ export const blogPosts: BlogPost[] = [
             heading: "精听的正确步骤：先听、判断、核对、重复",
             paragraphs: [
               "每一句都按同一套动作来，顺序很重要——先听、再判断、再核对。",
-              "第一步，只听不看，把这一句完整听一遍。第二步，判断自己听到了什么，最好说出来或写下来。第三步，再核对字幕或译文，找出漏听和误听的地方。第四步，对出错的地方循环重听，直到不再需要刻意就能听懂。",
+              "第一步，只听不看，把这一句完整听一遍。第二步，判断自己听到了什么，最好说出来或写下来。第三步，再核对字幕或译文，找出漏听和误听的地方。第四步，对出错的地方反复重听，直到不再需要刻意就能听懂。",
               "「先听再核对」是精听和「边看字幕边听」的本质区别。先看字幕会跳过辨音这个最关键的过程——你会以为自己听懂了，其实只是读懂了。",
             ],
           },
           {
-            heading: "单句循环和变速怎么用",
+            heading: "单句重听和变速怎么用",
             paragraphs: [
-              "遇到连读、弱读或语速过快的句子，别急着看答案。先用单句循环把这一句隔离出来；仍听不清时，放慢速度逐个词辨清；最后回到原速，反复听直到自然跟上。",
+              "遇到连读、弱读或语速过快的句子，别急着看答案。先用单句重听把这一句隔离出来；仍听不清时，放慢速度逐个词辨清；最后回到原速，反复听直到自然跟上。",
               "变速的价值在于「阶梯式」逼近原速：先慢速听清，再逐步加速，让耳朵适应真实的语速，而不是一直依赖慢速。",
             ],
             bullets: [
-              "单句循环：把一句隔离出来反复听",
+              "单句重听：把一句隔离出来反复听",
               "变速播放：先慢速辨清，再回到原速",
               "难点标记：把仍不稳的句子留给复习阶段",
             ],
@@ -119,12 +119,12 @@ export const blogPosts: BlogPost[] = [
       en: {
         metaTitle: "What Is Intensive Listening? A Line-by-Line Method",
         metaDescription:
-          "How to do intensive listening effectively: the difference between extensive and intensive listening, the line-by-line steps (listen, decide, check, repeat), and how to use looping and speed control to truly understand each line.",
+          "How to do intensive listening effectively: the difference between extensive and intensive listening, the line-by-line steps (listen, decide, check, repeat), and how to use line replay and speed control to truly understand each line.",
         ogTitle: "What Is Intensive Listening? A Line-by-Line Method",
-        ogDescription: "Line-by-line intensive listening: listen, decide, check, repeat - with looping and speed control.",
+        ogDescription: "Line-by-line intensive listening: listen, decide, check, repeat - with line replay and speed control.",
         ogAlt: "DuolinTing - intensive listening and line-by-line method",
         title: "What Is Intensive Listening? A Line-by-Line Method",
-        lead: "Extensive listening keeps you on the big picture; intensive listening makes you understand every word. This guide breaks intensive listening into a repeatable set of steps and explains how to use looping and speed control the right way.",
+        lead: "Extensive listening keeps you on the big picture; intensive listening makes you understand every word. This guide breaks intensive listening into a repeatable set of steps and explains how to use line replay and speed control the right way.",
         sections: [
           {
             heading: "Why \"lots of extensive listening\" still leaves you stuck",
@@ -149,18 +149,18 @@ export const blogPosts: BlogPost[] = [
             heading: "The right steps: listen, decide, check, repeat",
             paragraphs: [
               "Practice every line with the same routine, and the order matters - listen, decide, then check.",
-              "First, listen to the line once without reading. Second, decide what you heard, ideally saying or writing it down. Third, check the subtitles or translation to find what you missed or misheard. Fourth, loop the parts you got wrong until you understand them without effort.",
+              "First, listen to the line once without reading. Second, decide what you heard, ideally saying or writing it down. Third, check the subtitles or translation to find what you missed or misheard. Fourth, replay the parts you got wrong until you understand them without effort.",
               "The \"listen before you check\" order is what separates intensive listening from merely reading along. Checking first skips the recognition step that matters most - you'll think you heard it when you really only read it.",
             ],
           },
           {
-            heading: "How to use looping and speed control",
+            heading: "How to use line replay and speed control",
             paragraphs: [
-              "When you hit connected speech, weak forms, or fast lines, don't reach for the answer. First isolate the line with single-line looping; if it's still unclear, slow down and make out each word; then return to full speed and repeat until you follow naturally.",
+              "When you hit connected speech, weak forms, or fast lines, don't reach for the answer. First isolate the line with single-line replay; if it's still unclear, slow down and make out each word; then return to full speed and repeat until you follow naturally.",
               "Speed control works best as a ladder back to full speed: hear it slow first, then step up, so your ear adapts to real-world pace instead of depending on slow audio.",
             ],
             bullets: [
-              "Single-line loop: isolate one line and repeat",
+              "Single-line replay: isolate one line and repeat",
               "Speed control: hear it slow first, then return to full speed",
               "Difficult marking: leave unstable lines for review",
             ],
@@ -185,17 +185,17 @@ export const blogPosts: BlogPost[] = [
   {
     slug: "youzack-alternative",
     publishedAt: "2026-09-01",
-    lastModified: "2026-09-01",
+    lastModified: "2026-10-31",
     ogImage: "/og-youzack-alternative.png",
     locales: {
       zh: {
-        metaTitle: "YouZack 替代：用 DuolinTing 做逐句精听与听写",
+        metaTitle: "YouZack 替代：用 DuolinTing 做逐句精听与复习",
         metaDescription:
-          "在找类似 YouZack 的听力工具？DuolinTing 是受 YouZack 听力学习理念启发的独立开源项目，支持真实材料的泛听、逐句精听、听写与难点复习，可自部署。",
-        ogTitle: "YouZack 替代｜用 DuolinTing 做逐句精听与听写",
-        ogDescription: "独立开源的逐句精听工具：真实材料 + 泛听/精听/听写/难点复习，可自部署。",
+          "在找类似 YouZack 的听力工具？DuolinTing 是受 YouZack 听力学习理念启发的独立开源项目，支持真实材料的泛听、逐句精听与难点复习，可自部署。",
+        ogTitle: "YouZack 替代｜用 DuolinTing 做逐句精听与复习",
+        ogDescription: "独立开源的逐句精听工具：真实材料、泛听热身、逐句精听与难点复习，可自部署。",
         ogAlt: "DuolinTing 多邻听——受 YouZack 理念启发的独立听力工具",
-        title: "YouZack 替代：用 DuolinTing 做逐句精听与听写",
+        title: "YouZack 替代：用 DuolinTing 做逐句精听与复习",
         lead: "如果你喜欢 YouZack「用真实材料逐句精听」的思路，想找一个开源、可自部署、能自己制课的替代方案，DuolinTing 提供了一条相近又独立的路径。",
         sections: [
           {
@@ -209,11 +209,11 @@ export const blogPosts: BlogPost[] = [
             heading: "共同点：真实材料，逐句听懂",
             paragraphs: [
               "两者都反对把听力练成脱离语境的机械题。核心体验是一致的：拿一段真实的播客、访谈或新闻，先整体听一遍，再逐句精听，把真正没听懂的部分留下来反复练。",
-              "DuolinTing 把这条路径组织成三个阶段：泛听热身、逐句精听、难点复习。每一句都支持先听、判断、核对，以及单句循环和变速播放。",
+              "DuolinTing 把这条路径组织成三个阶段：泛听热身、逐句精听、难点复习。每一句都支持先听、判断、核对，以及单句重听和变速播放。",
             ],
             bullets: [
               "泛听热身：完整听一遍，建立上下文",
-              "逐句精听：先听、判断、核对、循环",
+              "逐句精听：先听、判断、核对、重听",
               "难点复习：集中重练标记的困难句子",
             ],
           },
@@ -227,7 +227,7 @@ export const blogPosts: BlogPost[] = [
           {
             heading: "怎么把学习习惯迁移过来",
             paragraphs: [
-              "如果你习惯了 YouZack 的节奏，迁移成本很低：选一段你关心的真实材料，先泛听热身，再逐句精听，遇到难点标记出来，最后集中复习。听写和生词本也都在精听流程里，不会打断你的节奏。",
+              "选一段你关心的真实材料，先泛听热身，再逐句精听，遇到难点标记出来，最后集中复习。当前可以逐句重听、调整速度、查看字幕与译文，并标记掌握情况；听写、笔记与收词功能暂未开放。",
               "网页端打开即用，无需安装；Android 用户可以从官网下载 APK。",
             ],
           },
@@ -242,7 +242,7 @@ export const blogPosts: BlogPost[] = [
       en: {
         metaTitle: "YouZack Alternative: Line-by-Line Listening with DuolinTing",
         metaDescription:
-          "Looking for a YouZack-style listening tool? DuolinTing is an independent open-source project inspired by YouZack's approach - real-material extensive listening, line-by-line practice, dictation, and review, self-hostable.",
+          "Looking for a YouZack-style listening tool? DuolinTing is an independent, self-hostable open-source project with real-material extensive listening, line-by-line practice, and difficult-line review.",
         ogTitle: "YouZack Alternative | Line-by-Line Listening with DuolinTing",
         ogDescription: "An independent open-source line-by-line listening tool: real material, intensive practice, and self-hosting.",
         ogAlt: "DuolinTing - an independent listening tool inspired by YouZack's approach",
@@ -260,11 +260,11 @@ export const blogPosts: BlogPost[] = [
             heading: "What's shared: real material, understood line by line",
             paragraphs: [
               "Both reject the idea of reducing listening to decontextualized drills. The core experience is the same: take a real podcast, interview, or news clip, listen through once for the whole, then practice line by line and keep the parts you still miss for review.",
-              "DuolinTing organizes this path into three stages: warm-up listening, line-by-line practice, and difficult-line review. Every line supports listen-first, decide, then check, plus single-line looping and speed control.",
+              "DuolinTing organizes this path into three stages: warm-up listening, line-by-line practice, and difficult-line review. Every line supports listen-first, decide, then check, plus single-line replay and speed control.",
             ],
             bullets: [
               "Warm up: listen through once to build context",
-              "Intensive: listen, decide, check, then loop",
+              "Intensive: listen, decide, check, then replay",
               "Review: replay the difficult lines you marked",
             ],
           },
@@ -278,7 +278,7 @@ export const blogPosts: BlogPost[] = [
           {
             heading: "How to migrate your habit",
             paragraphs: [
-              "If you're used to YouZack's rhythm, the switch is cheap: pick a real piece you care about, warm up extensively, practice line by line, mark the hard parts, then review them together. Dictation and the vocabulary notebook live inside the same flow, so nothing interrupts your pace.",
+              "Pick real material you care about, warm up extensively, practice line by line, mark the hard parts, then review them together. You can replay lines, change speed, reveal subtitles and translations, and mark mastery. Dictation, notes, and word saving are currently unavailable.",
               "The web learner opens with no install; Android users can download the APK from the official site.",
             ],
           },
@@ -295,18 +295,18 @@ export const blogPosts: BlogPost[] = [
   {
     slug: "srt-to-listening-practice",
     publishedAt: "2026-09-01",
-    lastModified: "2026-09-01",
+    lastModified: "2026-10-31",
     ogImage: "/og-srt-to-listening-practice.png",
     locales: {
       zh: {
         metaTitle: "如何把 SRT 字幕做成逐句听力练习",
         metaDescription:
-          "手头有 SRT 字幕怎么练听力？这篇指南讲清如何把 SRT/VTT/ASS/LRC 字幕导入、校准时间轴，变成可以逐句精听、听写和复习的听力课。",
+          "手头有 SRT 字幕怎么练听力？这篇指南讲清如何把 SRT/VTT/ASS/LRC 字幕导入、校准时间轴，变成可以逐句精听和复习的听力课。",
         ogTitle: "如何把 SRT 字幕做成逐句听力练习",
-        ogDescription: "把 SRT/VTT/ASS/LRC 字幕导入、校准、变成逐句精听与听写的听力课。",
+        ogDescription: "把 SRT/VTT/ASS/LRC 字幕导入、校准，变成逐句精听与难点复习的听力课。",
         ogAlt: "DuolinTing 多邻听——把 SRT 字幕做成逐句听力练习",
         title: "如何把 SRT 字幕做成逐句听力练习",
-        lead: "字幕文件里其实藏着现成的听力课——每一句都有原文和时间轴。这篇指南讲清怎么把它导入、校准，变成可以逐句精听、听写和复习的练习。",
+        lead: "字幕文件里每一句都有原文和时间轴。这篇指南讲清怎么把它导入、校准，变成可以逐句精听和复习的练习。",
         sections: [
           {
             heading: "为什么 SRT 字幕适合做听力练习",
@@ -318,7 +318,7 @@ export const blogPosts: BlogPost[] = [
           {
             heading: "第一步：确认素材和时间轴",
             paragraphs: [
-              "开始前确认两件事。第一，你对这段媒体和字幕拥有使用权——自己创作、已获授权，或开放许可允许此用途。第二，时间轴要准确：逐句精听依赖精确的起止时间，错位的字幕会让「按句循环」对不上音频。",
+              "开始前确认两件事。第一，你对这段媒体和字幕拥有使用权——自己创作、已获授权，或开放许可允许此用途。第二，时间轴要准确：逐句精听依赖精确的起止时间，错位的字幕会让「按句重听」对不上音频。",
             ],
             bullets: [
               "确认媒体与字幕的使用权",
@@ -337,7 +337,7 @@ export const blogPosts: BlogPost[] = [
             heading: "第三步：在波形上校准每一句",
             paragraphs: [
               "导入只是起点。在波形和时间轴上逐句检查：拖动或缩放波形调整每句的开始与结束，确保片段紧贴实际说话范围——不切掉首尾音，也不把两句应分开的内容合并。",
-              "这一步直接决定学习者按句循环、听写和复习时是否顺畅，值得花时间做好。",
+              "这一步直接决定学习者按句重听、核对字幕和复习时是否顺畅，值得花时间做好。",
             ],
             bullets: [
               "拖动波形调整每句起止",
@@ -348,8 +348,8 @@ export const blogPosts: BlogPost[] = [
           {
             heading: "第四步：把它变成逐句精听流程",
             paragraphs: [
-              "校准完成后，这门课就能进入三阶段练习：先泛听热身，建立整体认识；再逐句精听，先听、判断、核对；遇到听写的部分，把听到的写下来再核对字幕与翻译。",
-              "听写里暴露的拼写错误，顺手收进生词本；反复听不清的句子标记为难点，交给复习阶段集中处理。",
+              "校准完成后，这门课就能进入三阶段练习：先泛听热身，建立整体认识；再逐句精听，先听、判断、核对字幕与译文；最后集中复习标记的难点句子。",
+              "当前产品不提供听写输入、自动批改、笔记或收词入口。如果想额外做听写或积累词汇，可以配合纸笔或自己的笔记工具记录，再回到原句重听。",
             ],
           },
           {
@@ -363,12 +363,12 @@ export const blogPosts: BlogPost[] = [
       en: {
         metaTitle: "How to Turn SRT Subtitles into Line-by-Line Listening Practice",
         metaDescription:
-          "Got SRT subtitles? This guide shows how to import SRT/VTT/ASS/LRC subtitles, align the timeline, and turn them into line-by-line intensive listening, dictation, and review practice.",
+          "Got SRT subtitles? This guide shows how to import SRT/VTT/ASS/LRC subtitles, align the timeline, and turn them into line-by-line intensive listening and difficult-line review.",
         ogTitle: "How to Turn SRT Subtitles into Line-by-Line Listening Practice",
         ogDescription: "Import SRT/VTT/ASS/LRC subtitles, align the timeline, and turn them into intensive listening practice.",
         ogAlt: "DuolinTing - turning SRT subtitles into line-by-line listening practice",
         title: "How to Turn SRT Subtitles into Line-by-Line Listening Practice",
-        lead: "A subtitle file already contains a ready-made listening lesson - every line has source text and a timestamp. This guide shows how to import it, align it, and turn it into line-by-line intensive listening, dictation, and review.",
+        lead: "Every subtitle line has source text and a timestamp. This guide shows how to import and align it for line-by-line intensive listening and difficult-line review.",
         sections: [
           {
             heading: "Why SRT subtitles are perfect for listening practice",
@@ -380,7 +380,7 @@ export const blogPosts: BlogPost[] = [
           {
             heading: "Step one: confirm the material and timeline",
             paragraphs: [
-              "Confirm two things before you start. First, you have the rights to the media and subtitles - your own work, licensed, or covered by an open licence that permits this use. Second, the timeline is accurate: line-by-line practice depends on precise start and end times, and misaligned subtitles make per-line looping drift from the audio.",
+              "Confirm two things before you start. First, you have the rights to the media and subtitles - your own work, licensed, or covered by an open licence that permits this use. Second, the timeline is accurate: line-by-line practice depends on precise start and end times, and misaligned subtitles make line replay drift from the audio.",
             ],
             bullets: [
               "Confirm the rights to the media and subtitles",
@@ -399,7 +399,7 @@ export const blogPosts: BlogPost[] = [
             heading: "Step three: align every line on the waveform",
             paragraphs: [
               "Importing is just the start. Work line by line on the waveform and timeline: drag or zoom to adjust each segment's start and end so it matches the spoken range - don't cut off word beginnings or endings, and don't merge two lines that should be practiced separately.",
-              "This step directly determines whether per-line looping, dictation, and review feel smooth, so it's worth doing carefully.",
+              "This step determines whether line replay, subtitle checking, and review work well, so check it carefully.",
             ],
             bullets: [
               "Drag the waveform to adjust each line's start and end",
@@ -410,8 +410,8 @@ export const blogPosts: BlogPost[] = [
           {
             heading: "Step four: turn it into a line-by-line flow",
             paragraphs: [
-              "Once aligned, the lesson enters the three-stage path: warm up extensively to build the overall picture; practice intensively line by line with listen, decide, then check; and for dictation, write what you hear before checking subtitles and translation.",
-              "Save spelling mistakes from dictation to your vocabulary, and mark lines that stay unclear as difficult for the review stage.",
+              "Once aligned, the lesson enters the three-stage path: warm up extensively to build the overall picture; practice intensively line by line with listen, decide, then check subtitles and translations; finally, review the difficult lines you marked.",
+              "Dictation input, automatic marking, notes, and word-saving entries are currently unavailable. For extra dictation or vocabulary practice, record your work on paper or in your own notes app, then return to replay the original line.",
             ],
           },
           {

@@ -189,15 +189,15 @@ export const landingPages: LandingPage[] = [
   },
   {
     slug: "intensive-listening",
-    lastModified: "2026-09-01",
+    lastModified: "2026-10-31",
     ogImage: "/og-intensive-listening.png",
     locales: {
       zh: {
         metaTitle: "精听方法：逐句精听的正确步骤",
         metaDescription:
-          "精听怎么做才有效？掌握逐句精听步骤：先听、再判断、再核对，配合单句循环与变速播放，把真正听不懂的句子练到听懂。DuolinTing 多邻听的精听练习方法。",
+          "精听怎么做才有效？掌握逐句精听步骤：先听、再判断、再核对，配合单句重听与变速播放，把真正听不懂的句子练到听懂。DuolinTing 多邻听的精听练习方法。",
         ogTitle: "精听方法｜逐句精听的正确步骤",
-        ogDescription: "逐句精听：先听、再判断、再核对，配合单句循环与变速，练到真正听懂。",
+        ogDescription: "逐句精听：先听、再判断、再核对，配合单句重听与变速，练到真正听懂。",
         ogAlt: "DuolinTing 多邻听——精听方法与逐句精听步骤",
         hero: {
           eyebrow: "逐句精听 · 第二阶段",
@@ -222,15 +222,15 @@ export const landingPages: LandingPage[] = [
             bullets: [
               "先听一遍，说出或写下你听到的内容",
               "再核对原文，找出漏听与误听",
-              "对难点句子循环重听直到听懂",
+              "对难点句子反复重听直到听懂",
             ],
           },
           {
-            eyebrow: "单句循环与变速",
-            title: "用循环和变速，攻克最难的那几句。",
-            body: "DuolinTing 支持单句循环和播放速度调节。遇到连读、弱读或语速过快的句子，可以放慢速度先听清，再逐步回到原速，直到能在正常语速下听懂。",
+            eyebrow: "单句重听与变速",
+            title: "用重听和变速，攻克最难的那几句。",
+            body: "DuolinTing 支持单句重听和播放速度调节。遇到连读、弱读或语速过快的句子，可以放慢速度先听清，再逐步回到原速，直到能在正常语速下听懂。",
             bullets: [
-              "单句循环：把一句练到稳定听懂",
+              "单句重听：把一句练到稳定听懂",
               "变速播放：先慢速辨清，再回到原速",
               "难点标记：把困难句子留给复习阶段",
             ],
@@ -246,7 +246,7 @@ export const landingPages: LandingPage[] = [
             answer: "建议先听、不看字幕，判断自己听到了什么，再核对。先看字幕会跳过“辨音”这个最关键的过程；先听后看才能知道问题出在哪儿。",
           },
           {
-            question: "单句循环怎么用最有效？",
+            question: "单句重听怎么用最有效？",
             answer: "对听不清的句子，先原速再听一遍；仍听不清时放慢速度辨清每个词；最后回到原速反复听，直到不用刻意也能跟上。之后把仍不稳的句子标记为难点，交给复习阶段。",
           },
         ],
@@ -254,9 +254,9 @@ export const landingPages: LandingPage[] = [
       en: {
         metaTitle: "Intensive Listening: How to Practice Line by Line",
         metaDescription:
-          "How to do intensive listening effectively? Master the line-by-line steps—listen, decide, then check—with single-line looping and speed control to truly understand each sentence. DuolinTing's intensive listening method.",
+          "How to do intensive listening effectively? Master the line-by-line steps—listen, decide, then check—with single-line replay and speed control to truly understand each sentence. DuolinTing's intensive listening method.",
         ogTitle: "Intensive Listening | Line-by-Line Practice Method",
-        ogDescription: "Line-by-line intensive listening: listen, decide, check—with looping and speed control.",
+        ogDescription: "Line-by-line intensive listening: listen, decide, check—with line replay and speed control.",
         ogAlt: "DuolinTing — intensive listening and line-by-line practice method",
         hero: {
           eyebrow: "Line-by-line listening · Stage two",
@@ -281,15 +281,15 @@ export const landingPages: LandingPage[] = [
             bullets: [
               "Listen once and say or write what you heard",
               "Check against the source to find gaps and mis-hearings",
-              "Loop the difficult lines until they are clear",
+              "Replay the difficult lines until they are clear",
             ],
           },
           {
-            eyebrow: "Looping and speed",
-            title: "Use looping and speed to crack the hardest lines.",
-            body: "DuolinTing supports single-line looping and playback speed control. For connected speech, weak forms, or fast lines, slow down to hear each word, then build back up to full speed until you understand it naturally.",
+            eyebrow: "Line replay and speed",
+            title: "Use line replay and speed to crack the hardest lines.",
+            body: "DuolinTing supports single-line replay and playback speed control. For connected speech, weak forms, or fast lines, slow down to hear each word, then build back up to full speed until you understand it naturally.",
             bullets: [
-              "Single-line loop: repeat until a line is stable",
+              "Single-line replay: repeat until a line is stable",
               "Speed control: slow down to hear, then return to full speed",
               "Difficult-line marking: save hard lines for review",
             ],
@@ -305,7 +305,7 @@ export const landingPages: LandingPage[] = [
             answer: "Preferably not. Listen first without subtitles and decide what you heard, then check. Reading first skips the recognition step that matters most; listening first shows you where the problem actually is.",
           },
           {
-            question: "How do I use single-line looping most effectively?",
+            question: "How do I use single-line replay most effectively?",
             answer: "For a line you can't catch, listen once more at full speed; if it's still unclear, slow it down to hear each word; then return to full speed and repeat until you can follow without effort. Mark lines that stay unstable as difficult for the review stage.",
           },
         ],
@@ -314,20 +314,20 @@ export const landingPages: LandingPage[] = [
   },
   {
     slug: "dictation",
-    lastModified: "2026-09-01",
+    lastModified: "2026-10-31",
     ogImage: "/og-dictation.png",
     locales: {
       zh: {
-        metaTitle: "英语听写练习：逐句听写提升辨音",
+        metaTitle: "英语听写方法：逐句听写提升辨音",
         metaDescription:
-          "逐句听写是最扎实的精听方式。用 DuolinTing 做逐句听写：听原文、写下来、核对字幕与翻译，练出辨音、连读和拼写的准确性，把听力真正落地。",
-        ogTitle: "英语听写练习｜逐句听写提升辨音",
-        ogDescription: "逐句听写：听原文、写下来、核对字幕与翻译，练出辨音与拼写的准确性。",
-        ogAlt: "DuolinTing 多邻听——逐句听写练习",
+          "逐句听写方法：听原文，在纸上或自己的笔记工具里写下内容，再核对字幕与翻译。DuolinTing 当前提供逐句播放与核对，不提供内置听写输入或自动批改。",
+        ogTitle: "英语听写方法｜逐句听写提升辨音",
+        ogDescription: "听写方法指南：配合逐句播放，在自己的笔记工具中记录并手动核对；当前无内置听写或自动批改。",
+        ogAlt: "DuolinTing 多邻听——逐句听写方法指南",
         hero: {
-          eyebrow: "逐句听写 · 精听进阶",
+          eyebrow: "听写方法 · 精听进阶",
           title: "把听到的写下来，才是真正的听清。",
-          lead: "听写是精听里最“较真”的一步：先听一句，把它写下来，再核对字幕和翻译。它逼你面对每一个连读、弱读和拼写细节。",
+          lead: "听写可以帮助你发现连读、弱读和拼写细节。这是一份学习方法指南：DuolinTing 当前提供逐句播放、字幕与译文核对，听写请使用纸笔或自己的笔记工具；产品内暂不提供听写输入与自动批改。",
         },
         sections: [
           {
@@ -343,28 +343,32 @@ export const landingPages: LandingPage[] = [
           {
             eyebrow: "怎么逐句听写",
             title: "一句一句来：听、写、核对。",
-            body: "在 DuolinTing 里进入精听阶段后，对每句话先听一遍，写出你听到的内容；写不出来就单句循环或放慢速度；再核对原文与译文，找出漏掉和写错的地方。",
+            body: "在 DuolinTing 的精听阶段先播放一句，用纸笔或自己的笔记工具写出听到的内容；写不出来就重听或放慢速度；再展开字幕与译文，手动核对漏掉和写错的地方。",
             bullets: [
-              "先听一句，独立写出内容",
-              "写不出时循环或放慢重听",
+              "先听一句，在自己的笔记中写出内容",
+              "写不出时重听或放慢重听",
               "核对原文与译文，标注错误",
             ],
           },
           {
             eyebrow: "听写后的纠错",
             title: "错误才是进步最快的地方。",
-            body: "核对后的错误不要跳过：区分是“没听清”还是“拼写不会”。没听清的交给单句循环练辨音；拼写不会的收进生词本。这样每次听写都能带走具体的进步。",
+            body: "核对后区分是“没听清”还是“拼写不会”。没听清的部分可以回到原句重听，并把句子标记为难点；拼写错误记录到自己的笔记中，留待下次复习。",
             bullets: [
               "区分辨音错误与拼写错误",
-              "辨音问题用单句循环补",
-              "生词拼写收进生词本复习",
+              "辨音问题用单句重听补",
+              "在自己的笔记中记录生词拼写",
             ],
           },
         ],
         faq: [
           {
+            question: "DuolinTing 现在有内置听写功能吗？",
+            answer: "暂不提供听写输入、自动批改或笔记工具。你可以用产品的逐句播放、倍速、字幕与译文核对，配合纸笔或自己的笔记工具进行听写。",
+          },
+          {
             question: "听写要听多少遍？",
-            answer: "以能独立写出为目标。先完整听一遍尝试写出，写不出再逐句循环或放慢速度，直到写完再核对。不要无限重复到“顺下来”为止，那样练的是记忆而非辨音。",
+            answer: "以能独立写出为目标。先完整听一遍尝试写出，写不出再逐句重听或放慢速度，直到写完再核对。不要无限重复到“顺下来”为止，那样练的是记忆而非辨音。",
           },
           {
             question: "听写适合什么水平？",
@@ -377,16 +381,16 @@ export const landingPages: LandingPage[] = [
         ],
       },
       en: {
-        metaTitle: "English Dictation Practice: Sharpen Listening Line by Line",
+        metaTitle: "English Dictation Method: Sharpen Listening Line by Line",
         metaDescription:
-          "Line-by-line dictation is the most rigorous intensive listening. Dictate with DuolinTing: listen, write it down, then check subtitles and translations to build accurate sound recognition, connected speech, and spelling.",
-        ogTitle: "English Dictation Practice | Line-by-Line Listening",
-        ogDescription: "Dictate line by line: listen, write, then check—to build sound recognition and spelling accuracy.",
-        ogAlt: "DuolinTing — line-by-line dictation practice",
+          "A line-by-line dictation method: listen, write in your own notebook, then check subtitles and translations. DuolinTing offers playback and checking; built-in dictation input and automatic marking are currently unavailable.",
+        ogTitle: "English Dictation Method | Line-by-Line Listening",
+        ogDescription: "A dictation method using line playback and your own notebook. Built-in dictation input and automatic marking are currently unavailable.",
+        ogAlt: "DuolinTing — a guide to line-by-line dictation",
         hero: {
-          eyebrow: "Line-by-line dictation · intensive practice",
+          eyebrow: "Dictation method · intensive practice",
           title: "Writing down what you hear is real comprehension.",
-          lead: "Dictation is the most exacting step in intensive listening: listen to a line, write it down, then check the subtitles and translation. It forces you to face every connected sound, weak form, and spelling detail.",
+          lead: "Dictation can reveal connected speech, weak forms, and spelling gaps. This is a method guide: DuolinTing currently offers line playback, subtitles, and translations. Write in your own notebook; built-in dictation input and automatic marking are currently unavailable.",
         },
         sections: [
           {
@@ -402,28 +406,32 @@ export const landingPages: LandingPage[] = [
           {
             eyebrow: "How to dictate line by line",
             title: "One line at a time: listen, write, check.",
-            body: "In DuolinTing's intensive stage, listen to each line once and write what you hear; loop it or slow it down if you can't write it; then check the source and translation to find what you missed or wrote wrong.",
+            body: "In DuolinTing's intensive stage, play a line and write what you hear on paper or in your own notes app. Replay it or slow it down if needed, then reveal the source and translation and manually check what you missed or wrote wrong.",
             bullets: [
-              "Listen to a line and write it independently",
-              "Loop or slow down when you can't write it",
+              "Listen to a line and write it in your own notebook",
+              "Replay or slow down when you can't write it",
               "Check the source and translation, then mark errors",
             ],
           },
           {
             eyebrow: "Correcting after dictation",
             title: "Mistakes are where you improve fastest.",
-            body: "Don't skip the errors you found: separate “didn't hear it” from “can't spell it.” Re-listen to sound-recognition gaps with single-line looping, and save spelling gaps to your vocabulary. Each session then ends with concrete progress.",
+            body: "Separate sound-recognition gaps from spelling gaps. Replay unclear audio and mark the line as difficult; record spelling errors in your own notebook to review next time.",
             bullets: [
               "Separate sound-recognition from spelling errors",
-              "Fix recognition gaps with single-line looping",
-              "Save new spelling to your vocabulary",
+              "Fix recognition gaps with single-line replay",
+              "Record new spelling in your own notebook",
             ],
           },
         ],
         faq: [
           {
+            question: "Does DuolinTing currently have built-in dictation?",
+            answer: "Dictation input, automatic marking, and note tools are currently unavailable. You can combine line playback, speed control, subtitles, and translations with paper or your own notes app.",
+          },
+          {
             question: "How many times should I listen during dictation?",
-            answer: "Aim to write the line independently. Listen once through and try to write; if you can't, loop or slow down until you can, then check. Avoid repeating until you can just parrot it—that trains memory, not recognition.",
+            answer: "Aim to write the line independently. Listen once through and try to write; if you can't, replay or slow down until you can, then check. Avoid repeating until you can just parrot it—that trains memory, not recognition.",
           },
           {
             question: "What level is dictation for?",
@@ -439,20 +447,20 @@ export const landingPages: LandingPage[] = [
   },
   {
     slug: "vocabulary",
-    lastModified: "2026-09-01",
+    lastModified: "2026-10-31",
     ogImage: "/og-vocabulary.png",
     locales: {
       zh: {
-        metaTitle: "听力生词本：从语境里积累生词",
+        metaTitle: "听力词汇积累方法：从语境里记录生词",
         metaDescription:
-          "把听力里遇到的生词收进生词本，结合句子语境复习。DuolinTing 生词本帮你把听不清、听不懂的词，变成真正掌握的词汇。",
-        ogTitle: "听力生词本｜从语境里积累生词",
-        ogDescription: "把听力里的生词收进生词本，结合语境复习，把听不清的词变成真正掌握的词汇。",
-        ogAlt: "DuolinTing 多邻听——听力生词本",
+          "学习如何从听力语境记录生词，并回到原句复习。DuolinTing 当前不提供收词入口，请用自己的笔记工具记录，配合逐句播放与难点复习练习。",
+        ogTitle: "听力词汇积累方法｜从语境里记录生词",
+        ogDescription: "听力词汇积累方法：用自己的笔记记录生词，回到原句重听；当前不提供产品内收词入口。",
+        ogAlt: "DuolinTing 多邻听——听力词汇积累方法",
         hero: {
-          eyebrow: "生词本 · 词汇积累",
+          eyebrow: "学习方法 · 词汇积累",
           title: "听懂之后的生词，才是值得记住的词。",
-          lead: "在逐句精听中遇到的生词，天然带着句子语境。把它们收进生词本，比孤立背单词表记得更牢、也更容易在真实听力里再次认出。",
+          lead: "从精听中记录生词，可以同时留下原句与发音语境。这是一份学习方法指南：DuolinTing 当前不提供收词入口，请在自己的笔记工具中记录，再配合逐句重听与难点复习。",
         },
         sections: [
           {
@@ -467,12 +475,12 @@ export const landingPages: LandingPage[] = [
           },
           {
             eyebrow: "怎么收集生词",
-            title: "在精听和听写中随手收词。",
-            body: "DuolinTing 让你在做逐句精听和听写时，把卡住你的词直接收进生词本。词条来自课程语境，而不是脱离上下文的孤立列表。",
+            title: "用自己的笔记，记录词与原句。",
+            body: "精听时遇到影响理解的词，可以把词、原句和课程标题记在自己的笔记里。DuolinTing 内可以标记对应的难点句子，稍后回到课程重听。",
             bullets: [
-              "精听时标记听不懂的词",
-              "听写后把拼写错误收进生词本",
-              "每个词都带着所在句子的语境",
+              "在自己的笔记中记录生词与原句",
+              "在课程内标记对应的难点句子",
+              "复习时回到原句核对发音与含义",
             ],
           },
           {
@@ -487,6 +495,10 @@ export const landingPages: LandingPage[] = [
           },
         ],
         faq: [
+          {
+            question: "DuolinTing 现在可以收集生词吗？",
+            answer: "当前不提供收词入口，也不提供内置笔记工具。请用自己的笔记记录词汇；产品内可以逐句重听、查看字幕与译文，并标记难点句子复习。",
+          },
           {
             question: "生词本和普通背单词有什么区别？",
             answer: "生词本里的词来自你正在练的真实材料，自带发音和句子语境；普通词表是脱离语境的孤立词汇。前者更容易在真实听力里再次认出。",
@@ -504,14 +516,14 @@ export const landingPages: LandingPage[] = [
       en: {
         metaTitle: "Listening Vocabulary: Build Words from Real Context",
         metaDescription:
-          "Collect the words you meet while listening into a vocabulary notebook and review them in sentence context. DuolinTing helps you turn hard-to-hear words into vocabulary you truly know.",
+          "Learn to record listening vocabulary in context and return to the original line. DuolinTing currently has no word-saving entry; use your own notebook alongside line playback and difficult-line review.",
         ogTitle: "Listening Vocabulary | Build Words from Context",
-        ogDescription: "Collect listening vocabulary in context and review by ear, so new words become words you truly know.",
-        ogAlt: "DuolinTing — listening vocabulary notebook",
+        ogDescription: "A listening vocabulary method: record words in your own notebook and replay their original lines. In-app word saving is currently unavailable.",
+        ogAlt: "DuolinTing — a guide to learning vocabulary from listening",
         hero: {
-          eyebrow: "Vocabulary · word building",
+          eyebrow: "Learning method · vocabulary",
           title: "Words you meet after understanding are worth keeping.",
-          lead: "New words you meet during line-by-line practice already carry sentence context. Saving them to your vocabulary beats memorizing isolated lists—and makes them easier to recognize in real listening again.",
+          lead: "Recording words during intensive listening keeps their sentence and pronunciation context. This is a method guide: in-app word saving is currently unavailable. Use your own notebook alongside DuolinTing's line playback and difficult-line review.",
         },
         sections: [
           {
@@ -526,12 +538,12 @@ export const landingPages: LandingPage[] = [
           },
           {
             eyebrow: "How to collect vocabulary",
-            title: "Save words as you practice and dictate.",
-            body: "DuolinTing lets you save the words that trip you up directly into your vocabulary while doing line-by-line practice and dictation. Entries come from course context, not from a detached list.",
+            title: "Record the word and its sentence in your own notebook.",
+            body: "When a word blocks understanding, record it with the original sentence and lesson title in your own notebook. In DuolinTing, mark the corresponding line as difficult so you can return to the lesson and replay it.",
             bullets: [
-              "Mark words you can't catch during intensive practice",
-              "Save spelling mistakes after dictation",
-              "Every entry keeps the sentence context it came from",
+              "Record words and original sentences in your own notebook",
+              "Mark the corresponding difficult lines in the lesson",
+              "Return to the line to check pronunciation and meaning",
             ],
           },
           {
@@ -546,6 +558,10 @@ export const landingPages: LandingPage[] = [
           },
         ],
         faq: [
+          {
+            question: "Can I currently save words in DuolinTing?",
+            answer: "In-app word saving and note tools are currently unavailable. Record vocabulary in your own notebook; use DuolinTing to replay lines, reveal subtitles and translations, and mark difficult lines for review.",
+          },
           {
             question: "How is a listening vocabulary different from ordinary word memorization?",
             answer: "A listening vocabulary comes from the real material you're practicing, so each word carries pronunciation and sentence context; ordinary lists are isolated words without context. The former is much easier to recognize in real listening.",

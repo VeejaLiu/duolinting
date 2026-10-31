@@ -13,7 +13,7 @@ export function LinkAccountScreen({ email, onContinue, onBack, busy, error }: {
   const { t } = useLanguage()
   return <AuthScaffold title={t('authFlow.linkTitle')} onBack={onBack}>
     <Text className="text-base font-bold leading-6 text-text-secondary">{t('authFlow.linkHint', { email })}</Text>
-    {error ? <Text className="mt-3 text-sm font-bold text-danger">{error}</Text> : null}
+    {error ? <Text className="mt-3 text-sm font-bold text-danger-strong">{error}</Text> : null}
     <View className="mt-5"><Button disabled={busy} label={t('authFlow.linkContinue')} onPress={onContinue} /></View>
   </AuthScaffold>
 }

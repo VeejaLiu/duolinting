@@ -36,6 +36,6 @@ export function UnlinkIdentityScreen() {
     {provider ? ticket ? <View className="gap-3">
       <Button tone="danger" disabled={busy} label={t('authFlow.unlinkConfirm')} onPress={() => void unlink()} />
     </View> : <ReauthForm purpose="unlink_identity" onTicket={setTicket} /> : null}
-    {error ? <Text className="text-sm text-danger">{error}</Text> : null}
+    {error ? <Text className="text-sm text-danger-strong">{error}</Text> : null}
   </SettingsScaffold>
 }

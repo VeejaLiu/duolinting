@@ -6,6 +6,7 @@ import { useLanguage } from '../i18n/LanguageProvider'
 import { useToast } from './ToastProvider'
 import { SocialAuthButtons } from './SocialAuthButtons'
 import type { OAuthResult } from '@duolinting/domain'
+import { Modal, ModalTitle } from './Modal'
 
 type AuthDialogProps = {
   open: boolean
@@ -54,19 +55,16 @@ export function AuthDialog({ open, user, onClose, onAuthenticated, onLogout }: A
 
   useEffect(() => {
     if (!open) return
-    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handleKeyDown)
     const initialTick = window.setTimeout(() => setNow(Date.now()), 0)
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
     const handleVisible = () => setNow(Date.now())
     document.addEventListener('visibilitychange', handleVisible)
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
       window.clearTimeout(initialTick)
       window.clearInterval(timer)
       document.removeEventListener('visibilitychange', handleVisible)
     }
-  }, [onClose, open])
+  }, [open])
 
   if (!open) return null
 
@@ -152,12 +150,11 @@ export function AuthDialog({ open, user, onClose, onAuthenticated, onLogout }: A
     }
   }
 
-  return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-    <section aria-labelledby="auth-dialog-title" aria-modal="true" className="auth-dialog" role="dialog" onMouseDown={(event) => event.stopPropagation()}>
+  return <Modal className="auth-dialog" onClose={onClose}>
       <button aria-label={t('auth.closeDialog')} className="dialog-close" onClick={onClose} type="button"><X size={18} aria-hidden="true" /></button>
       <div className="dialog-hero">
         <p>{t('auth.accountCenter')}</p>
-        <h2 id="auth-dialog-title">{user ? t('auth.linkedToAccount') : step === 'link' ? t('authFlow.linkTitle') : step === 'code' ? t(pendingLink ? 'authFlow.linkTitle' : 'authFlow.checkEmail') : step === 'password' ? t('authFlow.enterPassword') : t('authFlow.title')}</h2>
+        <ModalTitle>{user ? t('auth.linkedToAccount') : step === 'link' ? t('authFlow.linkTitle') : step === 'code' ? t(pendingLink ? 'authFlow.linkTitle' : 'authFlow.checkEmail') : step === 'password' ? t('authFlow.enterPassword') : t('authFlow.title')}</ModalTitle>
         <span>{user ? t('auth.secureHint') : step === 'link' ? t('authFlow.linkHint', { email: normalizedEmail }) : step === 'code' ? t('authFlow.sentTo', { email: challenge?.email ?? normalizedEmail }) : t('authFlow.subtitle')}</span>
       </div>
       {user ? <div className="signed-in-card">
@@ -186,6 +183,5 @@ export function AuthDialog({ open, user, onClose, onAuthenticated, onLogout }: A
         : <button className="command-button large full" disabled={isBusy || (step === 'code' && (code.length !== 6 || expiresSeconds === 0))} onClick={() => void (step === 'entry' || step === 'link' ? startEmail() : step === 'code' ? verify() : loginWithPassword())} type="button">{step === 'entry' ? t('authFlow.continue') : step === 'link' || step === 'code' && pendingLink ? t('authFlow.linkContinue') : step === 'code' ? t('authFlow.verifyContinue') : t('auth.login')}</button>}
       </div>
       {!user && step === 'entry' ? <SocialAuthButtons onResult={onSocialResult} onError={() => setError(t('authFlow.socialFailed'))} /> : null}
-    </section>
-  </div>
+  </Modal>
 }

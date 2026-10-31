@@ -14,7 +14,7 @@
 }
 
 .stage-eyebrow {
-  color: #58cc02;
+  color: var(--text-success);
   font-size: 14px;
   font-weight: 900;
   margin: 0;
@@ -90,7 +90,7 @@
   border: 0;
   border-radius: 12px;
   box-shadow: 0 4px 0 #46a302;
-  color: #ffffff;
+  color: var(--text-on-brand);
   cursor: pointer;
   display: inline-flex;
   flex: 0 0 auto;
@@ -207,7 +207,7 @@
   border: 0;
   border-radius: 16px;
   box-shadow: 0 5px 0 #46a302;
-  color: #ffffff;
+  color: var(--text-on-brand);
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -274,7 +274,7 @@
 }
 
 .listen-progress-pct {
-  color: #58cc02;
+  color: var(--text-success);
   font-size: clamp(32px, 7vw, 52px);
   font-weight: 900;
   left: 50%;

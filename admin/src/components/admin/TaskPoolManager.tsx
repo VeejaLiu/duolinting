@@ -524,12 +524,12 @@ export function TaskPoolManager({
     ...(isSuperAdmin ? [{ key: 'overview', label: t('任务池概览'), children: overviewTab }] : []),
     {
       key: 'claimable',
-      label: <Space size={6}><Inbox size={14} />{t('可领取')}<Badge count={poolTotal} color="#1cb0f6" showZero overflowCount={99} /></Space>,
+      label: <Space size={6}><Inbox size={14} />{t('可领取')}<Badge count={poolTotal} color="#1cb0f6" style={{ color: '#172033' }} showZero overflowCount={99} /></Space>,
       children: claimableTab,
     },
     ...(!isSuperAdmin ? [{
       key: 'mine',
-      label: <Space size={6}><ClipboardCheck size={14} />{t('我的任务')}<Badge count={activeTaskCount} color="#1cb0f6" showZero overflowCount={99} /></Space>,
+      label: <Space size={6}><ClipboardCheck size={14} />{t('我的任务')}<Badge count={activeTaskCount} color="#1cb0f6" style={{ color: '#172033' }} showZero overflowCount={99} /></Space>,
       children: myTasksTab,
     }] : []),
   ]

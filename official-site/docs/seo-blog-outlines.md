@@ -7,6 +7,7 @@
 > 因此：中文内容主打「YouZack 替代 + 精听方法 + SRT 字幕」三个高意图词；
 > 英文内容主打「intensive listening / English listening practice / dictation」方法论词。
 > 所有文章最终导流回 `/practice/<slug>` 落地页与 `/download`、`/contribute`。
+> 功能边界：当前产品提供泛听、逐句播放、倍速、字幕与译文、难点标记和复习；听写、词汇积累仅作为方法内容，明确使用纸笔或学习者自己的笔记工具，不宣传内置听写、笔记、自动批改或收词。
 
 这些大纲与 `app/content/landing-pages.ts` 同一套数据驱动模式，后续用
 `/blog/[slug]`（复用 `/practice/[slug]` 的 `generateStaticParams` + `generateMetadata` 骨架）承载。
@@ -23,14 +24,14 @@
   1. 开头：为什么"泛听很久了还是听不懂"——精听是补辨音短板的那一步。
   2. 精听 vs 泛听：一张对比，明确两者分工（内链 `/practice/extensive-listening`）。
   3. 精听的正确步骤：先听 → 判断 → 核对 → 重复，逐步解释"为什么必须先听后看"。
-  4. 单句循环与变速怎么用最有效（内链 `/practice/intensive-listening`）。
+  4. 单句重听与变速怎么用最有效（内链 `/practice/intensive-listening`）。
   5. 精听之后：把难点交给复习阶段（内链 `/practice/difficult-review`）。
   6. 常见误区 3 条（边看字幕边听、无限重听、贪多求快）。
   7. CTA：网页立即体验 + 下载 APK。
 
 ---
 
-## 2. YouZack 替代：用 DuolinTing 做逐句精听与听写
+## 2. YouZack 替代：用 DuolinTing 做逐句精听与复习
 
 - **路由（规划）**：`/blog/youzack-alternative`（中文为主；英文视需求再配 `/en/blog/youzack-alternative`）
 - **目标关键词**：YouZack 替代 / 类似 YouZack 的听力工具 / 逐句精听 app
@@ -55,6 +56,6 @@
   1. 开头：手头有 SRT 字幕，怎么把它变成能逐句练的听力课。
   2. 准备素材：确认字幕时间轴准确、拥有内容使用权（内链 `/contribute` 的授权规则）。
   3. 导入与校准：SRT/VTT/ASS/LRC/TXT 导入、双语识别、全局时间偏移。
-  4. 逐句精听流程：先听 → 判断 → 核对 → 循环。
-  5. 听写与难点复习：把听写错误收进生词本（内链 `/practice/dictation`、`/practice/vocabulary`）。
+  4. 逐句精听流程：先听 → 判断 → 核对 → 重听。
+  5. 难点复习：集中重听标记的句子。扩展介绍纸笔听写与自行记录词汇的方法，明确产品当前无内置听写、笔记与收词入口（内链 `/practice/dictation`、`/practice/vocabulary`）。
   6. CTA：贡献指南 + 网页立即体验。

@@ -37,7 +37,7 @@
   border: 2px solid #dce8f3;
   border-bottom-width: 4px;
   background: #ffffff;
-  color: #1cb0f6;
+  color: var(--text-brand);
   cursor: pointer;
   transition: border-color 0.15s ease;
 }
@@ -60,7 +60,7 @@
   gap: 8px;
   font-size: 13px;
   font-weight: 800;
-  color: #8ba3bd;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin: 0 0 14px;
@@ -86,7 +86,7 @@
 .settings-field-hint {
   font-size: 12px;
   font-weight: 600;
-  color: #8ba3bd;
+  color: var(--text-muted);
 }
 
 .settings-input {
@@ -173,16 +173,16 @@
 
 .settings-select-item[data-highlighted] {
   background: #edf7ff;
-  color: #1899d6;
+  color: var(--text-brand);
 }
 
 .settings-select-item[data-state='checked'] {
-  color: #1899d6;
+  color: var(--text-brand);
 }
 
 .settings-select-item-indicator {
   display: inline-flex;
-  color: #1cb0f6;
+  color: var(--text-brand);
 }
 
 .settings-submit {
@@ -192,7 +192,7 @@
   border-bottom-width: 5px;
   border-radius: 14px;
   background: #1cb0f6;
-  color: #ffffff;
+  color: var(--text-on-brand);
   font-size: 15px;
   font-weight: 800;
   padding: 12px 14px;
@@ -221,11 +221,11 @@
 }
 
 .settings-message.success {
-  color: #58cc02;
+  color: var(--text-success);
 }
 
 .settings-message.error {
-  color: #ff9600;
+  color: var(--text-warning);
 }
 
 /* 功能入口行：点击打开对应弹窗（如修改密码） */
@@ -258,7 +258,7 @@
   height: 40px;
   border-radius: 12px;
   background: #edf7ff;
-  color: #1cb0f6;
+  color: var(--text-brand);
   flex-shrink: 0;
 }
 
@@ -277,7 +277,7 @@
 .settings-row-copy span {
   font-size: 12px;
   font-weight: 600;
-  color: #8ba3bd;
+  color: var(--text-muted);
 }
 
 /* 设置页弹窗在账号弹窗基础上收窄一点 */

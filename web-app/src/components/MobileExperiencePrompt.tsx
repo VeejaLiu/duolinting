@@ -6,7 +6,9 @@ import { useLanguage } from '../i18n/LanguageProvider'
 
 const MOBILE_VIEWPORT_QUERY = '(max-width: 720px)'
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign'] as const
-const AUTO_REDIRECT_DELAY_MS = 5_000
+// A tab-scoped choice survives refresh/back navigation, without becoming an
+// account preference or changing the user's choice in a future browser session.
+const DISMISSED_SESSION_STORAGE_KEY = 'duolinting.mobile-experience.dismissed.v1'
 
 /**
  * 用户可能使用桌面模式访问移动端浏览器，也可能把电脑窗口缩窄；因此同时
@@ -69,8 +71,16 @@ export function MobileExperiencePrompt() {
   const [mobileAppUrl] = useState(getMobileAppUrl)
   const [isMobileOrNarrow, setIsMobileOrNarrow] = useState(false)
   const [open, setOpen] = useState(false)
-  const [secondsRemaining, setSecondsRemaining] = useState(AUTO_REDIRECT_DELAY_MS / 1000)
   const dismissedInSession = useRef(false)
+
+  const rememberDismissal = useCallback(() => {
+    dismissedInSession.current = true
+    try {
+      sessionStorage.setItem(DISMISSED_SESSION_STORAGE_KEY, '1')
+    } catch {
+      // Restricted storage still keeps the choice for this mounted app.
+    }
+  }, [])
 
   useEffect(() => {
     const updateViewportEligibility = () => {
@@ -90,13 +100,21 @@ export function MobileExperiencePrompt() {
       return
     }
     if (dismissedInSession.current) return
+    try {
+      if (sessionStorage.getItem(DISMISSED_SESSION_STORAGE_KEY) === '1') {
+        dismissedInSession.current = true
+        return
+      }
+    } catch {
+      // Reading storage must never block the learner's page.
+    }
 
     const timer = window.setTimeout(() => setOpen(true), 700)
     return () => window.clearTimeout(timer)
   }, [isMobileOrNarrow, location.pathname, mobileAppUrl])
 
   const dismiss = () => {
-    dismissedInSession.current = true
+    rememberDismissal()
     setOpen(false)
   }
 
@@ -126,29 +144,9 @@ export function MobileExperiencePrompt() {
       target.searchParams.set('utm_medium', 'mobile-experience-prompt')
     }
 
-    dismissedInSession.current = true
+    rememberDismissal()
     window.location.assign(target.toString())
-  }, [location.pathname, mobileAppUrl])
-
-  useEffect(() => {
-    if (!open) {
-      setSecondsRemaining(AUTO_REDIRECT_DELAY_MS / 1000)
-      return
-    }
-
-    const startedAt = Date.now()
-    const timer = window.setInterval(() => {
-      const elapsed = Date.now() - startedAt
-      const remaining = Math.max(0, Math.ceil((AUTO_REDIRECT_DELAY_MS - elapsed) / 1000))
-      setSecondsRemaining(remaining)
-      if (remaining === 0) {
-        window.clearInterval(timer)
-        openMobileApp()
-      }
-    }, 50)
-
-    return () => window.clearInterval(timer)
-  }, [open, openMobileApp])
+  }, [location.pathname, mobileAppUrl, rememberDismissal])
 
   if (!mobileAppUrl || !isLearnerRoute(location.pathname)) return null
 
@@ -181,10 +179,7 @@ export function MobileExperiencePrompt() {
               {t('mobileExperience.stay')}
             </button>
             <button className="mobile-experience-open" onClick={openMobileApp} type="button">
-              <span aria-hidden="true" className="mobile-experience-open-progress" />
-              <span className="mobile-experience-open-label">
-                {t('mobileExperience.countdown', { seconds: secondsRemaining })}
-              </span>
+              <span>{t('mobileExperience.open')}</span>
               <ArrowRight aria-hidden="true" size={18} />
             </button>
           </div>

@@ -98,14 +98,14 @@ export function SponsorsScreen() {
       <AppScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 28, gap: 14 }}>
         <View className="rounded-[24px] border-2 border-b-[6px] border-brand bg-brand px-5 py-6">
           <FontAwesome6 color="white" name="handshake" size={27} />
-          <Text className="mt-4 text-2xl font-black text-white">{t('sponsors.title')}</Text>
-          <Text className="mt-2 text-sm font-bold leading-5 text-white">{t('sponsors.subtitle')}</Text>
+          <Text className="mt-4 text-2xl font-black text-on-brand">{t('sponsors.title')}</Text>
+          <Text className="mt-2 text-sm font-bold leading-5 text-on-brand">{t('sponsors.subtitle')}</Text>
         </View>
         <Text className="px-1 text-lg font-black text-text-primary">{t('sponsors.donations')}</Text>
-        {donationsQuery.isPending ? <Text className="text-center text-sm font-bold text-text-secondary">{t('sponsors.loading')}</Text> : donationsQuery.isError ? <Pressable onPress={() => void donationsQuery.refetch()}><Text className="text-center text-sm font-bold text-danger">{t('sponsors.error')}</Text></Pressable> : donations.length === 0 ? <Text className="text-center text-sm font-bold text-text-secondary">{t('sponsors.emptyDonations')}</Text> : donations.map((donation) => <DonationCard key={donation.id} donation={donation} />)}
+        {donationsQuery.isPending ? <Text className="text-center text-sm font-bold text-text-secondary">{t('sponsors.loading')}</Text> : donationsQuery.isError ? <Pressable onPress={() => void donationsQuery.refetch()}><Text className="text-center text-sm font-bold text-danger-strong">{t('sponsors.error')}</Text></Pressable> : donations.length === 0 ? <Text className="text-center text-sm font-bold text-text-secondary">{t('sponsors.emptyDonations')}</Text> : donations.map((donation) => <DonationCard key={donation.id} donation={donation} />)}
         {items.length > 0 ? <Text className="mt-3 px-1 text-lg font-black text-text-primary">{t('sponsors.partners')}</Text> : null}
         {items.map((sponsor) => <SponsorCard key={sponsor.id} sponsor={sponsor} visitLabel={t('sponsors.visit')} />)}
-        {sponsorsQuery.isError ? <Pressable onPress={() => void sponsorsQuery.refetch()}><Text className="text-center text-sm font-bold text-danger">{t('sponsors.error')}</Text></Pressable> : null}
+        {sponsorsQuery.isError ? <Pressable onPress={() => void sponsorsQuery.refetch()}><Text className="text-center text-sm font-bold text-danger-strong">{t('sponsors.error')}</Text></Pressable> : null}
       </AppScrollView>
     </View>
   </SafeScreen>

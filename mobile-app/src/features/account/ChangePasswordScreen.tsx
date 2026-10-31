@@ -19,7 +19,7 @@ function PasswordField({ autoComplete, label, value, onChangeText, editable }: {
   return <View>
     <Text className="mb-2 text-base font-bold text-text-primary">{label}</Text>
     <View className="min-h-[52px] flex-row items-center rounded-[16px] border border-[#d7e2ee] bg-white px-4">
-      <TextInput accessibilityLabel={label} autoCapitalize="none" autoComplete={autoComplete} autoCorrect={false} editable={editable} secureTextEntry={!visible} value={value} onChangeText={onChangeText} placeholder={t('password.placeholder')} placeholderTextColor="#8191a6" className="min-h-[52px] flex-1 text-base text-text-primary" />
+      <TextInput accessibilityLabel={label} autoCapitalize="none" autoComplete={autoComplete} autoCorrect={false} editable={editable} secureTextEntry={!visible} value={value} onChangeText={onChangeText} placeholder={t('password.placeholder')} placeholderTextColor="#5b6b7f" className="min-h-[52px] flex-1 text-base text-text-primary" />
       <Pressable accessibilityRole="button" accessibilityLabel={t(visible ? 'password.hide' : 'password.show', { label })} className="h-12 w-12 items-center justify-center" onPress={() => setVisible((current) => !current)}><FontAwesome6 name={visible ? 'eye-slash' : 'eye'} size={17} color="#8191a6" /></Pressable>
     </View>
   </View>
@@ -64,7 +64,7 @@ export function ChangePasswordScreen() {
       <PasswordField autoComplete="new-password" label={t('password.confirmNew')} editable={!mutation.isPending} value={confirmedPassword} onChangeText={setConfirmedPassword} />
       <View><Button disabled={mutation.isPending} label={mutation.isPending ? t('password.changing') : t(isSettingPassword ? 'authFlow.setPassword' : 'password.confirmChange')} onPress={() => void submit()} /></View>
     </> : <ReauthForm purpose="set_password" onTicket={setReauthTicket} />}
-    {error ? <Text className="text-sm text-danger">{error}</Text> : null}
+    {error ? <Text className="text-sm text-danger-strong">{error}</Text> : null}
     </>}
   </SettingsScaffold>
 }

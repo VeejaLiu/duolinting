@@ -156,7 +156,7 @@ export function IntensiveStagePanel({
             className="min-h-11 min-w-0 flex-shrink flex-row items-center gap-1.5 pr-2"
             onPress={() => setSentenceDrawerVisible(true)}
           >
-            <Text className="flex-shrink text-sm font-black text-brand">
+            <Text className="flex-shrink text-sm font-black text-brand-strong">
               {t('study.sentenceNumber', { current: displayLineNumber, total: lines.length })}
             </Text>
             <FontAwesome6 color="#1cb0f6" name="chevron-down" size={11} />
@@ -291,7 +291,7 @@ export function IntensiveStagePanel({
             )}
             <Text
               adjustsFontSizeToFit
-              className="text-center font-black text-white"
+              className="text-center font-black text-on-brand"
               minimumFontScale={0.72}
               numberOfLines={1}
               style={{ flexShrink: 1, fontSize: primaryControlFontSize }}
@@ -343,7 +343,7 @@ export function IntensiveStagePanel({
             }}
           >
             <FontAwesome6
-              color={lineProgress.unclear ? '#ffffff' : statusButtonNeutralText}
+              color={lineProgress.unclear ? '#172033' : statusButtonNeutralText}
               name="circle-question"
               size={17}
             />
@@ -354,7 +354,7 @@ export function IntensiveStagePanel({
               numberOfLines={1}
               style={{
                 color: lineProgress.unclear
-                  ? '#ffffff'
+                  ? '#172033'
                   : statusButtonNeutralText,
                 flexShrink: 1,
                 fontSize: isVeryShortViewport ? 14 : 16,
@@ -383,7 +383,7 @@ export function IntensiveStagePanel({
             }}
           >
             <FontAwesome6
-              color={lineProgress.mastered ? '#ffffff' : statusButtonNeutralText}
+              color={lineProgress.mastered ? '#172033' : statusButtonNeutralText}
               name="circle-check"
               size={17}
             />
@@ -394,7 +394,7 @@ export function IntensiveStagePanel({
               numberOfLines={1}
               style={{
                 color: lineProgress.mastered
-                  ? '#ffffff'
+                  ? '#172033'
                   : statusButtonNeutralText,
                 flexShrink: 1,
                 fontSize: isVeryShortViewport ? 14 : 16,
@@ -453,7 +453,7 @@ export function IntensiveStagePanel({
                     />
                     <Text
                       className={`text-xs font-black ${
-                        collected ? 'text-success' : 'text-text-primary'
+                        collected ? 'text-success-strong' : 'text-text-primary'
                       }`}
                     >
                       {word}
@@ -486,13 +486,13 @@ export function IntensiveStagePanel({
                 onPress={() => setActiveTool(segment.key)}
               >
                 <FontAwesome6
-                  color={selected ? '#ffffff' : statusButtonNeutralText}
+                  color={selected ? '#172033' : statusButtonNeutralText}
                   name={segment.icon}
                   size={13}
                 />
                 <Text
                   className={`text-xs font-black ${
-                    selected ? 'text-white' : 'text-text-primary'
+                    selected ? 'text-on-brand' : 'text-text-primary'
                   }`}
                 >
                   {segment.label}
@@ -521,14 +521,14 @@ export function IntensiveStagePanel({
               className="rounded-[16px] border-2 border-[#e4eef8] bg-[#f8fbff] px-3.5 py-2.5 text-sm font-bold text-text-primary"
               onChangeText={(text) => onDictationChange(selectedLine.id, text)}
               placeholder={t('study.dictationPlaceholder')}
-              placeholderTextColor="#8ba3bd"
+              placeholderTextColor="#5b6b7f"
               value={lineProgress.dictation}
             />
             {/* 实时判定：有输入才提示，命中绿色、未命中橙色提醒可重听或揭晓字幕 */}
             {lineProgress.dictation.trim() ? (
               <Text
                 className={`mt-1.5 text-xs font-black ${
-                  dictationMatches ? 'text-success' : 'text-warning'
+                  dictationMatches ? 'text-success-strong' : 'text-warning-strong'
                 }`}
               >
                 {dictationMatches
@@ -549,7 +549,7 @@ export function IntensiveStagePanel({
             className="rounded-[16px] border-2 border-[#e4eef8] bg-[#f8fbff] px-3.5 py-2.5 text-sm font-bold text-text-primary"
             onChangeText={(text) => onNoteChange(selectedLine.id, text)}
             placeholder={t('study.notePlaceholder')}
-            placeholderTextColor="#8ba3bd"
+            placeholderTextColor="#5b6b7f"
             value={lineProgress.note}
           />
         </View>

@@ -21,6 +21,7 @@ import type {
 import { TranscriptPanel } from './TranscriptPanel'
 import { useLanguage } from '../i18n/LanguageProvider'
 import { resolveApiUrl } from '../lib/apiClient'
+import { getStudyShortcutAction, getStudyShortcutContext } from '../lib/studyShortcuts'
 
 type IntensiveStageProps = {
   exercise: ListeningExercise
@@ -90,36 +91,32 @@ export function IntensiveStage({
   // 键盘快捷键
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      // 如果 Popover 打开，不响应快捷键
       if (ratePickerOpen) return
+      const action = getStudyShortcutAction(event, getStudyShortcutContext(event))
+      if (!action) return
+      event.preventDefault()
 
-      switch (event.key) {
-        case 'ArrowLeft':
-          event.preventDefault()
+      switch (action) {
+        case 'previous':
           onMoveLine(-1)
           break
-        case 'ArrowRight':
-          event.preventDefault()
+        case 'next':
           onMoveLine(1)
           break
-        case ' ':
-          event.preventDefault()
+        case 'playback':
           if (isPlaying) {
             onTogglePlayback()
           } else {
             onPlayLine(selectedLine)
           }
           break
-        case 'f':
-        case 'F':
+        case 'mastered':
           handleMarkMastered()
           break
-        case 'd':
-        case 'D':
+        case 'unclear':
           onMarkUnclear(selectedLine.id)
           break
-        case 'r':
-        case 'R':
+        case 'reveal':
           onRevealLine(selectedLine.id)
           break
       }

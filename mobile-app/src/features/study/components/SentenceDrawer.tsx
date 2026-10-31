@@ -155,7 +155,7 @@ export function SentenceDrawer({
                       })}
                     >
                       <View className="min-h-9 min-w-9 items-center justify-center rounded-[12px] bg-[#edf7ff] px-1">
-                        <Text className="text-sm font-black text-brand">{index + 1}</Text>
+                        <Text className="text-sm font-black text-brand-strong">{index + 1}</Text>
                       </View>
                       <View className="min-w-0 flex-1">
                         <Text className="text-sm font-bold leading-5 text-text-primary" numberOfLines={2}>

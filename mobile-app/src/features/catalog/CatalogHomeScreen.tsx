@@ -1,6 +1,6 @@
 import { FontAwesome6 } from '@expo/vector-icons'
 import { Image } from 'expo-image'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import {
@@ -19,6 +19,7 @@ import { calculateStreak, type StreakResult } from '@/lib/streak'
 import { formatLocalDay, useActivityStore } from '@/stores/activityStore'
 import { useNavigationStore } from '@/stores/navigationStore'
 import { useStudyStore } from '@/stores/studyStore'
+import { useAuthStore } from '@/stores/authStore'
 import { useCatalogQuery, useCategoryExercisesQuery } from './hooks'
 import { GoalDetailSheet } from './components/GoalDetailSheet'
 import { StreakDetailSheet } from './components/StreakDetailSheet'
@@ -58,7 +59,7 @@ function HomeStatBar({
         <FontAwesome6 color={flameColor} name="fire" size={18} />
         <Text
           className={`ml-1.5 text-base font-black ${
-            streakActive ? 'text-[#ff9600]' : 'text-text-muted'
+            streakActive ? 'text-warning-strong' : 'text-text-muted'
           }`}
         >
           {streak.count}
@@ -72,7 +73,7 @@ function HomeStatBar({
         <FontAwesome6 color="#1cb0f6" name="bullseye" size={16} />
         <Text
           className={`ml-1.5 text-base font-black ${
-            goalReached ? 'text-success' : 'text-text-primary'
+            goalReached ? 'text-success-strong' : 'text-text-primary'
           }`}
         >
           {t('catalog.todayProgress', { mastered: masteredToday, goal: dailyGoal })}
@@ -101,6 +102,7 @@ function SeriesBanner({
   masteredLineCount,
   totalLineCount,
   percent,
+  progressUnavailable = false,
   onPress,
 }: {
   name: string
@@ -108,6 +110,7 @@ function SeriesBanner({
   masteredLineCount: number
   totalLineCount: number
   percent: number
+  progressUnavailable?: boolean
   onPress: () => void
 }) {
   const { t } = useLanguage()
@@ -130,16 +133,18 @@ function SeriesBanner({
             style={{ width: '100%', height: '100%' }}
           />
         ) : (
-          <Text className="text-2xl font-black text-success">{coverInitial(name)}</Text>
+          <Text className="text-2xl font-black text-success-strong">{coverInitial(name)}</Text>
         )}
       </View>
       <View className="flex-1 pr-4">
-        <Text className="text-xs font-black text-[#e6f9d9]">{t('catalog.currentSeries')}</Text>
-        <Text className="mt-1 text-xl font-black text-white" numberOfLines={2}>
+        <Text className="text-xs font-black text-on-brand">{t('catalog.currentSeries')}</Text>
+        <Text className="mt-1 text-xl font-black text-on-brand" numberOfLines={2}>
           {name}
         </Text>
-        <Text className="mt-1 text-xs font-bold text-[#e6f9d9]">
-          {t('catalog.masteredProgress', { mastered: masteredLineCount, total: totalLineCount, percent })}
+        <Text className="mt-1 text-xs font-bold text-on-brand">
+          {progressUnavailable
+            ? t('recovery.progressUnavailable')
+            : t('catalog.masteredProgress', { mastered: masteredLineCount, total: totalLineCount, percent })}
         </Text>
       </View>
       <Pressable
@@ -241,9 +246,9 @@ function CourseListItem({
       ? t('catalog.continue')
       : percent > 0 ? `${percent}%` : t('catalog.notStarted')
   const statusStyle = completed
-    ? { container: 'bg-[#ecffe4]', text: 'text-success' }
+    ? { container: 'bg-[#ecffe4]', text: 'text-success-strong' }
     : isCurrent || percent > 0
-      ? { container: 'bg-[#e1f4fe]', text: 'text-brand' }
+      ? { container: 'bg-[#e1f4fe]', text: 'text-brand-strong' }
       : { container: 'bg-[#f0f4f8]', text: 'text-text-secondary' }
 
   return (
@@ -268,7 +273,7 @@ function CourseListItem({
         ) : (
           /* 无封面时用课程全名做文字封面：小字号居中、最多 3 行、
              水平留白 4px，长标题截断不溢出 84px 方块。 */
-          <Text className="px-1 text-center text-xs font-black leading-4 text-brand" numberOfLines={3}>
+          <Text className="px-1 text-center text-xs font-black leading-4 text-brand-strong" numberOfLines={3}>
             {exercise.title}
           </Text>
         )}
@@ -309,7 +314,8 @@ function CourseListItem({
 export function CatalogHomeScreen() {
   const router = useRouter()
   const { seriesId: seriesIdParam } = useLocalSearchParams<{ seriesId?: string }>()
-  const { data: catalog, isLoading, isError, error } = useCatalogQuery()
+  const { data: catalog, isLoading, isError, isFetching, refetch } = useCatalogQuery()
+  const userId = useAuthStore((state) => state.authUser?.id)
   const store = useStudyStore((state) => state.store)
   const activeExerciseId = useStudyStore((state) => state.store.activeExerciseId)
   const activityDays = useActivityStore((state) => state.days)
@@ -338,6 +344,9 @@ export function CatalogHomeScreen() {
   const {
     data: selectedExercises,
     isLoading: exercisesLoading,
+    isError: exercisesError,
+    isFetching: exercisesFetching,
+    refetch: refetchExercises,
   } = useCategoryExercisesQuery(selectedSeries?.id ?? 0)
   // 章节按 sortOrder 排序，与系列详情页口径一致，"第 N 章"才讲得通
   const exercises = [...(selectedExercises ?? [])].sort(
@@ -384,23 +393,25 @@ export function CatalogHomeScreen() {
     }
   }, [requestedSeriesId, router, selectedSeries, seriesIdParam])
 
-  if (isLoading || !catalog || (selectedSeries && exercisesLoading && !selectedExercises)) {
+  // Disabled authenticated queries have no data and are not loading. Let the
+  // existing auth flow own them instead of keeping an indefinite spinner.
+  if (!userId) return <Redirect href="/auth/login" />
+
+  if (!catalog && !isLoading) {
     return (
       <SafeScreen>
-        <View className="flex-1 items-center justify-center">
-          <Spinner />
+        <View className="flex-1 px-4 py-5">
+          <ErrorState message={t('catalog.loadFailed')} onRetry={() => { void refetch() }} retrying={isFetching} />
         </View>
       </SafeScreen>
     )
   }
 
-  if (isError) {
+  if (!catalog) {
     return (
       <SafeScreen>
-        <View className="flex-1 px-4 py-5">
-          <ErrorState
-            message={t('catalog.loadFailed')}
-          />
+        <View className="flex-1 items-center justify-center">
+          <Spinner />
         </View>
       </SafeScreen>
     )
@@ -418,6 +429,9 @@ export function CatalogHomeScreen() {
         />
         {/* 当前系列是课程路径的固定上下文；切换入口不能随着章节列表滚出视野。 */}
         <View className="px-4 pb-2">
+          {isError ? (
+            <ErrorState message={t('recovery.refreshFailed')} onRetry={() => { void refetch() }} retrying={isFetching} />
+          ) : null}
           {selectedSeries ? (
             <SeriesBanner
               name={selectedSeries.name}
@@ -425,6 +439,7 @@ export function CatalogHomeScreen() {
               masteredLineCount={seriesProgress.masteredLineCount}
               totalLineCount={seriesProgress.totalLineCount}
               percent={seriesProgress.percent}
+              progressUnavailable={!selectedExercises}
               onPress={() => router.push('/series')}
             />
           ) : (
@@ -446,7 +461,15 @@ export function CatalogHomeScreen() {
           >
             {/* 课程列表：封面、标题、可选摘要和掌握进度均在单项内完成表达。 */}
             <View className="mt-2">
-              {selectedSeries && exercises.length === 0 ? (
+              {selectedSeries && exercisesError ? (
+                <ErrorState
+                  message={t(selectedExercises ? 'recovery.refreshFailed' : 'recovery.chaptersFailed')}
+                  onRetry={() => { void refetchExercises() }}
+                  retrying={exercisesFetching}
+                />
+              ) : null}
+              {selectedSeries && exercisesLoading && !selectedExercises ? <Spinner /> : null}
+              {selectedSeries && selectedExercises && exercises.length === 0 ? (
                 <EmptyState
                   title={t('catalog.noChapters')}
                   description={t('catalog.noChaptersDescription')}

@@ -11,6 +11,7 @@ import type {
   ChapterProgressSummary,
   SeriesProgressSummary,
 } from '../lib/progressStore'
+import { Modal, ModalTitle } from './Modal'
 
 const emptySeriesProgress: SeriesProgressSummary = {
   masteredLineCount: 0,
@@ -204,18 +205,11 @@ export function CourseMap({
       </div>
 
       {seriesDialogOpen && (
-        <div
-          className="modal-backdrop series-backdrop"
-          role="presentation"
-          onMouseDown={() => setSeriesDialogOpen(false)}
+        <Modal
+          backdropClassName="modal-backdrop series-backdrop"
+          className="series-dialog"
+          onClose={() => setSeriesDialogOpen(false)}
         >
-          <section
-            aria-labelledby="series-dialog-title"
-            aria-modal="true"
-            className="series-dialog"
-            role="dialog"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
             <button
               aria-label={t('courseMap.closeCourseDialog')}
               className="dialog-close"
@@ -226,7 +220,7 @@ export function CourseMap({
             </button>
             <div className="series-dialog-head">
               <p>{t('courseMap.courseSelection')}</p>
-              <h2 id="series-dialog-title">{t('courseMap.dialogTitle')}</h2>
+              <ModalTitle>{t('courseMap.dialogTitle')}</ModalTitle>
             </div>
 
             <div className="series-group-tabs" aria-label={t('courseMap.materialCategories')}>
@@ -341,8 +335,7 @@ export function CourseMap({
                 )}
               </div>
             </section>
-          </section>
-        </div>
+        </Modal>
       )}
     </aside>
   )

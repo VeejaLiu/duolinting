@@ -11,9 +11,9 @@ export function SyncStatusCard({
 }) {
   const titleClassName =
     tone === 'success'
-      ? 'font-semibold text-success'
+      ? 'font-semibold text-success-strong'
       : tone === 'danger'
-        ? 'font-semibold text-danger'
+        ? 'font-semibold text-danger-strong'
         : 'font-semibold text-text-primary'
 
   return (

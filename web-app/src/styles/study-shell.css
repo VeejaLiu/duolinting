@@ -87,7 +87,7 @@
   align-items: center;
   background: #edf7ff;
   border-radius: 16px;
-  color: #1cb0f6;
+  color: var(--text-brand);
   display: inline-flex;
   flex: 0 0 auto;
   font-size: 16px;

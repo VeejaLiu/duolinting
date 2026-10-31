@@ -16,6 +16,7 @@ import { useLanguage } from '../i18n/LanguageProvider'
 import { createLineProgress } from '../lib/progressStore'
 import { resolveApiUrl } from '../lib/apiClient'
 import { Tooltip } from './Tooltip'
+import { getStudyShortcutAction, getStudyShortcutContext } from '../lib/studyShortcuts'
 
 type DifficultReviewStageProps = {
   exercise: ListeningExercise
@@ -60,32 +61,28 @@ export function DifficultReviewStage({
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (!selectedLine) return
+      const action = getStudyShortcutAction(event, getStudyShortcutContext(event))
+      if (!action || action === 'reveal') return
+      event.preventDefault()
 
-      switch (event.key) {
-        case 'ArrowLeft':
-          event.preventDefault()
+      switch (action) {
+        case 'previous':
           onMoveReviewLine(-1)
           break
-        case 'ArrowRight':
-          event.preventDefault()
+        case 'next':
           onMoveReviewLine(1)
           break
-        case ' ':
-          event.preventDefault()
+        case 'playback':
           if (isPlaying) {
             onTogglePlayback()
           } else {
             onPlayLine(selectedLine)
           }
           break
-        case 'd':
-        case 'D':
-          event.preventDefault()
+        case 'unclear':
           onMarkUnclear(selectedLine.id)
           break
-        case 'f':
-        case 'F':
-          event.preventDefault()
+        case 'mastered':
           onMarkMastered(selectedLine.id)
           break
       }

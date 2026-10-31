@@ -9,9 +9,13 @@ import { StudyStatsCard } from './StudyStatsCard'
 import { useLanguage } from '@/i18n/LanguageProvider'
 
 /**
- * 成长页（成长 tab）：学习统计 + 成就徽章墙 + 我的生词入口。
+ * 成长页（成长 tab）：学习统计 + 成就徽章墙。
  * 数据全部来自本地 store（统计口径见 StudyStatsCard 注释），无需登录。
  */
+// 与精听页、账户页保持一致：收词功能下线期间不展示生词入口。
+// 保留历史词汇数据与页面，避免隐藏入口时影响已有学习记录。
+const SHOW_VOCABULARY = false
+
 export function GrowthScreen() {
   const router = useRouter()
   const store = useStudyStore((state) => state.store)
@@ -40,8 +44,8 @@ export function GrowthScreen() {
                 <FontAwesome6 color="#ffffff" name="chart-line" size={24} />
               </View>
               <View className="ml-4 flex-1">
-                <Text className="text-3xl font-black text-white">{t('growth.title')}</Text>
-                <Text className="mt-1 text-sm font-black text-white/85">
+                <Text className="text-3xl font-black text-on-brand">{t('growth.title')}</Text>
+                <Text className="mt-1 text-sm font-black text-on-brand">
                   {t('growth.subtitle')}
                 </Text>
               </View>
@@ -52,7 +56,7 @@ export function GrowthScreen() {
 
           <AchievementsCard />
 
-          {/* 生词本入口卡 */}
+          {SHOW_VOCABULARY ? (
           <Pressable
             className="flex-row items-center rounded-[24px] border-2 border-[#e4eef8] border-b-[6px] border-b-[#d7e4ef] bg-white px-5 py-5"
             onPress={() => router.push('/vocabulary')}
@@ -72,6 +76,7 @@ export function GrowthScreen() {
             </View>
             <FontAwesome6 color="#8191a6" name="chevron-right" size={14} />
           </Pressable>
+          ) : null}
         </AppScrollView>
       </View>
     </SafeScreen>

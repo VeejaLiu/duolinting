@@ -5,6 +5,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
+    "test": "node --import tsx --test tests/*.test.ts",
     "dev": "vite --host 127.0.0.1 --port 8102",
     "dev:debug": "vite --host 127.0.0.1 --port 8102",
     "build": "tsc -b && vite build",

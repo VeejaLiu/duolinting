@@ -68,12 +68,12 @@ export function ReauthForm({ purpose, onTicket }: { purpose: ReauthPurpose; onTi
   const expiresSeconds = Math.max(0, Math.ceil((expiresAt - now) / 1000))
   return <View className="gap-3">
     <Text className="text-base font-bold text-text-primary">{t('settings.securitySection')}</Text>
-    {methods.password ? <Pressable className="min-h-[40px] justify-center" onPress={() => { setMethod('password'); setError('') }}><Text className={`font-bold ${method === 'password' ? 'text-[#1688bd]' : 'text-text-secondary'}`}>{t('authFlow.passwordWay')}</Text></Pressable> : null}
-    {methods.email ? <Pressable className="min-h-[40px] justify-center" onPress={() => { setMethod('email_code'); setError('') }}><Text className={`font-bold ${method === 'email_code' ? 'text-[#1688bd]' : 'text-text-secondary'}`}>{t('auth.verificationCode')}</Text></Pressable> : null}
-    {method === 'password' && methods.password ? <TextInput accessibilityLabel={t('auth.password')} autoCapitalize="none" autoComplete="current-password" secureTextEntry editable={!busy} className="min-h-[52px] rounded-[16px] border border-[#d7e2ee] bg-white px-4 text-base text-text-primary" placeholder={t('password.placeholder')} placeholderTextColor="#8191a6" value={password} onChangeText={setPassword} /> : null}
+    {methods.password ? <Pressable className="min-h-[40px] justify-center" onPress={() => { setMethod('password'); setError('') }}><Text className={`font-bold ${method === 'password' ? 'text-brand-strong' : 'text-text-secondary'}`}>{t('authFlow.passwordWay')}</Text></Pressable> : null}
+    {methods.email ? <Pressable className="min-h-[40px] justify-center" onPress={() => { setMethod('email_code'); setError('') }}><Text className={`font-bold ${method === 'email_code' ? 'text-brand-strong' : 'text-text-secondary'}`}>{t('auth.verificationCode')}</Text></Pressable> : null}
+    {method === 'password' && methods.password ? <TextInput accessibilityLabel={t('auth.password')} autoCapitalize="none" autoComplete="current-password" secureTextEntry editable={!busy} className="min-h-[52px] rounded-[16px] border border-[#d7e2ee] bg-white px-4 text-base text-text-primary" placeholder={t('password.placeholder')} placeholderTextColor="#5b6b7f" value={password} onChangeText={setPassword} /> : null}
     {method === 'email_code' && methods.email ? <>
       <View><Button disabled={busy || retryAt > now} label={retryAt > now ? t('auth.resendIn', { seconds: Math.ceil((retryAt - now) / 1000) }) : t('auth.sendCode')} tone="secondary" onPress={() => void requestCode()} /></View>
-      {challengeId ? <TextInput accessibilityLabel={t('auth.verificationCode')} autoComplete="one-time-code" keyboardType="number-pad" maxLength={6} editable={!busy} className="min-h-[52px] rounded-[16px] border border-[#d7e2ee] bg-white px-4 text-center text-xl font-black tracking-[5px] text-text-primary" placeholder="000000" placeholderTextColor="#8191a6" value={code} onChangeText={(value) => setCode(value.replace(/\D/g, '').slice(0, 6))} /> : null}
+      {challengeId ? <TextInput accessibilityLabel={t('auth.verificationCode')} autoComplete="one-time-code" keyboardType="number-pad" maxLength={6} editable={!busy} className="min-h-[52px] rounded-[16px] border border-[#d7e2ee] bg-white px-4 text-center text-xl font-black tracking-[5px] text-text-primary" placeholder="000000" placeholderTextColor="#5b6b7f" value={code} onChangeText={(value) => setCode(value.replace(/\D/g, '').slice(0, 6))} /> : null}
       {challengeId ? <Text className="text-xs font-bold text-text-secondary">{expiresSeconds > 0 ? t('auth.codeExpiresIn', { minutes: String(Math.floor(expiresSeconds / 60)).padStart(2, '0'), seconds: String(expiresSeconds % 60).padStart(2, '0') }) : t('auth.codeExpired')}</Text> : null}
     </> : null}
     <SocialLoginButtons providers={social.providers.filter((provider) => methods[provider])} busy={busy || social.busy} onPress={(provider) => {
@@ -82,7 +82,7 @@ export function ReauthForm({ purpose, onTicket }: { purpose: ReauthPurpose; onTi
         else if (result) setError(t('authFlow.socialFailed'))
       }).catch(() => setError(t('authFlow.socialFailed')))
     }} />
-    {error ? <Text className="text-sm text-danger">{error}</Text> : null}
+    {error ? <Text className="text-sm text-danger-strong">{error}</Text> : null}
     {methods.password || methods.email ? <View><Button disabled={busy || (method === 'password' ? !password : code.length !== 6 || !challengeId || expiresAt <= now)} label={t('authFlow.continue')} onPress={() => void confirm()} /></View> : null}
   </View>
 }

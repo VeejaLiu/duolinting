@@ -75,21 +75,21 @@ export function AccountScreen() {
                 <FontAwesome6 color="#ffffff" name="user" size={24} />
               </View>
               <View className="ml-4 flex-1">
-                <Text className="text-xl font-black text-white" numberOfLines={1}>
+                <Text className="text-xl font-black text-on-brand" numberOfLines={1}>
                   {authUser?.displayName}
                 </Text>
-                <Text className="mt-1 text-sm font-bold text-white/85" numberOfLines={1}>
+                <Text className="mt-1 text-sm font-bold text-on-brand" numberOfLines={1}>
                   {authUser?.email}
                 </Text>
               </View>
             </View>
 
             <View className="mt-5 flex-row items-center justify-between border-t border-white/25 pt-4">
-              <Text className="flex-1 text-sm font-bold text-white/90" numberOfLines={1}>
+              <Text className="flex-1 text-sm font-bold text-on-brand" numberOfLines={1}>
                 {t(accountStatus)}
               </Text>
               <View className="ml-3 rounded-pill bg-white/20 px-3 py-1.5">
-                <Text className="text-xs font-black text-white">
+                <Text className="text-xs font-black text-on-brand">
                   {t('account.signedInBadge')}
                 </Text>
               </View>

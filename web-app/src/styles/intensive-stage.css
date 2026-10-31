@@ -263,7 +263,7 @@
   background: #1cb0f6;
   border-color: #1cb0f6;
   box-shadow: 0 4px 0 #1488c4;
-  color: #ffffff;
+  color: var(--text-on-brand);
 }
 
 .icon-button.active {
@@ -427,13 +427,13 @@
 .pill.active {
   background: #ffb300;
   border: none;
-  color: #ffffff;
+  color: var(--text-on-brand);
 }
 
 .pill.success {
   background: #78ca3c;
   border: none;
-  color: #ffffff;
+  color: var(--text-on-brand);
 }
 
 .status-actions .pill:hover {
@@ -444,13 +444,13 @@
 .status-actions .pill.active:hover {
   border: none;
   background: #ffb300;
-  color: #ffffff;
+  color: var(--text-on-brand);
 }
 
 .status-actions .pill.success:hover {
   border: none;
   background: #78ca3c;
-  color: #ffffff;
+  color: var(--text-on-brand);
 }
 
 .field {

@@ -54,7 +54,7 @@ export function TranscriptLineRow({
       <View className="flex-row items-center justify-between">
         {compact && visibleIndex ? (
           <View className="mr-3 h-[32px] w-[38px] items-center justify-center rounded-[12px] bg-[#edf7ff]">
-            <Text className="text-xs font-black text-brand">
+            <Text className="text-xs font-black text-brand-strong">
               {String(visibleIndex).padStart(2, '0')}
             </Text>
           </View>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { apiClient } from '../lib/apiClient'
 import { useLanguage } from '../i18n/LanguageProvider'
 import { WebReauthForm } from './WebReauthForm'
+import { Modal, ModalTitle } from './Modal'
 
 export function LinkEmailDialog({ open, authToken, onClose, onLinked }: {
   open: boolean
@@ -62,9 +63,9 @@ export function LinkEmailDialog({ open, authToken, onClose, onLinked }: {
     } finally { setBusy(false) }
   }
   const expiresSeconds = Math.max(0, Math.ceil((expiresAt - now) / 1000))
-  return <div className="modal-backdrop" role="presentation" onMouseDown={close}><section aria-labelledby="link-email-title" aria-modal="true" className="auth-dialog settings-dialog" role="dialog" onMouseDown={(event) => event.stopPropagation()}>
+  return <Modal className="auth-dialog settings-dialog" onClose={close}>
     <button aria-label={t('auth.closeDialog')} className="dialog-close" onClick={close} type="button"><X size={18} aria-hidden="true" /></button>
-    <div className="dialog-hero"><p>{t('settings.account')}</p><h2 id="link-email-title">{t('authSecurity.linkEmail')}</h2><span>{t('authSecurity.linkEmailHint')}</span></div>
+    <div className="dialog-hero"><p>{t('settings.account')}</p><ModalTitle>{t('authSecurity.linkEmail')}</ModalTitle><span>{t('authSecurity.linkEmailHint')}</span></div>
     {ticket ? <div className="auth-form"><label className="settings-field"><span className="settings-field-label">{t('auth.email')}</span><input autoComplete="email" className="settings-input" onChange={(event) => { setEmail(event.target.value); setChallengeId(null); setError('') }} type="email" value={email} /></label>
       <button className="auth-forgot" disabled={busy || retryAt > now} onClick={() => void start()} type="button">{retryAt > now ? t('auth.resendIn', { seconds: Math.ceil((retryAt - now) / 1000) }) : t('auth.sendCode')}</button>
       {challengeId ? <label className="settings-field"><span className="settings-field-label">{t('auth.verificationCode')}</span><input autoComplete="one-time-code" className="settings-input" inputMode="numeric" maxLength={6} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} value={code} /></label> : null}
@@ -72,5 +73,5 @@ export function LinkEmailDialog({ open, authToken, onClose, onLinked }: {
       {challengeId ? <button className="settings-submit" disabled={busy || code.length !== 6 || expiresSeconds === 0} onClick={() => void confirm()} type="button">{t('authFlow.linkContinue')}</button> : null}</div>
       : <WebReauthForm purpose="link_email" authToken={authToken} onTicket={setTicket} />}
     {error ? <p className="settings-message error" role="alert">{error}</p> : null}
-  </section></div>
+  </Modal>
 }

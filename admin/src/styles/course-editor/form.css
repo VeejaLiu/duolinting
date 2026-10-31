@@ -15,3 +15,16 @@
 .compact-form-grid {
   gap: 10px;
 }
+
+.import-main-header {
+  min-width: 0;
+}
+
+.import-save-feedback {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 6px 12px;
+  overflow-wrap: anywhere;
+}

@@ -43,7 +43,7 @@
 .dialog-hero {
   background: linear-gradient(135deg, #58cc02, #1cb0f6 84%);
   border-radius: 20px;
-  color: #ffffff;
+  color: var(--text-on-brand);
   display: grid;
   gap: 8px;
   padding: 22px 64px 22px 20px;
@@ -57,13 +57,13 @@
 
 .dialog-hero p,
 .dialog-hero span {
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--text-on-brand);
   font-size: 13px;
   font-weight: 900;
 }
 
 .dialog-hero h2 {
-  color: #ffffff;
+  color: var(--text-on-brand);
   font-size: 28px;
   line-height: 1.12;
 }
@@ -120,7 +120,7 @@
   align-items: center;
   background: transparent;
   border: 0;
-  color: #1688bd;
+  color: var(--text-brand);
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -150,7 +150,7 @@
   background: #edf7ff;
   border: 2px solid #cfe7f7;
   border-radius: 14px;
-  color: #1688bd;
+  color: var(--text-brand);
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -195,7 +195,7 @@
   background: #58cc02;
   border-radius: 18px;
   box-shadow: 0 5px 0 #46a302;
-  color: #ffffff;
+  color: var(--text-on-brand);
   display: inline-flex;
   flex: 0 0 auto;
   font-size: 18px;

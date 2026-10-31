@@ -50,7 +50,7 @@ const copy: Record<Locale, Copy> = {
       eyebrow: "按你的节奏来",
       title: "每一句，都值得认真听懂。",
       body: "所有练习都围绕同一段真实材料展开。你可以控制播放、查看答案，也可以把真正难的部分留下来。",
-      bullets: [{ text: "单句循环与播放速度", slug: "intensive-listening" }, { text: "字幕、翻译与听写", slug: "dictation" }, { text: "难点标记、生词与笔记", slug: "vocabulary" }, { text: "登录后延续跨端学习进度" }],
+      bullets: [{ text: "单句重听与播放速度", slug: "intensive-listening" }, { text: "按需查看字幕与翻译", slug: "intensive-listening" }, { text: "难点标记与集中复习", slug: "difficult-review" }, { text: "登录后延续跨端学习进度" }],
     },
     creators: {
       eyebrow: "为真实内容而设的制课工具",
@@ -115,7 +115,7 @@ const copy: Record<Locale, Copy> = {
       eyebrow: "At your pace",
       title: "Every line is worth understanding.",
       body: "Every practice tool stays close to the same real material. Control playback, reveal answers when you are ready, and save the lines that need another pass.",
-      bullets: [{ text: "Loop a line and change playback speed", slug: "intensive-listening" }, { text: "Subtitles, translations, and dictation", slug: "dictation" }, { text: "Difficult lines, vocabulary, and notes", slug: "vocabulary" }, { text: "Continue your progress across devices" }],
+      bullets: [{ text: "Replay a line and change playback speed", slug: "intensive-listening" }, { text: "Reveal subtitles and translations when ready", slug: "intensive-listening" }, { text: "Mark difficult lines and review them together", slug: "difficult-review" }, { text: "Continue your progress across devices after signing in" }],
     },
     creators: {
       eyebrow: "Made for real content",
@@ -224,13 +224,13 @@ export default function Home({ initialLocale = "zh" }: { initialLocale?: Locale 
             <div className="hero-actions"><a className="button button-primary" href={androidRelease.downloadUrl ?? downloadPath} download>{t.hero.apk}</a>{learnerWebUrl ? <a className="button button-secondary" href={learnerWebUrl} target="_blank" rel="noreferrer">{t.hero.web}<span className="external-link-icon" aria-hidden="true">↗</span></a> : null}</div>
             <p className="platform-note"><span>✓</span>{t.hero.note}</p>
           </div>
-          <div className="hero-preview" aria-label="DuolinTing line-by-line listening practice preview">
+          <div className="hero-preview" role="img" aria-label={locale === "zh" ? "DuolinTing 逐句精听界面示意，非音频试听" : "DuolinTing line-by-line listening interface illustration, not an audio demo"}>
             <div className="preview-toolbar"><div><span className="preview-dot"></span><strong>Morning conversations</strong></div><span>03 / 12</span></div>
             <div className="audio-wave" aria-hidden="true">{Array.from({ length: 48 }).map((_, index) => <i key={index} style={{ height: `${20 + ((index * 13) % 48)}%` }} />)}</div>
             <div className="audio-progress"><span></span><i></i></div>
             <p className="listen-prompt">{locale === "zh" ? "先听一遍，你听到了什么？" : "Listen once. What did you hear?"}</p>
             <div className="sentence-card"><strong>The street is still quiet.</strong><small>{locale === "zh" ? "街道仍然很安静。" : "Reveal the translation when you are ready."}</small></div>
-            <div className="preview-controls"><button type="button" aria-label="Play preview">▶</button><span>0:12 – 0:16 · ×0.8 · {locale === "zh" ? "重复播放" : "Repeat"}</span></div>
+            <div className="preview-controls"><span className="preview-label">{locale === "zh" ? "界面示意" : "Interface preview"}</span><span>0:12 – 0:16 · ×0.9 · {locale === "zh" ? "逐句重听" : "Replay a line"}</span></div>
             <div className="difficult-tip"><b>★</b>{locale === "zh" ? "标记为难点，稍后复习" : "Save for difficult review"}</div>
           </div>
         </div>

@@ -27,7 +27,7 @@ export function PlaybackControls({
         <Text className="font-semibold text-text-primary">{prevLabel ?? t('study.previous')}</Text>
       </Pressable>
       <Pressable className="rounded-pill bg-brand px-5 py-3" onPress={onPlayPause}>
-        <Text className="font-semibold text-white">
+        <Text className="font-semibold text-on-brand">
           {isPlaying ? pauseLabel ?? t('study.pause') : playLabel ?? t('study.play')}
         </Text>
       </Pressable>

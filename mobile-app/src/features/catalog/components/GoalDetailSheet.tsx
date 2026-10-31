@@ -37,7 +37,7 @@ export function GoalDetailSheet({
           {goalReached ? (
             <View className="flex-row items-center">
               <FontAwesome6 color="#58cc02" name="circle-check" size={22} />
-              <Text className="ml-2 text-xl font-black text-success">
+              <Text className="ml-2 text-xl font-black text-success-strong">
                 {t('goal.completed')}
               </Text>
             </View>

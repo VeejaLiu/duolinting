@@ -62,12 +62,12 @@ export function LinkEmailScreen() {
   return <SettingsScaffold title={t('authFlow.linkEmail')} backTo="/settings/account">
     <Text className="text-sm leading-6 text-text-secondary">{t('authFlow.linkEmailHint')}</Text>
     {ticket ? <View className="gap-3">
-      <TextInput accessibilityLabel={t('auth.email')} autoCapitalize="none" autoComplete="email" keyboardType="email-address" className="min-h-[52px] rounded-[16px] border border-[#d7e2ee] bg-white px-4 text-base text-text-primary" placeholder={t('auth.emailPlaceholder')} placeholderTextColor="#8191a6" value={email} onChangeText={(value) => { setEmail(value); setChallengeId(null); setError('') }} />
+      <TextInput accessibilityLabel={t('auth.email')} autoCapitalize="none" autoComplete="email" keyboardType="email-address" className="min-h-[52px] rounded-[16px] border border-[#d7e2ee] bg-white px-4 text-base text-text-primary" placeholder={t('auth.emailPlaceholder')} placeholderTextColor="#5b6b7f" value={email} onChangeText={(value) => { setEmail(value); setChallengeId(null); setError('') }} />
       <Button disabled={busy || retryAt > now} tone="secondary" label={retryAt > now ? t('auth.resendIn', { seconds: Math.ceil((retryAt - now) / 1000) }) : t('auth.sendCode')} onPress={() => void start()} />
-      {challengeId ? <TextInput accessibilityLabel={t('auth.verificationCode')} autoComplete="one-time-code" keyboardType="number-pad" maxLength={6} className="min-h-[52px] rounded-[16px] border border-[#d7e2ee] bg-white px-4 text-center text-xl font-black tracking-[5px] text-text-primary" placeholder="000000" placeholderTextColor="#8191a6" value={code} onChangeText={(value) => setCode(value.replace(/\D/g, '').slice(0, 6))} /> : null}
+      {challengeId ? <TextInput accessibilityLabel={t('auth.verificationCode')} autoComplete="one-time-code" keyboardType="number-pad" maxLength={6} className="min-h-[52px] rounded-[16px] border border-[#d7e2ee] bg-white px-4 text-center text-xl font-black tracking-[5px] text-text-primary" placeholder="000000" placeholderTextColor="#5b6b7f" value={code} onChangeText={(value) => setCode(value.replace(/\D/g, '').slice(0, 6))} /> : null}
       {challengeId ? <Text className="text-xs font-bold text-text-secondary">{expiresSeconds > 0 ? t('auth.codeExpiresIn', { minutes: String(Math.floor(expiresSeconds / 60)).padStart(2, '0'), seconds: String(expiresSeconds % 60).padStart(2, '0') }) : t('auth.codeExpired')}</Text> : null}
       {challengeId ? <Button disabled={busy || code.length !== 6 || expiresAt <= now} label={t('authFlow.linkContinue')} onPress={() => void confirm()} /> : null}
     </View> : <ReauthForm purpose="link_email" onTicket={setTicket} />}
-    {error ? <Text className="text-sm text-danger">{error}</Text> : null}
+    {error ? <Text className="text-sm text-danger-strong">{error}</Text> : null}
   </SettingsScaffold>
 }

@@ -34,7 +34,7 @@ export function ReminderTimePicker({ visible, value, onConfirm, onCancel }: {
         <DateTimePicker value={draft} mode="time" display="spinner" is24Hour onChange={(_event, selected) => { if (selected) setDraft(selected) }} />
         <View className="mt-3 flex-row justify-end gap-5">
           <Pressable accessibilityRole="button" className="min-h-[48px] justify-center px-3" onPress={onCancel}><Text className="text-base font-bold text-text-secondary">{t('common.cancel')}</Text></Pressable>
-          <Pressable accessibilityRole="button" className="min-h-[48px] justify-center px-3" onPress={() => onConfirm({ hour: draft.getHours(), minute: draft.getMinutes() })}><Text className="text-base font-bold text-[#1688bd]">{t('common.confirm')}</Text></Pressable>
+          <Pressable accessibilityRole="button" className="min-h-[48px] justify-center px-3" onPress={() => onConfirm({ hour: draft.getHours(), minute: draft.getMinutes() })}><Text className="text-base font-bold text-brand-strong">{t('common.confirm')}</Text></Pressable>
         </View>
       </View>
   </BottomSheet>

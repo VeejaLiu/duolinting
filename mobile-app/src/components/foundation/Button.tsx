@@ -29,11 +29,11 @@ export function Button({
 
   const textClassName =
     tone === 'primary' || tone === 'success'
-      ? 'text-center text-base font-black text-white'
+      ? 'text-center text-base font-black text-on-brand'
       : tone === 'ghost'
-        ? 'text-center text-base font-black text-brand'
+        ? 'text-center text-base font-black text-brand-strong'
         : tone === 'danger'
-          ? 'text-center text-base font-black text-white'
+          ? 'text-center text-base font-black text-on-brand'
         : 'text-center text-base font-black text-text-primary'
 
   return (

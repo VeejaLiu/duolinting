@@ -51,8 +51,8 @@ export function LeaderboardScreen() {
                 <FontAwesome6 color="#ffffff" name="trophy" size={24} />
               </View>
               <View className="ml-4 flex-1">
-                <Text className="text-3xl font-black text-white">{t('leaderboard.title')}</Text>
-                <Text className="mt-1 text-sm font-black text-white/85">
+                <Text className="text-3xl font-black text-on-brand">{t('leaderboard.title')}</Text>
+                <Text className="mt-1 text-sm font-black text-on-brand">
                   {t('leaderboard.subtitle')}
                 </Text>
               </View>
@@ -91,7 +91,7 @@ export function LeaderboardScreen() {
             </Text>
           ) : isError ? (
             <View className="items-center rounded-[24px] border-2 border-[#e4eef8] border-b-[6px] border-b-[#d7e4ef] bg-white px-5 py-8">
-              <Text className="text-center text-sm font-bold text-danger">
+              <Text className="text-center text-sm font-bold text-danger-strong">
                 {t('leaderboard.loadFailed')}
               </Text>
               <View className="mt-4 self-stretch">
@@ -120,7 +120,7 @@ export function LeaderboardScreen() {
           <View className="px-4 pb-4">
             <View className="flex-row items-center rounded-[16px] border-2 border-[#58cc02] bg-[#ecffe4] px-3 py-2.5">
               <View className="h-8 w-8 items-center justify-center rounded-full bg-success">
-                <Text className="text-xs font-black text-white">
+                <Text className="text-xs font-black text-on-brand">
                   {data.currentUser.rank}
                 </Text>
               </View>

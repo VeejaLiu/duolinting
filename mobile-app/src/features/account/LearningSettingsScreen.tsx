@@ -81,10 +81,10 @@ export function LearningSettingsScreen() {
       </SettingsGroup>
       <Text className="px-1 text-sm leading-5 text-text-secondary">{t('settings.reminderDeviceNote')}</Text>
       {status === 'permission' ? <View className="rounded-[16px] bg-[#fff0eb] p-4">
-        <Text className="text-sm text-danger">{t('settings.notificationPermission')}</Text>
-        <Pressable accessibilityRole="button" className="mt-2 min-h-[48px] justify-center" onPress={() => void reminderController.openSystemSettings()}><Text className="font-bold text-[#1688bd]">{t('settings.openSystemSettings')}</Text></Pressable>
+        <Text className="text-sm text-danger-strong">{t('settings.notificationPermission')}</Text>
+        <Pressable accessibilityRole="button" className="mt-2 min-h-[48px] justify-center" onPress={() => void reminderController.openSystemSettings()}><Text className="font-bold text-brand-strong">{t('settings.openSystemSettings')}</Text></Pressable>
       </View> : null}
-      {status === 'error' ? <Pressable accessibilityRole="button" className="rounded-[16px] bg-[#fff0eb] p-4" onPress={retry}><Text className="text-sm font-bold text-danger">{t('settings.reminderRetry')}</Text></Pressable> : null}
+      {status === 'error' ? <Pressable accessibilityRole="button" className="rounded-[16px] bg-[#fff0eb] p-4" onPress={retry}><Text className="text-sm font-bold text-danger-strong">{t('settings.reminderRetry')}</Text></Pressable> : null}
       <ReminderTimePicker visible={timePicker} value={time} onConfirm={(value) => void chooseTime(value)} onCancel={() => setTimePicker(false)} />
     </> : null}
     <SettingsChoiceSheet visible={goalPicker} title={t('settings.dailyGoal')} options={options} selected={goal} onClose={() => setGoalPicker(false)} onSelect={(value) => void chooseGoal(value)} footer={t('settings.goalCountNote')} />

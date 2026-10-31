@@ -27,7 +27,7 @@
 
 .empty-study-state p {
   font-size: 14px;
-  color: #6b7a90;
+  color: #526279;
   line-height: 1.6;
   max-width: 320px;
 }
@@ -50,7 +50,7 @@
 
 .empty-study-state.empty .eyebrow {
   background: #eef5ff;
-  color: #1cb0f6;
+  color: #087bb5;
 }
 
 .empty-study-state.empty .icon-wrapper {
@@ -60,7 +60,7 @@
 
 .empty-study-state.error .eyebrow {
   background: #fff0f0;
-  color: #ff4d4f;
+  color: #b42332;
 }
 
 .empty-study-state.error .icon-wrapper {
@@ -70,7 +70,7 @@
 
 .empty-study-state.loading .eyebrow {
   background: #fffbe6;
-  color: #faad14;
+  color: #946200;
 }
 
 .empty-study-state.loading .icon-wrapper {
@@ -89,3 +89,36 @@
     transform: scale(0.95);
   }
 }
+
+.study-retry-button {
+  min-height: 44px;
+  margin-top: 16px;
+  padding: 10px 22px;
+  border: 2px solid #c8d9e8;
+  border-radius: 14px;
+  background: #fff;
+  color: #172033;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.study-retry-button:hover:not(:disabled) { border-color: #1cb0f6; }
+.study-retry-button:focus-visible { outline: 3px solid #087bb5; outline-offset: 3px; }
+.study-retry-button:disabled { cursor: wait; color: #526279; background: #f1f5f9; }
+
+.study-recovery-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid #e0b9be;
+  border-radius: 16px;
+  background: #fff5f5;
+  color: #882436;
+}
+
+.study-recovery-notice p { flex: 1 1 180px; margin: 0; }
+.study-recovery-notice .study-retry-button { margin: 0; }

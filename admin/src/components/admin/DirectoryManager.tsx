@@ -362,7 +362,7 @@ export function DirectoryManager(props: DirectoryManagerProps) {
             {directoryDescription(group, uiLocale) || t('暂无说明')}
           </Typography.Text>
         </span>
-        <Badge count={groupCategories.length} showZero color="#1cb0f6" />
+        <Badge count={groupCategories.length} showZero color="#1cb0f6" style={{ color: '#172033' }} />
         <Dropdown
           menu={{
             items: [

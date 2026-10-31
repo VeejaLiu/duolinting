@@ -40,7 +40,7 @@ export function SettingsRow({ label, detail, value, icon, external, danger, onPr
   return <Pressable accessibilityRole={external ? 'link' : 'button'} accessibilityLabel={[label, value, detail].filter(Boolean).join(', ')} className="min-h-[56px] flex-row items-center border-b border-[#edf2f7] py-3 last:border-b-0 active:border-[#1cb0f6]" onPress={onPress}>
     {icon ? <View className="mr-3 h-10 w-10 items-center justify-center rounded-[13px] bg-[#edf7ff]"><FontAwesome6 name={icon} size={17} color={danger ? '#c2410c' : '#1cb0f6'} /></View> : null}
     <View className="min-w-0 flex-1">
-      <Text className={`text-base font-bold ${danger ? 'text-danger' : 'text-text-primary'}`}>{label}</Text>
+      <Text className={`text-base font-bold ${danger ? 'text-danger-strong' : 'text-text-primary'}`}>{label}</Text>
       {detail ? <Text className="mt-1 text-sm leading-5 text-text-secondary">{detail}</Text> : null}
     </View>
     {value ? <Text className="ml-3 max-w-[42%] text-right text-sm text-text-secondary">{value}</Text> : null}

@@ -17,9 +17,11 @@ import { StudyHero } from './components/StudyHero'
 import { ContributorCredits } from './components/ContributorCredits'
 import {
   CatalogErrorState,
+  CategoryErrorState,
   EmptyStudyState,
   ExerciseErrorState,
   ExerciseLoadingState,
+  LoadRecoveryNotice,
 } from './components/StudyStates'
 import { TopBar } from './components/TopBar'
 import { ContributePage } from './components/ContributePage'
@@ -67,6 +69,7 @@ function LearnerAppShell() {
   )
   const [store, setStore] = useState(() => createEmptyStore())
   const [accountDialogOpen, setAccountDialogOpen] = useState(false)
+  const [pendingSeriesId, setPendingSeriesId] = useState<number | null>(null)
   const mediaRef = useRef<HTMLMediaElement | null>(null)
   const loopingLineIdRef = useRef('')
   const {
@@ -82,9 +85,14 @@ function LearnerAppShell() {
   const {
     catalog,
     catalogLoadFailed,
+    catalogLoading,
+    catalogLoaded,
+    retryCatalog,
   } = useCatalog(contentLocale, authToken)
   const {
     exercisesByCategory,
+    failedCategoryIds,
+    loadingCategoryIds,
     loadExercises,
   } = useCategoryExercises(contentLocale, authToken)
   const seriesProgressByCategory = useMemo<Record<string, SeriesProgressSummary>>(() => {
@@ -138,7 +146,7 @@ function LearnerAppShell() {
   )
   const hasExercise = Boolean(activeExerciseSummary)
 
-  const { activeExercise, exerciseLoading, exerciseLoadFailed } =
+  const { activeExercise, exerciseLoading, exerciseLoadFailed, retryExercise } =
     useExerciseDetail({
       activeExerciseSummary,
       setStore,
@@ -360,6 +368,7 @@ function LearnerAppShell() {
   const resetSessionUi = () => {
     loopingLineIdRef.current = ''
     stopPlayback()
+    setPendingSeriesId(null)
     setStudyStage('extensive')
     setCompletedStages({})
     setRevealedLineIds({})
@@ -376,9 +385,12 @@ function LearnerAppShell() {
 
   const selectSeries = async (seriesId: number) => {
     stopPlayback()
+    setPendingSeriesId(seriesId)
 
     // 先加载该系列下的课程列表
     const exercises = await loadExercises(seriesId)
+    if (!exercises) return
+    setPendingSeriesId(null)
     const firstExercise = exercises[0]
 
     if (firstExercise) {
@@ -388,6 +400,8 @@ function LearnerAppShell() {
         activeExerciseId: firstExercise.id,
       }))
       syncRoute(seriesId, firstExercise.id, 'extensive')
+    } else {
+      navigate(`/courses/${encodeURIComponent(seriesId)}`)
     }
   }
 
@@ -535,6 +549,13 @@ function LearnerAppShell() {
         store,
       )
     : undefined
+  const recoveryCategoryId = pendingSeriesId ?? selectedSeriesId
+  const categoryLoadFailed = Boolean(failedCategoryIds[recoveryCategoryId])
+  const categoryLoading = Boolean(loadingCategoryIds[recoveryCategoryId])
+  const retryCategory = () => {
+    if (pendingSeriesId) void selectSeries(pendingSeriesId)
+    else void loadExercises(selectedSeriesId)
+  }
 
   return (
     <main className="app-shell">
@@ -566,11 +587,22 @@ function LearnerAppShell() {
           />
 
           <section className="study-pane" aria-label={t('app.studyArea.aria')}>
-            {catalogLoadFailed ? (
-              <CatalogErrorState />
-            ) : exerciseLoadFailed ? (
-              <ExerciseErrorState />
-            ) : exerciseLoading ? (
+            {catalogLoadFailed && catalogLoaded && (
+              <LoadRecoveryNotice message={t('study.catalogError.title')} onRetry={retryCatalog} retrying={catalogLoading} />
+            )}
+            {(categoryLoadFailed && (activeExercise || pendingSeriesId)) || (pendingSeriesId && categoryLoading) ? (
+              <LoadRecoveryNotice message={t(categoryLoading ? 'study.chaptersLoading' : 'study.chapterError.title')} onRetry={retryCategory} retrying={categoryLoading} />
+            ) : null}
+            {exerciseLoadFailed && activeExercise && (
+              <LoadRecoveryNotice message={t('study.exerciseError.title')} onRetry={retryExercise} retrying={exerciseLoading} />
+            )}
+            {catalogLoadFailed && !catalogLoaded ? (
+              <CatalogErrorState onRetry={retryCatalog} retrying={catalogLoading} />
+            ) : categoryLoadFailed && !activeExercise && !pendingSeriesId ? (
+              <CategoryErrorState onRetry={retryCategory} retrying={categoryLoading} />
+            ) : exerciseLoadFailed && !activeExercise ? (
+              <ExerciseErrorState onRetry={retryExercise} retrying={exerciseLoading} />
+            ) : (catalogLoading && !catalogLoaded) || (selectedSeriesId > 0 && loadingCategoryIds[selectedSeriesId] && !exercisesByCategory[selectedSeriesId]) || (exerciseLoading && !activeExercise) ? (
               <ExerciseLoadingState />
             ) : !hasExercise || !activeExercise || !progress || !selectedLine ? (
               <EmptyStudyState />

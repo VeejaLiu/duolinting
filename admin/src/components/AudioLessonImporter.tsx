@@ -501,16 +501,16 @@ export function AudioLessonImporter({
       return '媒体上传中，请稍候'
     }
     if (isDraggingTiming) {
-      return '请先结束字幕拖动'
+      return '请松开鼠标完成字幕拖动后再保存'
     }
     if (!mediaFile && !courseForm.audioUrl) {
       return '请先选择音频或视频文件'
     }
     if (!courseForm.categoryId) {
-      return '请先创建并选择学习系列'
+      return '请在基础信息中选择学习系列；没有可选系列时请先到目录结构创建'
     }
     if (!courseForm.title.trim()) {
-      return '请填写课程标题'
+      return '请在基础信息中填写课程标题'
     }
     return ''
   }, [

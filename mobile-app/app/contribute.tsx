@@ -134,7 +134,7 @@ export default function ContributeScreen() {
             onPress={openContact}
           >
             <FontAwesome6 color="#ffffff" name="envelope" size={18} />
-            <Text className="ml-2 text-base font-black text-white">{t('contribute.contact')}</Text>
+            <Text className="ml-2 text-base font-black text-on-brand">{t('contribute.contact')}</Text>
           </Pressable>
           <Text className="mt-6 text-center text-base font-black text-text-primary">{t('contribute.otherContacts')}</Text>
           <View className="mt-3 overflow-hidden rounded-[22px] border-2 border-b-[5px] border-[#e4eef8] border-b-[#d7e4ef] bg-white px-4">

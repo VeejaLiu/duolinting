@@ -56,12 +56,12 @@ export function AcceptedAnswerFeedbackSheet({
           }
         }}
       >
-        <Text className="text-center font-semibold text-white">
+        <Text className="text-center font-semibold text-on-brand">
           {submitted ? t('feedback.submitted') : submitting ? t('feedback.submitting') : t('feedback.submit')}
         </Text>
       </Pressable>
       {errorMessage ? (
-        <Text className="mt-3 text-sm text-danger">{errorMessage}</Text>
+        <Text className="mt-3 text-sm text-danger-strong">{errorMessage}</Text>
       ) : null}
       {!submitted && !normalizedValue ? (
         <Text className="mt-3 text-sm text-text-secondary">
@@ -69,7 +69,7 @@ export function AcceptedAnswerFeedbackSheet({
         </Text>
       ) : null}
       {submitted ? (
-        <Text className="mt-3 text-sm text-success">
+        <Text className="mt-3 text-sm text-success-strong">
           {t('feedback.success')}
         </Text>
       ) : null}

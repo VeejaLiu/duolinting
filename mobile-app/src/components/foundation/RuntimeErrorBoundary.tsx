@@ -17,7 +17,7 @@ function RuntimeErrorFallback({ onRetry }: { onRetry: () => void }) {
   return (
     <View className="flex-1 items-center justify-center bg-slate-50 px-6">
       <Pressable accessibilityRole="button" accessibilityLabel={t('runtime.reload')} className="rounded-full bg-sky-500 px-6 py-3" onPress={onRetry}>
-        <Text className="font-semibold text-white">{t('runtime.reload')}</Text>
+        <Text className="font-semibold text-on-brand">{t('runtime.reload')}</Text>
       </Pressable>
     </View>
   )

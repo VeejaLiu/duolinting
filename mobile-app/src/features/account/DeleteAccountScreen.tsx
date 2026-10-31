@@ -48,6 +48,6 @@ export function DeleteAccountScreen() {
       <Text className="text-sm font-bold text-text-primary">{t('settings.deleteScopeWarning')}</Text>
       <Button tone="danger" disabled={mutation.isPending} label={mutation.isPending ? t('settings.deletingAccount') : t('settings.deleteAccountConfirm')} onPress={() => void submit()} />
     </View> : <ReauthForm purpose="delete_account" onTicket={setReauthTicket} />}
-    {error ? <Text className="text-sm text-danger">{error}</Text> : null}
+    {error ? <Text className="text-sm text-danger-strong">{error}</Text> : null}
   </SettingsScaffold>
 }

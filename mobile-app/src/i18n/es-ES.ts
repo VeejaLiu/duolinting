@@ -269,7 +269,7 @@ export default {
   "vocabulary.title": "Mi vocabulario",
   "vocabulary.unknownChapter": "Capítulo desconocido",
   "vocabulary.empty": "Todavía no hay vocabulario",
-  "vocabulary.emptyDescription": "Muestra los subtítulos al estudiar y toca una palabra clave para añadirla aquí.",
+  "vocabulary.emptyDescription": "Actualmente no se pueden guardar palabras nuevas. El vocabulario guardado anteriormente se conserva.",
   "vocabulary.summary": "{{words}} palabras · {{chapters}} capítulos",
   "vocabulary.groupWords": "{{count}} palabras",
   "study.loadFailed": "No se pudieron cargar los detalles de la lección",

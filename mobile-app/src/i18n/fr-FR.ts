@@ -269,7 +269,7 @@ export default {
   "vocabulary.title": "Mon vocabulaire",
   "vocabulary.unknownChapter": "Chapitre inconnu",
   "vocabulary.empty": "Aucun mot pour le moment",
-  "vocabulary.emptyDescription": "Affichez les sous-titres pendant l’étude, puis touchez un mot-clé pour l’ajouter ici.",
+  "vocabulary.emptyDescription": "L’enregistrement de nouveaux mots est actuellement indisponible. Le vocabulaire déjà enregistré est conservé.",
   "vocabulary.summary": "{{words}} mots · {{chapters}} chapitres",
   "vocabulary.groupWords": "{{count}} mots",
   "study.loadFailed": "Impossible de charger les détails de la leçon",

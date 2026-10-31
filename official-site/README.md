@@ -80,7 +80,7 @@ DEPLOY_HOST=<ssh-host> npm run deploy:build-server -- official-site
 - `https://www.duolinting.cn/sitemap.xml`
 - 中文页面：`/`、`/download`、`/contribute`、`/support`、`/privacy`、`/terms`
 - 英文页面：`/en`、`/en/download`、`/en/contribute`、`/en/support`、`/en/privacy`、`/en/terms`
-- 练习方式落地页（动态路由，内容来自 `app/content/landing-pages.ts`）：`/practice/<slug>` 与 `/en/practice/<slug>`，当前覆盖泛听、精听、听写、生词本、难点复习五个主题。
+- 练习与学习方法页（动态路由，内容来自 `app/content/landing-pages.ts`）：`/practice/<slug>` 与 `/en/practice/<slug>`，覆盖泛听、精听、难点复习，以及听写、词汇积累方法。后两个主题明确说明当前无内置听写、笔记与收词入口，使用纸笔或学习者自己的笔记工具。
 - 博客与教程（动态路由，内容来自 `app/content/blog-posts.ts`）：`/blog`、`/en/blog`、`/blog/<slug>`、`/en/blog/<slug>`，当前覆盖精听方法、YouZack 替代、SRT 字幕做听力练习三篇。
 
 每个中英文对应页面都包含 canonical 与 `hreflang`，并将完整正文服务端输出。首页提供组织、网站、软件产品和 FAQ 结构化数据；贡献指南提供 `HowTo` 结构化数据；练习方式落地页提供 `BreadcrumbList` 与 `FAQPage` 结构化数据；博客文章提供 `BlogPosting` 与 `BreadcrumbList` 结构化数据。落地页与博客共用同一套 `generateStaticParams` + `generateMetadata` 动态路由骨架。

@@ -130,10 +130,10 @@ function AccessOverview({ report, isLoading }: Pick<GrowthAnalyticsPanelProps, '
   const cards = report
     ? [
         { title: t('analytics.existingUsers'), value: report.summary.totalUsers },
-        { title: t('今日新增注册'), value: report.summary.registeredTodayCount, color: '#1cb0f6' },
+        { title: t('今日新增注册'), value: report.summary.registeredTodayCount, color: '#086b99' },
         { title: t('近 7 天新增'), value: report.summary.registered7dCount, color: '#0d8f74' },
         { title: t('近 30 天新增'), value: report.summary.registered30dCount, color: '#b45309' },
-        { title: t('analytics.legacyDau'), value: report.summary.dau, color: '#1cb0f6' },
+        { title: t('analytics.legacyDau'), value: report.summary.dau, color: '#086b99' },
         { title: t('analytics.legacyWau'), value: report.summary.wau, color: '#0d8f74' },
         { title: t('analytics.legacyMau'), value: report.summary.mau, color: '#b45309' },
         { title: 'DAU / MAU', value: report.summary.dauMauPercent, suffix: '%', color: '#7c3aed' },

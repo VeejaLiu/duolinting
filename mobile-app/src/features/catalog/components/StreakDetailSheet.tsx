@@ -78,7 +78,7 @@ export function StreakDetailSheet({
             {t('streak.days', { count: streak.count })}
           </Text>
           {!studiedToday ? (
-            <Text className="mt-1.5 text-sm font-bold text-[#ff9600]">
+            <Text className="mt-1.5 text-sm font-bold text-warning-strong">
               {t('streak.missedToday')}
             </Text>
           ) : null}

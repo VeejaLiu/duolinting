@@ -1,10 +1,11 @@
 import { X } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { apiClient } from '../lib/apiClient'
 import { useLanguage } from '../i18n/LanguageProvider'
 import { useToast } from './ToastProvider'
 import type { AuthResponse } from '@duolinting/domain'
 import { WebReauthForm } from './WebReauthForm'
+import { Modal, ModalTitle } from './Modal'
 
 type ChangePasswordDialogProps = {
   open: boolean
@@ -32,16 +33,6 @@ export function ChangePasswordDialog({ open, authToken, onClose, onAuthenticated
     setFeedback(null)
     onClose()
   }
-
-  useEffect(() => {
-    if (!open) return
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') handleClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
 
   if (!open) return null
 
@@ -84,14 +75,7 @@ export function ChangePasswordDialog({ open, authToken, onClose, onAuthenticated
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={handleClose}>
-      <section
-        aria-labelledby="change-password-dialog-title"
-        aria-modal="true"
-        className="auth-dialog settings-dialog"
-        role="dialog"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
+    <Modal className="auth-dialog settings-dialog" onClose={handleClose}>
         <button
           aria-label={t('auth.closeDialog')}
           className="dialog-close"
@@ -103,7 +87,7 @@ export function ChangePasswordDialog({ open, authToken, onClose, onAuthenticated
 
         <div className="dialog-hero">
           <p>{t('settings.account')}</p>
-          <h2 id="change-password-dialog-title">{hasPassword ? t('settings.changePassword') : t('authSecurity.setPassword')}</h2>
+          <ModalTitle>{hasPassword ? t('settings.changePassword') : t('authSecurity.setPassword')}</ModalTitle>
           <span>{t('settings.changePasswordDescription')}</span>
         </div>
 
@@ -134,7 +118,6 @@ export function ChangePasswordDialog({ open, authToken, onClose, onAuthenticated
           </button>
         </form> : <WebReauthForm purpose="set_password" authToken={authToken} onTicket={setReauthTicket} />}
         {feedback ? <p className="settings-message error">{feedback}</p> : null}
-      </section>
-    </div>
+    </Modal>
   )
 }

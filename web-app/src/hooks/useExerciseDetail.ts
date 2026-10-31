@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   CatalogExerciseSummary,
   ListeningExercise,
@@ -25,9 +25,13 @@ export function useExerciseDetail({
   const [activeExercise, setActiveExercise] = useState<ListeningExercise | undefined>()
   const [exerciseLoading, setExerciseLoading] = useState(false)
   const [exerciseLoadFailed, setExerciseLoadFailed] = useState(false)
+  const [retryVersion, setRetryVersion] = useState(0)
+  const loadedKey = useRef('')
+  const retryExercise = useCallback(() => setRetryVersion((current) => current + 1), [])
+  const exerciseId = activeExerciseSummary?.id
 
   useEffect(() => {
-    if (!activeExerciseSummary) {
+    if (!exerciseId) {
       setActiveExercise(undefined)
       setExerciseLoading(false)
       setExerciseLoadFailed(false)
@@ -35,18 +39,21 @@ export function useExerciseDetail({
     }
 
     let mounted = true
-    setActiveExercise(undefined)
+    // Keep an already loaded course visible while retrying the same resource.
+    // A different course, locale or account must never reuse that content.
+    const requestKey = JSON.stringify([exerciseId, contentLocale, authToken])
+    if (loadedKey.current !== requestKey) setActiveExercise(undefined)
     setExerciseLoading(true)
-    setExerciseLoadFailed(false)
 
     apiClient
-      .getExercise(activeExerciseSummary.id, contentLocale, authToken)
+      .getExercise(exerciseId, contentLocale, authToken)
       .then((exercise) => {
         if (!mounted) {
           return
         }
 
         setActiveExercise(exercise)
+        loadedKey.current = requestKey
         setStore((current) => ensureExerciseProgress(current, exercise))
         setExerciseLoadFailed(false)
       })
@@ -55,7 +62,6 @@ export function useExerciseDetail({
           return
         }
 
-        setActiveExercise(undefined)
         setExerciseLoadFailed(true)
       })
       .finally(() => {
@@ -67,11 +73,12 @@ export function useExerciseDetail({
     return () => {
       mounted = false
     }
-  }, [activeExerciseSummary, authToken, contentLocale, setStore])
+  }, [exerciseId, authToken, contentLocale, retryVersion, setStore])
 
   return {
     activeExercise,
     exerciseLoading,
     exerciseLoadFailed,
+    retryExercise,
   }
 }

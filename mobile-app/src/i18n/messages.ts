@@ -2,14 +2,16 @@ import frFR from './fr-FR'
 import esES from './es-ES'
 import { authFlowMessages } from './authFlowMessages'
 import { settingsExtra } from './settingsExtra'
+import { recoveryMessages } from './recoveryMessages'
 import type { UiLocale } from '@duolinting/domain'
 
 export const messages = {
-  'fr-FR': { ...frFR, ...settingsExtra['fr-FR'], ...authFlowMessages['fr-FR'] },
-  'es-ES': { ...esES, ...settingsExtra['es-ES'], ...authFlowMessages['es-ES'] },
+  'fr-FR': { ...frFR, ...settingsExtra['fr-FR'], ...authFlowMessages['fr-FR'], ...recoveryMessages['fr-FR'] },
+  'es-ES': { ...esES, ...settingsExtra['es-ES'], ...authFlowMessages['es-ES'], ...recoveryMessages['es-ES'] },
   'zh-CN': {
     ...settingsExtra['zh-CN'],
     ...authFlowMessages['zh-CN'],
+    ...recoveryMessages['zh-CN'],
     "preview.updateRequired": "请升级 App 后再预览。",
     "study.playbackFailed": "播放未完成，请重试。",
     'study.playbackTimedOut': '播放准备超时，请点击播放重试。',
@@ -280,7 +282,7 @@ export const messages = {
     'vocabulary.title': '我的生词',
     'vocabulary.unknownChapter': '未知章节',
     'vocabulary.empty': '还没有生词',
-    'vocabulary.emptyDescription': '逐句学习时点开字幕，点击句中关键词即可收进生词本。',
+    'vocabulary.emptyDescription': '收词功能暂未开放。此前保存的词汇仍会保留。',
     'vocabulary.summary': '共 {{words}} 个词 · 来自 {{chapters}} 个章节',
     'vocabulary.groupWords': '{{count}} 词',
     'study.loadFailed': '课程详情加载失败',
@@ -339,6 +341,7 @@ export const messages = {
   'en-US': {
     ...settingsExtra['en-US'],
     ...authFlowMessages['en-US'],
+    ...recoveryMessages['en-US'],
     "preview.updateRequired": "Update the app to preview this course.",
     "study.playbackFailed": "Playback did not complete. Please retry.",
     'study.playbackTimedOut': 'Playback took too long to start. Tap play to retry.',
@@ -609,7 +612,7 @@ export const messages = {
     'vocabulary.title': 'My vocabulary',
     'vocabulary.unknownChapter': 'Unknown chapter',
     'vocabulary.empty': 'No vocabulary yet',
-    'vocabulary.emptyDescription': 'Reveal a subtitle while studying, then tap a keyword to add it here.',
+    'vocabulary.emptyDescription': 'Saving new words is currently unavailable. Previously saved vocabulary is kept.',
     'vocabulary.summary': '{{words}} words · {{chapters}} chapters',
     'vocabulary.groupWords': '{{count}} words',
     'study.loadFailed': 'Unable to load lesson details',
@@ -668,6 +671,7 @@ export const messages = {
   'th-TH': {
     ...settingsExtra['th-TH'],
     ...authFlowMessages['th-TH'],
+    ...recoveryMessages['th-TH'],
     "preview.updateRequired": "อัปเดตแอปก่อนดูตัวอย่าง",
     "study.playbackFailed": "เล่นไม่สำเร็จ โปรดลองอีกครั้ง",
     'study.playbackTimedOut': 'เตรียมการเล่นนานเกินไป แตะเล่นเพื่อลองอีกครั้ง',
@@ -938,7 +942,7 @@ export const messages = {
     'vocabulary.title': 'คำศัพท์ของฉัน',
     'vocabulary.unknownChapter': 'บทเรียนที่ไม่ทราบชื่อ',
     'vocabulary.empty': 'ยังไม่มีคำศัพท์',
-    'vocabulary.emptyDescription': 'ระหว่างเรียนทีละประโยค เปิดคำบรรยายแล้วแตะคำสำคัญเพื่อเก็บเข้าสมุดคำศัพท์',
+    'vocabulary.emptyDescription': 'ขณะนี้ยังไม่เปิดให้เก็บคำศัพท์ใหม่ คำศัพท์ที่บันทึกไว้ก่อนหน้านี้ยังคงอยู่',
     'vocabulary.summary': 'รวม {{words}} คำ · จาก {{chapters}} บทเรียน',
     'vocabulary.groupWords': '{{count}} คำ',
     'study.loadFailed': 'โหลดรายละเอียดบทเรียนไม่สำเร็จ',
@@ -997,6 +1001,7 @@ export const messages = {
   'ja-JP': {
     ...settingsExtra['ja-JP'],
     ...authFlowMessages['ja-JP'],
+    ...recoveryMessages['ja-JP'],
     "preview.updateRequired": "アプリを更新してください",
     "study.playbackFailed": "再生が完了しませんでした。再試行してください。",
     'study.playbackTimedOut': '再生の準備がタイムアウトしました。再生ボタンで再試行してください。',
@@ -1267,7 +1272,7 @@ export const messages = {
     'vocabulary.title': 'マイ単語帳',
     'vocabulary.unknownChapter': '不明なチャプター',
     'vocabulary.empty': '単語がまだありません',
-    'vocabulary.emptyDescription': '一文ずつ学習する際に字幕を開き、文の中のキーワードをタップすると単語帳に追加できます。',
+    'vocabulary.emptyDescription': '現在、新しい単語の保存は利用できません。以前に保存した単語は保持されます。',
     'vocabulary.summary': '合計 {{words}} 語 · {{chapters}} チャプターから',
     'vocabulary.groupWords': '{{count}} 語',
     'study.loadFailed': 'レッスンの詳細を読み込めませんでした',

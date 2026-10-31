@@ -26,8 +26,8 @@ const OUT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../p
 const topics = [
   { slug: "extensive-listening", zh: "泛听练习", en: "Extensive Listening" },
   { slug: "intensive-listening", zh: "精听方法", en: "Intensive Listening" },
-  { slug: "dictation", zh: "逐句听写", en: "Dictation Practice" },
-  { slug: "vocabulary", zh: "听力生词本", en: "Listening Vocabulary" },
+  { slug: "dictation", zh: "逐句听写方法", en: "A Dictation Method" },
+  { slug: "vocabulary", zh: "听力词汇积累方法", en: "A Listening Vocabulary Method" },
   { slug: "difficult-review", zh: "难点复习", en: "Difficult-Line Review" },
   { slug: "intensive-listening-method", zh: "什么是精听？精听的正确步骤", en: "Intensive Listening Method" },
   { slug: "youzack-alternative", zh: "YouZack 替代", en: "YouZack Alternative" },

@@ -1,10 +1,16 @@
 export const colors = {
   brand: '#1cb0f6',
-  brandStrong: '#0d8fcb',
+  // Bright brand colors remain surfaces/borders. Text variants meet 4.5:1 on
+  // the pale application surfaces; onBrand also works on blue/green/yellow.
+  brandStrong: '#086b99',
+  onBrand: '#172033',
+  successText: '#2f7608',
+  warningText: '#8a4b00',
+  dangerText: '#b42332',
   accentGreen: '#58cc02',
   textPrimary: '#172033',
   textSecondary: '#5b6577',
-  textMuted: '#8191a6',
+  textMuted: '#5b6b7f',
   surface: '#ffffff',
   surfaceSubtle: '#f7fafc',
   surfaceRaised: '#eef5fb',

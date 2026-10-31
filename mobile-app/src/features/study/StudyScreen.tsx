@@ -1,5 +1,5 @@
 import { analytics } from '@/lib/analytics'
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import { View, Text, Pressable, useWindowDimensions } from 'react-native'
 import {
@@ -20,6 +20,7 @@ import { useExercisePlayback } from '@/hooks/useExercisePlayback'
 import { useStudyProgress } from '@/hooks/useStudyProgress'
 import { useNavigationStore } from '@/stores/navigationStore'
 import { useStudyStore } from '@/stores/studyStore'
+import { useAuthStore } from '@/stores/authStore'
 import { ExtensiveStagePanel } from './components/ExtensiveStagePanel'
 import { IntensiveStagePanel } from './components/IntensiveStagePanel'
 import { useLanguage } from '@/i18n/LanguageProvider'
@@ -50,8 +51,9 @@ export function StudyScreen() {
     stage?: string
   }>()
   const numericExerciseId = Number(exerciseId)
-  const { data: exercise, isLoading, isError, error } =
+  const { data: exercise, isLoading, isError, isFetching, refetch } =
     useExerciseDetailQuery(numericExerciseId)
+  const userId = useAuthStore((state) => state.authUser?.id)
   const store = useStudyStore((state) => state.store)
   const setStore = useStudyStore((state) => state.setStore)
   const revealedLineIds = useStudyStore((state) => state.revealedLineIds)
@@ -170,7 +172,9 @@ export function StudyScreen() {
     resetAcceptedAnswerFeedback()
   }, [activePanelLineId, activePanelDictation, resetAcceptedAnswerFeedback])
 
-  if (isLoading) {
+  if (!userId) return <Redirect href="/auth/login" />
+
+  if (isLoading && !exercise) {
     return (
       <SafeScreen>
         <View className="flex-1 items-center justify-center">
@@ -180,11 +184,13 @@ export function StudyScreen() {
     )
   }
 
-  if (isError || !exercise || !progress || !selectedLine) {
+  if (!exercise || !progress || !selectedLine) {
     return (
       <SafeScreen>
         <View className="flex-1 px-4 py-5">
           <ErrorState
+            onRetry={() => { void refetch() }}
+            retrying={isFetching}
             message={
               t('study.loadFailed')
             }
@@ -329,6 +335,9 @@ export function StudyScreen() {
   return (
     <SafeScreen>
       <View className="flex-1 bg-[#f7fbff]">
+        {isError ? (
+          <ErrorState message={t('recovery.refreshFailed')} onRetry={() => { void refetch() }} retrying={isFetching} />
+        ) : null}
         <StudyHeader
           compact={compactStudyLayout}
           contributors={exercise.contributors}

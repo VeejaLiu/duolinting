@@ -1,6 +1,6 @@
 import { FontAwesome6 } from '@expo/vector-icons'
 import { useQueries } from '@tanstack/react-query'
-import { useRouter } from 'expo-router'
+import { Redirect, useRouter } from 'expo-router'
 import type { ComponentProps } from 'react'
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
@@ -55,7 +55,7 @@ function CoverImage({
 
 export function SeriesPickerScreen() {
   const router = useRouter()
-  const { data: catalog, isLoading, isError, error } = useCatalogQuery()
+  const { data: catalog, isLoading, isError, isFetching, refetch } = useCatalogQuery()
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null)
   const store = useStudyStore((state) => state.store)
   const syncReady = useStudyStore((state) => state.syncReady)
@@ -104,7 +104,7 @@ export function SeriesPickerScreen() {
     queries: (catalog?.categories ?? []).map((category) => ({
       queryKey: ['catalog', 'category-exercises', category.id, contentLocale, userId],
       queryFn: () => apiClient.getCategoryExercises(category.id, contentLocale, authToken),
-      enabled: category.id > 0,
+      enabled: category.id > 0 && Boolean(userId),
       refetchOnMount: 'always',
     })),
   })
@@ -126,23 +126,23 @@ export function SeriesPickerScreen() {
     )
   const progressPending = syncStatus !== 'local' && !syncReady
 
-  if (isLoading || !catalog) {
+  if (!userId) return <Redirect href="/auth/login" />
+
+  if (!catalog && !isLoading) {
     return (
       <SafeScreen>
-        <View className="flex-1 items-center justify-center">
-          <Spinner />
+        <View className="flex-1 px-4 py-5">
+          <ErrorState message={t('catalog.seriesLoadFailed')} onRetry={() => { void refetch() }} retrying={isFetching} />
         </View>
       </SafeScreen>
     )
   }
 
-  if (isError) {
+  if (!catalog) {
     return (
       <SafeScreen>
-        <View className="flex-1 px-4 py-5">
-          <ErrorState
-            message={t('catalog.seriesLoadFailed')}
-          />
+        <View className="flex-1 items-center justify-center">
+          <Spinner />
         </View>
       </SafeScreen>
     )
@@ -178,83 +178,102 @@ export function SeriesPickerScreen() {
       const selected = category.id === selectedSeriesId
       const exercises = getSeriesExercises(category.id)
       const exercisesLoading = exerciseLoadingByCategory[category.id] ?? false
+      const query = exerciseQueries[catalog.categories.findIndex((item) => item.id === category.id)]
+      const exercisesUnavailable = query?.isError && !query.data
       const seriesProgress = calculateSeriesProgress(exercises, store)
 
       return (
-        <Pressable
-          key={category.id}
-          className={`rounded-[20px] border-2 border-b-[5px] bg-white px-3 py-3 ${
-            selected
-              ? 'border-[#1cb0f6] border-b-[#0f91d0]'
-              : 'border-[#dce8f3] border-b-[#cfe0ee]'
-          }`}
-          onPress={() => {
-            setSelectedSeriesId(category.id)
-            // 选中后关闭 modal 即可：首页挂在下方且监听 selectedSeriesId，
-            // 回到首页会自动切换到新系列；比 replace 导航栈更干净
-            router.back()
-          }}
-        >
-          <View className="flex-row items-start">
-            <CoverImage
-              accent={category.accent}
-              imageUrl={category.coverImageUrl}
-              sizeClassName="h-16 w-16"
-            />
-            <View className="ml-3 flex-1">
-              <View className="flex-row items-center justify-between">
-                <Text className="mr-3 flex-1 text-lg font-black text-text-primary" numberOfLines={2}>
-                  {category.name}
-                </Text>
-                <View className="items-end">
-                  <Text className="text-base font-black text-brand">
-                    {progressPending || exercisesLoading ? '--' : `${seriesProgress.percent}%`}
-                  </Text>
-                  {selected ? (
-                    <FontAwesome6 color="#1cb0f6" name="circle-check" size={17} />
-                  ) : null}
-                </View>
-              </View>
-              <Text
-                className="mt-1 text-sm font-bold text-text-secondary"
-                numberOfLines={1}
-              >
-                {category.description}
-              </Text>
-              <View className="mt-3">
+        <View key={category.id}>
+          <Pressable
+            className={`rounded-[20px] border-2 border-b-[5px] bg-white px-3 py-3 ${
+              selected
+                ? 'border-[#1cb0f6] border-b-[#0f91d0]'
+                : 'border-[#dce8f3] border-b-[#cfe0ee]'
+            }`}
+            onPress={() => {
+              setSelectedSeriesId(category.id)
+              // 选中后关闭 modal 即可：首页挂在下方且监听 selectedSeriesId，
+              // 回到首页会自动切换到新系列；比 replace 导航栈更干净
+              router.back()
+            }}
+          >
+            <View className="flex-row items-start">
+              <CoverImage
+                accent={category.accent}
+                imageUrl={category.coverImageUrl}
+                sizeClassName="h-16 w-16"
+              />
+              <View className="ml-3 flex-1">
                 <View className="flex-row items-center justify-between">
-                  <Text className="text-xs font-black text-brand">
-                    {progressPending || exercisesLoading
-                      ? t('catalog.loading')
-                      : seriesProgress.percent >= 100
-                        ? t('catalog.completed')
-                        : seriesProgress.percent > 0
-                          ? `${seriesProgress.percent}%`
-                          : t('catalog.notStarted')}
+                  <Text className="mr-3 flex-1 text-lg font-black text-text-primary" numberOfLines={2}>
+                    {category.name}
                   </Text>
-                  <Text className="text-xs font-bold text-text-secondary">
-                    {exercisesLoading
-                      ? t('catalog.syncing')
-                      : t('catalog.seriesProgress', {
-                          count: exercises.length,
-                          mastered: seriesProgress.masteredLineCount,
-                          total: seriesProgress.totalLineCount,
-                        })}
-                  </Text>
+                  <View className="items-end">
+                    <Text className="text-base font-black text-brand-strong">
+                      {progressPending || exercisesLoading || exercisesUnavailable ? '--' : `${seriesProgress.percent}%`}
+                    </Text>
+                    {selected ? (
+                      <FontAwesome6 color="#1cb0f6" name="circle-check" size={17} />
+                    ) : null}
+                  </View>
                 </View>
-                <View className="mt-2">
-                  <ProgressBar percent={seriesProgress.percent} />
+                <Text
+                  className="mt-1 text-sm font-bold text-text-secondary"
+                  numberOfLines={1}
+                >
+                  {category.description}
+                </Text>
+                <View className="mt-3">
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-xs font-black text-brand-strong">
+                      {exercisesUnavailable
+                        ? t('recovery.progressUnavailable')
+                        : progressPending || exercisesLoading
+                        ? t('catalog.loading')
+                        : seriesProgress.percent >= 100
+                          ? t('catalog.completed')
+                          : seriesProgress.percent > 0
+                            ? `${seriesProgress.percent}%`
+                            : t('catalog.notStarted')}
+                    </Text>
+                    <Text className="text-xs font-bold text-text-secondary">
+                      {exercisesUnavailable
+                        ? t('recovery.progressUnavailable')
+                        : exercisesLoading
+                        ? t('catalog.syncing')
+                        : t('catalog.seriesProgress', {
+                            count: exercises.length,
+                            mastered: seriesProgress.masteredLineCount,
+                            total: seriesProgress.totalLineCount,
+                          })}
+                    </Text>
+                  </View>
+                  <View className="mt-2">
+                    {!exercisesUnavailable ? <ProgressBar percent={seriesProgress.percent} /> : null}
+                  </View>
                 </View>
               </View>
             </View>
-          </View>
-        </Pressable>
+          </Pressable>
+          {query?.isError ? (
+            <View className="mt-2">
+              <ErrorState
+                message={t(query.data ? 'recovery.refreshFailed' : 'recovery.chaptersFailed')}
+                onRetry={() => { void query.refetch() }}
+                retrying={query.isFetching}
+              />
+            </View>
+          ) : null}
+        </View>
       )
     })
 
   return (
     <SafeScreen>
       <View className="flex-1 bg-[#f7fbff]">
+        {isError ? (
+          <ErrorState message={t('recovery.refreshFailed')} onRetry={() => { void refetch() }} retrying={isFetching} />
+        ) : null}
         <View className="flex-row items-center border-b-2 border-[#d7e4ef] bg-white px-4 py-3">
           <Pressable
             className="h-10 w-10 items-center justify-center rounded-[14px] border-2 border-[#d7e2ee] bg-white"

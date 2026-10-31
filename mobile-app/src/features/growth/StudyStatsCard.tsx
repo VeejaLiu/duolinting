@@ -80,7 +80,7 @@ function WeeklyBarChart({
             />
             <Text
               className={`mt-1.5 text-[10px] font-black ${
-                point.isToday ? 'text-brand' : 'text-text-secondary'
+                point.isToday ? 'text-brand-strong' : 'text-text-secondary'
               }`}
             >
               {point.label}

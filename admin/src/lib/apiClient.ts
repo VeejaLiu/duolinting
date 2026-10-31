@@ -121,13 +121,13 @@ export class ApiClientError extends Error {
   }
 }
 
-let onUnauthorizedHandler: (() => void) | null = null
+let onUnauthorizedHandler: ((token: string) => void) | null = null
 
 /**
  * 注册全局「后台会话失效」回调；传入 null 可注销。
  * 仅当携带 adminToken 的请求返回 401 时触发，登录接口的 401（密码错误）不会命中。
  */
-export function setUnauthorizedHandler(handler: (() => void) | null) {
+export function setUnauthorizedHandler(handler: ((token: string) => void) | null) {
   onUnauthorizedHandler = handler
 }
 
@@ -136,8 +136,9 @@ const reportUnauthorizedIfNeeded = (
   options?: { adminToken?: string; authToken?: string },
 ) => {
   if (status === 401 && options?.adminToken) {
-    clearCourseListCache()
-    onUnauthorizedHandler?.()
+    // Pass the request's token so an old response cannot expire a newer login.
+    // The active-session handler owns cache invalidation when it accepts expiry.
+    onUnauthorizedHandler?.(options.adminToken)
   }
 }
 

@@ -1,7 +1,7 @@
 import { clearCourseListCache } from './lib/courseListCache'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { LockKeyhole } from 'lucide-react'
-import { App as AntdApp } from 'antd'
+import { Alert, App as AntdApp, Button, Spin } from 'antd'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import type {
   AdminUser,
@@ -15,7 +15,8 @@ import {
   AdminConfirmDialog,
   type AdminNoticeTone,
 } from './components/admin/AdminFeedback'
-import { apiClient, ApiClientError, setUnauthorizedHandler } from './lib/apiClient'
+import { apiClient, setUnauthorizedHandler } from './lib/apiClient'
+import { createAdminSessionVerifier } from './lib/adminSession'
 import {
   ADMIN_TOKEN_STORAGE_KEY,
   ADMIN_USER_STORAGE_KEY,
@@ -48,6 +49,13 @@ function App() {
   const [adminUser, setAdminUser] = useState<AdminUser | null>(
     loadStoredAdminUser,
   )
+  // Cached credentials are only a hint until /auth/me has verified this boot.
+  // After a successful login, transient retries must keep the editor mounted.
+  const [hasVerifiedSession, setHasVerifiedSession] = useState(false)
+  const [sessionVerification, setSessionVerification] = useState<'checking' | 'verified' | 'network' | 'server'>(
+    adminToken ? 'checking' : 'verified',
+  )
+  const activeAdminTokenRef = useRef(adminToken)
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: '',
@@ -77,15 +85,20 @@ function App() {
   // 退出登录前的保存确认钩子，由 ContentAdmin 注册（制课工作台有未保存修改时先确认保存）
   const beforeLogoutRef = useRef<(() => Promise<boolean>) | null>(null)
 
-  const isAuthenticated = Boolean(adminToken && adminUser)
+  const isAuthenticated = Boolean(adminToken && adminUser && hasVerifiedSession)
 
   // 清空本地管理员会话（token 过期或主动退出时调用），回到登录页
   const clearAdminSession = () => {
+    activeAdminTokenRef.current = ''
+    sessionVerifier.cancel()
+    catalogRequestSerialRef.current += 1
     clearCourseListCache()
     localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY)
     localStorage.removeItem(ADMIN_USER_STORAGE_KEY)
     setAdminToken('')
     setAdminUser(null)
+    setHasVerifiedSession(false)
+    setSessionVerification('verified')
   }
 
   const showNotice = useCallback((content: string, tone: AdminNoticeTone = 'info') => {
@@ -93,7 +106,7 @@ function App() {
     appMessage[tone]({ content, duration })
   }, [appMessage])
 
-  // 任何携带 adminToken 的请求返回 401 都视为会话失效，统一清会话并回登录页。
+  // 仅当前 token 的 401 会使会话失效；旧请求不能清空之后重新登录的会话。
   // 用 ref 持有最新的清会话/提示函数，避免 effect 依赖项随渲染漂移。
   const sessionExpiredNotifiedRef = useRef(false)
   const handleSessionExpiredRef = useRef<() => void>(() => {})
@@ -106,10 +119,25 @@ function App() {
     }
   }
 
+  const [sessionVerifier] = useState(() => createAdminSessionVerifier({
+    readToken: () => activeAdminTokenRef.current,
+    loadUser: (token: string) => apiClient.getCurrentAdmin(token),
+    onChecking: () => setSessionVerification('checking'),
+    onVerified: (user: AdminUser) => {
+      // Always use the server's current role rather than a stale cached role.
+      localStorage.setItem(ADMIN_USER_STORAGE_KEY, JSON.stringify(user))
+      setAdminUser(user)
+      setHasVerifiedSession(true)
+      setSessionVerification('verified')
+    },
+    onUnavailable: (kind) => setSessionVerification(kind),
+    onExpired: () => handleSessionExpiredRef.current(),
+  }))
+
   useEffect(() => {
-    setUnauthorizedHandler(() => handleSessionExpiredRef.current())
+    setUnauthorizedHandler((token) => sessionVerifier.expire(token))
     return () => setUnauthorizedHandler(null)
-  }, [])
+  }, [sessionVerifier])
 
   const requestConfirm = (options: {
     title: string
@@ -188,31 +216,9 @@ function App() {
   }, [adminToken])
 
   useEffect(() => {
-    if (!adminToken) {
-      return
-    }
-
-    void (async () => {
-      // 启动时先校验本地保存的 token 是否仍然有效；
-      // 过期或后端不可用视为登录态失效，清空会话回登录页，避免界面假死。
-      try {
-        const currentAdmin = await apiClient.getCurrentAdmin(adminToken)
-        // 旧浏览器本地可能还缓存 role="admin"。以后端会话返回的规范角色为准，
-        // 这样迁移后的超级管理员无需手动清除浏览器缓存就能看见协作管理面板。
-        localStorage.setItem(ADMIN_USER_STORAGE_KEY, JSON.stringify(currentAdmin))
-        setAdminUser(currentAdmin)
-      } catch (error) {
-        // 会话失效(401)已由全局 handler 统一清会话并回登录页；这里只兜底网络错误等其它情况。
-        if (error instanceof ApiClientError && error.status === 401) {
-          return
-        }
-        clearAdminSession()
-        showNotice(t('管理员登录已过期，请重新登录'), 'error')
-        return
-      }
-
-    })()
-  }, [adminToken, showNotice, t])
+    if (adminToken) void sessionVerifier.check(adminToken)
+    return () => sessionVerifier.cancel()
+  }, [adminToken, sessionVerifier])
 
   const login = async () => {
     setIsLoggingIn(true)
@@ -220,8 +226,12 @@ function App() {
       const result = await apiClient.adminLogin(loginForm)
       localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, result.token)
       localStorage.setItem(ADMIN_USER_STORAGE_KEY, JSON.stringify(result.user))
+      sessionVerifier.cancel()
+      activeAdminTokenRef.current = result.token
       setAdminToken(result.token)
       setAdminUser(result.user)
+      setHasVerifiedSession(true)
+      setSessionVerification('verified')
       sessionExpiredNotifiedRef.current = false
       showNotice(t('管理员已登录'), 'success')
     } catch (error) {
@@ -419,6 +429,44 @@ function App() {
     </main>
   )
 
+  const sessionStatus = sessionVerification === 'checking' ? (
+    <div role="status" className="admin-session-checking">
+      <Spin size="small" />
+      <span>{t('正在验证管理员会话，请稍候')}</span>
+    </div>
+  ) : sessionVerification === 'network' || sessionVerification === 'server' ? (
+    <Alert
+      showIcon
+      type="warning"
+      title={t(sessionVerification === 'network'
+        ? '无法连接服务器，请检查网络后重试。登录信息已保留。'
+        : '服务器暂时不可用，请稍后重试。登录信息已保留。')}
+      description={!hasVerifiedSession ? t('会话尚未验证，连接恢复后才能进入管理后台。') : t('当前编辑内容已保留，请重试验证。')}
+      action={<Button onClick={() => void sessionVerifier.check(adminToken)}>{t('重试验证')}</Button>}
+    />
+  ) : null
+
+  if (adminToken && !hasVerifiedSession) {
+    return (
+      <main className="app-shell login-shell">
+        <section className="login-page" aria-label={t('管理员会话验证')}>
+          <div className="login-brand">
+            <img alt="DuolinTing" className="login-brand-logo" src="/duolinting-logo-ear.png" />
+            <div className="login-brand-copy">
+              <h1>{t('管理后台')}</h1>
+              <p>{t('管理员会话验证')}</p>
+            </div>
+          </div>
+          {languageSelector}
+          <div className="login-panel">
+            {sessionStatus}
+            <Button onClick={() => void logout()}>{t('退出登录')}</Button>
+          </div>
+        </section>
+      </main>
+    )
+  }
+
   if (!isAuthenticated) {
     return (
       <Routes>
@@ -440,6 +488,7 @@ function App() {
 
   return (
     <main className="app-shell">
+      {sessionVerification !== 'verified' && <div className="admin-session-status">{sessionStatus}</div>}
       <Routes>
         <Route path="/login" element={<Navigate to="/directory" replace />} />
         <Route

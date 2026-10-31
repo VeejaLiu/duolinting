@@ -17,6 +17,7 @@ import {
   Fragment,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -167,6 +168,10 @@ export function MediaCourseForm({
   onSubmitSubtitleDraft,
 }: MediaCourseFormProps) {
   const { t, uiLocale } = useAdminLanguage()
+  const saveFeedbackId = useId()
+  const saveFeedback = isSaving
+    ? t('正在保存，请稍候。完成前请保留此页面。')
+    : saveDisabledReason ? t(saveDisabledReason) : ''
   const [localizationLocale, setLocalizationLocale] = useState<ContentLocale>('zh-CN')
   const [previewTime, setPreviewTime] = useState(0)
   const [isCourseMetaOpen, setIsCourseMetaOpen] = useState(false)
@@ -720,6 +725,9 @@ export function MediaCourseForm({
       </Drawer>
 
       <div className="import-main">
+        {/* Keep the toolbar and its feedback in one header row: the workbench
+            reserves the flexible middle grid row for media and subtitles. */}
+        <div className="import-main-header">
         {/* 顶部工具栏：课程标题、基础信息入口和保存按钮 */}
         <div className="import-main-toolbar">
           <div className="import-main-title-group">
@@ -748,17 +756,23 @@ export function MediaCourseForm({
             </button>
             <button
               className="command-button meta-save-command"
+              aria-describedby={saveFeedback ? saveFeedbackId : undefined}
+              aria-busy={isSaving}
               disabled={isSaving || Boolean(saveDisabledReason)}
               onClick={onSaveLesson}
               title={saveDisabledReason ? t(saveDisabledReason) : undefined}
               type="button"
             >
-              <Save size={16} aria-hidden="true" />
+              {isSaving
+                ? <LoaderCircle className="spin" size={16} aria-hidden="true" />
+                : <Save size={16} aria-hidden="true" />}
               {isSaving ? t('保存中') : isSubtitleContributor ? t('保存校对草稿') : t('保存')}
             </button>
             {isSubtitleContributor && onSubmitSubtitleDraft && (
               <button
                 className="command-button meta-save-command"
+                aria-describedby={saveFeedback ? saveFeedbackId : undefined}
+                aria-busy={isSaving}
                 disabled={isSaving || Boolean(saveDisabledReason)}
                 onClick={() => setIsSubmitConfirmationOpen(true)}
                 title={saveDisabledReason ? t(saveDisabledReason) : undefined}
@@ -769,6 +783,19 @@ export function MediaCourseForm({
               </button>
             )}
           </div>
+        </div>
+        {/* Disabled buttons cannot reliably receive focus or expose their title.
+            Keep the actual validation reason visible and shared by both actions. */}
+        <p
+          aria-live="polite"
+          aria-atomic="true"
+          className="import-save-feedback"
+          hidden={!saveFeedback}
+          id={saveFeedbackId}
+          role="status"
+        >
+          {saveFeedback}
+        </p>
         </div>
 
         <Modal

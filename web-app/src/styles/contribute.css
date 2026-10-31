@@ -31,7 +31,7 @@
 .contribute-container { margin: 0 auto; max-width: 780px; }
 .contribute-back { box-shadow: 0 4px 0 #d7e4ef; }
 .contribute-hero { animation: contribute-enter 360ms ease both; margin: 52px auto 36px; max-width: 670px; text-align: center; }
-.contribute-illustration { align-items: center; background: #58cc02; border: 3px solid #fff; border-radius: 28px; box-shadow: 0 8px 0 #46a302; color: #fff; display: inline-flex; height: 92px; justify-content: center; margin-bottom: 24px; position: relative; width: 92px; }
+.contribute-illustration { align-items: center; background: #58cc02; border: 3px solid #fff; border-radius: 28px; box-shadow: 0 8px 0 #46a302; color: var(--text-on-brand); display: inline-flex; height: 92px; justify-content: center; margin-bottom: 24px; position: relative; width: 92px; }
 .contribute-illustration span { animation: contribute-heart 2.8s ease-in-out infinite; align-items: center; background: #ff6b8a; border: 3px solid #fff; border-radius: 14px; bottom: -9px; display: flex; height: 38px; justify-content: center; position: absolute; right: -13px; width: 38px; }
 .contribute-eyebrow { color: #2b7a0b; font-size: 13px; font-weight: 900; letter-spacing: .08em; margin: 0 0 10px; text-transform: uppercase; }
 .contribute-hero h1 { font-size: clamp(34px, 6vw, 46px); line-height: 1.12; margin: 0; }
@@ -40,13 +40,13 @@
 .contribute-prepare h2 { font-size: 18px; margin: 0 0 14px; }
 .contribute-options { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); }
 .contribute-option { animation: contribute-enter 360ms calc(100ms + var(--option-index) * 60ms) ease both; background: #fff; border: 2px solid #e4eef8; border-bottom-width: 5px; border-radius: 22px; padding: 22px 18px; transition: border-color 160ms ease, transform 160ms ease; }
-.contribute-option-icon { align-items: center; background: #edf7ff; border-radius: 14px; color: #1cb0f6; display: flex; height: 44px; justify-content: center; margin-bottom: 15px; width: 44px; }
+.contribute-option-icon { align-items: center; background: #edf7ff; border-radius: 14px; color: var(--text-brand); display: flex; height: 44px; justify-content: center; margin-bottom: 15px; width: 44px; }
 .contribute-option h3 { font-size: 16px; margin: 0 0 7px; }
 .contribute-option p { color: #64748b; font-size: 14px; font-weight: 700; line-height: 1.55; margin: 0; }
 .contribute-prepare { background: #fff; border: 2px solid #e4eef8; border-radius: 22px; margin-top: 18px; padding: 22px 24px; }
 .contribute-prepare p { align-items: center; color: #475569; display: flex; font-size: 14px; font-weight: 800; gap: 10px; margin: 10px 0 0; }
-.contribute-prepare p svg { color: #58cc02; flex: 0 0 auto; stroke-width: 4; }
-.contribute-contact { align-items: center; background: #58cc02; border: 2px solid #58cc02; border-bottom: 6px solid #46a302; border-radius: 18px; color: #fff; display: flex; font-size: 17px; font-weight: 900; gap: 10px; justify-content: center; margin-top: 22px; min-height: 58px; text-decoration: none; transition: border-color 160ms ease, transform 100ms ease; }
+.contribute-prepare p svg { color: var(--text-success); flex: 0 0 auto; stroke-width: 4; }
+.contribute-contact { align-items: center; background: #58cc02; border: 2px solid #58cc02; border-bottom: 6px solid #46a302; border-radius: 18px; color: var(--text-on-brand); display: flex; font-size: 17px; font-weight: 900; gap: 10px; justify-content: center; margin-top: 22px; min-height: 58px; text-decoration: none; transition: border-color 160ms ease, transform 100ms ease; }
 .contribute-contact:hover { border-color: #1cb0f6; transform: translateY(-1px); }
 .contribute-contact:active { border-bottom-width: 3px; transform: translateY(3px); }
 .contribute-note { color: #718096; font-size: 13px; font-weight: 700; line-height: 1.6; margin: 14px auto 0; text-align: center; }

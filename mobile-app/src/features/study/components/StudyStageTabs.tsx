@@ -42,9 +42,9 @@ export function StudyStageTabs({
               adjustsFontSizeToFit
               className={`text-center font-black ${
                 current
-                  ? 'text-white'
+                  ? 'text-on-brand'
                   : highlighted
-                    ? 'text-brand'
+                    ? 'text-brand-strong'
                     : 'text-text-secondary'
               }`}
               minimumFontScale={0.72}

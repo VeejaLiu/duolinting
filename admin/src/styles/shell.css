@@ -67,6 +67,16 @@
   padding: 22px;
 }
 
+.admin-session-checking {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.admin-session-status {
+  padding: 12px 24px;
+}
+
 .login-panel-head {
   align-items: center;
   color: #111827;

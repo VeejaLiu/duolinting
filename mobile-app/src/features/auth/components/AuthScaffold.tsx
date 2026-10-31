@@ -42,20 +42,20 @@ export function AuthScaffold({ title, subtitle, onBack, children }: {
           <View className="bg-[#58cc02] px-5 py-6">
             {onBack ? <Pressable className="mb-4 min-h-[36px] flex-row items-center self-start rounded-[10px] px-1" onPress={onBack}>
               <FontAwesome6 color="#ffffff" name="arrow-left" size={14} />
-              <Text className="ml-2 text-sm font-black text-white">{t('authFlow.back')}</Text>
+              <Text className="ml-2 text-sm font-black text-on-brand">{t('authFlow.back')}</Text>
             </Pressable> : null}
-            <Text className="text-3xl font-black leading-9 text-white">{title}</Text>
-            {subtitle ? <Text className="mt-2 text-base font-bold leading-6 text-white">{subtitle}</Text> : null}
+            <Text className="text-3xl font-black leading-9 text-on-brand">{title}</Text>
+            {subtitle ? <Text className="mt-2 text-base font-bold leading-6 text-on-brand">{subtitle}</Text> : null}
           </View>
           <View className="px-5 pb-6 pt-5">{children}</View>
         </View>
 
         <View className="mt-5 flex-row flex-wrap items-center justify-center gap-4">
           <Pressable accessibilityRole="link" className="min-h-[44px] justify-center px-2" onPress={() => void openExternalLink(PRIVACY_POLICY_URL).then((ok) => { if (!ok) showToast({ title: t('auth.toastErrorTitle'), message: t('settings.privacyOpenFailed'), tone: 'error' }) })}>
-            <Text className="text-sm font-bold text-[#1688bd]">{t('settings.privacyPolicy')}</Text>
+            <Text className="text-sm font-bold text-brand-strong">{t('settings.privacyPolicy')}</Text>
           </Pressable>
           <Pressable accessibilityRole="link" className="min-h-[44px] justify-center px-2" onPress={() => void openExternalLink(SUPPORT_URL).then((ok) => { if (!ok) showToast({ title: t('auth.toastErrorTitle'), message: t('settings.supportOpenFailed'), tone: 'error' }) })}>
-            <Text className="text-sm font-bold text-[#1688bd]">{t('settings.helpFeedback')}</Text>
+            <Text className="text-sm font-bold text-brand-strong">{t('settings.helpFeedback')}</Text>
           </Pressable>
         </View>
       </View>

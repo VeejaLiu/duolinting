@@ -7,8 +7,13 @@ module.exports = {
     extend: {
       colors: {
         brand: '#1cb0f6',
-        'brand-strong': '#0d8fcb',
+        // Keep bright brand surfaces; use separate readable foregrounds.
+        'brand-strong': '#086b99',
+        'on-brand': '#172033',
         success: '#58cc02',
+        'success-strong': '#2f7608',
+        'warning-strong': '#8a4b00',
+        'danger-strong': '#b42332',
         danger: '#ff4b4b',
         warning: '#ffb020',
         surface: '#ffffff',
@@ -17,7 +22,7 @@ module.exports = {
         border: '#d7e2ee',
         'text-primary': '#172033',
         'text-secondary': '#5b6577',
-        'text-muted': '#8191a6',
+        'text-muted': '#5b6b7f',
       },
       borderRadius: {
         sm: 10,

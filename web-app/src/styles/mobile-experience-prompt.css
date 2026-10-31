@@ -43,7 +43,7 @@
 .mobile-experience-close:focus-visible,
 .mobile-experience-close:hover {
   border-color: #1cb0f6;
-  color: #1899d6;
+  color: var(--text-brand);
 }
 
 .mobile-experience-icon {
@@ -52,7 +52,7 @@
   border: 2px solid #bde8ff;
   border-bottom: 5px solid #85d4f7;
   border-radius: 22px;
-  color: #1cb0f6;
+  color: var(--text-brand);
   display: flex;
   height: 64px;
   justify-content: center;
@@ -60,7 +60,7 @@
 }
 
 .mobile-experience-eyebrow {
-  color: #1899d6;
+  color: var(--text-brand);
   font-size: 13px;
   font-weight: 900;
   margin: 20px 0 6px;
@@ -106,35 +106,14 @@
   background: #58cc02;
   border: 2px solid #58cc02;
   border-bottom: 5px solid #46a302;
-  color: #ffffff;
+  color: var(--text-on-brand);
   gap: 8px;
-  isolation: isolate;
-  overflow: hidden;
-  position: relative;
 }
 
 .mobile-experience-open:hover,
 .mobile-experience-open:focus-visible {
   background: #63d80b;
-  border-color: #46a302;
-}
-
-.mobile-experience-open-progress {
-  animation: mobile-experience-fill 5s linear forwards;
-  background: #46a302;
-  border-radius: inherit;
-  inset: 0;
-  pointer-events: none;
-  position: absolute;
-  transform: scaleX(0);
-  transform-origin: left;
-  z-index: -1;
-}
-
-.mobile-experience-open-label,
-.mobile-experience-open svg {
-  position: relative;
-  z-index: 1;
+  border-color: #1cb0f6;
 }
 
 .mobile-experience-stay {
@@ -147,7 +126,7 @@
 .mobile-experience-stay:hover,
 .mobile-experience-stay:focus-visible {
   border-color: #1cb0f6;
-  color: #1899d6;
+  color: var(--text-brand);
 }
 
 @keyframes mobile-experience-fade-in {
@@ -191,10 +170,6 @@
 @keyframes mobile-experience-sheet-enter {
   from { opacity: 0; transform: translateY(18px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes mobile-experience-fill {
-  to { transform: scaleX(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {

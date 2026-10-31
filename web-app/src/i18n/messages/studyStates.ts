@@ -3,6 +3,11 @@ import type { UiLocale } from '@duolinting/domain'
 // StudyStates.tsx 学习状态（加载/空态/错误）的文案。key 统一使用 `study.` 前缀。
 export const studyStatesMessages: Record<UiLocale, Record<string, string>> = {
   'zh-CN': {
+    "study.retry": "重试",
+    "study.retrying": "正在重试…",
+    "study.chapterError.title": "暂时无法加载章节列表",
+    "study.chaptersLoading": "正在加载章节列表…",
+
     'study.empty.aria': '等待课程资源',
     'study.empty.eyebrow': '暂无课程',
     'study.empty.title': '还没有可学习的内容',
@@ -26,6 +31,11 @@ export const studyStatesMessages: Record<UiLocale, Record<string, string>> = {
     'study.credits.secondReviewer': '审核 · {{name}}',
   },
   'en-US': {
+    "study.retry": "Retry",
+    "study.retrying": "Retrying…",
+    "study.chapterError.title": "Unable to load chapters",
+    "study.chaptersLoading": "Loading chapters…",
+
     'study.empty.aria': 'Waiting for course resources',
     'study.empty.eyebrow': 'No courses yet',
     'study.empty.title': 'Nothing to learn yet',
@@ -49,6 +59,11 @@ export const studyStatesMessages: Record<UiLocale, Record<string, string>> = {
     'study.credits.secondReviewer': 'Review · {{name}}',
   },
   'th-TH': {
+    "study.retry": "ลองอีกครั้ง",
+    "study.retrying": "กำลังลองอีกครั้ง…",
+    "study.chapterError.title": "โหลดรายการบทไม่สำเร็จ",
+    "study.chaptersLoading": "กำลังโหลดรายการบท…",
+
     'study.empty.aria': 'กำลังรอทรัพยากรคอร์ส',
     'study.empty.eyebrow': 'ยังไม่มีคอร์ส',
     'study.empty.title': 'ยังไม่มีเนื้อหาให้เรียน',
@@ -72,6 +87,11 @@ export const studyStatesMessages: Record<UiLocale, Record<string, string>> = {
     'study.credits.secondReviewer': 'ตรวจสอบ · {{name}}',
   },
   'ja-JP': {
+    "study.retry": "再試行",
+    "study.retrying": "再試行中…",
+    "study.chapterError.title": "チャプター一覧を読み込めませんでした",
+    "study.chaptersLoading": "チャプター一覧を読み込み中…",
+
     'study.empty.aria': 'コースリソースを待っています',
     'study.empty.eyebrow': 'コースがありません',
     'study.empty.title': 'まだ学習できるコンテンツがありません',
@@ -95,6 +115,11 @@ export const studyStatesMessages: Record<UiLocale, Record<string, string>> = {
     'study.credits.secondReviewer': 'レビュー · {{name}}',
   },
   "fr-FR": {
+    "study.retry": "Réessayer",
+    "study.retrying": "Nouvelle tentative…",
+    "study.chapterError.title": "Impossible de charger les chapitres",
+    "study.chaptersLoading": "Chargement des chapitres…",
+
     "study.empty.aria": "En attente des ressources du cours",
     "study.empty.eyebrow": "Aucun cours pour le moment",
     "study.empty.title": "Aucun contenu à étudier pour le moment",
@@ -118,6 +143,11 @@ export const studyStatesMessages: Record<UiLocale, Record<string, string>> = {
     "study.credits.secondReviewer": "Révision · {{name}}"
 },
   "es-ES": {
+    "study.retry": "Reintentar",
+    "study.retrying": "Reintentando…",
+    "study.chapterError.title": "No se pudieron cargar los capítulos",
+    "study.chaptersLoading": "Cargando capítulos…",
+
     "study.empty.aria": "Esperando los recursos del curso",
     "study.empty.eyebrow": "Todavía no hay cursos",
     "study.empty.title": "Todavía no hay contenido para aprender",

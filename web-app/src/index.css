@@ -1,4 +1,12 @@
 :root {
+  /* Bright blue/green remain brand surfaces. These foregrounds provide
+     readable text on both white cards and the existing bright backgrounds. */
+  --text-on-brand: #172033;
+  --text-brand: #086b99;
+  --text-success: #2f7608;
+  --text-warning: #8a4b00;
+  --text-danger: #b42332;
+  --text-muted: #5b6b7f;
   color: #1c2638;
   background: #f5f7fb;
   font-family:

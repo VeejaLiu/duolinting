@@ -159,7 +159,7 @@
 }
 
 .series-trigger svg:last-child {
-  color: #1cb0f6;
+  color: var(--text-brand);
   flex-shrink: 0;
   transition: transform 0.1s ease;
 }
@@ -212,7 +212,7 @@
 }
 
 .series-summary-kicker {
-  color: #58a700;
+  color: var(--text-success);
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.03em;
@@ -285,7 +285,7 @@
 }
 
 .series-dialog-head p {
-  color: #58a700;
+  color: var(--text-success);
   font-size: 13px;
   font-weight: 900;
 }
@@ -415,7 +415,7 @@
 }
 
 .series-option-copy span {
-  color: #58a700;
+  color: var(--text-success);
   font-size: 12px;
   font-weight: 900;
 }
@@ -431,7 +431,7 @@
   box-shadow:
     0 4px 0 #cfe2f1,
     inset 0 0 0 2px #ffffff;
-  color: #1cb0f6;
+  color: var(--text-brand);
   display: inline-flex;
   flex: 0 0 auto;
   font-size: 12px;
@@ -457,7 +457,7 @@
   box-shadow:
     0 4px 0 #46a302,
     inset 0 0 0 3px rgba(255, 255, 255, 0.28);
-  color: #ffffff;
+  color: var(--text-on-brand);
 }
 
 .series-option em {
@@ -492,7 +492,7 @@
   background: #58cc02;
   border-radius: 12px;
   box-shadow: 0 2px 0 #46a302;
-  color: #ffffff;
+  color: var(--text-on-brand);
   display: inline-flex;
   font-size: 12px;
   font-weight: 900;
@@ -507,7 +507,7 @@
 
 .chapter-progress-ring {
   align-items: center;
-  color: #58cc02;
+  color: var(--text-success);
   display: inline-flex;
   flex: 0 0 auto;
   font-size: 10px;
@@ -549,7 +549,7 @@
 }
 
 .chapter-progress-ring.complete {
-  color: #ffffff;
+  color: var(--text-on-brand);
 }
 
 .chapter-progress-ring.complete::before {
