@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useEffect, type PropsWithChildren } from 'react'
+import { Fragment, useEffect, type PropsWithChildren } from 'react'
 import { Platform } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -19,6 +19,10 @@ const legacyQueryKeys = [
   'duolinting.mobile.query-cache.v3',
 ]
 
+// Router supplies the web safe-area context. SDK 58 uses CSS insets on web;
+// a second measuring provider can interrupt streamed-content hydration.
+const SafeAreaContainer = Platform.OS === 'web' ? Fragment : SafeAreaProvider
+
 export function AppProviders({ children }: PropsWithChildren) {
   useEffect(() => {
     // v3 persisted successful private queries, including token-bearing keys.
@@ -31,7 +35,7 @@ export function AppProviders({ children }: PropsWithChildren) {
   }, [])
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
+      <SafeAreaContainer>
         <QueryClientProvider client={queryClient}>
           <LanguageProvider>
             <ToastProvider>
@@ -40,7 +44,7 @@ export function AppProviders({ children }: PropsWithChildren) {
             </ToastProvider>
           </LanguageProvider>
         </QueryClientProvider>
-      </SafeAreaProvider>
+      </SafeAreaContainer>
     </GestureHandlerRootView>
   )
 }

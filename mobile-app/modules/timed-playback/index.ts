@@ -1,4 +1,4 @@
-import { requireOptionalNativeModule } from 'expo-modules-core'
+import { requireOptionalNativeModule } from 'expo'
 export type NativePlaybackSnapshot = { positionUs: number; durationUs: number; playing: boolean; buffering: boolean; ended: boolean }
 export type TimedPlaybackModule = {
   configure(player: unknown, id: string, startSeconds: number, endSeconds: number | null): Promise<NativePlaybackSnapshot>

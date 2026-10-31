@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useSafeAreaPadding } from '@/hooks/useSafeAreaPadding'
 import {
   createContext,
   useCallback,
@@ -49,7 +49,7 @@ const toneStyles = {
 
 export function ToastProvider({ children }: PropsWithChildren) {
   const { t } = useLanguage()
-  const insets = useSafeAreaInsets()
+  const safeAreaPadding = useSafeAreaPadding({ top: 10 })
   const [toast, setToast] = useState<ActiveToast | null>(null)
   const translateY = useRef(new Animated.Value(-24)).current
   const opacity = useRef(new Animated.Value(0)).current
@@ -103,7 +103,7 @@ export function ToastProvider({ children }: PropsWithChildren) {
     <ToastContext.Provider value={{ dismissToast, showToast }}>
       {children}
       {toast ? (
-        <View pointerEvents="box-none" style={[styles.viewport, { paddingTop: insets.top + 10 }]}>
+        <View pointerEvents="box-none" style={[styles.viewport, safeAreaPadding]}>
           <Animated.View
             accessibilityLiveRegion="polite"
             style={[

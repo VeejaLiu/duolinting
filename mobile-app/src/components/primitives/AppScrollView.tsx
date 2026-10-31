@@ -1,5 +1,5 @@
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view'
-import type { ScrollViewProps } from 'react-native'
+import type { ComponentProps } from 'react'
 import { cssInterop } from 'nativewind'
 
 // 第三方滚动组件默认不识别 NativeWind 的 className；在统一封装处注册，
@@ -9,7 +9,9 @@ const KeyboardAwareAppScrollView = cssInterop(KeyboardAwareScrollView, {
   contentContainerClassName: 'contentContainerStyle',
 })
 
-type AppScrollViewProps = ScrollViewProps & {
+// Use the wrapped component's keyboard-event contract. RN 0.88 now declares
+// these events on ScrollViewProps with a different signature than this library.
+type AppScrollViewProps = ComponentProps<typeof KeyboardAwareScrollView> & {
   className?: string
   contentContainerClassName?: string
   /** 键盘与焦点输入框之间的最小可视间距，单位为逻辑像素。 */

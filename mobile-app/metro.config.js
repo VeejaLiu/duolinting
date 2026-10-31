@@ -4,24 +4,20 @@ const { withNativeWind } = require('nativewind/metro')
 
 const config = getDefaultConfig(__dirname)
 const appNodeModules = path.join(__dirname, 'node_modules')
+// Expo owns expo-modules-core; it can be nested under Expo rather than exposed
+// as an app dependency. Use that dependency scope as a fallback for its runtime.
+const sdkResolutionPaths = [
+  appNodeModules,
+  path.dirname(require.resolve('expo/package.json', { paths: [appNodeModules] })),
+]
 
-// The workspace root also has newer React Native dependencies for other apps.
-// Resolve the mobile SDK's singleton runtime packages from this app first; mixing
-// React Native 0.85 source with SDK 54's codegen breaks native event transforms.
+// npm may hoist a package to the workspace root or keep it app-local. Resolve
+// singleton runtimes from the mobile app in both cases so shared dependencies
+// cannot mix a different React/React Native runtime into this SDK's bundle.
 config.resolver.nodeModulesPaths = [
   appNodeModules,
   path.resolve(__dirname, '../node_modules'),
 ]
-config.resolver.extraNodeModules = {
-  expo: path.join(appNodeModules, 'expo'),
-  'expo-modules-core': path.join(appNodeModules, 'expo-modules-core'),
-  react: path.join(appNodeModules, 'react'),
-  'react-dom': path.join(appNodeModules, 'react-dom'),
-  'react-native': path.join(appNodeModules, 'react-native'),
-  'react-native-reanimated': path.join(appNodeModules, 'react-native-reanimated'),
-  'react-native-worklets': path.join(appNodeModules, 'react-native-worklets'),
-}
-
 const sdkRuntimePrefixes = [
   'expo',
   'expo-modules-core',
@@ -31,20 +27,35 @@ const sdkRuntimePrefixes = [
   'react-native-reanimated',
   'react-native-worklets',
 ]
+config.resolver.extraNodeModules = Object.fromEntries(
+  sdkRuntimePrefixes.map((packageName) => [
+    packageName,
+    path.dirname(require.resolve(`${packageName}/package.json`, { paths: sdkResolutionPaths })),
+  ]),
+)
 const defaultResolveRequest = config.resolver.resolveRequest
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  const isSdkRuntimeModule = sdkRuntimePrefixes.some(
+  const runtimePackage = sdkRuntimePrefixes.find(
     (packageName) => moduleName === packageName || moduleName.startsWith(`${packageName}/`),
   )
 
-  if (isSdkRuntimeModule) {
-    // Resolve subpaths such as react-native/src/... against SDK 54 as well.
-    // extraNodeModules alone does not cover every deep import from hoisted packages.
-    return {
-      type: 'sourceFile',
-      filePath: require.resolve(moduleName, { paths: [appNodeModules] }),
+  if (runtimePackage) {
+    // Pin the package search scope, then let Metro resolve the original request.
+    // Returning Node's resolved filename would bypass .native/.web selection,
+    // conditional exports, and Expo's react-native -> react-native-web alias.
+    const sdkContext = {
+      ...context,
+      originModulePath: path.join(__dirname, 'package.json'),
+      disableHierarchicalLookup: true,
+      nodeModulesPaths: [
+        path.dirname(config.resolver.extraNodeModules[runtimePackage]),
+        ...config.resolver.nodeModulesPaths,
+      ],
     }
+    return defaultResolveRequest
+      ? defaultResolveRequest(sdkContext, moduleName, platform)
+      : context.resolveRequest(sdkContext, moduleName, platform)
   }
 
   return defaultResolveRequest

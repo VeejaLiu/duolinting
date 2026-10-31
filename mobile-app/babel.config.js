@@ -1,5 +1,3 @@
-const { expoRouterBabelPlugin } = require('babel-preset-expo/build/expo-router-plugin')
-
 module.exports = function (api) {
   api.cache(true)
   return {
@@ -8,11 +6,15 @@ module.exports = function (api) {
         'babel-preset-expo',
         {
           jsxImportSource: 'nativewind',
-          // Zustand's development tooling reads import.meta.env. SDK 54's
+          // Zustand's development tooling reads import.meta.env. Hermes's
           // Hermes transform requires this opt-in to compile it for native/web.
-          unstable_transformImportMeta: true,
+          transformImportMeta: true,
+          // NativeWind's preset owns the single Worklets transform below.
+          worklets: false,
+          reanimated: false,
         },
       ],
+      'nativewind/babel',
     ],
     plugins: [
       [
@@ -25,11 +27,8 @@ module.exports = function (api) {
           extensions: ['.ts', '.tsx', '.js', '.json'],
         },
       ],
-      // npm hoists babel-preset-expo to the monorepo root, where automatic
-      // Expo Router discovery cannot see mobile-app/node_modules. Enable the
-      // SDK 54 Router transform explicitly so EXPO_ROUTER_APP_ROOT is inlined.
-      expoRouterBabelPlugin,
-      'react-native-reanimated/plugin',
+      // SDK 58's preset supplies Router; NativeWind supplies interop and Worklets.
+      // Avoid private preset imports and duplicate legacy Reanimated plugins.
     ],
   }
 }

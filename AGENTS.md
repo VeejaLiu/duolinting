@@ -19,10 +19,10 @@ applications, one independent official-site application, and five shared package
   stack as web-app plus wavesurfer.js, port 8102 in dev. Ant Design is the
   workspace UI framework (with Radix Select/Dialog inside the course-production
   workbench). Keep it professional and operational, not playful.
-- `mobile-app` (`@duolinting/mobile-app`): Expo (~54) app using expo-router,
+- `mobile-app` (`@duolinting/mobile-app`): Expo (~58) app using expo-router,
   nativewind (Tailwind), @tanstack/react-query, and zustand. Routes live in
   `mobile-app/app/`; feature code in `mobile-app/src/`. Its own `AGENTS.md`
-  says: read the versioned Expo docs at https://docs.expo.dev/versions/v54.0.0/
+  says: read the versioned Expo docs at https://docs.expo.dev/versions/v58.0.0/
   before writing any code — Expo APIs have changed.
 - `official-site` (`duolinting-official-site`): independent vinext product
   website, kept in this repository but outside npm workspaces. It runs on Node

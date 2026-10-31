@@ -11,7 +11,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useSafeAreaPadding } from '@/hooks/useSafeAreaPadding'
 import { useLanguage } from '@/i18n/LanguageProvider'
 
 /**
@@ -46,7 +46,7 @@ export function BottomSheet({
   onClose: () => void
   scrollable?: boolean
 }>) {
-  const insets = useSafeAreaInsets()
+  const safeAreaPadding = useSafeAreaPadding({ bottom: 16 })
   const { t } = useLanguage()
   const { height: windowHeight } = useWindowDimensions()
   const backdropOpacity = useRef(new Animated.Value(0)).current
@@ -100,7 +100,7 @@ export function BottomSheet({
           {/* 样式层：贴底、顶部大圆角、白底，底部 padding 避开 home 指示条 */}
           <View
             className="rounded-t-[26px] bg-white"
-            style={{ paddingBottom: insets.bottom + 16, maxHeight: windowHeight * 0.78 }}
+            style={[safeAreaPadding, { maxHeight: windowHeight * 0.78 }]}
           >
             {/* 头部：左 X 关闭 + 居中标题；右侧放一个同宽占位块保证标题真正居中 */}
             <View className="flex-row items-center px-4 pb-1 pt-4">

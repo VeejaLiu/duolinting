@@ -2,12 +2,12 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "types": ["node", "react"],
     "moduleSuffixes": [
       ".ios",
       ".native",
       ""
     ],
-    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"

@@ -35,7 +35,10 @@ ARG VITE_API_BASE_URL=""
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ARG VITE_MOBILE_APP_URL=""
 ENV VITE_MOBILE_APP_URL=$VITE_MOBILE_APP_URL
-RUN npm run build --workspace @duolinting/web-app
+# Keep direct Docker builds protected when the deployment preflight is bypassed.
+# This build-time URL is embedded in the bundle and must survive trimming.
+RUN node -e "if (!process.env.VITE_MOBILE_APP_URL?.trim()) { console.error('Cannot build web-app: MOBILE_APP_URL (VITE_MOBILE_APP_URL build arg) is required.'); process.exit(1); }" \
+    && npm run build --workspace @duolinting/web-app
 
 FROM nginx:1.27-alpine
 COPY web-app/nginx.conf /etc/nginx/conf.d/default.conf

@@ -12,7 +12,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useSafeAreaPadding } from '@/hooks/useSafeAreaPadding'
 import { useLanguage } from '@/i18n/LanguageProvider'
 
 export function SentenceDrawer({
@@ -35,7 +35,7 @@ export function SentenceDrawer({
   // lines 沿用当前阶段的顺序（精听全部句子、复习全部难点句），
   // 掌握状态始终按 line.id 从课程进度读取，避免复习子集的序号错配状态。
   const { t } = useLanguage()
-  const insets = useSafeAreaInsets()
+  const safeAreaPadding = useSafeAreaPadding({ top: 0, bottom: 0, left: 0 })
   const { width, fontScale } = useWindowDimensions()
   const drawerWidth = Math.min(width * 0.88, 420)
   const animationProgress = useRef(new Animated.Value(0)).current
@@ -107,7 +107,7 @@ export function SentenceDrawer({
             accessibilityViewIsModal
             className="flex-1 rounded-r-[26px] bg-[#f7fbff]"
             onAccessibilityEscape={onClose}
-            style={{ paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left }}
+            style={safeAreaPadding}
           >
             <View className="flex-row items-center gap-2 px-4 pb-2 pt-3">
               <FontAwesome6 color="#1cb0f6" name="list-ul" size={18} />

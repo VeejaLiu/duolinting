@@ -6,7 +6,8 @@ Pod::Spec.new do |s|
   s.license = 'Apache-2.0'
   s.author = 'DuolinTing'
   s.homepage = 'https://expo.dev'
-  s.platforms = { :ios => '15.1', :tvos => '15.1' }
+  # Match SDK 58's ExpoModulesCore minimum so Swift can import its native API.
+  s.platforms = { :ios => '16.4', :tvos => '16.4' }
   s.source = { :path => '.' }
   s.static_framework = true
   s.swift_version = '5.9'

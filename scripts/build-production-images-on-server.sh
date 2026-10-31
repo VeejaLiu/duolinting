@@ -25,6 +25,8 @@ Run deploy:sync-sources -- release first. This command verifies that the
 server has the same committed source revision, then builds only the named
 application images on the server with --pull=false. It never migrates the
 database or switches containers.
+
+When web-app is selected, MOBILE_APP_URL in the server .env must be non-empty.
 EOF
 }
 
@@ -121,6 +123,20 @@ ssh "$DEPLOY_HOST" "set -euo pipefail
 cd $remote_dir_quoted
 test -f .duolinting-release-revision
 test \"\$(cat .duolinting-release-revision)\" = '$release_revision'
+
+# Validate only selected services, using Compose's effective build arguments so
+# .env quoting and interpolation match the actual build. An empty mobile URL
+# disables the frontend redirect, so reject it before preparing the builder.
+if [[ ' ${services[*]} ' == *' web-app '* ]]; then
+  sudo env RELEASE_REVISION='$release_revision' docker compose -p duolinting -f docker-compose.prod.yml --env-file .env config --format json | \\
+    python3 -c 'import json, sys
+args = json.load(sys.stdin)[\"services\"][\"web-app\"][\"build\"][\"args\"]
+mobile_url = args.get(\"VITE_MOBILE_APP_URL\")
+if not isinstance(mobile_url, str) or not mobile_url.strip():
+    sys.exit(\"Cannot build web-app: MOBILE_APP_URL is missing or empty in the server .env.\")
+print(\"web-app build configuration check passed.\")'
+fi
+
 free_kib=\$(df -Pk / | awk 'NR == 2 { print \$4 }')
 required_kib=\$(( $min_free_gib * 1024 * 1024 ))
 if (( free_kib < required_kib )); then
