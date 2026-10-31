@@ -12,9 +12,16 @@ COPY packages/app-config/package.json packages/app-config/package.json
 COPY packages/ui-tokens/package.json packages/ui-tokens/package.json
 COPY packages/api-client/package.json packages/api-client/package.json
 COPY packages/shared/package.json packages/shared/package.json
-# Keep npm heap and download concurrency below the production builder memory limit.
+# Install only Admin, its shared packages and the root build tools. Installing
+# every product also unpacks unrelated mobile/backend dependencies and can exceed
+# the production builder memory limit before the Admin build even starts.
 RUN --mount=type=cache,id=duolinting-npm,target=/root/.npm,sharing=locked \
-    NODE_OPTIONS=--max-old-space-size=384 npm_config_maxsockets=4 npm ci --workspaces --include-workspace-root --no-audit --no-fund
+    NODE_OPTIONS=--max-old-space-size=384 npm_config_maxsockets=4 npm ci \
+    --workspace @duolinting/admin --workspace @duolinting/analytics \
+    --workspace @duolinting/playback --workspace @duolinting/domain \
+    --workspace @duolinting/app-config --workspace @duolinting/ui-tokens \
+    --workspace @duolinting/api-client --workspace @duolinting/shared \
+    --include-workspace-root --no-audit --no-fund
 COPY packages/analytics packages/analytics
 COPY packages/playback packages/playback
 COPY packages/domain packages/domain
