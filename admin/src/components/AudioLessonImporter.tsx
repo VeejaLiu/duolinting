@@ -490,7 +490,7 @@ export function AudioLessonImporter({
       })),
     [categories, categoryGroups],
   )
-  const saveDisabledReason = useMemo(() => {
+  const persistentSaveDisabledReason = useMemo(() => {
     if (isSubmittedSubtitleDraft) {
       return '该字幕稿已提交审核，等待审核结果后才能继续修改或重新提交'
     }
@@ -499,9 +499,6 @@ export function AudioLessonImporter({
     }
     if (isUploadingMedia) {
       return '媒体上传中，请稍候'
-    }
-    if (isDraggingTiming) {
-      return '请松开鼠标完成字幕拖动后再保存'
     }
     if (!mediaFile && !courseForm.audioUrl) {
       return '请先选择音频或视频文件'
@@ -518,11 +515,15 @@ export function AudioLessonImporter({
     courseForm.categoryId,
     courseForm.title,
     isUploadingMedia,
-    isDraggingTiming,
     isSubmittedSubtitleDraft,
     isApprovedSubtitleDraft,
     mediaFile,
   ])
+  // A drag must still block saving, but must not add/remove guidance in the
+  // header: that would resize the player while the pointer is moving.
+  const saveDisabledReason = persistentSaveDisabledReason || (
+    isDraggingTiming ? '请松开鼠标完成字幕拖动后再保存' : ''
+  )
 
   const updateLine = (index: number, patch: Partial<DraftLine>, lineId?: string) => {
     const targetId = lineId ?? draftLines[index]?.id
@@ -1091,6 +1092,7 @@ export function AudioLessonImporter({
           isSubtitleContributor={adminRole === 'subtitle_contributor'}
           proofreadingStatus={ownSubtitleDraft?.status}
           saveDisabledReason={saveDisabledReason}
+          saveFeedbackReason={persistentSaveDisabledReason}
           localMediaUrl={localMediaUrl}
           mediaSize={mediaSize}
           mediaFile={mediaFile}

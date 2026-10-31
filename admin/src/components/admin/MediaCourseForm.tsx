@@ -75,6 +75,8 @@ type MediaCourseFormProps = {
   isSubtitleContributor?: boolean
   proofreadingStatus?: string
   saveDisabledReason?: string
+  /** Persistent validation only; transient drag/save states never add a row. */
+  saveFeedbackReason: string
   localMediaUrl: string
   mediaSize: number | null
   mediaFile: File | null
@@ -148,6 +150,7 @@ export function MediaCourseForm({
   isSubtitleContributor = false,
   proofreadingStatus,
   saveDisabledReason,
+  saveFeedbackReason,
   localMediaUrl,
   mediaSize,
   mediaFile,
@@ -169,9 +172,9 @@ export function MediaCourseForm({
 }: MediaCourseFormProps) {
   const { t, uiLocale } = useAdminLanguage()
   const saveFeedbackId = useId()
-  const saveFeedback = isSaving
-    ? t('正在保存，请稍候。完成前请保留此页面。')
-    : saveDisabledReason ? t(saveDisabledReason) : ''
+  // Dragging only disables actions; saving already has a spinner in the button.
+  // Keep this guidance stable so neither operation shifts the player/timeline.
+  const saveFeedback = saveFeedbackReason ? t(saveFeedbackReason) : ''
   const [localizationLocale, setLocalizationLocale] = useState<ContentLocale>('zh-CN')
   const [previewTime, setPreviewTime] = useState(0)
   const [isCourseMetaOpen, setIsCourseMetaOpen] = useState(false)
@@ -725,10 +728,8 @@ export function MediaCourseForm({
       </Drawer>
 
       <div className="import-main">
-        {/* Keep the toolbar and its feedback in one header row: the workbench
-            reserves the flexible middle grid row for media and subtitles. */}
-        <div className="import-main-header">
-        {/* 顶部工具栏：课程标题、基础信息入口和保存按钮 */}
+        {/* Keep guidance in the existing toolbar, before its actions. Even an
+            empty message keeps this flex slot so state changes cannot add rows. */}
         <div className="import-main-toolbar">
           <div className="import-main-title-group">
             <strong className="import-main-title">
@@ -745,6 +746,16 @@ export function MediaCourseForm({
               {t('基础信息')}
             </Button>
           </div>
+          <p
+            aria-live="polite"
+            aria-atomic="true"
+            className="import-save-feedback"
+            id={saveFeedbackId}
+            role="status"
+            title={saveFeedback || undefined}
+          >
+            {saveFeedback}
+          </p>
           <div className="import-main-toolbar-actions">
             <button
               className="command-button secondary subtitle-import-trigger"
@@ -784,20 +795,6 @@ export function MediaCourseForm({
             )}
           </div>
         </div>
-        {/* Disabled buttons cannot reliably receive focus or expose their title.
-            Keep the actual validation reason visible and shared by both actions. */}
-        <p
-          aria-live="polite"
-          aria-atomic="true"
-          className="import-save-feedback"
-          hidden={!saveFeedback}
-          id={saveFeedbackId}
-          role="status"
-        >
-          {saveFeedback}
-        </p>
-        </div>
-
         <Modal
           title={t('确认提交校对？')}
           open={isSubmitConfirmationOpen}

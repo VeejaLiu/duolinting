@@ -20,7 +20,8 @@
 .import-main-toolbar-actions {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
   gap: 8px;
   justify-content: flex-end;
 }
@@ -37,7 +38,9 @@
 .import-main-title-group {
   align-items: center;
   display: flex;
+  flex: 0 1 auto;
   gap: 4px;
+  max-width: min(40%, 420px);
   min-width: 0;
 }
 
