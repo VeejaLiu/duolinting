@@ -20,10 +20,10 @@ export default function TermsPage() {
       <article className="site-shell legal-content">
         <p className="eyebrow"><span></span>使用条款</p>
         <h1>尊重内容权利，也尊重学习者。</h1>
-        <p className="legal-updated">最后更新：2026-09-28</p>
+        <p className="legal-updated">最后更新：2026-11-24</p>
 
         <h2>运营主体与联系方式</h2>
-        <p>DuolinTing（多邻听）是由 Veeja Liu 作为个人开发者维护的独立开源项目。关于本条款、服务使用或内容权利的问题，请发送邮件至 <a href="mailto:veejaliu@outlook.com">veejaliu@outlook.com</a>，或查看<a href="/support">支持页面</a>。</p>
+        <p>DuolinTing（多邻听）由菏泽樱桃软件科技有限公司运营。关于本条款、服务使用或内容权利的问题，请发送邮件至 <a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a>，或查看<a href="/support">支持页面</a>。</p>
 
         <h2>服务与账号</h2>
         <p>DuolinTing 提供真实音视频的听力练习、课程目录、学习进度同步和内容制作工具。你可以在支持的平台上通过邮箱、Apple 或 Google 创建或登录账号；请提供准确的信息，并妥善保护验证码、第三方登录方式及已设置的密码。账号仅供本人使用，不要与他人共享登录凭据。</p>
@@ -49,7 +49,7 @@ export default function TermsPage() {
         <p>如果你提交问题、建议或内容反馈，你同意维护者可以在提供和改进服务所需的范围内使用这些信息。反馈中请不要提交密码、支付信息或其他不必要的敏感信息。</p>
 
         <h2>条款变更与争议处理</h2>
-        <p>我们会在本页面更新条款的版本日期。条款变更后继续使用服务，即表示你有机会查看更新内容。有关服务的争议应先通过 <a href="mailto:veejaliu@outlook.com">veejaliu@outlook.com</a> 友好协商；协商不成时，提交有管辖权的法院处理，并以适用于该争议的强制性法律为准。</p>
+        <p>我们会在本页面更新条款的版本日期。条款变更后继续使用服务，即表示你有机会查看更新内容。有关服务的争议应先通过 <a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a> 友好协商；协商不成时，提交有管辖权的法院处理，并以适用于该争议的强制性法律为准。</p>
 
         <p className="legal-links"><Link href="/privacy">隐私政策</Link> · <Link href="/support">支持页面</Link> · <Link href="/">返回首页</Link></p>
       </article>

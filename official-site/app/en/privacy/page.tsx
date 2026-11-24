@@ -20,13 +20,13 @@ export default function EnglishPrivacyPage() {
       <article className="site-shell legal-content">
         <p className="eyebrow"><span></span>Privacy policy</p>
         <h1>We process only the data needed to provide DuolinTing.</h1>
-        <p className="legal-updated">Last updated: September 28, 2026</p>
+        <p className="legal-updated">Last updated: November 24, 2026</p>
 
         <h2>First-party product analytics</h2>
         <p>Random browser or installation identifiers measure page and course visits, sanitized campaign sources, country-level network regions, effective playback intervals, practice action types and media quality. Analytics exclude dictation and note text, full referring URLs, raw IP addresses and hardware identifiers. Network region does not establish nationality or residence. Product analytics run in the background by default, without an analytics authorization prompt or collection toggle. Registration network region and essential security logs are handled separately.</p>
         <p>Raw analytics events are retained for 90 days; analytics sessions and user-day facts for up to 13 months. Account deletion removes associated analytics events, sessions, profiles and daily facts. Reports are restricted to authorized administrators.</p>
         <h2>Operator and contact</h2>
-        <p>DuolinTing is an independent open-source project maintained by Veeja Liu as an individual developer. For privacy questions, data requests, or account issues, contact <a href="mailto:veejaliu@outlook.com">veejaliu@outlook.com</a> or visit the <a href="/en/support">support page</a> for other contact options.</p>
+        <p>DuolinTing is operated by Heze Yingtao Software Technology Co., Ltd. For privacy questions, data requests, or account issues, contact <a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a> or visit the <a href="/en/support">support page</a> for other contact options.</p>
 
         <h2>Data we process</h2>
         <ul className="legal-list">
@@ -57,7 +57,7 @@ export default function EnglishPrivacyPage() {
         <p>If you cannot sign in, contact us through the <a href="/en/support">support page</a> to request deletion. Do not send your password by email; we may ask you to confirm the account email and other information needed to verify the request.</p>
 
         <h2>Your choices</h2>
-        <p>You may ask to access, correct, or delete data associated with your account, or ask questions about our privacy practices. Contact <a href="mailto:veejaliu@outlook.com">veejaliu@outlook.com</a>; we will process the request after verification.</p>
+        <p>You may ask to access, correct, or delete data associated with your account, or ask questions about our privacy practices. Contact <a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a>; we will process the request after verification.</p>
 
         <h2>Policy changes</h2>
         <p>If the way we process data changes materially, we will update the date and explanation on this page. Continued use of the service means you have had an opportunity to review the updated policy.</p>

@@ -20,10 +20,10 @@ export default function EnglishTermsPage() {
       <article className="site-shell legal-content">
         <p className="eyebrow"><span></span>Terms of use</p>
         <h1>Respect content rights, and respect learners.</h1>
-        <p className="legal-updated">Last updated: September 28, 2026</p>
+        <p className="legal-updated">Last updated: November 24, 2026</p>
 
         <h2>Operator and contact</h2>
-        <p>DuolinTing is an independent open-source project maintained by Veeja Liu as an individual developer. For questions about these terms, service use, or content rights, email <a href="mailto:veejaliu@outlook.com">veejaliu@outlook.com</a> or visit the <a href="/en/support">support page</a>.</p>
+        <p>DuolinTing is operated by Heze Yingtao Software Technology Co., Ltd. For questions about these terms, service use, or content rights, email <a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a> or visit the <a href="/en/support">support page</a>.</p>
 
         <h2>Service and accounts</h2>
         <p>DuolinTing provides listening practice with real audio and video, course discovery, learning-progress synchronization, and content-creation tools. You may create or access an account with email, Apple, or Google on supported platforms. Provide accurate information, protect verification codes, provider sign-in methods, and any password you set, and do not share your sign-in credentials.</p>
@@ -49,7 +49,7 @@ export default function EnglishTermsPage() {
         <p>If you send questions, suggestions, or content feedback, you allow maintainers to use that information as needed to provide and improve the service. Do not include passwords, payment details, or other unnecessary sensitive information.</p>
 
         <h2>Changes and disputes</h2>
-        <p>We will update the date on this page when these terms change. Continuing to use the service after an update means you have had an opportunity to review it. Service-related disputes should first be discussed through <a href="mailto:veejaliu@outlook.com">veejaliu@outlook.com</a>. If they cannot be resolved, they may be submitted to a court with jurisdiction, subject to any mandatory applicable law.</p>
+        <p>We will update the date on this page when these terms change. Continuing to use the service after an update means you have had an opportunity to review it. Service-related disputes should first be discussed through <a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a>. If they cannot be resolved, they may be submitted to a court with jurisdiction, subject to any mandatory applicable law.</p>
 
         <p className="legal-links"><Link href="/en/privacy">Privacy policy</Link> · <Link href="/en/support">Support</Link> · <Link href="/en">Back to home</Link></p>
       </article>

@@ -20,10 +20,10 @@ export default function PrivacyPage() {
       <article className="site-shell legal-content">
         <p className="eyebrow"><span></span>隐私政策</p>
         <h1>我们只处理提供多邻听所需的数据。</h1>
-        <p className="legal-updated">最后更新：2026-09-28</p>
+        <p className="legal-updated">最后更新：2026-11-24</p>
 
         <h2>运营主体与联系方式</h2>
-        <p>DuolinTing（多邻听）是由 Veeja Liu 作为个人开发者维护的独立开源项目。隐私问题、数据请求和账号问题可以通过 <a href="mailto:veejaliu@outlook.com">veejaliu@outlook.com</a> 联系维护者，也可以查看<a href="/support">支持页面</a>中的其他联系方式。</p>
+        <p>DuolinTing（多邻听）由菏泽樱桃软件科技有限公司运营。隐私问题、数据请求和账号问题可以通过 <a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a> 联系维护者，也可以查看<a href="/support">支持页面</a>中的其他联系方式。</p>
 
         <h2>我们处理哪些数据</h2>
         <ul className="legal-list">
@@ -57,7 +57,7 @@ export default function PrivacyPage() {
         <p>如果无法登录，可以从<a href="/support">支持页面</a>联系维护者申请数据删除。请不要在邮件中发送密码；为了核验请求，维护者可能需要确认账号邮箱和其他必要信息。</p>
 
         <h2>你的权利</h2>
-        <p>你可以请求了解、修改或删除与你的账号相关的数据，也可以就隐私处理提出疑问。请通过 <a href="mailto:veejaliu@outlook.com">veejaliu@outlook.com</a> 联系我们；我们会在核验请求后处理。</p>
+        <p>你可以请求了解、修改或删除与你的账号相关的数据，也可以就隐私处理提出疑问。请通过 <a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a> 联系我们；我们会在核验请求后处理。</p>
 
         <h2>政策更新</h2>
         <p>如果产品的数据处理方式发生重大变化，我们会在本页面更新版本日期和相关说明。继续使用服务表示你已看到更新后的政策。</p>

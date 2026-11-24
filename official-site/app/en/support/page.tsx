@@ -20,14 +20,14 @@ export default function EnglishSupportPage() {
       <article className="site-shell legal-content">
         <p className="eyebrow"><span></span>Support and contact</p>
         <h1>Need help? Contact us directly.</h1>
-        <p className="legal-updated">Last updated: August 29, 2026</p>
+        <p className="legal-updated">Last updated: November 24, 2026</p>
 
         <h2>Operator</h2>
-        <p>DuolinTing is an independent open-source project maintained by Veeja Liu as an individual developer.</p>
+        <p>DuolinTing is operated by Heze Yingtao Software Technology Co., Ltd.</p>
 
         <h2>Contact options</h2>
         <ul className="legal-list">
-          <li><strong>Email:</strong> <a href="mailto:veejaliu@outlook.com">veejaliu@outlook.com</a> (installation, sign-in, sync, account deletion, privacy, and feature feedback)</li>
+          <li><strong>Email:</strong> <a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a> (installation, sign-in, sync, account deletion, privacy, and feature feedback)</li>
           <li><strong>Phone / WeChat:</strong> <a href="tel:+8615352290342">+86 153 5229 0342</a> (same number on WeChat)</li>
           <li><strong>QQ:</strong> <span className="contact-value">1209898373</span></li>
           <li><strong>Discord:</strong> <a href="https://discord.com/users/924180303487066182" target="_blank" rel="noreferrer">DuolinTing maintainer</a></li>

@@ -20,14 +20,14 @@ export default function SupportPage() {
       <article className="site-shell legal-content">
         <p className="eyebrow"><span></span>支持与联系</p>
         <h1>遇到问题，直接联系我们。</h1>
-        <p className="legal-updated">最后更新：2026-08-29</p>
+        <p className="legal-updated">最后更新：2026-11-24</p>
 
         <h2>运营主体</h2>
-        <p>DuolinTing（多邻听）是由 Veeja Liu 作为个人开发者维护的独立开源项目。</p>
+        <p>DuolinTing（多邻听）由菏泽樱桃软件科技有限公司运营。</p>
 
         <h2>主要联系方式</h2>
         <ul className="legal-list">
-          <li><strong>电子邮箱：</strong><a href="mailto:veejaliu@outlook.com">veejaliu@outlook.com</a>（安装、登录、同步、账号删除、隐私和功能反馈）</li>
+          <li><strong>电子邮箱：</strong><a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a>（安装、登录、同步、账号删除、隐私和功能反馈）</li>
           <li><strong>电话 / 微信：</strong><a href="tel:+8615352290342">+86 153 5229 0342</a>（微信同号）</li>
           <li><strong>QQ：</strong><span className="contact-value">1209898373</span></li>
           <li><strong>Discord：</strong><a href="https://discord.com/users/924180303487066182" target="_blank" rel="noreferrer">DuolinTing maintainer</a></li>
