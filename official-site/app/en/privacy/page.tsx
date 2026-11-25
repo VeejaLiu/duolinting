@@ -26,7 +26,7 @@ export default function EnglishPrivacyPage() {
         <p>Random browser or installation identifiers measure page and course visits, sanitized campaign sources, country-level network regions, effective playback intervals, practice action types and media quality. Analytics exclude dictation and note text, full referring URLs, raw IP addresses and hardware identifiers. Network region does not establish nationality or residence. Product analytics run in the background by default, without an analytics authorization prompt or collection toggle. Registration network region and essential security logs are handled separately.</p>
         <p>Raw analytics events are retained for 90 days; analytics sessions and user-day facts for up to 13 months. Account deletion removes associated analytics events, sessions, profiles and daily facts. Reports are restricted to authorized administrators.</p>
         <h2>Operator and contact</h2>
-        <p>DuolinTing is operated by Heze Yingtao Software Technology Co., Ltd. For privacy questions, data requests, or account issues, contact <a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a> or visit the <a href="/en/support">support page</a> for other contact options.</p>
+        <p>DuolinTing is operated by Heze Cherry Software Technology Co., Ltd. For privacy questions, data requests, or account issues, contact <a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a> or visit the <a href="/en/support">support page</a> for other contact options.</p>
 
         <h2>Data we process</h2>
         <ul className="legal-list">

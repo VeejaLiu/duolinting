@@ -23,7 +23,7 @@ export default function EnglishSupportPage() {
         <p className="legal-updated">Last updated: November 24, 2026</p>
 
         <h2>Operator</h2>
-        <p>DuolinTing is operated by Heze Yingtao Software Technology Co., Ltd.</p>
+        <p>DuolinTing is operated by Heze Cherry Software Technology Co., Ltd.</p>
 
         <h2>Contact options</h2>
         <ul className="legal-list">

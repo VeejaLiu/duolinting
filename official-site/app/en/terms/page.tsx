@@ -23,7 +23,7 @@ export default function EnglishTermsPage() {
         <p className="legal-updated">Last updated: November 24, 2026</p>
 
         <h2>Operator and contact</h2>
-        <p>DuolinTing is operated by Heze Yingtao Software Technology Co., Ltd. For questions about these terms, service use, or content rights, email <a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a> or visit the <a href="/en/support">support page</a>.</p>
+        <p>DuolinTing is operated by Heze Cherry Software Technology Co., Ltd. For questions about these terms, service use, or content rights, email <a href="mailto:contact@hezeyingtao.com">contact@hezeyingtao.com</a> or visit the <a href="/en/support">support page</a>.</p>
 
         <h2>Service and accounts</h2>
         <p>DuolinTing provides listening practice with real audio and video, course discovery, learning-progress synchronization, and content-creation tools. You may create or access an account with email, Apple, or Google on supported platforms. Provide accurate information, protect verification codes, provider sign-in methods, and any password you set, and do not share your sign-in credentials.</p>
