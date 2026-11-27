@@ -1,6 +1,7 @@
 import { persistServerWaveform } from '../../lib/serverWaveformCache'
 import { validWaveform, type CachedWaveform } from '../../lib/waveformCache'
 import { resolveWaveformSource, waveformMediaIdentity } from '../../lib/waveformSource'
+import { bindWaveformWheelScroll } from '../../lib/waveformWheel'
 import type { CourseWaveform } from '@duolinting/shared'
 import {
   Button,
@@ -840,6 +841,8 @@ export function MediaWaveform({
       window.addEventListener('keydown', onDragKeyDown, true)
 
 	      const cleanups = [
+        // The real horizontal viewport lives inside WaveSurfer's Shadow DOM, above its public wrapper.
+        bindWaveformWheelScroll(waveformContainer, wavesurfer.getWrapper().parentElement),
 	        () => waveformContainer.removeEventListener('pointerdown', beginPointerGesture, true),
 	        () => document.removeEventListener('pointercancel', cancelRegionDrag, true),
 	        () => window.removeEventListener('blur', cancelRegionDrag),
